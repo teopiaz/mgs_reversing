@@ -83,6 +83,8 @@ def find_pcsx_redux(path):
 def kill_process(process):
     if platform.system() == 'Linux':
         process.terminate()
+    if platform.system() == 'Darwin':
+        process.terminate()
     else:
         # .terminate()/.kill() doesn't work on Windows...
         subprocess.call(["taskkill", "/F", "/T", "/PID", str(process.pid)], stdout=subprocess.DEVNULL)
@@ -105,7 +107,7 @@ def main():
     launch_args = [str(pcsx_redux_exe), "-iso", args.iso, "-exe", dev_exe, "-run"]
     print("Launching PCSX-Redux:", ' '.join(launch_args))
 
-    process = subprocess.Popen(launch_args)
+    process = subprocess.Popen(launch_args, shell=True)
     last_build_time = Path(build_success).lstat().st_mtime
 
     print("Waiting for a new build... [that will automatically reload PCSX-Redux]")

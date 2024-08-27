@@ -13,7 +13,7 @@ extern int     GM_GameStatus_800AB3CC;
 extern GV_PAD  GV_PadData_800B05C0[4];
 extern int     GM_PlayerStatus_800ABA50;
 
-extern HITTABLE stru_800BDD78[16];
+extern HITTABLE c4_actors[16];
 extern int GM_CurrentMap_800AB9B0;
 
 extern int GV_Time_800AB330;
@@ -25,7 +25,7 @@ extern SVECTOR GM_PlayerPosition_800ABA10;
 extern Blast_Data blast_data_8009F4B8[8];
 
 int bakudan_count_8009F42C = 0;
-int dword_8009F430 = 0;
+int time_last_press_8009F430 = 0;
 int dword_8009F434 = 0;
 SVECTOR svector_8009F438 = {3072, 0, 0, 0};
 
@@ -62,7 +62,7 @@ void bakudan_act_8006A218(BakudanWork *work)
     if (pMtx)
     {
         DG_RotatePos_8001BD64(&svector_8009F438);
-        pTarget = stru_800BDD78[work->field_114].data;
+        pTarget = c4_actors[work->idx_current_c4].data;
         work->field_118 = pTarget->map;
 
         if (!pTarget->field_20)
@@ -82,12 +82,15 @@ void bakudan_act_8006A218(BakudanWork *work)
     // of the condition below to a temporary variable!?
     cond = 0;
 #endif
-    if (((work->field_110_pPad->press & PAD_CIRCLE) &&
-        (dword_8009F430 != GV_Time_800AB330) &&
-        (GM_CurrentMap_800AB9B0 & GM_PlayerMap_800ABA0C) &&
-        !(GM_GameStatus_800AB3CC & STATE_PADRELEASE) &&
-        !(GM_PlayerStatus_800ABA50 & 0x20000000) &&
-        !(GM_ItemTypes_8009D598[GM_CurrentItemId + 1] & 2)) ||
+    // check if the circle button was pressed
+    // the frame counter is different from the last time the circle button was pressed
+    // the player is in the same map as the c4
+    // the player is not releasing the pad
+    // the player is not dead
+    // the player is not holding an item that can't be used with the c4
+    if (((work->field_110_pPad->press & PAD_CIRCLE) && (time_last_press_8009F430 != GV_Time_800AB330) &&
+         (GM_CurrentMap_800AB9B0 & GM_PlayerMap_800ABA0C) && !(GM_GameStatus_800AB3CC & STATE_PADRELEASE) &&
+         !(GM_PlayerStatus_800ABA50 & 0x20000000) && !(GM_ItemTypes_8009D598[GM_CurrentItemId + 1] & 2)) ||
         dword_8009F434)
 #ifdef VR_EXE
     {
@@ -103,15 +106,16 @@ void bakudan_act_8006A218(BakudanWork *work)
             GM_Sound_800329C4(&GM_PlayerPosition_800ABA10, 0x32, 1);
         }
 
-        dword_8009F430 = GV_Time_800AB330;
+        time_last_press_8009F430 = GV_Time_800AB330;
     }
 
     if (work->field_108)
     {
-        work->field_10C++;
+        work->ignite_frames_count++;
     }
 
-    if (work->field_10C >= 3)
+    // ignite the c4 after 3 actor activations
+    if (work->ignite_frames_count >= 3)
     {
         ReadRotMatrix(&rotation);
         NewBlast_8006DFDC(&rotation, &blast_data_8009F4B8[1]);
@@ -132,9 +136,9 @@ void bakudan_kill_8006A4A4(BakudanWork *work)
     GM_ClearBulName_8004FBE4(work->control.name);
     GM_FreeObject_80034BF8((OBJECT *)&work->field_9C_kmd);
 
-    if (work->field_114 >= 0)
+    if (work->idx_current_c4 >= 0)
     {
-        stru_800BDD78[work->field_114].actor = NULL;
+        c4_actors[work->idx_current_c4].actor = NULL;
         bakudan_count_8009F42C--;
     }
 }
@@ -144,7 +148,7 @@ int bakudan_next_free_item_8006A510()
     int i;
     for (i = 0; i < 16; i++)
     {
-        if (!stru_800BDD78[i].actor)
+        if (!c4_actors[i].actor)
         {
             return i;
         }
@@ -191,14 +195,14 @@ int bakudan_8006A54C(BakudanWork *work, MATRIX *pMtx, SVECTOR *pVec, int a4, voi
     GM_ConfigObjectLight_80034C44((OBJECT *)pKmd, work->field_C0_light_mtx);
     pKmd->objs->objs[0].raise = 200;
 
-    work->field_114 = nextItem = bakudan_next_free_item_8006A510();
+    work->idx_current_c4 = nextItem = bakudan_next_free_item_8006A510();
 
     if (nextItem < 0)
     {
         return -1;
     }
 
-    pItem = &stru_800BDD78[nextItem];
+    pItem = &c4_actors[nextItem];
     pItem->actor = &work->field_0_actor;
     pItem->control = pCtrl;
     pItem->data = data;
@@ -211,6 +215,7 @@ GV_ACT *NewBakudan_8006A6CC(MATRIX *pMtx, SVECTOR *pVec, int a3, int not_used, v
 {
     BakudanWork *work; // $s0
 
+    // if there are already 16 c4s, don't create a new one
     if (bakudan_count_8009F42C == 16)
     {
         return 0;
@@ -226,13 +231,13 @@ GV_ACT *NewBakudan_8006A6CC(MATRIX *pMtx, SVECTOR *pVec, int a3, int not_used, v
             GV_DestroyActor_800151C8(&work->field_0_actor);
             return 0;
         }
-        work->field_10C = 0;
+        work->ignite_frames_count = 0;
         work->field_108 = 0;
     }
 #ifdef VR_EXE
-    if (dword_8009F430 > GV_Time_800AB330)
+    if (time_last_press_8009F430 > GV_Time_800AB330)
     {
-        dword_8009F430 = 0;
+        time_last_press_8009F430 = 0;
     }
 #endif
     return &work->field_0_actor;

@@ -68,7 +68,7 @@ extern int           GM_AlertMode_800ABA00;
 extern CONTROL      *GM_WhereList_800B56D0[96];
 extern CONTROL      *tenage_ctrls_800BDD30[16];
 extern int           tenage_ctrls_count_800BDD70;
-extern HITTABLE stru_800BDD78[16];
+extern HITTABLE c4_actors[16];
 extern HITTABLE stru_800BDE78[8];
 
 unsigned short elevator_hash_800C3634[4] = {0xACDC, 0x085B, 0x804B, 0xDBC9};
@@ -302,7 +302,7 @@ void ElevatorAct_800D8EA8(ElevatorWork *work)
 
         if (bakudan_count_8009F42C != 0)
         {
-            bomb = stru_800BDD78;
+            bomb = c4_actors;
             for (j = 16; j > 0; j--)
             {
                 if (bomb->actor && Elevator_800DA464(work, bomb->data))

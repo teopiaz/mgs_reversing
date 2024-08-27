@@ -20,9 +20,9 @@ typedef struct BakudanWork
     MATRIX        *field_100_pMtx;
     SVECTOR       *field_104;
     int            field_108;
-    int            field_10C;
+    int            ignite_frames_count; // number of actor actions to wait before igniting
     GV_PAD        *field_110_pPad;
-    int            field_114;
+    int            idx_current_c4; // the index of the current c4
     int            field_118;
 } BakudanWork;
 

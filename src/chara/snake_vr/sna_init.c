@@ -108,7 +108,7 @@ extern SVECTOR            GM_PlayerPosition_800ABA10;
 extern UnkCameraStruct    gUnkCameraStruct_800B77B8;
 extern GV_PAD             GV_PadData_800B05C0[4];
 extern CONTROL        *tenage_ctrls_800BDD30[16];
-extern HITTABLE      stru_800BDD78[16];
+extern HITTABLE      c4_actors[16];
 extern HITTABLE      stru_800BDE78[8];
 extern unsigned char      gBulNames_800BDC78[64];
 unsigned char             gBulNames_800BDC78[64];
@@ -3045,8 +3045,8 @@ void sna_bomb_800541A8(SnaInitWork *work)
     void *pFn; // $a1
 
     GM_ClearPlayerStatusFlag_8004E2D4(PLAYER_MOVING);
-    work->field_9C8_anim_update_fn_3p = sna_fn_nothing_80053B80;
-    work->field_9CC_anim_update_fn_1p = sna_fn_nothing_80053B80;
+    work->field_9C8_anim_update_fn_3p = sna_anim_stinger_800570C0;
+    work->field_9CC_anim_update_fn_1p = sna_anim_stinger_800570C0;
     if (sna_8004FDE8(work, &stru_8009EFE4[0]))
     {
         pFn = sna_800571B8;
@@ -8176,7 +8176,7 @@ static inline int sna_LoadSnake(SnaInitWork *work, int scriptData, int scriptBin
     dword_800BDD28 = 0;
     tenage_ctrls_count_800BDD70 = 0;
 
-    pJiraiUnk = stru_800BDD78;
+    pJiraiUnk = c4_actors;
     i = 0;
 
     while (i < 16)
