@@ -17,13 +17,13 @@ typedef struct BakudanWork
     CONTROL        control;
     OBJECT_NO_ROTS field_9C_kmd;
     MATRIX         field_C0_light_mtx[2];
-    MATRIX        *field_100_pMtx;
+    MATRIX        *field_100_pMtx; // rotation matrix (if the c4 is placed on a moving target)
     SVECTOR       *field_104;
-    int            field_108;
-    int            ignite_frames_count; // number of actor actions to wait before igniting
+    int            detonator_btn_pressed;
+    int            detonator_frames_count; // number of actor actions to wait before detonate
     GV_PAD        *field_110_pPad;
     int            idx_current_c4; // the index of the current c4
-    int            field_118;
+    int            map;
 } BakudanWork;
 
 GV_ACT *NewBakudan_8006A6CC(MATRIX *pMtx, SVECTOR *pVec, int a3, int not_used, void *data);

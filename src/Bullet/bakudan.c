@@ -26,7 +26,7 @@ extern Blast_Data blast_data_8009F4B8[8];
 
 int bakudan_count_8009F42C = 0;
 int time_last_press_8009F430 = 0;
-int dword_8009F434 = 0;
+int dword_8009F434 = 0; // unused variable
 SVECTOR svector_8009F438 = {3072, 0, 0, 0};
 
 void bakudan_act_8006A218(BakudanWork *work)
@@ -39,7 +39,7 @@ void bakudan_act_8006A218(BakudanWork *work)
 #ifdef VR_EXE
     int cond;
 #endif
-
+    // if invalid game status, destroy the actor
     if (GM_GameStatus_800AB3CC < 0)
     {
         GV_DestroyActor_800151C8(&work->field_0_actor);
@@ -59,12 +59,14 @@ void bakudan_act_8006A218(BakudanWork *work)
 
     pMtx = work->field_100_pMtx;
 
+    // if the c4 is placed on a moving target
     if (pMtx)
     {
         DG_RotatePos_8001BD64(&svector_8009F438);
         pTarget = c4_actors[work->idx_current_c4].data;
-        work->field_118 = pTarget->map;
+        work->map = pTarget->map;
 
+        // if the target is not alive, destroy the actor
         if (!pTarget->field_20)
         {
             GV_DestroyActor_800151C8(&work->field_0_actor);
@@ -72,7 +74,7 @@ void bakudan_act_8006A218(BakudanWork *work)
         }
     }
 
-    GM_CurrentMap_800AB9B0 = work->field_118;
+    GM_CurrentMap_800AB9B0 = work->map;
 
     GM_ActObject2_80034B88((OBJECT *)&work->field_9C_kmd);
     DG_GetLightMatrix_8001A3C4(&pCtrl->mov, work->field_C0_light_mtx);
@@ -99,7 +101,7 @@ void bakudan_act_8006A218(BakudanWork *work)
     if (cond)
 #endif
     {
-        work->field_108 = 1;
+        work->detonator_btn_pressed = 1;
 
         if (work->field_110_pPad->press & PAD_CIRCLE)
         {
@@ -108,14 +110,14 @@ void bakudan_act_8006A218(BakudanWork *work)
 
         time_last_press_8009F430 = GV_Time_800AB330;
     }
-
-    if (work->field_108)
+    // keep track of the consecutive frames the circle button is pressed
+    if (work->detonator_btn_pressed)
     {
-        work->ignite_frames_count++;
+        work->detonator_frames_count++;
     }
 
-    // ignite the c4 after 3 actor activations
-    if (work->ignite_frames_count >= 3)
+    // detonate the c4 after 3 frames
+    if (work->detonator_frames_count >= 3)
     {
         ReadRotMatrix(&rotation);
         NewBlast_8006DFDC(&rotation, &blast_data_8009F4B8[1]);
@@ -124,6 +126,7 @@ void bakudan_act_8006A218(BakudanWork *work)
     }
     else if (pMtx)
     {
+        // update the c4 position and rotation to follow the target
         DG_SetPos_8001BC44(pMtx);
         DG_PutVector_8001BE48(work->field_104, &pCtrl->mov, 1);
         DG_MatrixRotYXZ_8001E734(pMtx, &pCtrl->rot);
@@ -163,7 +166,8 @@ int bakudan_8006A54C(BakudanWork *work, MATRIX *pMtx, SVECTOR *pVec, int a4, voi
     int nextItem;
     HITTABLE *pItem;
 
-    work->field_118 = GM_CurrentMap_800AB9B0 = GM_PlayerMap_800ABA0C;
+
+    work->map = GM_CurrentMap_800AB9B0 = GM_PlayerMap_800ABA0C;
 
     if (GM_InitLoader_8002599C(pCtrl, GM_Next_BulName_8004FBA0(), 0) < 0)
     {
@@ -231,8 +235,8 @@ GV_ACT *NewBakudan_8006A6CC(MATRIX *pMtx, SVECTOR *pVec, int a3, int not_used, v
             GV_DestroyActor_800151C8(&work->field_0_actor);
             return 0;
         }
-        work->ignite_frames_count = 0;
-        work->field_108 = 0;
+        work->detonator_frames_count = 0;
+        work->detonator_btn_pressed = 0;
     }
 #ifdef VR_EXE
     if (time_last_press_8009F430 > GV_Time_800AB330)

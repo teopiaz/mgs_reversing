@@ -3675,10 +3675,12 @@ void sna_bomb_800541A8(SnaInitWork *work, int time)
     work->field_9CC_anim_update_fn_1p = sna_fn_nothing_80053B80;
     if (sna_8004FDE8(work, &stru_8009EFE4[0]))
     {
+        // c4 is attached to a moving target
         pFn = sna_800571B8;
     }
     else
     {
+        // c4 is placed on a static surface
         pFn = sna_80057118;
     }
     sna_start_anim_8004E1F4(work, pFn);
