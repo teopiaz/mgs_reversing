@@ -1,0 +1,41 @@
+name: eboot-linux
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+    name: Psy-Q build on Linux with Wine
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        path: '${{ github.workspace }}/mgs_reversing'
+        submodules: true
+
+    - name: Install Wine
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt update
+        sudo apt install -y wine64 wine32
+
+    - name: Install PsyQ
+      uses: actions/checkout@v3
+      with:
+        repository: 'FoxdieTeam/psyq_sdk'
+        path: '${{ github.workspace }}/psyq_sdk'
+        submodules: true
+
+    - name: Install Python
+      run: sudo apt install -y python3 python3-pip
+
+    - name: Install Dependencies
+      working-directory: ${{ github.workspace }}/mgs_reversing/build
+      run: python3 -m pip install -r requirements.txt
+
+    - name: Build
+      working-directory: ${{ github.workspace }}/mgs_reversing/build
+      env:
+        PSYQ_SDK: ${{ github.workspace }}/psyq_sdk/
+      run: python build.py --psyq_path="${{ github.workspace }}/psyq_sdk/"
