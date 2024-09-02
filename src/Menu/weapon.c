@@ -1364,7 +1364,7 @@ void menu_weapon_update_helper2_8003E674(MenuWork *work, unsigned int *pOt)
     case 3:
         if (sub_8003D568() != 0)
         {
-            work->field_2A_state = 0;
+            work->field_2A_state = MENU_CLOSED;
             GV_PauseLevel_800AB928 &= ~4;
             menu_weapon_update_helper2_helper2_8003E3B0(work);
         }
@@ -1384,7 +1384,7 @@ void menu_weapon_update_8003E990(MenuWork *work, unsigned char *pOt)
 
     pPad = work->field_24_pInput;
 
-    if (work->field_2A_state == 0)
+    if (work->field_2A_state == MENU_CLOSED)
     {
         if (GM_GameStatus_800AB3CC & (STATE_TAKING_PHOTO | STATE_MENU_OFF))
         {
@@ -1397,7 +1397,7 @@ void menu_weapon_update_8003E990(MenuWork *work, unsigned char *pOt)
             {
                 if (menu_weapon_update_helper_8003E4B8(work))
                 {
-                    work->field_2A_state = 1;
+                    work->field_2A_state = MENU_RIGHT_OPEN;
                     GV_PauseLevel_800AB928 |= 4;
                     sub_8003D520();
                 }
@@ -1428,7 +1428,7 @@ void menu_weapon_update_8003E990(MenuWork *work, unsigned char *pOt)
             }
         }
     }
-    else if (work->field_2A_state == 1)
+    else if (work->field_2A_state == MENU_RIGHT_OPEN)
     {
         pMenu = &work->field_1F0_menu_weapon;
 
@@ -1446,7 +1446,7 @@ void menu_weapon_update_8003E990(MenuWork *work, unsigned char *pOt)
             }
         }
     }
-    else if (work->field_2A_state == 4)
+    else if (work->field_2A_state == MENU_CODEC_OPEN)
     {
         return;
     }

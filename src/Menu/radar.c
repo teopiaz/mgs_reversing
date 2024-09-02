@@ -1221,7 +1221,7 @@ void menu_radar_update_8003B350(MenuWork *work, unsigned char *ot)
 
   if (work->field_CC_radar_data.display_flag)
   {
-    if (work->field_2A_state == 0)
+    if (work->field_2A_state == MENU_CLOSED)
     {
       if ((GM_GameStatus_800AB3CC & STATE_HIDE_RADAR) != 0)
       {
