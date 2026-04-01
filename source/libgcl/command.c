@@ -54,6 +54,17 @@ int GCL_Command( char *ptr )
 
     GCL_SetArgTop( ptr );
 
+    {
+        static int gcl_cmd_debug = 0;
+        if (gcl_cmd_debug < 50) {
+            printf("[gcl-cmd] 0x%04X (%c%c) func=%p\n",
+                   GCL_GetShort(ptr-3),
+                   ((char*)&cl->id)[0], ((char*)&cl->id)[1],
+                   cl->func);
+            gcl_cmd_debug++;
+        }
+    }
+
     ret = ( *cl->func )( ptr );
 
     GCL_UnsetCommandLine();

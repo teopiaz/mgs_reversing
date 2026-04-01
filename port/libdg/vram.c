@@ -138,8 +138,10 @@ void port_ClearImage(RECT *rect, unsigned char r, unsigned char g, unsigned char
 
 void port_LoadImage(RECT *rect, unsigned long *p)
 {
+    if (!p || !rect) return;
     int x0 = rect->x, y0 = rect->y;
     int w = rect->w, h = rect->h;
+    if (w <= 0 || h <= 0 || w > 1024 || h > 512) return;
     uint16_t *src = (uint16_t *)p;
 
     for (int y = 0; y < h && (y0 + y) < VRAM_HEIGHT; y++)
@@ -346,20 +348,30 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
 /* OT traversal — walk the ordering table and render primitives              */
 /*---------------------------------------------------------------------------*/
 
+/* Current GPU tpage state (set by DR_TPAGE commands, used by SPRT rendering) */
+static uint16_t port_current_tpage = 0;
+
+static int drawot_debug = 0;
 void port_DrawOTag(unsigned long *ot)
 {
     unsigned long *p = ot;
     int prim_count = 0;
+    int node_count = 0;
 
     while (p && !isendprim(p))
     {
         unsigned long *next = (unsigned long *)nextPrim(p);
         int len = getlen(p);
+        node_count++;
 
         if (len > 0)
         {
             unsigned char code = *((unsigned char *)p + 7);  /* command byte */
             unsigned char *data = (unsigned char *)p + 4;    /* after tag */
+
+            if (drawot_debug < 5) {
+                printf("[ot] node %d: len=%d code=0x%02X p=%p\n", node_count, len, code, p);
+            }
 
             /* Decode and render based on GPU command code */
             switch (code & 0xFC)  /* mask off semi-trans and texture bits */
@@ -441,6 +453,54 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
+            case 0x64: /* SPRT (textured sprite — used by font system) */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                short x = *(short *)(data + 4);
+                short y = *(short *)(data + 6);
+                unsigned char u0 = data[8];
+                unsigned char v0 = data[9];
+                uint16_t clut = *(uint16_t *)(data + 10);
+                short w = *(short *)(data + 12);
+                short h = *(short *)(data + 14);
+                /* Render sprite from VRAM texture */
+                for (int sy = 0; sy < h && (y+sy) >= 0 && (y+sy) < 224; sy++) {
+                    for (int sx = 0; sx < w && (x+sx) >= 0 && (x+sx) < 320; sx++) {
+                        uint16_t c = sample_vram_texel(port_current_tpage, clut, u0+sx, v0+sy);
+                        if (c != 0) vram[y+sy][x+sx] = c;
+                    }
+                }
+                prim_count++;
+                break;
+            }
+            case 0x74: /* SPRT_8 */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                short x = *(short *)(data + 4);
+                short y = *(short *)(data + 6);
+                port_DrawTile(x, y, 8, 8, r ? r : 128, g ? g : 128, b ? b : 128);
+                prim_count++;
+                break;
+            }
+            case 0x7C: /* SPRT_16 */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                short x = *(short *)(data + 4);
+                short y = *(short *)(data + 6);
+                port_DrawTile(x, y, 16, 16, r ? r : 128, g ? g : 128, b ? b : 128);
+                prim_count++;
+                break;
+            }
+            case 0xE0: /* DR_TPAGE — update current texture page state */
+            {
+                port_current_tpage = *(uint16_t *)(data + 0);
+                prim_count++;
+                break;
+            }
+            case 0xE4: /* DR_AREA */
+            case 0xE8: /* DR_OFFSET */
+                prim_count++;
+                break;
             default:
                 break;
             }
@@ -448,5 +508,110 @@ void port_DrawOTag(unsigned long *ot)
 
         p = next;
         if (prim_count > 10000) break; /* safety limit */
+    }
+    if (drawot_debug < 3 && node_count > 0) {
+        printf("[ot] walked %d nodes, %d prims rendered\n", node_count, prim_count);
+    }
+    drawot_debug++;
+}
+
+/*---------------------------------------------------------------------------*/
+/* DrawPrim — render a single GPU primitive immediately                      */
+/*---------------------------------------------------------------------------*/
+
+void port_DrawPrim(void *prim)
+{
+    if (!prim) return;
+    u_long *p = (u_long *)prim;
+    int len = getlen(p);
+    if (len <= 0) return;
+
+    unsigned char code = *((unsigned char *)p + 7);
+    unsigned char *data = (unsigned char *)p + 4;
+
+    switch (code & 0xFC)
+    {
+    case 0x60: /* TILE */
+    {
+        unsigned char r = data[0], g = data[1], b = data[2];
+        short x = *(short *)(data + 4);
+        short y = *(short *)(data + 6);
+        short w = *(short *)(data + 8);
+        short h = *(short *)(data + 10);
+        port_DrawTile(x, y, w, h, r, g, b);
+        break;
+    }
+    case 0x68: /* TILE_1 */
+    case 0x70: /* TILE_8 */
+    case 0x78: /* TILE_16 */
+    {
+        unsigned char r = data[0], g = data[1], b = data[2];
+        short x = *(short *)(data + 4);
+        short y = *(short *)(data + 6);
+        int w = 1, h = 1;
+        if ((code & 0xFC) == 0x70) { w = 8; h = 8; }
+        if ((code & 0xFC) == 0x78) { w = 16; h = 16; }
+        port_DrawTile(x, y, w, h, r, g, b);
+        break;
+    }
+    case 0x64: /* SPRT (textured sprite) */
+    {
+        unsigned char r = data[0], g = data[1], b = data[2];
+        short x = *(short *)(data + 4);
+        short y = *(short *)(data + 6);
+        unsigned char u0 = data[8];
+        unsigned char v0 = data[9];
+        uint16_t clut = *(uint16_t *)(data + 10);
+        short w = *(short *)(data + 12);
+        short h = *(short *)(data + 14);
+        for (int sy = 0; sy < h && (y+sy) >= 0 && (y+sy) < 224; sy++) {
+            for (int sx = 0; sx < w && (x+sx) >= 0 && (x+sx) < 320; sx++) {
+                uint16_t c = sample_vram_texel(port_current_tpage, clut, u0+sx, v0+sy);
+                if (c != 0) vram[y+sy][x+sx] = c;
+            }
+        }
+        break;
+    }
+    case 0x74: /* SPRT_8 */
+    case 0x7C: /* SPRT_16 */
+    {
+        unsigned char r = data[0], g = data[1], b = data[2];
+        short x = *(short *)(data + 4);
+        short y = *(short *)(data + 6);
+        unsigned char u0 = data[8];
+        unsigned char v0 = data[9];
+        uint16_t clut = *(uint16_t *)(data + 10);
+        int w = ((code & 0xFC) == 0x74) ? 8 : 16;
+        int h = w;
+        for (int sy = 0; sy < h && (y+sy) >= 0 && (y+sy) < 224; sy++) {
+            for (int sx = 0; sx < w && (x+sx) >= 0 && (x+sx) < 320; sx++) {
+                uint16_t c = sample_vram_texel(port_current_tpage, clut, u0+sx, v0+sy);
+                if (c != 0) vram[y+sy][x+sx] = c;
+            }
+        }
+        break;
+    }
+    case 0x20: /* POLY_F3 */
+    case 0x28: /* POLY_F4 */
+    {
+        unsigned char r = data[0], g = data[1], b = data[2];
+        short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
+        short x1 = *(short *)(data + 8), y1 = *(short *)(data + 10);
+        short x2 = *(short *)(data + 12), y2 = *(short *)(data + 14);
+        uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+        draw_flat_tri(x0, y0, x1, y1, x2, y2, color);
+        if ((code & 0xFC) == 0x28) {
+            short x3 = *(short *)(data + 16), y3 = *(short *)(data + 18);
+            draw_flat_tri(x1, y1, x2, y2, x3, y3, color);
+        }
+        break;
+    }
+    case 0xE0: /* DR_TPAGE — update current texture page */
+    {
+        port_current_tpage = *(uint16_t *)(data + 0);
+        break;
+    }
+    default:
+        break;
     }
 }
