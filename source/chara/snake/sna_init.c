@@ -7983,6 +7983,9 @@ static inline void sna_act_helper2_8005AD10(SnaInitWork *work)
 
 static void Act(SnaInitWork *work)
 {
+    /* Skip if critical resources not loaded (no model/weapon/animation) */
+    if (!work->body.objs || !work->field_918_n_bullets || !work->enable_shadow) return;
+
     SVECTOR vec;
     SVECTOR vec2;
     TARGET *pTarget;
@@ -8127,7 +8130,7 @@ static void Act(SnaInitWork *work)
 
     sna_clear_flags1_8004E308(work, SNA_FLAG1_UNK25);
     DG_GetLightMatrix2(&work->control.mov, work->light);
-    *work->enable_shadow = dword_800ABA1C == 0;
+    if (work->enable_shadow) *work->enable_shadow = dword_800ABA1C == 0;
     GM_MoveTarget(work->field_89C_pTarget, &work->control.mov);
 
     vec2 = work->control.mov;

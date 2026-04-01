@@ -1,8 +1,3 @@
-/**
- * @file    libdg.h
- * @brief   Display Generator library header
- */
-
 #ifndef __MGS_LIBDG_H__
 #define __MGS_LIBDG_H__
 
@@ -13,17 +8,11 @@
 #include <gtemac.h>
 
 #include "libgv/libgv.h"
-#include "fmt_img.h"
-#include "fmt_kmd.h"
-#include "fmt_lit.h"
-#include "fmt_mot.h"
 #include "fmt_tex.h"
-
-#define DG_MAX_JOINTS 24
+#include "fmt_mot.h"
 
 /*---------------------------------------------------------------------------*/
 
-/* TODO: Remove */
 typedef struct DG_VECTOR
 {
     int vx;
@@ -31,7 +20,6 @@ typedef struct DG_VECTOR
     int vz;
 } DG_VECTOR;            /* long word type 3D vector (without padding) */
 
-/* TODO: Remove */
 typedef struct DG_SVECTOR
 {
     short vx;
@@ -39,7 +27,6 @@ typedef struct DG_SVECTOR
     short vz;
 } DG_SVECTOR;           /* short word type 3D vector (without padding) */
 
-/* TODO: Remove */
 typedef struct DG_RVECTOR
 {
     DG_SVECTOR  v;
@@ -49,7 +36,6 @@ typedef struct DG_RVECTOR
     u_long      sz;
 } DG_RVECTOR;           /* division vertex data (without padding) */
 
-/* TODO: Remove */
 typedef struct DG_PVECTOR
 {
     long vxy;
@@ -59,6 +45,42 @@ typedef struct DG_PVECTOR
 /*---------------------------------------------------------------------------*/
 
 #define DG_MAX_TEXTURES 512
+
+enum DG_MODEL_FLAGS {
+    DG_MODEL_TRANS    = 0x00002,
+    DG_MODEL_UNLIT    = 0x00004,
+    DG_MODEL_BOTHFACE = 0x00400,
+    DG_MODEL_INDIRECT = 0x10000,
+};
+
+typedef struct _DG_MDL
+{
+    int             flags;
+    int             n_faces;
+    DG_VECTOR       min;
+    DG_VECTOR       max;
+    DG_VECTOR       pos;
+    int             parent;
+    int             extend;
+    int             n_verts;
+    SVECTOR        *vertices;
+    unsigned char  *vindices;
+    int             n_normals;
+    SVECTOR        *normals;
+    unsigned char  *nindices;
+    unsigned char  *texcoords;
+    unsigned short *materials; // hashed texture names
+    int             padding;
+} DG_MDL;
+
+typedef struct _DG_DEF
+{
+    int         n_visible;      // ???
+    int         n_models;
+    DG_VECTOR   min;
+    DG_VECTOR   max;
+    DG_MDL      model[ 0 ];
+} DG_DEF;
 
 // clang-format off
 typedef struct _DG_TEX {
@@ -86,7 +108,7 @@ typedef struct _DG_OBJ {
         POLY_GT4        *packs[ 2 ];    // 0x54
 } DG_OBJ;
 
-typedef struct _DG_OBJS {
+typedef struct {
         MATRIX          world;          // 0x00
         MATRIX          *root;          // 0x20
         DG_DEF          *def;           // 0x24
@@ -114,11 +136,41 @@ enum {
         DG_FLAG_INVISIBLE       = 0x0080,       //
         DG_FLAG_AMBIENT         = 0x0100,       //
         DG_FLAG_IRTEXTURE       = 0x0200,       //
-        DG_FLAG_ENVMAP          = 0x0400,       //
+        DG_FLAG_UNKNOWN_400     = 0x0400,       //
 };
 // clang-format on
 
-typedef struct _DG_PRIM {
+typedef struct {
+    u_int       id;
+    DG_DEF      def;
+} DG_KMDPACK;
+
+typedef struct {
+    u_int       ident;
+    u_int       n_kmd;
+    u_int       vert_offset;
+    u_int       body_len;
+    DG_KMDPACK  kmd[ 0 ];
+} DG_ZMD_DEF;
+
+typedef struct {    // libdg internal
+    DG_VECTOR min;
+    DG_VECTOR max;
+} DG_BOUND;
+
+typedef struct _DG_PRIM_INFO
+{
+    unsigned char psize;
+    unsigned char verts;
+    unsigned char voffset;
+    unsigned char vstep;
+} DG_PRIM_INFO;
+
+struct _DG_PRIM;
+typedef POLY_FT4 * ( *TPRIM_FN )( struct _DG_PRIM *prim, POLY_FT4 *packs, int n_packs );
+
+typedef struct _DG_PRIM
+{
     MATRIX   world;
     MATRIX  *root;
     int      type;
@@ -135,17 +187,81 @@ typedef struct _DG_PRIM {
     void    *packs[ 2 ];
     short    n_prims;
     void    *userdata;
-    void    *(*callback)(struct _DG_PRIM *, POLY_FT4 *, int);
+    TPRIM_FN handler;
 } DG_PRIM;
+
+typedef struct DG_LIT
+{
+    SVECTOR        pos;
+    unsigned short field_8_brightness;
+    unsigned short field_A_radius;
+    CVECTOR        field_C_colour;
+} DG_LIT;
+
+typedef struct DG_FixedLight
+{
+    int     field_0_lightCount;
+    DG_LIT *field_4_pLights;
+} DG_FixedLight;
+
+typedef struct DG_TmpLightList
+{
+    int    n_lights;
+    DG_LIT lights[ 8 ];
+} DG_TmpLightList;
+
+typedef struct DG_LitVertex
+{
+    SVECTOR intensity[2];
+    CVECTOR color[2];
+} DG_LitVertex;
+
+typedef struct DG_IMG_ATTRIB
+{
+    unsigned char texid;
+    unsigned char xoff;
+    unsigned char yoff;
+    unsigned char unused;
+} DG_IMG_ATTRIB;
+
+typedef struct DG_IMG
+{
+    unsigned short  image_width;
+    unsigned short  image_height;
+    unsigned short  tile_width;
+    unsigned short  tile_height;
+    unsigned short *textures; // textures[0] = count
+    DG_IMG_ATTRIB  *attribs;
+    unsigned char  *tilemap;
+} DG_IMG;
 
 /*---------------------------------------------------------------------------*/
 
-typedef struct _DG_IMAGE {
+typedef struct DG_NARS
+{
+    unsigned int   unknown0;
+    unsigned char *unknown1;
+} DG_NARS;
+
+typedef struct DG_OAR
+{
+    MOTION_ARCHIVE *archive;
+    unsigned int    n_joint;
+    unsigned int    n_motion;
+    MOTION_TABLE   *table;
+    char            oarData[ 0 ];
+} DG_OAR;
+
+/*---------------------------------------------------------------------------*/
+
+typedef struct DG_Image
+{
     RECT          dim;
     unsigned char data[ 512 ];
-} DG_IMAGE;
+} DG_Image;
 
-typedef struct _DG_CHANL {
+typedef struct DG_CHANL
+{
     u_long   *ot[ 2 ]; // 257 pointers? // One for each active buffer
     short     ot_size;
     short     link;
@@ -153,7 +269,7 @@ typedef struct _DG_CHANL {
     short     dirty;
     MATRIX    eye_inv;
     MATRIX    eye;
-    short     screen;
+    short     clip_distance;
     short     queue_size;
     short     prim_index;
     short     objs_index;
@@ -168,7 +284,7 @@ typedef struct _DG_CHANL {
     DR_ENV    new_env[ 2 ];
 } DG_CHANL;
 
-enum {
+enum DG_PRIM_TYPE {
     DG_PRIM_LINE_F2,    // 0
     DG_PRIM_LINE_F3,    // 1
     DG_PRIM_LINE_F4,    // 2
@@ -200,20 +316,16 @@ enum {
 enum {
         DG_PRIM_VISIBLE         = 0x0000,
         DG_PRIM_INVISIBLE       = 0x0100,
-
-        DG_PRIM_ON_WORLD        = 0x0000,
-        DG_PRIM_ON_CAMERA       = 0x0200,
-
-        DG_PRIM_VERTICES        = 0x0000,
-        DG_PRIM_RECTANGLE       = 0x0400,
-
+        DG_PRIM_WORLD           = 0x0200,
+        DG_PRIM_OFFSET          = 0x0400,
         DG_PRIM_SORTONLY        = 0x0800,
-        DG_PRIM_ONESIDE         = 0x1000,
+        DG_PRIM_ONEFACE         = 0x1000,
         DG_PRIM_FREEPACKS       = 0x2000,
 };
 // clang-format on
 
-enum {
+enum DG_CHANL_UNIT
+{
     DG_SCREEN_CHANL,
     DG_BOUND_CHANL,
     DG_TRANS_CHANL,
@@ -224,6 +336,10 @@ enum {
     DG_CHANL_UNIT_MAX
 };
 
+// TODO: these belong to takabe/paper.c
+#define RevisionDir( a )  a &= 4095
+#define INIT_VEC( vec,xx,yy,zz ) { (vec).vx = xx; (vec).vy = yy; (vec).vz = zz; }
+
 /*---------------------------------------------------------------------------*/
 
 static inline void DG_GroupObjs( DG_OBJS *objs, int group_id )
@@ -232,7 +348,7 @@ static inline void DG_GroupObjs( DG_OBJS *objs, int group_id )
     objs->group_id = group_id;
 }
 
-#ifndef __LIBDG_FRAME_C__
+#ifndef __LIBDG_DISPLAY_C__
 static inline void DG_GroupObjsEx( DG_OBJS *objs )
 {
     extern int DG_CurrentGroupID;
@@ -251,7 +367,7 @@ static inline void DG_InvisibleObjs( DG_OBJS *objs )
     objs->flag |= DG_FLAG_INVISIBLE;
 }
 
-#ifndef __LIBDG_FRAME_C__
+#ifndef __LIBDG_DISPLAY_C__
 static inline void DG_SetCurrentGroup( int group_id )
 {
     extern int DG_CurrentGroupID;
@@ -285,11 +401,6 @@ static inline void DG_InvisiblePrim( DG_PRIM *prim )
     prim->type |= DG_PRIM_INVISIBLE;
 }
 
-static inline void DG_RaisePrim( DG_PRIM *prim, int raise )
-{
-    prim->raise = raise;
-}
-
 static inline void DG_UnShadeObjs( DG_OBJS *objs )
 {
     objs->flag &= ~DG_FLAG_SHADE;
@@ -319,8 +430,8 @@ extern int DG_FrameRate;
 extern int DG_HikituriFlag;
 extern int DG_HikituriFlagOld;
 
-void DG_ResetSystem( void );
-void DG_ResetTexture( void );
+void DG_ResetPipeline( void );
+void DG_ResetTextureCache( void );
 void DG_StartDaemon(void);
 
 /* bound.c */
@@ -331,41 +442,42 @@ void DG_BoundEnd( void );
 /* chanl.c */
 #ifndef __LIBDG_CHANL_C__
 extern short N_ChanlPerfMax;
-extern short DG_EndTime;
+extern short word_800AB982;
 #endif
 
-void DG_InitChanlSystem( int shift );
-void DG_DrawChanlSystem( int which );
+void DG_InitChanlSystem( int width );
+void DG_DrawOTag( int which );
 void DG_ClearChanlSystem( int which );
-void DG_SortChanlSystem( int which );
-void DG_SetDrawEnv( int chanl, DRAWENV *env );
-int  DG_QueueObjs( DG_OBJS *objs );
+void DG_RenderPipeline( int idx );
+void DG_SetRenderChanlDrawEnv( int idx, DRAWENV *pDrawEnv );
+int  DG_QueueObjs( DG_OBJS *prim );
 void DG_DequeueObjs( DG_OBJS *objs );
 int  DG_QueuePrim( DG_PRIM *prim );
 void DG_DequeuePrim( DG_PRIM *prim );
-void DG_SetDefDrawEnv( DRAWENV *env, int x, int y, int w, int h );
-void DG_StopMainChanlSystem( void );
+void DG_InitDrawEnv( DRAWENV *pDrawEnv, int clipX1, int clipY1, int clipX2, int clipY2 );
+void DG_FreeObjectQueue( void );
 void DG_RestartMainChanlSystem( void );
-void DG_SetBackGroundColor( int r, int b, int g );
+void DG_SetBackgroundRGB( int r, int g, int b );
+void DG_SetRGB( int r, int b, int g );
 void DG_BackGroundBlack( void );
 void DG_BackGroundNormal( void );
-void DG_SetBackgroundPrim( void *prim );
-DG_CHANLFUNC DG_SetChanlSystemUnits( int num, DG_CHANLFUNC addr );
+void DG_SetBackGroundTile( TILE *tile );
+DG_CHANLFUNC DG_SetChanlSystemUnits( int idx, DG_CHANLFUNC newfunc );
 
-/* frame.c */
+/* display.c */
 extern int DG_UnDrawFrameCount;
-#ifndef __LIBDG_FRAME_C__
+#ifndef __LIBDG_DISPLAY_C__
 extern int DG_CurrentGroupID;
 extern short DG_ClipMin[2];
 extern short DG_ClipMax[2];
 #endif
 
-void DG_SetDispEnv( int x, int y, int w, int h, int shift );
+void DG_InitDispEnv( int x, short y, short w, short h, int clipH );
 void DG_ChangeReso( int );
-void DG_InitFrameSystem( void );
-void DG_StartFrame( void );
-void DG_EndFrame( void );
-void DG_MakeCameraMatrix( DG_CHANL *chanl, SVECTOR *from, SVECTOR *to, int screen );
+void DG_RenderPipeline_Init( void );
+void DG_SwapFrame( void );
+void DG_RenderFrame( void );
+void DG_LookAt( DG_CHANL *chanl, SVECTOR *eye, SVECTOR *center, int clip_distance );
 void DG_AdjustOverscan( MATRIX *matrix );
 void DG_Clip( RECT *clip_rect, int dist );
 void DG_OffsetDispEnv( int offset );
@@ -400,14 +512,14 @@ void DG_SetLightMatrix( MATRIX* mtx, int trans_x );
 int  DG_GetLightMatrix2( SVECTOR *vec, MATRIX *mtx );
 
 /* loader.c */
-int DG_LoadInitKmd( void *buf, int id );
-int DG_LoadInitNar( void *buf, int id );
-int DG_LoadInitOar( void *buf, int id );
-int DG_LoadInitImg( void *buf, int id );
-int DG_LoadInitSgt( void *buf, int id );
-int DG_LoadInitLit( void *buf, int id );
-int DG_LoadInitPcx( void *buf, int id );
-int DG_LoadInitKmdar(void *buf, int id );
+int DG_LoadInitKmd( unsigned char *buf, int id );
+int DG_LoadInitNar( unsigned char *buf, int id );
+int DG_LoadInitOar( unsigned char *buf, int id );
+int DG_LoadInitImg( unsigned char *buf, int id );
+int DG_LoadInitSgt( unsigned char *buf, int id );
+int DG_LoadInitLit( unsigned char *buf, int id );
+int DG_LoadInitPcx( unsigned char *buf, int id );
+int DG_LoadInitKmdar( unsigned char *buf, int id );
 
 /* matrix.c */
 void DG_MatrixRot( MATRIX *mat, SVECTOR *svec );
@@ -421,8 +533,8 @@ void DG_ReflectMatrix( SVECTOR *svec, MATRIX *in, MATRIX *out );
 /* o.c */
 DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl );
 void     DG_FreeObjs( DG_OBJS *objs );
-void     DG_SetJointFrame( DG_OBJS *objs, SVECTOR *rots );
-void     DG_SetSlideFrame( DG_OBJS *objs, SVECTOR *movs );
+void     DG_SetObjsRots( DG_OBJS *objs, SVECTOR *rot );
+void     DG_SetObjsMovs( DG_OBJS *objs, SVECTOR *mov );
 
 /* opack.c */
 void DG_WriteObjPacketUV( DG_OBJ* obj, int idx );
@@ -451,20 +563,18 @@ void DG_SetFreePrimParam( int psize, int verts, int voffset, int vstep );
 int  DG_MakePreshade( DG_OBJS *prim, DG_LIT *light, int numLights );
 void DG_FreePreshade( DG_OBJS *prim );
 
-/* pos.c */
-void DG_SetPos( MATRIX *world );
-void DG_SetPos2( SVECTOR *mov, SVECTOR *rot );
-void DG_MovePos( SVECTOR *mov );
-void DG_RotatePos( SVECTOR *rot );
+/* screen.c */
+void DG_SetPos( MATRIX *matrix );
+void DG_SetPos2( SVECTOR *svector, SVECTOR *svector2 );
+void DG_MovePos( SVECTOR *svector );
+void DG_RotatePos( SVECTOR *svector );
 void DG_PutObjs( DG_OBJS *objs );
-void DG_PutPrim( DG_PRIM *prim );
-void DG_PutVector( SVECTOR *from, SVECTOR *to, int n );
-void DG_RotVector( SVECTOR *from, SVECTOR *to, int n );
-void DG_PersVector( SVECTOR *from, DVECTOR *to, int n );
+void DG_PutPrim( MATRIX *matrix );
+void DG_PutVector( SVECTOR *svector, SVECTOR *svector2, int count );
+void DG_RotVector( SVECTOR *svector, SVECTOR *svector2, int count );
+void DG_PersVector( SVECTOR *svector, DVECTOR *dvector, int count );
 void DG_PointCheck( SVECTOR *svector, int n_points );
 int  DG_PointCheckOne( DVECTOR *line );
-
-/* screen.c */
 // void DG_ScreenModelsSingle( DG_OBJS *objs, int n_obj );
 // void DG_ScreenModels( DG_OBJS *objs, int n_obj );
 // void DG_ApplyMovs( DG_OBJS *objs, int n_obj );
@@ -486,8 +596,8 @@ void DG_SetTexture( int id, int tp, int abr, RECT *img, RECT *pal, int col );
 void DG_GetTextureRect( DG_TEX *tex, RECT *rect );
 void DG_GetClutRect( DG_TEX *tex, RECT *rect );
 void DG_ClearResidentTexture( void );
-void DG_SaveResidentTexture( void );
-void DG_ResetResidentTexture( void );
+void DG_SaveResidentTextureCache( void );
+void DG_LoadResidentTextureCache( void );
 
 /* trans.c */
 void DG_TransStart( void );
@@ -519,7 +629,7 @@ static inline u_long *DG_ChanlOTag(int index)
     return DG_Chanl(index)->ot[GV_Clock];
 }
 
-static inline void DG_SetPacketTexture( POLY_FT4 *packs, DG_TEX *tex )
+static inline void DG_SetPacketTexture( POLY_FT4 *packs0, DG_TEX *tex )
 {
     int x, y, w, h;
     x = tex->off_x ;
@@ -527,14 +637,14 @@ static inline void DG_SetPacketTexture( POLY_FT4 *packs, DG_TEX *tex )
     y = tex->off_y ;
     h = tex->h ;
 
-    setUVWH( packs, x, y, w, h ) ;
+    setUVWH( packs0, x, y, w, h ) ;
 }
 
-static inline void DG_SetPacketTexture4( POLY_FT4 *packs, DG_TEX *tex )
+static inline void DG_SetPacketTexture4( POLY_FT4 *packs0, DG_TEX *tex )
 {
-    DG_SetPacketTexture( packs, tex ) ;
-    packs->tpage = tex->tpage ;
-    packs->clut = tex->clut ;
+    DG_SetPacketTexture( packs0, tex ) ;
+    packs0->tpage = tex->tpage ;
+    packs0->clut = tex->clut ;
 }
 
 /*---------------------------------------------------------------------------*/

@@ -243,6 +243,10 @@ void HZD_GetLevelHazard( HZD_FLR **flr )
 
     flr[0] = scrpad->max_floor;
     flr[1] = scrpad->min_floor;
+
+    /* Validate pointers - scratchpad data may be stale on 64-bit */
+    if ((unsigned long)flr[0] > 0x100000000000ULL) flr[0] = NULL;
+    if ((unsigned long)flr[1] > 0x100000000000ULL) flr[1] = NULL;
 }
 
 void HZD_GetLevelHeight( int *lvl_ptr )

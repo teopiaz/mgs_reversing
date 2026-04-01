@@ -140,7 +140,16 @@ void *GV_GetCache( int id )
  */
 int GV_SetCache( int id, void *buf )
 {
-    if ( FindCache(id) == NULL && EmptyCache != NULL )
+    CACHE *existing = FindCache( id );
+
+    if ( existing != NULL )
+    {
+        /* Allow loaders to update the pointer (e.g., KMD/HZD 64-bit conversion) */
+        existing->buf = buf;
+        return 0;
+    }
+
+    if ( EmptyCache != NULL )
     {
         EmptyCache->id = id;
         EmptyCache->buf = buf;
