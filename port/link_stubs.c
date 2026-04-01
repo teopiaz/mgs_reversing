@@ -2,9 +2,7 @@
 
 /* Auto-generated stubs for 228 undefined symbols */
 
-void AN_Unknown_800DCE84(void) { }
 void ActOverScoutD_800C85DC(void) { }
-void ActTable_800C35EC(void) { }
 int DG_CurrentGroupID = 0;
 int DM_ThreadFile = 0;
 int DM_ThreadStream = 0;
@@ -65,29 +63,13 @@ void THING_Msg_GetResult(void) { }
 void THING_Msg_SendMessage(void) { }
 void TOPCOMMAND_800D5C40(void) { }
 void TOPCOMMAND_800DF3A8(void) { }
-void ZAKO11E_EYE_LENGTH_800C3904(void) { }
-void ZAKO11E_NO_POINT_800C38FC(void) { }
-void ZAKO11F_ATTACK_FORCE_800C3674(void) { }
-void ZAKO11F_ATTACK_SIZE_800C366C(void) { }
-void ZAKO11F_EYE_LENGTH_800C3694(void) { }
 void ZAKO11F_GameFlag_800D5C4C(void) { }
-void ZAKO11F_NO_POINT_800C368C(void) { }
-void ZAKO11F_TARGET_FORCE_800C3664(void) { }
-void ZAKO11F_TARGET_SIZE_800C365C(void) { }
-void ZAKO11F_TOUCH_FORCE_800C3684(void) { }
-void ZAKO11F_TOUCH_SIZE_800C367C(void) { }
 void ZAKOCOM_PlayerAddress_800D5C50(void) { }
 void ZAKOCOM_PlayerAddress_800DF3B8(void) { }
 void ZAKOCOM_PlayerMap_800D5C54(void) { }
 void ZAKOCOM_PlayerMap_800DF3BC(void) { }
 void ZAKOCOM_PlayerPosition_800D5AF0(void) { }
 void ZAKOCOM_PlayerPosition_800DF278(void) { }
-void ZAKO_ATTACK_FORCE_800C38E4(void) { }
-void ZAKO_ATTACK_SIZE_800C38DC(void) { }
-void ZAKO_TARGET_FORCE_800C38D4(void) { }
-void ZAKO_TARGET_SIZE_800C38CC(void) { }
-void ZAKO_TOUCH_FORCE_800C38F4(void) { }
-void ZAKO_TOUCH_SIZE_800C38EC(void) { }
 void Zako11FCommand_800D5AF8(void) { }
 void ZakoCommand_800DF280(void) { }
 void counter_8009F448(void) { }
@@ -97,7 +79,6 @@ void dword_8009F440(void) { }
 void dword_8009F444(void) { }
 void dword_800AB9D4(void) { }
 int dword_800ABA1C = 0;
-void force_800DEBA0(void) { }
 void menu_800470B4(void) { }
 void menu_drawDescriptionPanel_8003F9B4(void) { }
 void menu_font_kill_8003FC0C(void) { }
@@ -116,7 +97,6 @@ void menu_viewer_kill(void) { }
 void radio_draw_face_frame(void) { }
 void roll_ending2_800C5E54(void) { }
 void roll_ending2_800C5EAC(void) { }
-void rp_shift_800DEB98(void) { }
 void s00a_command_800C615C(void) { }
 void s00a_command_800C6164(void) { }
 void s00a_command_800C624C(void) { }
@@ -138,91 +118,43 @@ void s00a_command_800C8990(void) { }
 void s00a_command_800C8A6C(void) { }
 void s00a_command_800C8C98(void) { }
 void s00a_command_800C8DF8(void) { }
-void s07a_aActdtimeddirdcond_800E3064(void) { }
-void s07a_aAsiatoooo_800E2EE0(void) { }
-void s07a_aCrootdrootdpatdnpointsd_800E3038(void) { }
-void s07a_aEnemyworksized_800E2EEC(void) { }
-void s07a_aErrerrerrsetdirover_800E2E5C(void) { }
-void s07a_aErrerrerrsettimeover_800E2E40(void) { }
-void s07a_aErrerrerrsoundbuffover_800E2E78(void) { }
-void s07a_aErrnotenoughwork_800E2EAC(void) { }
-void s07a_aHazuredd_800E2FC4(void) { }
-void s07a_aKirari_800E3084(void) { }
-void s07a_aKroekroekrokeorkdd_800E2FF0(void) { }
-void s07a_aMeryl7_800E2F04(void) { }
-void s07a_aMerylcactionpointerr_800E2EC4(void) { }
-void s07a_aOkokokodd_800E2FB0(void) { }
-void s07a_aOuttoilletgoaddrd_800E300C(void) { }
-void s07a_aRootchange_800E3090(void) { }
-void s07a_aToilletzoned_800E2FD8(void) { }
-void s07a_a_800E3028(void) { }
-void s07a_a_800E302C(void) { }
-void s07a_a_800E3030(void) { }
-void s07a_a_800E3034(void) { }
-void s07a_dword_800C35F8(void) { }
-void s07a_dword_800C3618(void) { }
-void s07a_dword_800C36E8(void) { }
-void s07a_dword_800C36F0(void) { }
-void s07a_dword_800C3770(void) { }
-void s07a_dword_800C3778(void) { }
-void s07a_dword_800E2E98(void) { }
-void s07a_dword_800E2EA0(void) { }
-void s07a_dword_800E2F10(void) { }
 void s07a_dword_800E3650(void) { }
 void s07a_dword_800E3654(void) { }
 void s07a_dword_800E3658(void) { }
 void s07a_meryl_unk_800D952C(void) { }
-void s11e_aDareda_800DEC78(void) { }
-void s11e_aEnemyvoicexx_800DED70(void) { }
-void s11e_aErrerrerrsetdirover_800DEB04(void) { }
-void s11e_aErrerrerrsettimeover_800DEAE8(void) { }
-void s11e_aErrnotenoughwork_800DEB20(void) { }
-void s11e_aHaitinimodoruzo_800DECDC(void) { }
-void s11e_aItazo_800DECC8(void) { }
-void s11e_aKinoseika_800DECB8(void) { }
-void s11e_aKirari_800DEC14(void) { }
-void s11e_aKonoasiatoha_800DECA4(void) { }
-void s11e_aKottida_800DECD0(void) { }
-void s11e_aKottida_800DECF0(void) { }
-void s11e_aLowporyd_800DEB38(void) { }
-void s11e_aNannootoda_800DEC84(void) { }
-void s11e_aTadanohakoka_800DEC94(void) { }
-void s11e_aWatcharcactionpointerr_800DEB48(void) { }
-void s11e_aZakoec_800DEB68(void) { }
-void s11e_aZkecomc_800DED84(void) { }
-void s11e_aZoned_800DED64(void) { }
-void s11e_dword_800C35BC(void) { }
-void s11e_dword_800C35DC(void) { }
-void s11e_dword_800C3658(void) { }
-void s11e_dword_800C365C(void) { }
-void s11e_dword_800C3660(void) { }
-void s11e_dword_800C3668(void) { }
-void s11e_dword_800C3670(void) { }
-void s11e_dword_800C3678(void) { }
-void s11e_dword_800C3680(void) { }
-void s11e_dword_800C3688(void) { }
-void s11e_dword_800C3690(void) { }
-void s11e_dword_800C369C(void) { }
-void s11e_dword_800C36AC(void) { }
-void s11e_dword_800C36B4(void) { }
-void s11e_dword_800C36CC(void) { }
-void s11e_dword_800C37CC(void) { }
-void s11e_dword_800C3908(void) { }
-void s11e_dword_800C3928(void) { }
 void s11e_dword_800DF3B0(void) { }
 void s11e_dword_800DF3B4(void) { }
-void s11i_dword_800C34C4(void) { }
-void s11i_dword_800C34DC(void) { }
-void s11i_dword_800C359C(void) { }
-void s11i_dword_800C3698(void) { }
 void s11i_dword_800D5C48(void) { }
-void size_800DEBA8(void) { }
 void sub_8003F84C(void) { }
 void sub_80048124(void) { }
 int DG_HikituriFlagOld = 0;
 
-/* Title stage overlay functions (not yet ported) */
-void *NewOpen_800D6814(int name, int where, int argc, char **argv) { return NULL; }
-void *NewVrwindow_800D81AC(int name, int where, int argc, char **argv) { return NULL; }
-void *NewFonttext_800C446C(int name, int where, int argc, char **argv) { return NULL; }
+/* Overlay function stubs — for functions in excluded source files */
+void *NewBed_800C70DC(int name, int where, int argc, char **argv) { return NULL; }
+void *NewBoxall_800CA088(int name, int where, int argc, char **argv) { return NULL; }
+void *NewCdChange(int name, int where, int argc, char **argv) { return NULL; }
+void *NewCountdownGcl(int name, int where, int argc, char **argv) { return NULL; }
+void *NewDemoSelect(int name, int where, int argc, char **argv) { return NULL; }
+void *NewEnding2_800C7BE8(int name, int where, int argc, char **argv) { return NULL; }
+void *NewEnvmap3_800CA3A4(int name, int where, int argc, char **argv) { return NULL; }
+void *NewJohnny_800CA838(int name, int where, int argc, char **argv) { return NULL; }
+void *NewMovieGCL(int name, int where, int argc, char **argv) { return NULL; }
+void *NewNinja_800CC9B4(int name, int where, int argc, char **argv) { return NULL; }
+void *NewOtacom_800CC030(int name, int where, int argc, char **argv) { return NULL; }
+void *NewRevolver_800C929C(int name, int where, int argc, char **argv) { return NULL; }
+void *NewScenarioJirai(int name, int where, int argc, char **argv) { return NULL; }
+void *NewSearchlight_800D92BC(int name, int where, int argc, char **argv) { return NULL; }
+void *NewSnake03c1_800CDAEC(int name, int where, int argc, char **argv) { return NULL; }
+void *NewSnake03c2_800CDF18(int name, int where, int argc, char **argv) { return NULL; }
+void *NewSplash_800C8D6C(int name, int where, int argc, char **argv) { return NULL; }
+void *NewSubEfct_800CCB10(int name, int where, int argc, char **argv) { return NULL; }
+void *NewTorture_800C6E1C(int name, int where, int argc, char **argv) { return NULL; }
+
+/* s12c fog overlay — functions from libdg2.c (excluded due to P_TAG issue) */
+int FogBoundChanl_800D5500(void *a, int b) { return 0; }
+int FogShadeChanl_800D6A04(void *a, int b) { return 0; }
+int FogSortChanl_800D4E98(void *a, int b) { return 0; }
+int FogTransChanl_800D63B0(void *a, int b) { return 0; }
+int s12c_800D497C = 0;
+int s12c_800D4AB4 = 0;
 

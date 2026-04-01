@@ -6,6 +6,7 @@
 #define __PORT_OVERRIDES_H__
 
 #define PORT_BUILD 1
+#define DEV_EXE 1
 
 /* Prevent libgv.h from defining PSX hardcoded memory addresses.
    Our port/libgv/libgv.h overrides them after #undef.

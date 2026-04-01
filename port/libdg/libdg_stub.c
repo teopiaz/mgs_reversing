@@ -372,7 +372,7 @@ void port_RenderObjects(int idx)
         }
     }
 
-    if (render_debug < 1000) {
+    if (render_debug < 100) {
         printf("[render] %d faces drawn (%d visible, %d objs)\n",
                drawn_faces, total_faces, chanl->objs_index);
         render_debug++;
