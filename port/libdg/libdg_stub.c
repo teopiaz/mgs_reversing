@@ -303,11 +303,12 @@ void port_RenderObjects(int idx)
 
                 /* Texture setup */
                 extern uint16_t port_tex_tpage, port_tex_clut;
-                extern int port_tex_enabled;
+                extern int port_tex_enabled, port_tex_semi_trans, port_tex_abr;
                 extern int port_tri_u[3], port_tri_v[3];
 
                 uint16_t color = 0x4210; /* default grey */
                 port_tex_enabled = 0;
+                port_tex_semi_trans = (mdl->flags & DG_MODEL_TRANS) ? 1 : 0;
 
                 if (materials && texcoords) {
                     unsigned short mat_id = materials[fi];
@@ -315,20 +316,22 @@ void port_RenderObjects(int idx)
                     if (tex && (tex->w > 0 || tex->h > 0)) {
                         unsigned char *tc = &texcoords[fi * 8];
                         int tw = tex->w + 1, th = tex->h + 1;
-                        /* Compute UV for all 4 vertices
-                           PSX texcoord order: v0(0,1) v1(2,3) v3(4,5) v2(6,7) */
+                        /* Compute UV for all 4 vertices.
+                           KMD texcoord order: v0(0,1) v1(2,3) v2(4,5) v3(6,7)
+                           (sequential, unlike POLY_GT4 which swaps v2/v3) */
                         int uv[4][2];
                         uv[0][0] = ((tc[0] * tw) / 256) + tex->off_x;
                         uv[0][1] = ((tc[1] * th) / 256) + tex->off_y;
                         uv[1][0] = ((tc[2] * tw) / 256) + tex->off_x;
                         uv[1][1] = ((tc[3] * th) / 256) + tex->off_y;
-                        uv[3][0] = ((tc[4] * tw) / 256) + tex->off_x;
-                        uv[3][1] = ((tc[5] * th) / 256) + tex->off_y;
-                        uv[2][0] = ((tc[6] * tw) / 256) + tex->off_x;
-                        uv[2][1] = ((tc[7] * th) / 256) + tex->off_y;
+                        uv[2][0] = ((tc[4] * tw) / 256) + tex->off_x;
+                        uv[2][1] = ((tc[5] * th) / 256) + tex->off_y;
+                        uv[3][0] = ((tc[6] * tw) / 256) + tex->off_x;
+                        uv[3][1] = ((tc[7] * th) / 256) + tex->off_y;
 
                         port_tex_tpage = tex->tpage;
                         port_tex_clut = tex->clut;
+                        port_tex_abr = (tex->tpage >> 5) & 0x3;
                         port_tex_enabled = 1;
 
                         /* Sample center for fallback flat color */
