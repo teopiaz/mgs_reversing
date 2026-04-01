@@ -245,7 +245,6 @@ void DG_RenderPipeline( int idx )
         for (i = start_idx; i > 0; --i)
         {
             *pPerfArrayIter++ = GetRCnt(RCntCNT1);
-            // Call the render func, saving the time of the previous pass
             (*chanlfunc)(&DG_Chanls[1], idx);
             chanlfunc++;
         }

@@ -318,6 +318,7 @@ STATIC int BeginAction( MOTION_CONTROL *m_ctrl, MOTION_INFO *m_info, int action 
     char            channel_size;
     SVECTOR*        svec;
 
+    if (!m_ctrl->oar) return 0; /* OAR not loaded */
     n_joint = m_ctrl->oar->n_joint;
     size = n_joint + 2;
     m_seg = m_info->m_segs;
@@ -477,6 +478,7 @@ STATIC void InflateKeyframe(MOTION_SEGMENT *m_seg)
 
 int GM_PlayAction(MOTION_CONTROL *m_ctrl)
 {
+    if (!m_ctrl->oar) return 0; /* OAR not loaded */
     MATRIX       mtx;
     MOTION_INFO *m_info;
     int          time;
@@ -650,6 +652,7 @@ STATIC int NextKeyframe(MOTION_CONTROL *m_ctrl, MOTION_INFO *m_info)
     char shift_temp;
 
     m_seg  = m_info->m_segs;
+    if (!m_ctrl->oar) return -1; /* OAR not loaded */
     record_size = m_ctrl->oar->n_joint;
 
     ret = 0;
@@ -853,6 +856,7 @@ STATIC void ApplyJointRotation(MOTION_CONTROL *m_ctrl, MOTION_INFO *m_info)
     m_seg = m_info->m_segs;
     m_seg++;
 
+    if (!m_ctrl->oar) return; /* OAR not loaded */
     n_joints = m_ctrl->oar->n_joint;
 
     m_info->frames_left = 0;
@@ -869,6 +873,7 @@ STATIC void ApplyJointRotation(MOTION_CONTROL *m_ctrl, MOTION_INFO *m_info)
 
 STATIC int BeginActionOffset(MOTION_CONTROL *m_ctrl, MOTION_INFO *m_info, int action, int frame)
 {
+    if (!m_ctrl->oar) return 0; /* OAR not loaded */
     char            unused[8];
     int             i;
     MOTION_SEGMENT     *m_seg;

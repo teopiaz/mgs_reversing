@@ -136,7 +136,7 @@ enum {
         DG_FLAG_INVISIBLE       = 0x0080,       //
         DG_FLAG_AMBIENT         = 0x0100,       //
         DG_FLAG_IRTEXTURE       = 0x0200,       //
-        DG_FLAG_ENVMAP          = 0x0400,       //
+        DG_FLAG_UNKNOWN_400     = 0x0400,       //
 };
 // clang-format on
 
@@ -157,6 +157,14 @@ typedef struct {    // libdg internal
     DG_VECTOR min;
     DG_VECTOR max;
 } DG_BOUND;
+
+typedef struct _DG_PRIM_INFO
+{
+    unsigned char psize;
+    unsigned char verts;
+    unsigned char voffset;
+    unsigned char vstep;
+} DG_PRIM_INFO;
 
 struct _DG_PRIM;
 typedef POLY_FT4 * ( *TPRIM_FN )( struct _DG_PRIM *prim, POLY_FT4 *packs, int n_packs );
@@ -187,7 +195,7 @@ typedef struct DG_LIT
     SVECTOR        pos;
     unsigned short field_8_brightness;
     unsigned short field_A_radius;
-    CVECTOR        field_C_color;
+    CVECTOR        field_C_colour;
 } DG_LIT;
 
 typedef struct DG_FixedLight
@@ -308,20 +316,15 @@ enum DG_PRIM_TYPE {
 enum {
         DG_PRIM_VISIBLE         = 0x0000,
         DG_PRIM_INVISIBLE       = 0x0100,
-
-        DG_PRIM_ON_WORLD        = 0x0000,
-        DG_PRIM_ON_CAMERA       = 0x0200,
-
-        DG_PRIM_VERTICES        = 0x0000,
-        DG_PRIM_RECTANGLE       = 0x0400,
-
+        DG_PRIM_WORLD           = 0x0200,
+        DG_PRIM_OFFSET          = 0x0400,
         DG_PRIM_SORTONLY        = 0x0800,
-        DG_PRIM_ONESIDE         = 0x1000,
+        DG_PRIM_ONEFACE         = 0x1000,
         DG_PRIM_FREEPACKS       = 0x2000,
 };
 // clang-format on
 
-enum DG_CHANL
+enum DG_CHANL_UNIT
 {
     DG_SCREEN_CHANL,
     DG_BOUND_CHANL,
@@ -332,6 +335,10 @@ enum DG_CHANL
     DG_SORT_CHANL,
     DG_CHANL_UNIT_MAX
 };
+
+// TODO: these belong to takabe/paper.c
+#define RevisionDir( a )  a &= 4095
+#define INIT_VEC( vec,xx,yy,zz ) { (vec).vx = xx; (vec).vy = yy; (vec).vz = zz; }
 
 /*---------------------------------------------------------------------------*/
 
@@ -392,11 +399,6 @@ static inline void DG_VisiblePrim( DG_PRIM *prim )
 static inline void DG_InvisiblePrim( DG_PRIM *prim )
 {
     prim->type |= DG_PRIM_INVISIBLE;
-}
-
-static inline void DG_RaisePrim( DG_PRIM *prim, int raise )
-{
-    prim->raise = raise;
 }
 
 static inline void DG_UnShadeObjs( DG_OBJS *objs )
@@ -510,14 +512,14 @@ void DG_SetLightMatrix( MATRIX* mtx, int trans_x );
 int  DG_GetLightMatrix2( SVECTOR *vec, MATRIX *mtx );
 
 /* loader.c */
-int DG_LoadInitKmd( void *buf, int id );
-int DG_LoadInitNar( void *buf, int id );
-int DG_LoadInitOar( void *buf, int id );
-int DG_LoadInitImg( void *buf, int id );
-int DG_LoadInitSgt( void *buf, int id );
-int DG_LoadInitLit( void *buf, int id );
-int DG_LoadInitPcx( void *buf, int id );
-int DG_LoadInitKmdar(void *buf, int id );
+int DG_LoadInitKmd( unsigned char *buf, int id );
+int DG_LoadInitNar( unsigned char *buf, int id );
+int DG_LoadInitOar( unsigned char *buf, int id );
+int DG_LoadInitImg( unsigned char *buf, int id );
+int DG_LoadInitSgt( unsigned char *buf, int id );
+int DG_LoadInitLit( unsigned char *buf, int id );
+int DG_LoadInitPcx( unsigned char *buf, int id );
+int DG_LoadInitKmdar( unsigned char *buf, int id );
 
 /* matrix.c */
 void DG_MatrixRot( MATRIX *mat, SVECTOR *svec );
@@ -627,7 +629,7 @@ static inline u_long *DG_ChanlOTag(int index)
     return DG_Chanl(index)->ot[GV_Clock];
 }
 
-static inline void DG_SetPacketTexture( POLY_FT4 *packs, DG_TEX *tex )
+static inline void DG_SetPacketTexture( POLY_FT4 *packs0, DG_TEX *tex )
 {
     int x, y, w, h;
     x = tex->off_x ;
@@ -635,14 +637,14 @@ static inline void DG_SetPacketTexture( POLY_FT4 *packs, DG_TEX *tex )
     y = tex->off_y ;
     h = tex->h ;
 
-    setUVWH( packs, x, y, w, h ) ;
+    setUVWH( packs0, x, y, w, h ) ;
 }
 
-static inline void DG_SetPacketTexture4( POLY_FT4 *packs, DG_TEX *tex )
+static inline void DG_SetPacketTexture4( POLY_FT4 *packs0, DG_TEX *tex )
 {
-    DG_SetPacketTexture( packs, tex ) ;
-    packs->tpage = tex->tpage ;
-    packs->clut = tex->clut ;
+    DG_SetPacketTexture( packs0, tex ) ;
+    packs0->tpage = tex->tpage ;
+    packs0->clut = tex->clut ;
 }
 
 /*---------------------------------------------------------------------------*/
