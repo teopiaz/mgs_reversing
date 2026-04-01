@@ -711,8 +711,8 @@ void GM_GameOver(void)
  */
 static int GM_LoadInitBin(void *buf, int id)
 {
-#ifdef DEV_EXE
-    return 1; // the overlay is embedded in the executable in dev variant
+#if defined(DEV_EXE) || defined(PORT_BUILD)
+    return 1; // overlay is embedded in the executable
 #endif
 
     if (((u_char *)StageCharacterEntries + gOverlayBinSize_800B5290) > GV_ResidentMemoryBottom)

@@ -7,10 +7,16 @@ extern unsigned char *StageCharacterEntries;
 unsigned char *SECTION(".sbss") GV_ResidentMemoryBottom;
 STATIC int     SECTION(".sbss") dword_800AB944;
 
-void *GV_ResidentAreaBottom = RESIDENT_BOTTOM;
+// Resident memory grows downward from the END of the normal memory pool.
+void *GV_ResidentAreaBottom = NULL;
 
 void GV_InitResidentMemory( void )
 {
+    if (!GV_ResidentAreaBottom) {
+        /* Use the actual port memory pool end, not the PSX hardcoded address */
+        extern void *port_normal_memory;
+        GV_ResidentAreaBottom = (char *)port_normal_memory + 0x200000;
+    }
     GV_ResidentMemoryBottom = GV_ResidentAreaBottom;
 }
 
@@ -52,5 +58,7 @@ void *GV_AllocResidentMemory( long size )
         printf("Resident Memory Over !!\n");
     }
 
+    printf("[res] alloc %ld bytes → %p (bottom=%p, area=%p)\n",
+           size, GV_ResidentMemoryBottom, GV_ResidentMemoryBottom, GV_ResidentAreaBottom);
     return GV_ResidentMemoryBottom;
 }

@@ -403,9 +403,11 @@ typedef struct {
 /*---------------------------------------------------------------------------*/
 
 #define ClearOTag(ot, n)   do { int _i; for (_i = 0; _i < (int)(n); _i++) ((u_long *)(ot))[_i] = 0x00ffffff; } while(0)
+/* PSX ClearOTagR creates a REVERSE chain: ot[n-1]→ot[n-2]→...→ot[0]→terminator.
+   This is essential for DG_ClearChanlSystem which links env1→ot[n-1] and ot[0]→env2. */
 #define ClearOTagR(ot, n)  do { int _i; for (_i = 0; _i < (int)(n); _i++) { \
-    if (_i == (int)(n)-1) ((u_long *)(ot))[_i] = 0x00ffffff; \
-    else ((u_long *)(ot))[_i] = _ptr_to_handle(&((u_long *)(ot))[_i+1]); \
+    if (_i == 0) ((u_long *)(ot))[_i] = 0x00ffffff; \
+    else ((u_long *)(ot))[_i] = _ptr_to_handle(&((u_long *)(ot))[_i-1]); \
 } } while(0)
 
 /*---------------------------------------------------------------------------*/
@@ -487,7 +489,9 @@ u_long GetTimSize(u_char *sjis, u_long *x, u_long *y);
 #define SetDrawTPage(p, dfe, dtd, tpage)  setDrawTPage(p, dfe, dtd, tpage)
 #define SetDrawMode(p, dfe, dtd, tpage, tw) setDrawTPage(p, dfe, dtd, tpage)
 
-#define DrawPrim(p)      /* no-op stub */
+/* DrawPrim submits a single GPU primitive for immediate rendering */
+extern void port_DrawPrim(void *p);
+#define DrawPrim(p)      port_DrawPrim(p)
 
 /* setVector (PSX SDK utility) */
 #define setVector(v, _x, _y, _z) \
