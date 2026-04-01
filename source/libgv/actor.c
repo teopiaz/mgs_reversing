@@ -150,6 +150,16 @@ void GV_DumpActorSystem( void )
  * Iterate over all actors in all actor lists and call their update function.
  * This function is invoked continuously and represent the main game loop.
  */
+/* Signal-safe actor crash recovery using sigsetjmp/siglongjmp */
+#include <setjmp.h>
+#include <signal.h>
+static sigjmp_buf actor_jmp;
+static volatile sig_atomic_t actor_in_handler = 0;
+static void actor_crash_handler(int sig) {
+    (void)sig;
+    if (actor_in_handler) siglongjmp(actor_jmp, 1);
+}
+
 void GV_ExecActorSystem( void )
 {
     AList *list;
@@ -172,7 +182,30 @@ void GV_ExecActorSystem( void )
                 next = this->next;
                 if ( ( act = this->act ) != NULL )
                 {
-                    act( this );
+                    struct sigaction sa, old_bus, old_segv;
+                    sa.sa_handler = actor_crash_handler;
+                    sa.sa_flags = SA_NODEFER;
+                    sigemptyset(&sa.sa_mask);
+                    sigaction(SIGBUS, &sa, &old_bus);
+                    sigaction(SIGSEGV, &sa, &old_segv);
+
+                    actor_in_handler = 1;
+                    if (sigsetjmp(actor_jmp, 1) == 0)
+                    {
+                        act( this );
+                    }
+                    else
+                    {
+                        static int crash_count = 0;
+                        if (crash_count < 10)
+                            printf("[actor] CRASH in actor %p (act=%p), disabling\n", this, this->act);
+                        crash_count++;
+                        this->act = NULL;
+                    }
+                    actor_in_handler = 0;
+
+                    sigaction(SIGBUS, &old_bus, NULL);
+                    sigaction(SIGSEGV, &old_segv, NULL);
                 }
                 GM_CurrentMap = 0;
             } while ( ( this = next ) != NULL );
