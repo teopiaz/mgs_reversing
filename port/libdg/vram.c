@@ -369,8 +369,8 @@ void port_DrawOTag(unsigned long *ot)
             unsigned char code = *((unsigned char *)p + 7);  /* command byte */
             unsigned char *data = (unsigned char *)p + 4;    /* after tag */
 
-            if (drawot_debug < 5) {
-                printf("[ot] node %d: len=%d code=0x%02X p=%p\n", node_count, len, code, p);
+            if (drawot_debug < 30) {
+                printf("[ot] prim node %d: len=%d code=0x%02X p=%p\n", node_count, len, code, p);
             }
 
             /* Decode and render based on GPU command code */

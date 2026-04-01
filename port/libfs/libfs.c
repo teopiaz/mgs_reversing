@@ -362,7 +362,12 @@ void *FS_LoadStageRequest(const char *dirname)
         }
         else if (tag->mode == 's')
         {
-            /* Sound data — skip for now */
+            /* 's' mode: sound data or overlay binaries.
+               ext='b' is the stage overlay binary — process it through the 'b' loader. */
+            if (tag->ext == 'b') {
+                int cache_id = (('b' - 'a') << 16) | tag->id;
+                GV_LoadInit(data_ptr, cache_id, GV_REGION_NOCACHE);
+            }
             data_ptr += (tag->size + (FS_SECTOR_SIZE - 1)) & ~(FS_SECTOR_SIZE - 1);
         }
 

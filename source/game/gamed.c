@@ -198,6 +198,7 @@ static void GM_ResetMemory(void)
 }
 
 // GM_InitStage?
+static int port_loader_count = 0;
 static void GM_CreateLoader(void)
 {
     char *stage = "init";
@@ -205,6 +206,11 @@ static void GM_CreateLoader(void)
     {
         stage = GM_GetArea(GM_CurrentStageFlag);
     }
+#ifdef PORT_BUILD
+    /* Port: load select on the second call (after init completes) */
+    port_loader_count++;
+    if (port_loader_count == 2) stage = "select";
+#endif
     NewLoader(stage);
 }
 
@@ -711,8 +717,29 @@ void GM_GameOver(void)
  */
 static int GM_LoadInitBin(unsigned char *buf, int id)
 {
-#if defined(DEV_EXE) || defined(PORT_BUILD)
-    return 1; // overlay is embedded in the executable
+#ifdef PORT_BUILD
+    /* Port: set StageCharacterEntries to the correct compiled overlay.
+       The id is the strcode of the stage name (e.g., "title", "select", "s00a"). */
+    {
+        extern void *_StageCharacterEntries_s00a;
+        extern void *_StageCharacterEntries_select;
+        extern void *_StageCharacterEntries_title;
+
+        /* Map strcode to compiled overlay */
+        unsigned short stage_id = (unsigned short)id;
+        if (stage_id == 0x655B) /* title */
+            StageCharacterEntries = &_StageCharacterEntries_title;
+        else if (stage_id == 0x8D5C) /* select */
+            StageCharacterEntries = &_StageCharacterEntries_select;
+        else
+            StageCharacterEntries = &_StageCharacterEntries_s00a;
+
+        printf("[bin] Stage overlay 0x%X → %p\n", stage_id, StageCharacterEntries);
+    }
+    return 1;
+#endif
+#ifdef DEV_EXE
+    return 1;
 #endif
 
     if (((u_char *)StageCharacterEntries + gOverlayBinSize_800B5290) > GV_ResidentMemoryBottom)
