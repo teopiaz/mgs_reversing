@@ -20,9 +20,9 @@ static inline void copy_bounding_box_to_spad(DG_BOUND *bounds)
 
 static inline void set_svec_from_bounding_box(int i, SVECTOR *svec)
 {
-    svec->vx = i & 1 ? ((long *)SCRPAD_ADDR)[3] : ((long *)SCRPAD_ADDR)[0];
-    svec->vy = i & 2 ? ((long *)SCRPAD_ADDR)[4] : ((long *)SCRPAD_ADDR)[1];
-    svec->vz = i & 4 ? ((long *)SCRPAD_ADDR)[5] : ((long *)SCRPAD_ADDR)[2];
+    svec->vx = i & 1 ? ((int *)SCRPAD_ADDR)[3] : ((int *)SCRPAD_ADDR)[0];
+    svec->vy = i & 2 ? ((int *)SCRPAD_ADDR)[4] : ((int *)SCRPAD_ADDR)[1];
+    svec->vz = i & 4 ? ((int *)SCRPAD_ADDR)[5] : ((int *)SCRPAD_ADDR)[2];
 }
 
 void DG_BoundStart(void)

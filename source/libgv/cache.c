@@ -169,7 +169,14 @@ void *GV_GetCache(int id)
  */
 int GV_SetCache(int id, void *ptr)
 {
-    if (!GetCacheTag(id) && GV_CurrentTag)
+    GV_CACHE_TAG *existing = GetCacheTag(id);
+    if (existing)
+    {
+        /* Allow loaders to update the pointer (e.g., KMD/HZD 64-bit conversion) */
+        existing->ptr = ptr;
+        return 0;
+    }
+    if (GV_CurrentTag)
     {
         GV_CurrentTag->id = id;
         GV_CurrentTag->ptr = ptr;

@@ -324,7 +324,7 @@ enum {
 };
 // clang-format on
 
-enum DG_CHANL
+enum DG_CHANL_UNIT
 {
     DG_SCREEN_CHANL,
     DG_BOUND_CHANL,

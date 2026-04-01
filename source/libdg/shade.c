@@ -12,27 +12,16 @@ void DG_ShadeStart( void )
 //just an index using an int shifted to get each byte of the face normal idx, but didnt match that way
 static inline void DG_ShadePack( unsigned int *nindices, POLY_GT4 *packs, char *colors )
 {
-    unsigned int f0, f1, f2, f3;
+    unsigned int ni = *nindices;
+    unsigned int i0 = (ni << 2) & 0x3FC;
+    unsigned int i1 = (ni >> 6) & 0x3FC;
+    unsigned int i2 = (ni >> 22) & 0x3FC;
+    unsigned int i3 = (ni >> 14) & 0x3FC;
 
-    f0 = *nindices;
-    f1 = *nindices;
-    f2 = *nindices;
-    f3 = *nindices;
-
-    f0 <<= 2;
-    f1 >>= 6;
-    f2 >>= 22;
-    f3 >>= 14;
-
-    f0 &= 0x3FC;
-    f1 &= 0x3FC;
-    f2 &= 0x3FC;
-    f3 &= 0x3FC;
-
-    f0 = (int)(colors + f0);
-    f1 = (int)(colors + f1);
-    f2 = (int)(colors + f2);
-    f3 = (int)(colors + f3);
+    char *f0 = colors + i0;
+    char *f1 = colors + i1;
+    char *f2 = colors + i2;
+    char *f3 = colors + i3;
 
     LCOPY2( (void *)f0, &packs->r0, (void *)f1, &packs->r1 );
     LCOPY2( (void *)f2, &packs->r2, (void *)f3, &packs->r3 );
@@ -60,9 +49,9 @@ STATIC POLY_GT4 *DG_ShadePacks( unsigned int *nindices, POLY_GT4 *packs, int n_p
 
 STATIC POLY_GT4 *DG_ShadePacksIndirect( unsigned int *nindices, POLY_GT4 *packs, int n_packs, unsigned int *vindices )
 {
-    void        *colors;
+    char        *colors;
     unsigned int mask;
-    unsigned int f0, f1, f2, f3;
+    uintptr_t    f0, f1, f2, f3;
     unsigned int v0123;
     int          color;
 
@@ -70,28 +59,16 @@ STATIC POLY_GT4 *DG_ShadePacksIndirect( unsigned int *nindices, POLY_GT4 *packs,
     {
         mask = 0x80808080;
 
-        colors = getScratchAddr(8);
-
-        f0 = *nindices;
+        colors = (char *)getScratchAddr(8);
 
         if ( !( packs->tag & 0xFFFF ) && !( *nindices & mask ) ) continue;
 
         v0123 = *vindices;
-        f3 = *nindices;
-        f0 = *nindices << 2;
-        f1 = *nindices >> 6;
-        f2 = *nindices >> 22;
-        f3 = *nindices >> 14;
 
-        f0 &= 0x1FC;
-        f1 &= 0x1FC;
-        f2 &= 0x1FC;
-        f3 &= 0x1FC;
-
-        f0 += (unsigned int)colors;
-        f1 += (unsigned int)colors;
-        f2 += (unsigned int)colors;
-        f3 += (unsigned int)colors;
+        f0 = (uintptr_t)(colors + ((*nindices << 2)  & 0x1FC));
+        f1 = (uintptr_t)(colors + ((*nindices >> 6)  & 0x1FC));
+        f2 = (uintptr_t)(colors + ((*nindices >> 22) & 0x1FC));
+        f3 = (uintptr_t)(colors + ((*nindices >> 14) & 0x1FC));
 
         if ( v0123 & mask )
         {

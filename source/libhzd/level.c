@@ -253,6 +253,10 @@ void HZD_LevelMinMaxFloors(HZD_FLR **floors)
 
     floors[0] = scrpad->max_floor;
     floors[1] = scrpad->min_floor;
+
+    /* Validate pointers — scratchpad data may be stale on 64-bit */
+    if ((unsigned long)floors[0] > 0x100000000000ULL) floors[0] = NULL;
+    if ((unsigned long)floors[1] > 0x100000000000ULL) floors[1] = NULL;
 }
 
 void HZD_LevelMinMaxHeights(int *levels)

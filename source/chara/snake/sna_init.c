@@ -7996,6 +7996,9 @@ static inline void sna_act_helper2_8005AD10(SnaInitWork *work)
 
 void sna_act_8005AD10(SnaInitWork *work)
 {
+    /* Skip if critical resources not loaded (no model/weapon/animation) */
+    if (!work->body.objs || !work->field_918_n_bullets || !work->field_88C) return;
+
     SVECTOR vec;
     SVECTOR vec2;
     TARGET *pTarget;
@@ -8140,7 +8143,7 @@ void sna_act_8005AD10(SnaInitWork *work)
 
     sna_clear_flags1_8004E308(work, SNA_FLAG1_UNK25);
     DG_GetLightMatrix2(&work->control.mov, &work->field_848_lighting_mtx);
-    *work->field_88C = dword_800ABA1C == 0;
+    if (work->field_88C) *work->field_88C = dword_800ABA1C == 0;
     GM_MoveTarget(work->field_89C_pTarget, &work->control.mov);
 
     vec2 = work->control.mov;

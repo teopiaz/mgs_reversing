@@ -105,19 +105,42 @@ STATIC void GM_LoadMapModel(int name, MAP *map)
     DG_DEF  *def;
     DG_OBJS *objs;
 
+    printf("  [map] LoadMapModel: name=0x%X\n", name);
+
     def = GV_GetCache(GV_CacheID(name, 'k'));
+    if (!def) { printf("  [map]   ERROR: no def\n"); return; }
+
     objs = DG_MakeObjs(def, MAP_FLAG, 0);
+    if (!objs) { printf("  [map]   ERROR: DG_MakeObjs failed\n"); return; }
 
     DG_SetPos(&DG_ZeroMatrix);
     DG_PutObjs(objs);
 
-    if (map->lit)
+    /* Skip preshading — set flat grey lighting on all faces instead */
     {
-        DG_MakePreshade(objs, map->lit->lights, map->lit->n_lights);
-    }
-    else
-    {
-        DG_MakePreshade(objs, NULL, 0);
+        int n_models_total = def->n_models;
+        int total_faces = 0;
+        DG_MDL *m = (DG_MDL *)&def[1];
+        int mi;
+        for (mi = 0; mi < n_models_total; mi++) {
+            total_faces += m->n_faces;
+            m++;
+        }
+        CVECTOR *cvec = GV_Malloc(0x10 * total_faces);
+        if (cvec) {
+            CVECTOR *c = cvec;
+            int fi;
+            for (fi = 0; fi < total_faces * 4; fi++) {
+                c->r = 128; c->g = 128; c->b = 128; c->cd = 0x3C;
+                c++;
+            }
+            DG_OBJ *o = objs->objs;
+            for (mi = 0; mi < n_models_total; mi++) {
+                o->rgbs = cvec;
+                cvec += o->model->n_faces * 4;
+                o++;
+            }
+        }
     }
 
     DG_QueueObjs(objs);
@@ -125,6 +148,7 @@ STATIC void GM_LoadMapModel(int name, MAP *map)
 
     StageObjs[N_StageObjs] = objs;
     N_StageObjs++;
+    printf("  [map]   model loaded OK\n");
 }
 
 STATIC HZD_HDL *GM_LoadHazard(int name, int area, int index, int dyn_walls, int dyn_floors)
@@ -208,7 +232,11 @@ MAP *GM_CreateMap(void)
     int  name;
     int  area;
 
-    map = GM_GetNextMap(GCL_GetNextParamValue());
+    {
+        int mapname = GCL_GetNextParamValue();
+        printf("[map] GM_CreateMap: name=0x%X\n", mapname);
+        map = GM_GetNextMap(mapname);
+    }
 
     if (GCL_GetOption('d')) // dynamic
     {
@@ -230,10 +258,13 @@ MAP *GM_CreateMap(void)
     name = GCL_GetNextParamValue();
     area = GCL_GetNextParamValue();
     map->hzd = GM_LoadHazard(name, area, map->index, dyn_walls, dyn_floors);
+    printf("[map]   hazard loaded: name=0x%X area=%d\n", name, area);
 
     if (GCL_GetOption('l')) // lit
     {
-        map->lit = GV_GetCache(GV_CacheID(GCL_GetNextParamValue(), 'l'));
+        int lit_name = GCL_GetNextParamValue();
+        map->lit = GV_GetCache(GV_CacheID(lit_name, 'l'));
+        printf("[map]   lit loaded: name=0x%X\n", lit_name);
     }
     else
     {
@@ -306,7 +337,7 @@ int GM_AddMap(int name)
         map++;
     }
 
-    printf("addmap : not found map %d\n", name);
+    printf("addmap : not found map 0x%X (count=%d)\n", name, gMapCount_800ABAA8);
     return 0;
 }
 

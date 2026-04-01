@@ -563,6 +563,10 @@ STATIC void DG_AddSubdividedPrim( DG_OBJ *obj, int idx )
 
 void DG_DivideChanl( DG_CHANL *chanl, int idx )
 {
+    /* Stubbed: DG_DivideMem struct uses long/pointer at wrong sizes on 64-bit */
+    (void)chanl; (void)idx;
+    return;
+#if 0
     int i, j, x;
     DG_OBJS **objs_queue;
     DG_OBJS  *objs;
@@ -635,6 +639,7 @@ void DG_DivideChanl( DG_CHANL *chanl, int idx )
             }
         }
     }
+#endif
 }
 
 void DG_DivideEnd( void )

@@ -191,6 +191,7 @@ static void Die(Work *work)
 static int GetResources(Work *work, CONTROL *control, OBJECT *parent, SVECTOR indices)
 {
     GM_InitObjectNoRots(&work->object, GV_StrCode("kage"), SHADOW_FLAG, 0);
+    if (!work->object.objs) return -1; /* model not loaded */
     GM_ConfigObjectLight((OBJECT *)&work->object, work->light);
 
     DG_GroupObjs(work->object.objs, parent->map_name);
