@@ -100,6 +100,7 @@ PORT_OBJ = \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/stage_s00a.o \
 	$(OBJDIR)/stage_select.o \
+	$(OBJDIR)/stage_title.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o
 
@@ -178,6 +179,9 @@ $(OBJDIR)/stage_s00a.o: $(SRCDIR)/stage/s00a.c | $(OBJDIR)
 
 $(OBJDIR)/stage_select.o: $(SRCDIR)/stage/select.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_select -c -o $@ $<
+
+$(OBJDIR)/stage_title.o: $(SRCDIR)/stage/title.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_title -c -o $@ $<
 
 $(OBJDIR)/game_script_fix.o: game_script_fix.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -I libgcl_fix -c -o $@ $<

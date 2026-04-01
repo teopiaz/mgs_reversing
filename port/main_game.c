@@ -50,10 +50,12 @@ void game_init(void)
     /* sound skipped — no SPU */
 
     printf("gm:");
-    /* === Original GM_StartDaemon() from source/game/gamed.c ===
-       This creates the GameWork actor which handles ALL stage loading,
-       GCL execution, and game state transitions automatically. */
+
     GM_StartDaemon();
+
+    /* After GM_StartDaemon, the GameWork actor starts the init→title→select flow.
+       To skip to a specific stage, set GM_CurrentStageFlag after init GCL runs.
+       We do this by scheduling a deferred set via the actor system. */
 
     printf("start\n");
     fflush(stdout);
@@ -112,17 +114,6 @@ void game_tick(void)
     extern int port_ot_next;
     extern void port_RenderObjects(int idx);
 
-    /* === Original Main() game loop: just call GV_ExecActorSystem ===
-       The GameWork actor (created by GM_StartDaemon) handles everything:
-       - Stage loading (via NewLoader actor)
-       - GCL script execution
-       - Game state transitions
-       - All other game logic through the actor system */
-    GV_ExecActorSystem();
-
-    /* Port-specific: update free-fly camera */
-    update_camera();
-
     /* Clear framebuffer */
     {
         RECT fb = {0, 0, 320, 224};
@@ -132,12 +123,26 @@ void game_tick(void)
     DG_CurrentGroupID = 0xFFFFFFFF;
     port_ot_next = 0;
 
-    /* DG rendering pipeline */
+    /* Force draw: clear blockers that GameWork sets during transitions */
+    {
+        extern int DG_UnDrawFrameCount;
+        extern int DG_HikituriFlag;
+        extern int DG_HikituriFlagOld;
+        DG_UnDrawFrameCount = 0;
+        DG_HikituriFlagOld = DG_HikituriFlag;
+        DG_HikituriFlag = 0;
+    }
     DG_SwapFrame();
     DG_RenderFrame();
 
-    /* Our direct 3D renderer */
+    /* Direct 3D renderer */
     port_RenderObjects(GV_Clock);
+
+    /* Port-specific: update free-fly camera */
+    update_camera();
+
+    /* Actor system: game logic, menu actors add 2D prims to OT */
+    GV_ExecActorSystem();
 
     GV_Clock = 1 - GV_Clock;
     tick_count++;
