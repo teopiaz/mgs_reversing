@@ -222,6 +222,12 @@ void port_RenderObjects(int idx)
     int total_faces = 0;
     int drawn_faces = 0;
 
+    /* Check for DG_PRIM objects in the channel queue */
+    int n_prims = chanl->queue_size - chanl->prim_index;
+    if (render_debug < 3 && n_prims > 0) {
+        printf("[render] %d DG_PRIM objects in queue\n", n_prims);
+    }
+
     /* Clear Z-buffer each frame */
     extern uint16_t port_zbuf[224][320];
     extern uint16_t port_current_z;
