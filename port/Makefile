@@ -99,6 +99,7 @@ PORT_OBJ = \
 	$(OBJDIR)/libhzd_collide_stub.o \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/stage_s00a.o \
+	$(OBJDIR)/stage_select.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o
 
@@ -173,7 +174,10 @@ $(OBJDIR)/hzd_loader.o: libhzd/hzd_loader.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/stage_s00a.o: $(SRCDIR)/stage/s00a.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_s00a -c -o $@ $<
+
+$(OBJDIR)/stage_select.o: $(SRCDIR)/stage/select.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_select -c -o $@ $<
 
 $(OBJDIR)/game_script_fix.o: game_script_fix.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -I libgcl_fix -c -o $@ $<

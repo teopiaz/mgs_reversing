@@ -53,6 +53,17 @@ int GCL_Command(unsigned char *ptr)
 
     GCL_SetArgTop(ptr); // save command return address?
 
+    {
+        static int gcl_cmd_debug = 0;
+        if (gcl_cmd_debug < 50) {
+            printf("[gcl-cmd] 0x%04X (%c%c) func=%p\n",
+                   GCL_GetShort(ptr-3),
+                   ((char*)&cmd->id)[0], ((char*)&cmd->id)[1],
+                   cmd->function);
+            gcl_cmd_debug++;
+        }
+    }
+
     ret = cmd->function(ptr);
 
     GCL_UnsetCommandLine();

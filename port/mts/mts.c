@@ -307,7 +307,14 @@ void mts_lock_sio(void) {}
 void mts_unlock_sio(void) {}
 
 void SetExMask(void) {}
-void *mts_get_bss_tail(void) { return NULL; }
+/* On PSX, returns address where overlay binaries are loaded.
+   In our port, stage overlays are compiled statically.
+   Return the default (select) overlay's character table. */
+void *mts_get_bss_tail(void)
+{
+    extern void *_StageCharacterEntries_select;
+    return &_StageCharacterEntries_select;
+}
 
 /*---------------------------------------------------------------------------*/
 /* Stream / IO — redirect to stdio                                           */

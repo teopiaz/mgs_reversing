@@ -41,7 +41,11 @@ extern PANEL_TEXTURE gMenuRightItems_800BD888[MENU_WEAPON_COUNT];
 struct PANEL_CONF SECTION(".data") stru_8009E544[2] = {{16, 184, 1, 24576, 36864, sub_8003D64C, sub_8003D594, NULL},
                                                        {256, 184, 2, 12288, 49152, sub_8003D594, sub_8003D5F0, NULL}};
 
-#define OffsetToPointer(offset, valueToAdd) *((unsigned int *)offset) = (int)valueToAdd + *((unsigned int *)offset);
+/* 64-bit safe: read 32-bit offset, add base pointer, store as 64-bit pointer */
+#define OffsetToPointer(ptrSlot, base) do { \
+    uint32_t _off = *(uint32_t *)(ptrSlot); \
+    *(ptrSlot) = (RPK_ITEM *)((char *)(base) + _off); \
+} while(0)
 
 extern array_800BD748_child array_800BD828[];
 extern array_800BD748_child array_800BD748[];
@@ -820,33 +824,37 @@ void Menu_item_render_frame_rects_8003DBAC(MenuPrim *pGlue, int x, int y, int tr
 
 RPK_ITEM **menu_rpk_init_8003DD1C(const char *pFileName)
 {
-    RPK       *rpk;
     int        count;
-    RPK_ITEM  *data;
-    RPK_ITEM **item;
     int        i;
 
-    // At the start of the game, "item.rpk" file is loaded (5d43.r)
-    rpk = GV_GetCache(GV_CacheID2(pFileName, 'r'));
-    if (!rpk)
-    {
-        return NULL;
-    }
+    /* RPK binary format (32-bit):
+       [palettes:1][images:1][pad:2][offsets:count*4][data...]
+       On 64-bit, RPK.items[] would read 8 bytes per entry.
+       We must read 4-byte offsets manually and build a 64-bit pointer table. */
+    unsigned char *raw = GV_GetCache(GV_CacheID2(pFileName, 'r'));
+    if (!raw) return NULL;
 
-    count = rpk->palettes + rpk->images;
-    data = (RPK_ITEM *)(rpk->items + count);
+    int palettes = raw[0];
+    int images = raw[1];
+    count = palettes + images;
 
-    gItemFile_table_800ABAE4 = rpk->items;
+    /* 32-bit offset table starts at byte 4 */
+    uint32_t *offsets32 = (uint32_t *)(raw + 4);
 
-    // Offset the item table pointers by the data section start
-    item = rpk->items;
+    /* Data region starts after the offset table */
+    unsigned char *data_base = raw + 4 + count * 4;
+
+    /* Allocate a proper 64-bit pointer table */
+    RPK_ITEM **table = (RPK_ITEM **)malloc(count * sizeof(RPK_ITEM *));
+    if (!table) return NULL;
+
     for (i = 0; i < count; i++)
     {
-        OffsetToPointer(item, data);
-        item++;
+        table[i] = (RPK_ITEM *)(data_base + offsets32[i]);
     }
 
-    return gItemFile_table_800ABAE4;
+    gItemFile_table_800ABAE4 = table;
+    return table;
 }
 
 RPK_ITEM *menu_rpk_get_pal_8003DD9C(int id)

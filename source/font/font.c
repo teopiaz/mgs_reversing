@@ -44,18 +44,24 @@ void font_load(void)
         gRubiRes_800AB6B4 = (RubiRes *)GV_GetCache(GV_CacheID(HASH_rubi, 'r'));
 
         temp_a1 = dword_800ABB28;
-        LSTORE((temp_a1[0] << 24) | (temp_a1[1] << 16) | (temp_a1[2] << 8) | temp_a1[3], temp_a1);
 
-        temp_a1 = dword_800ABB28;
-        LSTORE((temp_a1[4] << 24) | (temp_a1[5] << 16) | (temp_a1[6] << 8) | temp_a1[7], temp_a1 + 4);
+        /* The font data header contains two 32-bit big-endian offsets.
+           Read them as big-endian and use as offsets into the data. */
+        {
+            unsigned char *b = (unsigned char *)temp_a1;
+            uint32_t off0 = (b[0]<<24)|(b[1]<<16)|(b[2]<<8)|b[3];
+            uint32_t off1 = (b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7];
 
-        gFontBegin = temp_a1 + 8;
-        gFontEnd = temp_a1 + LLOAD(temp_a1 + 0);
-        dword_8009E75C[0] = temp_a1 + LLOAD(temp_a1 + 4);
+            gFontBegin = temp_a1 + 8;
+            gFontEnd = temp_a1 + off0;
+            dword_8009E75C[0] = temp_a1 + off1;
+        }
 
+        /* Byte-swap the glyph data from big-endian to native */
         for (ptr = temp_a1 + 8; ptr < gFontEnd; ptr += 4)
         {
-            LSTORE((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3], ptr);
+            unsigned char *b = (unsigned char *)ptr;
+            LSTORE((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3], ptr);
         }
     }
 }

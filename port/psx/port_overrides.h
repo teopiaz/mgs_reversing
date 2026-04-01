@@ -7,6 +7,14 @@
 
 #define PORT_BUILD 1
 
+/* Prevent libgv.h from defining PSX hardcoded memory addresses.
+   Our port/libgv/libgv.h overrides them after #undef.
+   We pre-define them so libgv.h's #define is a no-op (already defined). */
+extern void *port_normal_memory;
+extern void *port_packet_memory0;
+extern void *port_packet_memory1;
+/* These will be #undef'd and redefined in port/libgv/libgv.h */
+
 /* Fix fundamental type sizes: PSX uses 32-bit long/u_long everywhere.
    On 64-bit macOS, long is 8 bytes which breaks MATRIX, VECTOR, POLY_GT4,
    ordering tables, and many other structures. Force 32-bit. */

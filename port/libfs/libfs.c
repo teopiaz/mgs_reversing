@@ -221,7 +221,9 @@ void *FS_LoadStageRequest(const char *dirname)
     int tag_num = 0;
     while (tag->mode != 0)
     {
-        /* tag print silenced */
+        printf("  [fs]   tag[%d]: id=0x%04X mode='%c' ext='%c' size=%d\n",
+               tag_num, tag->id, tag->mode,
+               (tag->ext != (char)0xff) ? tag->ext : '?', tag->size);
         tag++;
         tag_num++;
     }
@@ -255,14 +257,16 @@ void *FS_LoadStageRequest(const char *dirname)
 
                 if (region == GV_REGION_RESIDENT)
                 {
-                    /* For now, skip resident copy — just use data in-place.
-                       The original copies to resident memory which grows downward
-                       from the top of normal memory. On 64-bit this can cause
-                       pointer issues. */
-                    /* file_data stays as-is (pointing into the loaded buffer) */
+                    /* Copy to permanent memory — original uses GV_AllocResidentMemory
+                       but we use malloc since resident data must survive stage reloads */
+                    void *perm = malloc(dar->size);
+                    if (perm) {
+                        memcpy(perm, file_data, dar->size);
+                        file_data = perm;
+                    }
                 }
 
-                /* dar print silenced */
+                printf("    dar: id=0x%04X ext='%c' size=%d\n", dar->id, (char)dar->ext, dar->size);
 
                 GV_LoadInit(file_data, cache_id, region);
 
