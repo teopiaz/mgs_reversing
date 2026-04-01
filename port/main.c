@@ -100,6 +100,12 @@ static void port_poll_events(void)
                 port_vram_toggle_debug();
             }
             break;
+        case SDL_CONTROLLERDEVICEADDED:
+        {
+            extern void port_open_controller(void);
+            port_open_controller();
+            break;
+        }
         }
     }
 }
@@ -138,6 +144,8 @@ int main(int argc, char *argv[])
     printf("port: entering main loop\n");
 
     extern void port_update_pad(void);
+    extern void port_open_controller(void);
+    port_open_controller();
 
     g_running = true;
     while (g_running)

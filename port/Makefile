@@ -64,6 +64,35 @@ LIBGCL_OBJ = $(patsubst libgcl_fix/%.c,$(OBJDIR)/libgcl_%.o,$(LIBGCL_SRC))
 LIBHZD_SRC = $(filter-out $(SRCDIR)/libhzd/collide.c $(SRCDIR)/libhzd/hzdd.c, $(wildcard $(SRCDIR)/libhzd/*.c))
 LIBHZD_OBJ = $(patsubst $(SRCDIR)/libhzd/%.c,$(OBJDIR)/libhzd_%.o,$(LIBHZD_SRC))
 
+# --- All stage definition files ---
+STAGE_NAMES = abst brf camera change d00a d01a d03a d11c d16e d18a d18ar \
+	demosel ending endingr opening option preope rank roll \
+	s00a s01a s02a s02b s02c s02d s02e \
+	s03a s03ar s03b s03c s03d s03dr s03e s03er \
+	s04a s04b s04br s04c s05a s06a \
+	s07a s07b s07br s07c s07cr \
+	s08a s08b s08br s08c s08cr \
+	s09a s09ar s10a s10ar \
+	s11a s11b s11c s11d s11e s11g s11h s11i \
+	s12a s12b s12c s13a s14e \
+	s15a s15b s15c s16a s16b s16c s16d \
+	s17a s17ar s18a s18ar \
+	s19a s19ar s19b s19br \
+	s20a s20ar \
+	select select1 select2 select3 select4 selectd \
+	sound title
+
+STAGE_OBJ = $(patsubst %,$(OBJDIR)/stage_%.o,$(STAGE_NAMES))
+
+# --- All overlay source files ---
+# Exclude: files that don't compile, and R-variant overlays (duplicate symbols with base)
+OVERLAY_EXCLUDE = $(SRCDIR)/overlays/s12c/takabe/libdg2.c \
+	$(SRCDIR)/overlays/s19b/menu/countdwn.c \
+	$(shell find $(SRCDIR)/overlays/d18ar $(SRCDIR)/overlays/s08br $(SRCDIR)/overlays/s19br -name "*.c" 2>/dev/null)
+OVERLAY_ALL_SRC = $(shell find $(SRCDIR)/overlays -name "*.c" | sort)
+OVERLAY_SRC = $(filter-out $(OVERLAY_EXCLUDE), $(OVERLAY_ALL_SRC))
+OVERLAY_OBJ = $(patsubst $(SRCDIR)/overlays/%.c,$(OBJDIR)/ovl_%.o,$(OVERLAY_SRC))
+
 # --- Port sources ---
 PORT_OBJ = \
 	$(OBJDIR)/main.o \
@@ -98,15 +127,12 @@ PORT_OBJ = \
 	$(OBJDIR)/memcard_stub.o \
 	$(OBJDIR)/libhzd_collide_stub.o \
 	$(OBJDIR)/hzd_loader.o \
-	$(OBJDIR)/stage_s00a.o \
-	$(OBJDIR)/stage_select.o \
-	$(OBJDIR)/stage_title.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
 
-ALL_OBJ = $(PORT_OBJ) $(LIBGV_OBJ) $(LIBGCL_OBJ) $(LIBHZD_OBJ) $(BSS_OBJ) $(GAME_OBJ)
+ALL_OBJ = $(PORT_OBJ) $(STAGE_OBJ) $(OVERLAY_OBJ) $(LIBGV_OBJ) $(LIBGCL_OBJ) $(LIBHZD_OBJ) $(BSS_OBJ) $(GAME_OBJ)
 
 $(TARGET): $(ALL_OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)
@@ -174,14 +200,17 @@ $(OBJDIR)/libhzd_collide_stub.o: libhzd_collide_stub.c | $(OBJDIR)
 $(OBJDIR)/hzd_loader.o: libhzd/hzd_loader.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(OBJDIR)/stage_s00a.o: $(SRCDIR)/stage/s00a.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_s00a -c -o $@ $<
+# --- Stage definition files (each gets unique _StageCharacterEntries symbol) ---
+define STAGE_RULE
+$(OBJDIR)/stage_$(1).o: $(SRCDIR)/stage/$(1).c | $(OBJDIR)
+	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_$(1) -c -o $$@ $$<
+endef
+$(foreach s,$(STAGE_NAMES),$(eval $(call STAGE_RULE,$(s))))
 
-$(OBJDIR)/stage_select.o: $(SRCDIR)/stage/select.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_select -c -o $@ $<
-
-$(OBJDIR)/stage_title.o: $(SRCDIR)/stage/title.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -D_StageCharacterEntries=_StageCharacterEntries_title -c -o $@ $<
+# --- Overlay source files ---
+$(OBJDIR)/ovl_%.o: $(SRCDIR)/overlays/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/game_script_fix.o: game_script_fix.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -I libgcl_fix -c -o $@ $<

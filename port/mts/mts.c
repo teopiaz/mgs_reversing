@@ -224,6 +224,25 @@ static unsigned char port_pad_lx = 128, port_pad_ly = 128;
 /* Exported raw keyboard state for camera controls etc. */
 unsigned char port_keys[512] = {0};
 
+/* SDL game controller */
+static SDL_GameController *port_controller = NULL;
+
+void port_open_controller(void)
+{
+    for (int i = 0; i < SDL_NumJoysticks(); i++)
+    {
+        if (SDL_IsGameController(i))
+        {
+            port_controller = SDL_GameControllerOpen(i);
+            if (port_controller)
+            {
+                printf("[pad] opened controller: %s\n", SDL_GameControllerName(port_controller));
+                break;
+            }
+        }
+    }
+}
+
 /* Called from main.c event loop */
 void port_update_pad(void)
 {
@@ -232,6 +251,7 @@ void port_update_pad(void)
     memcpy(port_keys, keys, 512);
     unsigned short b = 0;
 
+    /* Keyboard mapping */
     if (keys[SDL_SCANCODE_UP])      b |= BTN_UP;
     if (keys[SDL_SCANCODE_DOWN])    b |= BTN_DOWN;
     if (keys[SDL_SCANCODE_LEFT])    b |= BTN_LEFT;
@@ -247,19 +267,50 @@ void port_update_pad(void)
     if (keys[SDL_SCANCODE_RETURN])  b |= BTN_START;
     if (keys[SDL_SCANCODE_BACKSPACE]) b |= BTN_SELECT;
 
-    /* WASD as alternate D-pad */
-    if (keys[SDL_SCANCODE_W])       b |= BTN_UP;
-    if (keys[SDL_SCANCODE_D])       b |= BTN_RIGHT;
+    /* Gamepad mapping */
+    if (port_controller)
+    {
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_UP))    b |= BTN_UP;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN))  b |= BTN_DOWN;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT))  b |= BTN_LEFT;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) b |= BTN_RIGHT;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_A))          b |= BTN_CROSS;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_B))          b |= BTN_CIRCLE;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_Y))          b |= BTN_TRIANGLE;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_X))          b |= BTN_SQUARE;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER))  b |= BTN_L1;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) b |= BTN_R1;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_START))      b |= BTN_START;
+        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_BACK))       b |= BTN_SELECT;
+
+        /* Triggers as L2/R2 */
+        if (SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 8000)  b |= BTN_L2;
+        if (SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 8000) b |= BTN_R2;
+
+        /* Left stick → analog + d-pad fallback */
+        Sint16 lx = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTX);
+        Sint16 ly = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTY);
+        port_pad_lx = (unsigned char)((lx + 32768) >> 8);
+        port_pad_ly = (unsigned char)((ly + 32768) >> 8);
+
+        /* Digital d-pad from stick with deadzone */
+        if (lx < -16000) b |= BTN_LEFT;
+        if (lx >  16000) b |= BTN_RIGHT;
+        if (ly < -16000) b |= BTN_UP;
+        if (ly >  16000) b |= BTN_DOWN;
+    }
+    else
+    {
+        /* Analog stick from keyboard (fully digital) */
+        port_pad_lx = 128;
+        port_pad_ly = 128;
+        if (b & BTN_LEFT)  port_pad_lx = 0;
+        if (b & BTN_RIGHT) port_pad_lx = 255;
+        if (b & BTN_UP)    port_pad_ly = 0;
+        if (b & BTN_DOWN)  port_pad_ly = 255;
+    }
 
     port_pad_buttons = b;
-
-    /* Analog stick from arrow keys (fully digital for now) */
-    port_pad_lx = 128;
-    port_pad_ly = 128;
-    if (b & BTN_LEFT)  port_pad_lx = 0;
-    if (b & BTN_RIGHT) port_pad_lx = 255;
-    if (b & BTN_UP)    port_pad_ly = 0;
-    if (b & BTN_DOWN)  port_pad_ly = 255;
 }
 
 void mts_init_controller(void) {}
@@ -294,7 +345,7 @@ void mts_set_pad_vibration2(int channel, int value) { (void)channel; (void)value
 int mts_get_pad_vibration_type(int channel) { (void)channel; return 0; }
 
 void mts_stop_controller(void) {}
-long mts_PadRead(int unused) { (void)unused; return 0; }
+long mts_PadRead(int unused) { (void)unused; return port_pad_buttons; }
 int mts_control_vibration(int enable) { (void)enable; return 0; }
 
 void mts_reset_graph(void) {}
