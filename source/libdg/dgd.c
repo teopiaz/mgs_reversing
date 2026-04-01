@@ -118,6 +118,7 @@ void DG_ResetPipeline(void)
     printf("Object Queue %d\n", DG_Chanl(0)->objs_index);
     printf("Primitive Queue %d\n", DG_Chanl(0)->queue_size - DG_Chanl(0)->prim_index);
 
+    printf("[dg] ResetPipeline: clearing objs_index (was %d)\n", DG_Chanl(0)->objs_index);
     DG_Chanl(0)->objs_index = 0;
     DG_Chanl(0)->prim_index = DG_Chanl(0)->queue_size;
 }

@@ -26,9 +26,8 @@ void GM_ResetChara(void)
 {
     CHARA *chara;
 
-#ifndef DEV_EXE
+#if !defined(DEV_EXE) && !defined(PORT_BUILD)
     chara = (CHARA *)StageCharacterEntries;
-    // overwrite the first entry with the end-of-table marker
     *((int *)&chara->func) = 0;
     *((int *)&chara->class_id) = 0;
 #endif

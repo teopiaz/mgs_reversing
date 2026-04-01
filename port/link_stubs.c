@@ -219,4 +219,10 @@ void s11i_dword_800D5C48(void) { }
 void size_800DEBA8(void) { }
 void sub_8003F84C(void) { }
 void sub_80048124(void) { }
-void DG_HikituriFlagOld(void) { }
+int DG_HikituriFlagOld = 0;
+
+/* Title stage overlay functions (not yet ported) */
+void *NewOpen_800D6814(int name, int where, int argc, char **argv) { return NULL; }
+void *NewVrwindow_800D81AC(int name, int where, int argc, char **argv) { return NULL; }
+void *NewFonttext_800C446C(int name, int where, int argc, char **argv) { return NULL; }
+

@@ -160,6 +160,16 @@ void DG_DrawOTag( int which )
     gCurrentRootCnt_800AB984 = GetRCnt(RCntCNT1);
 
     /* channels 1 and 2 are linked into channel 0 */
+    {
+        static int dd = 0;
+        if (dd < 5) {
+            /* Check channel 2's OT for prims */
+            u_long *ch2ot = DG_Chanls[2].ot[which];
+            printf("[DG_DrawOTag] which=%d ch2_ot[%d]=%p val=0x%X\n",
+                   which, which, ch2ot, ch2ot ? *ch2ot : 0);
+            dd++;
+        }
+    }
     DrawOTag(&DG_Chanls[0].env1[which].tag);
 }
 

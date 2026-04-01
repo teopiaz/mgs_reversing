@@ -1723,6 +1723,7 @@ void menu_number_init(MenuWork *work)
     TIM  *tim;
     SPRT *sprt;
 
+    printf("[menu_number_init] called\n");
     texture_rect = rect_800AB64C[0];
 
     // Loads "num.res" (c70e.r) file:
@@ -2006,6 +2007,7 @@ void _menu_number_draw_string(MenuPrim *pGlue, TextConfig *pTextConfig, const ch
         setUV0(pSprt2, tpx, tpy);
 
         addPrim(ot, pSprt2);
+        { static int dbg = 0; if (dbg++ < 5) printf("[menu-text] SPRT at (%d,%d) u=%d v=%d ot=%p\n", pSprt2->x0, pSprt2->y0, tpx, tpy, ot); }
         width += skip;
     }
 
