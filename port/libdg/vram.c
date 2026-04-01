@@ -219,7 +219,9 @@ uint16_t port_current_z = 0;
 uint16_t port_tex_tpage = 0;
 uint16_t port_tex_clut = 0;
 int port_tex_enabled = 0;
-/* Per-triangle UV coords (fixed-point 16.16) */
+int port_tex_semi_trans = 0; /* 1 = semi-transparent model */
+int port_tex_abr = 0;       /* ABR blend mode (0-3) */
+/* Per-triangle UV coords */
 int port_tri_u[3], port_tri_v[3];
 
 extern uint16_t sample_vram_texel(uint16_t tpage, uint16_t clut, int u, int v);
@@ -303,7 +305,33 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                     int u = ua + (ub - ua) * frac / dx;
                     int v = va + (vb - va) * frac / dx;
                     c = sample_vram_texel(port_tex_tpage, port_tex_clut, u, v);
-                    if (c == 0) c = color; /* fallback for transparent */
+
+                    /* PSX transparency:
+                       - texel 0x0000 = fully transparent (skip pixel)
+                       - STP bit (bit 15) + semi-trans model = alpha blend */
+                    if (c == 0) continue; /* fully transparent */
+
+                    if (port_tex_semi_trans && (c & 0x8000)) {
+                        uint16_t bg = vram[vy][vx];
+                        int br = bg & 0x1F, bg2 = (bg>>5)&0x1F, bb = (bg>>10)&0x1F;
+                        int fr = c & 0x1F,  fg = (c>>5)&0x1F,   fb = (c>>10)&0x1F;
+                        int rr, rg, rb;
+                        switch (port_tex_abr) {
+                        case 0: /* 50% blend: B/2 + F/2 */
+                            rr=(br+fr)/2; rg=(bg2+fg)/2; rb=(bb+fb)/2; break;
+                        case 1: /* additive: B + F */
+                            rr=br+fr; rg=bg2+fg; rb=bb+fb; break;
+                        case 2: /* subtractive: B - F */
+                            rr=br-fr; rg=bg2-fg; rb=bb-fb; break;
+                        case 3: /* additive 25%: B + F/4 */
+                            rr=br+fr/4; rg=bg2+fg/4; rb=bb+fb/4; break;
+                        default: rr=fr; rg=fg; rb=fb; break;
+                        }
+                        if(rr<0)rr=0; if(rr>31)rr=31;
+                        if(rg<0)rg=0; if(rg>31)rg=31;
+                        if(rb<0)rb=0; if(rb>31)rb=31;
+                        c = (rb<<10)|(rg<<5)|rr;
+                    }
                 } else {
                     c = color;
                 }
