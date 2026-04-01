@@ -496,7 +496,7 @@ static int GM_Command_chara(int argc, char **argv)
     }
     else
     {
-        printf("[gcl] chara: func not found\n");
+        printf("[gcl] chara: func not found (hash=0x%X)\n", chara_name ? GCL_StrToInt(chara_name) : 0);
         ret = -1;
     }
     return ret;
