@@ -133,6 +133,16 @@ void game_tick(void)
         DG_HikituriFlag = 0;
     }
     DG_SwapFrame();
+
+    /* Pad update — matches DG_ActFirst in original dgd.c */
+    {
+        extern void GV_UpdatePadSystem(void);
+        extern GV_PAD *GM_CurrentPadData;
+        extern GV_PAD  GV_PadData[];
+        GV_UpdatePadSystem();
+        GM_CurrentPadData = GV_PadData;
+    }
+
     DG_RenderFrame();
 
     /* Direct 3D renderer */

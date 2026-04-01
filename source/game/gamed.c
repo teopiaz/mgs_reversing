@@ -718,22 +718,155 @@ void GM_GameOver(void)
 static int GM_LoadInitBin(unsigned char *buf, int id)
 {
 #ifdef PORT_BUILD
-    /* Port: set StageCharacterEntries to the correct compiled overlay.
-       The id is the strcode of the stage name (e.g., "title", "select", "s00a"). */
+    /* Port: all stage overlays are compiled statically.
+       Map the strcode id to the correct _StageCharacterEntries symbol. */
     {
-        extern void *_StageCharacterEntries_s00a;
-        extern void *_StageCharacterEntries_select;
-        extern void *_StageCharacterEntries_title;
+        extern void *_StageCharacterEntries_abst, *_StageCharacterEntries_brf;
+        extern void *_StageCharacterEntries_camera, *_StageCharacterEntries_change;
+        extern void *_StageCharacterEntries_d00a, *_StageCharacterEntries_d01a;
+        extern void *_StageCharacterEntries_d03a, *_StageCharacterEntries_d11c;
+        extern void *_StageCharacterEntries_d16e, *_StageCharacterEntries_d18a;
+        extern void *_StageCharacterEntries_d18ar, *_StageCharacterEntries_demosel;
+        extern void *_StageCharacterEntries_ending, *_StageCharacterEntries_endingr;
+        extern void *_StageCharacterEntries_opening, *_StageCharacterEntries_option;
+        extern void *_StageCharacterEntries_preope, *_StageCharacterEntries_rank;
+        extern void *_StageCharacterEntries_roll;
+        extern void *_StageCharacterEntries_s00a, *_StageCharacterEntries_s01a;
+        extern void *_StageCharacterEntries_s02a, *_StageCharacterEntries_s02b;
+        extern void *_StageCharacterEntries_s02c, *_StageCharacterEntries_s02d;
+        extern void *_StageCharacterEntries_s02e;
+        extern void *_StageCharacterEntries_s03a, *_StageCharacterEntries_s03ar;
+        extern void *_StageCharacterEntries_s03b, *_StageCharacterEntries_s03c;
+        extern void *_StageCharacterEntries_s03d, *_StageCharacterEntries_s03dr;
+        extern void *_StageCharacterEntries_s03e, *_StageCharacterEntries_s03er;
+        extern void *_StageCharacterEntries_s04a, *_StageCharacterEntries_s04b;
+        extern void *_StageCharacterEntries_s04br, *_StageCharacterEntries_s04c;
+        extern void *_StageCharacterEntries_s05a, *_StageCharacterEntries_s06a;
+        extern void *_StageCharacterEntries_s07a, *_StageCharacterEntries_s07b;
+        extern void *_StageCharacterEntries_s07br, *_StageCharacterEntries_s07c;
+        extern void *_StageCharacterEntries_s07cr;
+        extern void *_StageCharacterEntries_s08a, *_StageCharacterEntries_s08b;
+        extern void *_StageCharacterEntries_s08br, *_StageCharacterEntries_s08c;
+        extern void *_StageCharacterEntries_s08cr;
+        extern void *_StageCharacterEntries_s09a, *_StageCharacterEntries_s09ar;
+        extern void *_StageCharacterEntries_s10a, *_StageCharacterEntries_s10ar;
+        extern void *_StageCharacterEntries_s11a, *_StageCharacterEntries_s11b;
+        extern void *_StageCharacterEntries_s11c, *_StageCharacterEntries_s11d;
+        extern void *_StageCharacterEntries_s11e, *_StageCharacterEntries_s11g;
+        extern void *_StageCharacterEntries_s11h, *_StageCharacterEntries_s11i;
+        extern void *_StageCharacterEntries_s12a, *_StageCharacterEntries_s12b;
+        extern void *_StageCharacterEntries_s12c, *_StageCharacterEntries_s13a;
+        extern void *_StageCharacterEntries_s14e;
+        extern void *_StageCharacterEntries_s15a, *_StageCharacterEntries_s15b;
+        extern void *_StageCharacterEntries_s15c, *_StageCharacterEntries_s16a;
+        extern void *_StageCharacterEntries_s16b, *_StageCharacterEntries_s16c;
+        extern void *_StageCharacterEntries_s16d;
+        extern void *_StageCharacterEntries_s17a, *_StageCharacterEntries_s17ar;
+        extern void *_StageCharacterEntries_s18a, *_StageCharacterEntries_s18ar;
+        extern void *_StageCharacterEntries_s19a, *_StageCharacterEntries_s19ar;
+        extern void *_StageCharacterEntries_s19b, *_StageCharacterEntries_s19br;
+        extern void *_StageCharacterEntries_s20a, *_StageCharacterEntries_s20ar;
+        extern void *_StageCharacterEntries_select, *_StageCharacterEntries_select1;
+        extern void *_StageCharacterEntries_select2, *_StageCharacterEntries_select3;
+        extern void *_StageCharacterEntries_select4, *_StageCharacterEntries_selectd;
+        extern void *_StageCharacterEntries_sound, *_StageCharacterEntries_title;
 
-        /* Map strcode to compiled overlay */
         unsigned short stage_id = (unsigned short)id;
-        if (stage_id == 0x655B) /* title */
-            StageCharacterEntries = &_StageCharacterEntries_title;
-        else if (stage_id == 0x8D5C) /* select */
-            StageCharacterEntries = &_StageCharacterEntries_select;
-        else
-            StageCharacterEntries = &_StageCharacterEntries_s00a;
-
+        switch (stage_id) {
+        case 0x1706: StageCharacterEntries = &_StageCharacterEntries_abst; break;
+        case 0x96A7: StageCharacterEntries = &_StageCharacterEntries_brf; break;
+        case 0xEEE9: StageCharacterEntries = &_StageCharacterEntries_camera; break;
+        case 0x11F8: StageCharacterEntries = &_StageCharacterEntries_change; break;
+        case 0xC693: StageCharacterEntries = &_StageCharacterEntries_d00a; break;
+        case 0xC6B3: StageCharacterEntries = &_StageCharacterEntries_d01a; break;
+        case 0xC6F3: StageCharacterEntries = &_StageCharacterEntries_d03a; break;
+        case 0xCAB5: StageCharacterEntries = &_StageCharacterEntries_d11c; break;
+        case 0xCB57: StageCharacterEntries = &_StageCharacterEntries_d16e; break;
+        case 0xCB93: StageCharacterEntries = &_StageCharacterEntries_d18a; break;
+        case 0x72EB: StageCharacterEntries = &_StageCharacterEntries_d18ar; break;
+        case 0x2A2F: StageCharacterEntries = &_StageCharacterEntries_demosel; break;
+        case 0x833B: StageCharacterEntries = &_StageCharacterEntries_ending; break;
+        case 0x67E2: StageCharacterEntries = &_StageCharacterEntries_endingr; break;
+        case 0x58CC: StageCharacterEntries = &_StageCharacterEntries_opening; break;
+        case 0x978A: StageCharacterEntries = &_StageCharacterEntries_option; break;
+        case 0x31BA: StageCharacterEntries = &_StageCharacterEntries_preope; break;
+        case 0x9265: StageCharacterEntries = &_StageCharacterEntries_rank; break;
+        case 0xCA26: StageCharacterEntries = &_StageCharacterEntries_roll; break;
+        case 0x469B: StageCharacterEntries = &_StageCharacterEntries_s00a; break;
+        case 0x46BB: StageCharacterEntries = &_StageCharacterEntries_s01a; break;
+        case 0x46DB: StageCharacterEntries = &_StageCharacterEntries_s02a; break;
+        case 0x46DC: StageCharacterEntries = &_StageCharacterEntries_s02b; break;
+        case 0x46DD: StageCharacterEntries = &_StageCharacterEntries_s02c; break;
+        case 0x46DE: StageCharacterEntries = &_StageCharacterEntries_s02d; break;
+        case 0x46DF: StageCharacterEntries = &_StageCharacterEntries_s02e; break;
+        case 0x46FB: StageCharacterEntries = &_StageCharacterEntries_s03a; break;
+        case 0xDFDA: StageCharacterEntries = &_StageCharacterEntries_s03ar; break;
+        case 0x46FC: StageCharacterEntries = &_StageCharacterEntries_s03b; break;
+        case 0x46FD: StageCharacterEntries = &_StageCharacterEntries_s03c; break;
+        case 0x46FE: StageCharacterEntries = &_StageCharacterEntries_s03d; break;
+        case 0xE03A: StageCharacterEntries = &_StageCharacterEntries_s03dr; break;
+        case 0x46FF: StageCharacterEntries = &_StageCharacterEntries_s03e; break;
+        case 0xE05A: StageCharacterEntries = &_StageCharacterEntries_s03er; break;
+        case 0x471B: StageCharacterEntries = &_StageCharacterEntries_s04a; break;
+        case 0x471C: StageCharacterEntries = &_StageCharacterEntries_s04b; break;
+        case 0xE3FA: StageCharacterEntries = &_StageCharacterEntries_s04br; break;
+        case 0x471D: StageCharacterEntries = &_StageCharacterEntries_s04c; break;
+        case 0x473B: StageCharacterEntries = &_StageCharacterEntries_s05a; break;
+        case 0x475B: StageCharacterEntries = &_StageCharacterEntries_s06a; break;
+        case 0x477B: StageCharacterEntries = &_StageCharacterEntries_s07a; break;
+        case 0x477C: StageCharacterEntries = &_StageCharacterEntries_s07b; break;
+        case 0xEFFA: StageCharacterEntries = &_StageCharacterEntries_s07br; break;
+        case 0x477D: StageCharacterEntries = &_StageCharacterEntries_s07c; break;
+        case 0xF01A: StageCharacterEntries = &_StageCharacterEntries_s07cr; break;
+        case 0x479B: StageCharacterEntries = &_StageCharacterEntries_s08a; break;
+        case 0x479C: StageCharacterEntries = &_StageCharacterEntries_s08b; break;
+        case 0xF3FA: StageCharacterEntries = &_StageCharacterEntries_s08br; break;
+        case 0x479D: StageCharacterEntries = &_StageCharacterEntries_s08c; break;
+        case 0xF41A: StageCharacterEntries = &_StageCharacterEntries_s08cr; break;
+        case 0x47BB: StageCharacterEntries = &_StageCharacterEntries_s09a; break;
+        case 0xF7DA: StageCharacterEntries = &_StageCharacterEntries_s09ar; break;
+        case 0x4A9B: StageCharacterEntries = &_StageCharacterEntries_s10a; break;
+        case 0x53DB: StageCharacterEntries = &_StageCharacterEntries_s10ar; break;
+        case 0x4ABB: StageCharacterEntries = &_StageCharacterEntries_s11a; break;
+        case 0x4ABC: StageCharacterEntries = &_StageCharacterEntries_s11b; break;
+        case 0x4ABD: StageCharacterEntries = &_StageCharacterEntries_s11c; break;
+        case 0x4ABE: StageCharacterEntries = &_StageCharacterEntries_s11d; break;
+        case 0x4ABF: StageCharacterEntries = &_StageCharacterEntries_s11e; break;
+        case 0x4AC1: StageCharacterEntries = &_StageCharacterEntries_s11g; break;
+        case 0x4AC2: StageCharacterEntries = &_StageCharacterEntries_s11h; break;
+        case 0x4AC3: StageCharacterEntries = &_StageCharacterEntries_s11i; break;
+        case 0x4ADB: StageCharacterEntries = &_StageCharacterEntries_s12a; break;
+        case 0x4ADC: StageCharacterEntries = &_StageCharacterEntries_s12b; break;
+        case 0x4ADD: StageCharacterEntries = &_StageCharacterEntries_s12c; break;
+        case 0x4AFB: StageCharacterEntries = &_StageCharacterEntries_s13a; break;
+        case 0x4B1F: StageCharacterEntries = &_StageCharacterEntries_s14e; break;
+        case 0x4B3B: StageCharacterEntries = &_StageCharacterEntries_s15a; break;
+        case 0x4B3C: StageCharacterEntries = &_StageCharacterEntries_s15b; break;
+        case 0x4B3D: StageCharacterEntries = &_StageCharacterEntries_s15c; break;
+        case 0x4B5B: StageCharacterEntries = &_StageCharacterEntries_s16a; break;
+        case 0x4B5C: StageCharacterEntries = &_StageCharacterEntries_s16b; break;
+        case 0x4B5D: StageCharacterEntries = &_StageCharacterEntries_s16c; break;
+        case 0x4B5E: StageCharacterEntries = &_StageCharacterEntries_s16d; break;
+        case 0x4B7B: StageCharacterEntries = &_StageCharacterEntries_s17a; break;
+        case 0x6FDB: StageCharacterEntries = &_StageCharacterEntries_s17ar; break;
+        case 0x4B9B: StageCharacterEntries = &_StageCharacterEntries_s18a; break;
+        case 0x73DB: StageCharacterEntries = &_StageCharacterEntries_s18ar; break;
+        case 0x4BBB: StageCharacterEntries = &_StageCharacterEntries_s19a; break;
+        case 0x77DB: StageCharacterEntries = &_StageCharacterEntries_s19ar; break;
+        case 0x4BBC: StageCharacterEntries = &_StageCharacterEntries_s19b; break;
+        case 0x77FB: StageCharacterEntries = &_StageCharacterEntries_s19br; break;
+        case 0x4E9B: StageCharacterEntries = &_StageCharacterEntries_s20a; break;
+        case 0xD3DB: StageCharacterEntries = &_StageCharacterEntries_s20ar; break;
+        case 0x8D5C: StageCharacterEntries = &_StageCharacterEntries_select; break;
+        case 0xABC2: StageCharacterEntries = &_StageCharacterEntries_select1; break;
+        case 0xABC3: StageCharacterEntries = &_StageCharacterEntries_select2; break;
+        case 0xABC4: StageCharacterEntries = &_StageCharacterEntries_select3; break;
+        case 0xABC5: StageCharacterEntries = &_StageCharacterEntries_select4; break;
+        case 0xABF5: StageCharacterEntries = &_StageCharacterEntries_selectd; break;
+        case 0x698D: StageCharacterEntries = &_StageCharacterEntries_sound; break;
+        case 0x655B: StageCharacterEntries = &_StageCharacterEntries_title; break;
+        default:     StageCharacterEntries = &_StageCharacterEntries_s00a; break;
+        }
         printf("[bin] Stage overlay 0x%X → %p\n", stage_id, StageCharacterEntries);
     }
     return 1;
