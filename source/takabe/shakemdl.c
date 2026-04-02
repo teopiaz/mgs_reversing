@@ -294,6 +294,7 @@ static int RestoreVerts( Work *work )
     SVECTOR *vertex;
     int      n_verts;
 
+    if (!work->def) return 0;
     mdl = work->def->model;
     src = work->points;
 
