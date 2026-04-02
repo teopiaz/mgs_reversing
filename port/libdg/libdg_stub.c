@@ -273,6 +273,14 @@ void port_RenderObjects(int idx)
         printf("[render] %d DG_PRIM objects in queue\n", n_prims);
     }
 
+    /* Reset draw area clip to full screen for 3D rendering.
+       The OT walker may have set a small clip rect (e.g., for radar)
+       that would otherwise clip all 3D geometry. */
+    {
+        extern int clip_x0, clip_y0, clip_x1, clip_y1;
+        clip_x0 = 0; clip_y0 = 0; clip_x1 = 319; clip_y1 = 223;
+    }
+
     /* Clear Z-buffer each frame */
     extern uint16_t port_zbuf[224][320];
     extern uint16_t port_current_z;

@@ -25,6 +25,8 @@ uint16_t port_zbuf[224][320];
 static int disp_x = 0, disp_y = 0;
 static int disp_w = 320, disp_h = 224;
 static int draw_x = 0, draw_y = 0;
+/* GPU draw area clipping (set by E3/E4 commands, reset by port_RenderObjects) */
+int clip_x0 = 0, clip_y0 = 0, clip_x1 = 319, clip_y1 = 223;
 int port_ot_buffer_index = 0;  /* Set by DG_DrawOTag before OT walk */
 
 /*---------------------------------------------------------------------------*/
@@ -202,10 +204,12 @@ void port_DrawTile(int x, int y, int w, int h, unsigned char r, unsigned char g,
     uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
     x += draw_x; y += draw_y;
 
-    /* Clip to VRAM bounds */
+    /* Clip to draw area (set by E3/E4 GPU commands) and VRAM bounds */
     int x0 = x, y0 = y, x1 = x + w, y1 = y + h;
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
+    if (x0 < clip_x0) x0 = clip_x0;
+    if (y0 < clip_y0) y0 = clip_y0;
+    if (x1 > clip_x1 + 1) x1 = clip_x1 + 1;
+    if (y1 > clip_y1 + 1) y1 = clip_y1 + 1;
     if (x1 > VRAM_WIDTH) x1 = VRAM_WIDTH;
     if (y1 > VRAM_HEIGHT) y1 = VRAM_HEIGHT;
     int cw = x1 - x0;
@@ -325,7 +329,7 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
         for (int x = xa; x <= xb; x++)
         {
             int vx = x + draw_x;
-            if (vx >= 0 && vx < 320 && vy >= 0 && vy < 224 && z <= port_zbuf[vy][vx])
+            if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1 && z <= port_zbuf[vy][vx])
             {
                 uint16_t c;
                 if (textured) {
@@ -387,6 +391,8 @@ void port_DrawOTag(unsigned long *ot)
        for UI elements like the radar. */
     draw_x = 0;
     draw_y = 0;
+    clip_x0 = 0; clip_y0 = 0;
+    clip_x1 = 319; clip_y1 = 223;
 
     while (p && !isendprim(p))
     {
@@ -507,13 +513,13 @@ void port_DrawOTag(unsigned long *ot)
                 short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
                 short x1 = *(short *)(data + 8), y1 = *(short *)(data + 10);
                 uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
-                /* Bresenham line */
+                /* Bresenham line with draw area clipping */
                 int dx = abs(x1 - x0), dy = abs(y1 - y0);
                 int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
                 int err = dx - dy;
                 for (int steps = 0; steps < 1024; steps++) {
                     int vx = x0 + draw_x, vy = y0 + draw_y;
-                    if (vx >= 0 && vx < 320 && vy >= 0 && vy < 224)
+                    if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1)
                         vram[vy][vx] = color;
                     if (x0 == x1 && y0 == y1) break;
                     int e2 = 2 * err;
@@ -535,7 +541,7 @@ void port_DrawOTag(unsigned long *ot)
                 int err = dx - dy;
                 for (int steps = 0; steps < 1024; steps++) {
                     int vx = x0 + draw_x, vy = y0 + draw_y;
-                    if (vx >= 0 && vx < 320 && vy >= 0 && vy < 224)
+                    if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1)
                         vram[vy][vx] = color;
                     if (x0 == x1 && y0 == y1) break;
                     int e2 = 2 * err;
@@ -555,9 +561,11 @@ void port_DrawOTag(unsigned long *ot)
                 uint16_t clut = *(uint16_t *)(data + 10);
                 short w = *(short *)(data + 12);
                 short h = *(short *)(data + 14);
-                /* Render sprite from VRAM texture */
-                for (int sy = 0; sy < h && (y+sy) >= 0 && (y+sy) < 224; sy++) {
-                    for (int sx = 0; sx < w && (x+sx) >= 0 && (x+sx) < 320; sx++) {
+                /* Render sprite from VRAM texture, clipped to draw area */
+                for (int sy = 0; sy < h && (y+sy) <= clip_y1; sy++) {
+                    if ((y+sy) < clip_y0) continue;
+                    for (int sx = 0; sx < w && (x+sx) <= clip_x1; sx++) {
+                        if ((x+sx) < clip_x0) continue;
                         uint16_t c = sample_vram_texel(port_current_tpage, clut, u0+sx, v0+sy);
                         if (c != 0) vram[y+sy][x+sx] = c;
                     }
@@ -608,7 +616,28 @@ void port_DrawOTag(unsigned long *ot)
                         draw_y = oy;
                         break;
                     }
-                    /* E2=tex window, E3/E4=draw area, E6=mask — ignored for now */
+                    case 0xE3: /* Set Drawing Area Top-Left */
+                    {
+                        int ax = (cmd & 0x3FF);
+                        int ay = (cmd >> 10) & 0x1FF;
+                        /* Subtract double-buffer base like E5 */
+                        clip_x0 = ax - (port_ot_buffer_index * 320);
+                        clip_y0 = ay;
+                        if (clip_x0 < 0) clip_x0 = 0;
+                        if (clip_y0 < 0) clip_y0 = 0;
+                        break;
+                    }
+                    case 0xE4: /* Set Drawing Area Bottom-Right */
+                    {
+                        int ax = (cmd & 0x3FF);
+                        int ay = (cmd >> 10) & 0x1FF;
+                        clip_x1 = ax - (port_ot_buffer_index * 320);
+                        clip_y1 = ay;
+                        if (clip_x1 > 319) clip_x1 = 319;
+                        if (clip_y1 > 223) clip_y1 = 223;
+                        break;
+                    }
+                    /* E2=tex window, E6=mask — ignored */
                     }
                 }
                 prim_count++;
