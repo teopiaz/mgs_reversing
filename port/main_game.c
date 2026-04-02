@@ -178,13 +178,14 @@ void game_tick(void)
         GV_ExecActorSystem();
         uint64_t ta1 = mach_absolute_time();
 
-        /* Render pipeline AFTER actors: transforms, sorts, draws
-           (uses scratchpad for bounding box calculations) */
-        DG_RenderFrame();
+        /* Direct 3D renderer FIRST — draws geometry to VRAM */
+        port_RenderObjects(GV_Clock);
         uint64_t ta2 = mach_absolute_time();
 
-        /* Direct 3D renderer */
-        port_RenderObjects(GV_Clock);
+        /* OT-based render pipeline AFTER 3D — menu/UI prims draw on top.
+           On PSX, menu prims were sorted at the front of the OT (nearest depth),
+           so they drew last and appeared on top of 3D geometry. */
+        DG_RenderFrame();
         uint64_t ta3 = mach_absolute_time();
 
         t_swap += ts1 - ts0;

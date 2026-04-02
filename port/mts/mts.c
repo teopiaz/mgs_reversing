@@ -372,24 +372,44 @@ void port_update_pad(void)
         }
 
         if (rec_file) {
-            /* Write on button state changes + first frame.
-               Use fileno+write for crash-safe unbuffered I/O. */
-            static unsigned short prev_b = 0xFFFF; /* force first write */
-            if (port_pad_buttons != prev_b) {
-                char line[32];
-                int len = snprintf(line, sizeof(line), "%u 0x%04X\n", frame, port_pad_buttons);
-                write(fileno(rec_file), line, len);
+            /* Record every frame with non-zero buttons, plus all transitions.
+               This captures exact timing of simultaneous presses.
+               Uses unbuffered write() to survive crashes. */
+            static unsigned short prev_b = 0xFFFF;
+            if (port_pad_buttons != prev_b || port_pad_buttons != 0) {
+                if (port_pad_buttons != prev_b) {
+                    char line[32];
+                    int len = snprintf(line, sizeof(line), "%u 0x%04X\n", frame, port_pad_buttons);
+                    write(fileno(rec_file), line, len);
+                }
                 prev_b = port_pad_buttons;
             }
         }
 
         if (play_file) {
+            /* Replay: apply recorded button state at the correct frame.
+               Between events, hold the last button state (not zero). */
             static unsigned int next_frame = 0;
+            static unsigned short cur_buttons = 0;
             static unsigned short next_buttons = 0;
+            static int need_read = 1;
             static int eof = 0;
-            /* Read ahead to find the next input event */
+
+            /* Read first entry */
+            if (need_read && !eof) {
+                unsigned int f; unsigned int btn;
+                if (fscanf(play_file, "%u 0x%X", &f, &btn) == 2) {
+                    next_frame = f;
+                    next_buttons = (unsigned short)btn;
+                } else {
+                    eof = 1;
+                }
+                need_read = 0;
+            }
+
+            /* Apply events that have arrived */
             while (!eof && frame >= next_frame) {
-                port_pad_buttons = next_buttons;
+                cur_buttons = next_buttons;
                 unsigned int f; unsigned int btn;
                 if (fscanf(play_file, "%u 0x%X", &f, &btn) == 2) {
                     next_frame = f;
@@ -399,6 +419,8 @@ void port_update_pad(void)
                     printf("[input] replay ended at frame %u\n", frame);
                 }
             }
+
+            port_pad_buttons = cur_buttons;
         }
 
         frame++;
