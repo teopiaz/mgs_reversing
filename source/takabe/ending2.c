@@ -854,14 +854,14 @@ void Ending2Act_800C71D8(Ending2Work *work)
         case 1:
             count = 3;
 
-            var_a0 = (unsigned short *)0x1F800200;
+            var_a0 = (unsigned short *)(SCRPAD_ADDR + 0x200);
             var_a0_2 = work->field_50 + 2;
             for (i2 = 16; i2 > 0; i2--)
             {
                 *var_a0++ = *var_a0_2++;
             }
 
-            var_a0_2 = (unsigned short *)0x1F800200;
+            var_a0_2 = (unsigned short *)(SCRPAD_ADDR + 0x200);
 
             for (i = 0; i < count; i++, roll_dword_800CA360--)
             {

@@ -10,12 +10,12 @@ extern unsigned int *ptr_800B1400[256];
 
 static inline SCRATCHPAD_UNK * get_scratch(void)
 {
-    return (SCRATCHPAD_UNK *)0x1f800000;
+    return (SCRATCHPAD_UNK *)(SCRPAD_ADDR);
 }
 
 static inline unsigned int ** get_buf(void)
 {
-    return *(unsigned int ***)0x1f800000;
+    return *(unsigned int ***)(SCRPAD_ADDR);
 }
 
 static inline int DG_GetCurrentGroupID(void)
@@ -88,17 +88,17 @@ void DG_SortChanl( DG_CHANL *chanl, int idx )
         }
 
         // TODO: clean up
-        ((SCRATCHPAD_UNK *)0x1f800000)->len = pPrim->raise;
+        ((SCRATCHPAD_UNK *)(SCRPAD_ADDR))->len = pPrim->raise;
 
         prim_count = pPrim->prim_count;
         prim = (char *)pPrim->packs[idx];
         prim_size = (short)pPrim->psize;
 
         do {} while (0);
-        ot2 = *(u_long **)0x1f800004;
+        ot2 = *(u_long **)(SCRPAD_ADDR + 0x004);
 
         do {} while (0);
-        len = *(unsigned int *)0x1f800008;
+        len = *(unsigned int *)(SCRPAD_ADDR + 0x008);
 
         while (--prim_count >= 0)
         {

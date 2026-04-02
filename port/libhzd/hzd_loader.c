@@ -69,7 +69,20 @@ int HZD_LoadInitHzd(void *buf, int id)
 
     /* Convert offsets to pointers (relative to buf) */
     hzm->zones = raw->zones_off ? (HZD_ZON *)(base + raw->zones_off) : NULL;
-    hzm->routes = raw->routes_off ? (HZD_PAT *)(base + raw->routes_off) : NULL;
+    /* Convert routes — raw format has 4-byte offset for points, need 8-byte pointer */
+    if (raw->routes_off && hzm->n_routes > 0) {
+        typedef struct { int16_t n_points; int16_t init_point; uint32_t points_off; } HZD_PAT_RAW;
+        HZD_PAT_RAW *raw_routes = (HZD_PAT_RAW *)(base + raw->routes_off);
+        HZD_PAT *routes = (HZD_PAT *)malloc(hzm->n_routes * sizeof(HZD_PAT));
+        for (int i = 0; i < hzm->n_routes; i++) {
+            routes[i].n_points = raw_routes[i].n_points;
+            routes[i].init_point = raw_routes[i].init_point;
+            routes[i].points = raw_routes[i].points_off ? (HZD_PTP *)(base + raw_routes[i].points_off) : NULL;
+        }
+        hzm->routes = routes;
+    } else {
+        hzm->routes = NULL;
+    }
 
     /* Set up groups — they come right after the map header in the allocated block */
     HZD_GRP *groups = (HZD_GRP *)(hzm + 1);
