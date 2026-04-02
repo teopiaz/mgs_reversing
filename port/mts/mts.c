@@ -326,6 +326,12 @@ void port_update_pad(void)
                 { 300, BTN_DOWN   },  /* select1: move down */
                 { 360, BTN_DOWN   },  /* select1: move down */
                 { 420, BTN_CIRCLE },  /* select1: confirm (s00a) */
+                /* gameplay: press arrows to move Snake */
+                { 540, BTN_LEFT   },
+                { 600, BTN_UP     },
+                { 660, BTN_RIGHT  },
+                { 720, BTN_DOWN   },
+                { 780, BTN_LEFT   },
             };
             int n = sizeof(script) / sizeof(script[0]);
             for (int i = 0; i < n; i++) {
