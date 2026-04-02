@@ -594,12 +594,20 @@ static int GetResources(Work *work, int hashedFileName, short *itemEquippedIndic
         return -1;
     }
 
+#ifdef PORT_BUILD
+    /* Sight data (scope/binoculars HUD) is stored in PSX binary format with
+       32-bit pointers baked into the struct. Proper loading requires a dedicated
+       binary parser like KMD/OAR loaders. Skip for now — sight is cosmetic. */
+    return -1;
+#else
     ancillaryInfo = info->ancillaryInfo;
     primitiveBufferSize = info->primitiveBufferSize;
     primCount = info->primCount;
     primOffsetIndices = info->primOffsetIndicesArray;
     tPageCount = 0;
     primOffsetInfo = info->primOffsetInfoArray;
+#endif
+
     primitiveBuffer = (unsigned int *)GV_Malloc(primitiveBufferSize * 2);
     work->primitiveDoubleBuffer[0] = primitiveBuffer;
 
