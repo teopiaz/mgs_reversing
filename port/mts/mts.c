@@ -377,7 +377,10 @@ void *mts_get_controller_data(int channel)
 
 int mts_read_pad(int channel)
 {
-    (void)channel;
+    /* Only return buttons for port 0 (player 1).
+       Port 2 is the PSX debug controller — returning player 1 data
+       for it triggers debug prints every frame. */
+    if (channel != 0) return 0;
     return port_pad_buttons;
 }
 

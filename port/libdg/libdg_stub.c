@@ -250,6 +250,11 @@ static void mat_mul(MATRIX *a, MATRIX *b, MATRIX *out)
     }
 }
 
+int port_get_objs_count(void)
+{
+    return DG_Chanls[1].objs_index;
+}
+
 /* Render all queued DG_OBJS directly to VRAM */
 static int render_debug = 0;
 void port_RenderObjects(int idx)
