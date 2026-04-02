@@ -121,6 +121,8 @@ void *GV_GetCache( int id )
     CACHE *cp;
 
     if ( ( cp = FindCache( id ) ) != NULL ) return cp->buf;
+    printf("[cache] MISS: id=0x%X (name=0x%X ext='%c')\n",
+           id & 0xFFFFFF, id & 0xFFFF, 'a' + ((id >> 16) & 0xFF));
     return NULL;
 }
 

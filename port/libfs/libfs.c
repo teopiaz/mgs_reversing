@@ -442,7 +442,7 @@ void FS_StreamUngetData(void *stream) { (void)stream; }
 void FS_StreamClear(void *stream) { (void)stream; }
 void FS_StreamClearType(void *stream, int target_type) { (void)stream; (void)target_type; }
 int  FS_StreamGetEndFlag(void) { return 1; }
-int  FS_StreamIsForceStop(void) { return 0; }
+int  FS_StreamIsForceStop(void) { return 1; /* port: skip FMV streams */ }
 void FS_StreamTickStart(void) {}
 void FS_StreamSoundMode(void) {}
 int  FS_StreamGetTick(void) { return 0; }
