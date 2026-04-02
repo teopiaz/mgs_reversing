@@ -439,6 +439,12 @@ static void Act(Work *work)
         MENU_ResetTexture();
         GM_AlertModeReset();
         GM_SoundStart();
+#ifdef PORT_BUILD
+        /* Port: ensure pad input is enabled when entering gameplay.
+           On PSX, the GCL 'pad -s' command clears this, but some stages
+           may not run it due to skipped cutscene procs. */
+        GM_GameStatus &= ~(STATE_PADRELEASE | STATE_ALL_OFF);
+#endif
         work->status = WORKING;
 
         return;

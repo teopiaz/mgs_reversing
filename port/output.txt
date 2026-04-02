@@ -1,13 +1,13 @@
 port: SDL initialized
 port: game_init starting
 port: WARNING: could not map scratchpad at 0x1f800000 (0xffffffffffffffff)
-port: memory pools allocated (normal=0xbf6800000, pkt0=0xbf6a00000, pkt1=0xbf6a80000)
+port: memory pools allocated (normal=0x4c6800000, pkt0=0x4c6a00000, pkt1=0x4c6a80000)
 mem:mem:pad:gv:fs:fs: STAGE.DIR RADIO.DAT FACE.DAT ZMOVIE.STR VOX.DAT DEMO.DAT BRF.DAT
   [fs] 95 stages in STAGE.DIR: brf abst d00a d01a d03a d11c d16e d18a init rank ...
   [fs] FS_StartDaemon complete
 dg:dg:[ot] walked 22 nodes, 0 prims rendered
 [ot] walked 22 nodes, 0 prims rendered
-gcl:hzd:sound:gm:RESIDENT TOP F6A00000
+gcl:hzd:sound:gm:RESIDENT TOP C6A00000
 LoadReq
   [fs] Loading stage 'init' at sector 2761...
   [fs]   DATACNF: version=1, size=283 sectors (579584 bytes)
@@ -19,103 +19,991 @@ LoadReq
 start
 port: entering main loop
 [gpu] PutDispEnv #1: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1011b55fc val=0x250
 [ot] walked 297 nodes, 0 prims rendered
 [gpu] PutDispEnv #2: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1011b55fc val=0x250
 [gpu] PutDispEnv #3: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1011b55fc val=0x250
 LoadEnd
 [gpu] PutDispEnv #4: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
-[res] alloc 672 bytes → 0xbf69ffd60 (bottom=0xbf69ffd60, area=0xbf6a00000)
-[res] alloc 1536 bytes → 0xbf69ff760 (bottom=0xbf69ff760, area=0xbf6a00000)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1011b55fc val=0x250
+[res] alloc 672 bytes → 0x4c69ffd60 (bottom=0x4c69ffd60, area=0x4c6a00000)
+[res] alloc 1536 bytes → 0x4c69ff760 (bottom=0x4c69ff760, area=0x4c6a00000)
 exec scenario
 [menu_number_init] called
 jimaku_font_buffer_size 4896
-[res] alloc 4896 bytes → 0xbf69fe440 (bottom=0xbf69fe440, area=0xbf6a00000)
+[res] alloc 4896 bytes → 0x4c69fe440 (bottom=0x4c69fe440, area=0x4c6a00000)
 MENU INIT END
 end scenario
 [gpu] PutDispEnv #5: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1011b55fc val=0x250
 GM_StreamPlayStop
-RESIDENT TOP F69FE440
+RESIDENT TOP C69FE440
 LoadReq
   [fs] Loading stage 'select' at sector 35595...
   [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
   [fs]   Loaded 14336 bytes, 6 tags
-[bin] Stage overlay 0x8D5C → 0x102a1f3b0
+[bin] Stage overlay 0x8D5C → 0x100ddb3b0
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x5947 func=0x102935d88 binds=0x0
+[gcl] chara: name=0x5947 func=0x100cf1e44 binds=0x0
 end scenario
-[menu-text] SPRT at (0,120) u=114 v=493 ot=0x102df95f4
-[menu-text] SPRT at (7,120) u=48 v=493 ot=0x102df95f4
-[menu-text] SPRT at (10,120) u=114 v=493 ot=0x102df95f4
-[menu-text] SPRT at (16,120) u=66 v=493 ot=0x102df95f4
-[menu-text] SPRT at (22,120) u=24 v=493 ot=0x102df95f4
+[menu-text] SPRT at (0,120) u=114 v=493 ot=0x1011b55f4
+[menu-text] SPRT at (7,120) u=48 v=493 ot=0x1011b55f4
+[menu-text] SPRT at (10,120) u=114 v=493 ot=0x1011b55f4
+[menu-text] SPRT at (16,120) u=66 v=493 ot=0x1011b55f4
+[menu-text] SPRT at (22,120) u=24 v=493 ot=0x1011b55f4
+[render] chanl1: objs_index=0
+[render] chanl1: objs_index=0
+[render] chanl1: objs_index=0
+[tick 360] snake=(0,0,0) pad=0x0 gs=0x0 undraw=0
 str_status 0 irq 0 0 0
 key 00000000
 GM_StreamPlayStop
-RESIDENT TOP F69FE440
+RESIDENT TOP C69FE440
 LoadReq
-  [fs] Loading stage 'select1' at sector 36297...
-  [fs]   DATACNF: version=1, size=4 sectors (8192 bytes)
-  [fs]   Loaded 8192 bytes, 6 tags
-[bin] Stage overlay 0xABC2 → 0x102a1f3e0
+  [fs] Loading stage 'selectd' at sector 36301...
+  [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
+  [fs]   Loaded 14336 bytes, 6 tags
+[bin] Stage overlay 0xABF5 → 0x100ddb460
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x291C func=0x102935d88 binds=0x0
+[gcl] chara: name=0x887F func=0x100cf1e44 binds=0x0
 end scenario
 [render] chanl1: objs_index=0
-[render] chanl1: objs_index=0
+[tick 480] snake=(0,0,0) pad=0x0 gs=0x0 undraw=0
+str_status 0 irq 0 0 0
+key 00000000
+[gcl] chara: name=0x282C func=0x100cf1e44 binds=0x0
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
 str_status 0 irq 0 0 0
 key 00000000
 GM_StreamPlayStop
-RESIDENT TOP F69FE440
+RESIDENT TOP C69FE440
 LoadReq
-  [fs] Loading stage 's01a' at sector 3965...
-  [fs]   DATACNF: version=1, size=545 sectors (1116160 bytes)
-  [fs]   Loaded 1116160 bytes, 34 tags
-[bin] Stage overlay 0x46BB → 0x102a19310
-  [fs]   Nocache texture data: 248884 bytes
-  [fs]   Processed 51 nocache entries
-  [fs]   Nocache texture data: 247780 bytes
-  [fs]   Processed 211 nocache entries
-    [img] id=0x8C681: 2048x800 tile=32x32 tex_off=20 att_off=36 til_off=404
-Warning:old version hzm
+  [fs] Loading stage 'opening' at sector 35602...
+  [fs]   DATACNF: version=1, size=391 sectors (800768 bytes)
+  [fs]   Loaded 800768 bytes, 54 tags
+[bin] Stage overlay 0x58CC → 0x100dd4eb0
+  [fs]   Nocache texture data: 237468 bytes
+  [fs]   Processed 17 nocache entries
+  [fs]   Nocache texture data: 235460 bytes
+  [fs]   Processed 230 nocache entries
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
 [map] GM_CreateMap: name=0x7DF9
-[map]   hazard loaded: name=0xC681 area=0
-[map]   lit loaded: name=0xC681
-  [map] LoadMapModel: name=0xC681
-[dg] QueueObjs: chanl=1 objs_index=1 def=0x8b2fc0000 n_models=122
+[map]   hazard loaded: name=0xD82D area=0
+[map]   lit loaded: name=0x19BB
+  [map] LoadMapModel: name=0xD82D
+[dg] QueueObjs: chanl=1 objs_index=1 def=0xc123b4800 n_models=6
   [map]   model loaded OK
-[gcl] chara: name=0x23EF func=0x1028ff70c binds=0x1
+[gcl] chara: name=0x6ECA func=0x100d6b078 binds=0x1
+[gcl] chara: name=0x956B func=0x100d40438 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=2 def=0xc1354a300 n_models=2
+[dg] QueueObjs: chanl=1 objs_index=3 def=0xc135c9180 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=4 def=0xc135c94a0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=5 def=0xc135c94a0 n_models=1
+[gcl] chara: name=0xD6C9 func=0x100d90338 binds=0x1
+[gcl] chara: name=0xD6C9 func=0x100d90338 binds=0x1
+[gcl] chara: name=0x2D9E func=0x100d8b21c binds=0x1
+NewStream 0
+[gcl] chara: name=0x6555 func=0x100ce1ecc binds=0x1
+add map 1
+end scenario
+GM_StreamPlayStop
+GM_StreamPlayStop
+[render] chanl1: objs_index=0
+[tick 600] snake=(0,0,0) pad=0x0 gs=0x904A6000 undraw=0
+RESIDENT TOP C69FE440
+LoadReq
+  [fs] Loading stage 'select1' at sector 36297...
+  [fs]   DATACNF: version=1, size=4 sectors (8192 bytes)
+  [fs]   Loaded 8192 bytes, 6 tags
+[bin] Stage overlay 0xABC2 → 0x100ddb3e0
+  [fs]   Stage processing complete
+LoadEnd
+exec scenario
+[gcl] chara: name=0x291C func=0x100cf1e44 binds=0x0
+end scenario
+[render] chanl1: objs_index=0
+[tick 720] snake=(0,0,0) pad=0x0 gs=0x0 undraw=0
+str_status 0 irq 0 0 0
+key 00000000
+GM_StreamPlayStop
+RESIDENT TOP C69FE440
+LoadReq
+  [fs] Loading stage 's00a' at sector 3454...
+  [fs]   DATACNF: version=1, size=511 sectors (1046528 bytes)
+  [fs]   Loaded 1046528 bytes, 42 tags
+[bin] Stage overlay 0x469B → 0x100dd5150
+  [fs]   Nocache texture data: 250980 bytes
+  [fs]   Processed 32 nocache entries
+  [fs]   Nocache texture data: 246860 bytes
+  [fs]   Processed 238 nocache entries
+  [fs]   Stage processing complete
+LoadEnd
+exec scenario
+[map] GM_CreateMap: name=0x7DF9
+[map]   hazard loaded: name=0xC661 area=0
+[map]   lit loaded: name=0xC661
+  [map] LoadMapModel: name=0xC661
+[dg] QueueObjs: chanl=1 objs_index=1 def=0xc12390000 n_models=181
+  [map]   model loaded OK
+  [map] LoadMapModel: name=0x6DA4
+[dg] QueueObjs: chanl=1 objs_index=2 def=0xc121c2400 n_models=23
+  [map]   model loaded OK
+[gcl] chara: name=0xFD43 func=0x100d6a534 binds=0x1
+[gcl] chara: name=0x6ECA func=0x100d6b078 binds=0x1
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+BIND 00000001
+[gcl] chara: name=0x78C4 func=0x100d86284 binds=0x1
+[gcl] chara: name=0x78C4 func=0x100d86284 binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0x78AF func=0x100d86a1c binds=0x1
+[gcl] chara: name=0xD6C9 func=0x100d8f20c binds=0x1
+[gcl] chara: name=0x9E3E func=0x100d7ed08 binds=0x1
+[gcl] chara: name=0x9B37 func=0x100d28e38 binds=0x1
+[gcl] chara: name=0x5BA4 func=0x100d40438 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=3 def=0xc1354a6c0 n_models=2
+[dg] QueueObjs: chanl=1 objs_index=4 def=0xc135c99a0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=5 def=0xc135c9d60 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=6 def=0xc135c9d60 n_models=1
+[gcl] chara: func not found (hash=0x6E90)
+[gcl] chara: name=0xAB10 func=0x100cb3b7c binds=0x1
+[gcl] chara: name=0x7B22 func=0x100cb511c binds=0x1
+ migi sodesuri 5 
+ migi sodesuri 5 
+ migi sodesuri 5 
+ migi sodesuri 5 
+[gcl] chara: name=0x2D07 func=0x100d935dc binds=0x1
+[gcl] chara: name=0x2D07 func=0x100d935dc binds=0x1
+[gcl] chara: name=0x2D07 func=0x100d935dc binds=0x1
+[gcl] chara: name=0x2D07 func=0x100d935dc binds=0x1
+[gcl] chara: name=0x2D07 func=0x100d935dc binds=0x1
+[gcl] chara: name=0xD14A func=0x100cd20ec binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=7 def=0xc1354a580 n_models=1
+[gcl] chara: name=0xC056 func=0x100cd20ec binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=8 def=0xc135c9860 n_models=1
+[gcl] chara: name=0xC056 func=0x100cd20ec binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=9 def=0xc13773200 n_models=4
+[gcl] chara: name=0x790B func=0x100d87c7c binds=0x1
+[gcl] chara: name=0x790C func=0x100d87c7c binds=0x1
+[gcl] chara: name=0x790D func=0x100d87c7c binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xC287 func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xD8D1 func=0x100d74238 binds=0x1
+[gcl] chara: name=0x23EF func=0x100cbb7c8 binds=0x1
  COM_NOISEMODE_DIS =8000 
-eee 4000 5000 4000 t 3 
-[gcl] chara: name=0x1465 func=0x102917990 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=2 def=0x8b3725000 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=3 def=0x8b35b9680 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=4 def=0x8b35b9ea0 n_models=1
-[gcl] chara: name=0x1466 func=0x102917990 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=5 def=0x8b3725000 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=6 def=0x8b35b9680 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=7 def=0x8b35b9ea0 n_models=1
-[gcl] chara: name=0x1467 func=0x102917990 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=8 def=0x8b3725000 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=9 def=0x8b35b9680 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=10 def=0x8b35b9ea0 n_models=1
-[gcl] chara: name=0xDD6D func=0x1028fbcb8 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=11 def=0x8b35bad00 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=12 def=0x8b35bab20 n_models=1
-[gcl] chara: name=0xDD6E func=0x1028fbcb8 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=13 def=0x8b35bad00 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=14 def=0x8b35bab20 n_models=1
-[gcl] chara: name=0x5DF7 func=0x10290f5a0 binds=0x1
-
-=== CRASH: signal 11 ===
+eee 4000 4000 4000 t 4 
+[gcl] chara: name=0x13E8 func=0x100cd3a4c binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=10 def=0xc123fc000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=11 def=0xc130d9400 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=12 def=0xc130d9ae0 n_models=1
+[gcl] chara: name=0x1467 func=0x100cd3a4c binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=13 def=0xc123fc000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=14 def=0xc130d9400 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=15 def=0xc130d9ae0 n_models=1
+[gcl] chara: name=0x1466 func=0x100cd3a4c binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=16 def=0xc123fc000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=17 def=0xc130d9400 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=18 def=0xc130d9ae0 n_models=1
+[gcl] chara: name=0x39FD func=0x100d3c5a4 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=19 def=0xc135c97c0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=20 def=0xc135c97c0 n_models=1
+[gcl] chara: name=0x39FE func=0x100d3c5a4 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=21 def=0xc135c97c0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=22 def=0xc135c97c0 n_models=1
+[gcl] chara: name=0xEEBA func=0x100ce8134 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=23 def=0xc135c9cc0 n_models=1
+Item map = 1
+[gcl] chara: name=0xEEBA func=0x100ce8134 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=24 def=0xc135c9cc0 n_models=1
+Item map = 1
+[gcl] chara: name=0xEEBA func=0x100ce8134 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=25 def=0xc135c9cc0 n_models=1
+Item map = 1
+add map 1
+[gcl] chara: name=0x21CA func=0x100cac43c binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=26 def=0xc12fa3800 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=27 def=0xc130d9ae0 n_models=1
+[gcl] chara: name=0x6F8B func=0x100c9b5c8 binds=0x1
+end scenario
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+[gcl] chara: name=0xDB2B func=0x100d6e030 binds=0x1
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+PROC 7F000083 NOT FOUND
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+ GM_EnemyWatchCount = [1] 
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+[render] chanl1: objs_index=27
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+[tick 840] snake=(-5812,469,-1358) pad=0x0 gs=0x104A0000 undraw=0
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+[render] 2007 faces drawn (2861 visible, 27 objs)
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+[render] chanl1: objs_index=27
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+[tick 960] snake=(-5812,469,-1358) pad=0x0 gs=0x104A0000 undraw=0
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+command.c:  Where Is Snake ????
+port: shutdown complete

@@ -157,6 +157,17 @@ void game_tick(void)
     /* Actor system: game logic, camera actors call DG_LookAt */
     GV_ExecActorSystem();
 
+    /* Debug: print Snake position and pad state periodically */
+    if ((tick_count % 120) == 0 && tick_count > 300) {
+        extern int GM_GameStatus;
+        extern int DG_UnDrawFrameCount;
+        printf("[tick %d] snake=(%d,%d,%d) pad=0x%lX gs=0x%X undraw=%d\n",
+               tick_count,
+               GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz,
+               (unsigned long)GV_PadData[0].status,
+               GM_GameStatus, DG_UnDrawFrameCount);
+    }
+
     GV_Clock = 1 - GV_Clock;
     tick_count++;
 }
