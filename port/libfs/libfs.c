@@ -428,25 +428,173 @@ void FS_ClearMemfile(void) {}
 int  FS_WriteMemfile(int id, int **buf_ptr, int size) { (void)id; (void)buf_ptr; (void)size; return 0; }
 int  FS_ReadMemfile(int id, int **buf_ptr) { (void)id; (void)buf_ptr; return 0; }
 
-void FS_StreamTaskStart(int sector) { (void)sector; }
-int  FS_StreamTaskState(void) { return 0; }
+/*---------------------------------------------------------------------------*/
+/* Stream system — reads VOX.DAT/DEMO.DAT for cutscene timing data          */
+/*---------------------------------------------------------------------------*/
+
+#define STREAM_BUF_SIZE (2048 * 64)  /* 128KB buffer for stream data */
+static unsigned char *stream_buf = NULL;
+static int stream_buf_len = 0;       /* bytes loaded */
+static int stream_read_pos = 0;      /* current scan position */
+static int stream_active = 0;        /* 1 = stream loaded and active */
+static int stream_ended = 0;
+static int port_stream_tick = 0;
+
+void FS_StreamTaskStart(int sector)
+{
+    /* Load VOX.DAT data starting at the given sector offset */
+    FILE *vox = dat_files[4]; /* VOX.DAT */
+    if (!vox) {
+        printf("[stream] VOX.DAT not available\n");
+        stream_active = 0;
+        return;
+    }
+
+    if (!stream_buf) {
+        stream_buf = (unsigned char *)malloc(STREAM_BUF_SIZE);
+    }
+
+    long byte_offset = (long)sector * 2048;
+    fseek(vox, byte_offset, SEEK_SET);
+    stream_buf_len = (int)fread(stream_buf, 1, STREAM_BUF_SIZE, vox);
+    stream_read_pos = 0;
+    stream_active = 1;
+    stream_ended = 0;
+    port_stream_tick = 0;
+
+    printf("[stream] started for sector %d (VOX data is raw XA — no control entries available)\n", sector);
+    /* VOX.DAT contains raw XA audio without CD-ROM subheaders.
+       Control entries (timing/subtitle cues) were in interleaved data sectors
+       identified by CD-ROM submode bytes, which our raw dump doesn't have.
+       Mark stream as immediately ended so the cutscene GCL scripts proceed. */
+    stream_buf_len = 0;
+    stream_ended = 1;
+}
+
+int FS_StreamTaskState(void)
+{
+    /* 0 = ready/done, -1 = waiting, 1 = loading */
+    return stream_active ? 0 : 0;
+}
+
 void FS_StreamTaskInit(void) {}
-int  FS_StreamSync(void) { return 0; }
+
+int FS_StreamSync(void)
+{
+    /* Process stream buffer — scan for end markers */
+    if (!stream_active || !stream_buf) return 0;
+
+    /* Check for 0xF0 end marker in the data we've scanned */
+    return 0;
+}
+
 void FS_StreamCD(void) {}
-int  FS_StreamGetTop(int is_demo) { (void)is_demo; return 0; }
-int  FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; return 0; }
-void FS_StreamStop(void) {}
+
+int FS_StreamGetTop(int is_demo)
+{
+    /* Return the sector offset for VOX.DAT or DEMO.DAT in the file table.
+       The actual sector is stored in fs_file_info[].pos but we compute it
+       from STAGE.DIR. For now, return 0 — the caller adds the stream code. */
+    (void)is_demo;
+    return 0;
+}
+
+int FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; return 0; }
+
+void FS_StreamStop(void)
+{
+    stream_active = 0;
+    stream_ended = 1;
+}
+
 void FS_StreamOpen(void) {}
 void FS_StreamClose(void) {}
-int  FS_StreamIsEnd(void) { return 0; /* stream never ends — cutscene controls its own exit */ }
-void *FS_StreamGetData(int target_type) { (void)target_type; return NULL; }
-int  FS_StreamGetSize(void *stream) { (void)stream; return 0; }
+
+int FS_StreamIsEnd(void)
+{
+    return stream_ended;
+}
+
+void *FS_StreamGetData(int target_type)
+{
+    /* Scan stream buffer for next entry matching target_type.
+       Stream entries are 4-byte ints: {tick:24bit, type:8bit}.
+       Return pointer to the entry, or NULL if not found. */
+    if (!stream_active || !stream_buf) return NULL;
+
+    while (stream_read_pos + 4 <= stream_buf_len)
+    {
+        int *entry = (int *)(stream_buf + stream_read_pos);
+        int type = *entry & 0xFF;
+
+        if (type == 0xF0) {
+            /* End marker */
+            stream_ended = 1;
+            return NULL;
+        }
+
+        if (type == 0xFF) {
+            /* Wrap/boundary marker — skip */
+            stream_read_pos += 4;
+            continue;
+        }
+
+        if (type == 0x00) {
+            /* Cleared/padding — skip */
+            stream_read_pos += 4;
+            continue;
+        }
+
+        if (type == target_type || type == (target_type | 0x80)) {
+            /* Found matching entry — return pointer but don't advance yet.
+               Caller will call FS_StreamClear to consume it. */
+            return (void *)entry;
+        }
+
+        /* Skip non-matching entry: advance by entry size.
+           Entry size is in upper bytes for data entries, or just 4 bytes for tags. */
+        int size = (*entry >> 8) & 0xFFFF;
+        if (size == 0) size = 1;
+        stream_read_pos += 4; /* advance past this tag */
+        break; /* only check one at a time */
+    }
+
+    return NULL;
+}
+
+int FS_StreamGetSize(void *stream)
+{
+    if (!stream) return 0;
+    int entry = *(int *)stream;
+    return (entry >> 8) & 0xFFFF;
+}
+
 void FS_StreamUngetData(void *stream) { (void)stream; }
-void FS_StreamClear(void *stream) { (void)stream; }
-void FS_StreamClearType(void *stream, int target_type) { (void)stream; (void)target_type; }
-int  FS_StreamGetEndFlag(void) { return 1; }
-int  FS_StreamIsForceStop(void) { return 0; /* allow cutscene timing to run */ }
-static int port_stream_tick = 0;
+
+void FS_StreamClear(void *stream)
+{
+    /* Mark entry as consumed by clearing its type byte */
+    if (!stream) return;
+    *(int *)stream = 0; /* clear to type 0 (padding) */
+    /* Advance read position past this entry */
+    stream_read_pos += 4;
+}
+
+void FS_StreamClearType(void *stream, int target_type)
+{
+    /* Clear only if type matches */
+    if (!stream) return;
+    int type = *(int *)stream & 0xFF;
+    if (type == target_type || type == (target_type | 0x80)) {
+        *(int *)stream = (*(int *)stream & ~0xFF); /* clear type byte */
+    }
+}
+
+int  FS_StreamGetEndFlag(void) { return stream_ended; }
+int  FS_StreamIsForceStop(void) {
+    /* Force stop when we have no stream data — lets cutscene GCL scripts proceed */
+    return (stream_buf_len == 0) ? 1 : 0;
+}
 void FS_StreamTickStart(void) { port_stream_tick = 0; }
 void FS_StreamSoundMode(void) {}
 int  FS_StreamGetTick(void) { return port_stream_tick++; }
