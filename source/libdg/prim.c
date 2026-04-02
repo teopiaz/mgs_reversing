@@ -328,6 +328,9 @@ STATIC char *DG_WritePrimVerticesOffsetSingle( DG_PRIM *prim, char *out, int n_p
     SVECTOR *in;
 
     rect = prim->rect;
+#ifdef PORT_BUILD
+    if (!rect) return out;
+#endif
     psize = prim->psize;
 
     x = rect->x;
@@ -356,6 +359,9 @@ STATIC void DG_TransformPrimOffsetSingle( DG_PRIM *prim )
 
     verts = prim->pos;
     packs = (char *)prim->packs[GV_Clock];
+#ifdef PORT_BUILD
+    if (!packs || !verts) return;
+#endif
 
     for ( n_prims = prim->prim_count; n_prims > BATCH_SIZE; n_prims -= BATCH_SIZE )
     {
