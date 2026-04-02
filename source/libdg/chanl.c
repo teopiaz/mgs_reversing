@@ -133,8 +133,13 @@ void DG_InitChanlSystem( int width )
     chanl++;
     DG_SetChanlOrderingTable(chanl, ot_primitive, 8, obj_queue_primitive, 256, 16, 1);
     DG_InitDrawEnv(&drawEnv, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+#ifndef PORT_BUILD
+    /* PSX GTE projection center — needed for hardware GPU geometry transform.
+       In the port, port_RenderObjects already adds +160,+112 to screen coords.
+       Setting this in the port would shift all 2D OT prims (menus, radar). */
     drawEnv.ofs[0] = 160;
     drawEnv.ofs[1] = 112;
+#endif
     DG_SetChanlDrawEnv(chanl, &drawEnv, 0);
     DG_CopyChanlDrawEnv(chanl, 0);
     DG_CopyChanlDrawEnv(chanl, 1);
@@ -170,6 +175,12 @@ void DG_DrawOTag( int which )
             dd++;
         }
     }
+#ifdef PORT_BUILD
+    {
+        extern int port_ot_buffer_index;
+        port_ot_buffer_index = which;
+    }
+#endif
     DrawOTag(&DG_Chanls[0].env1[which].tag);
 }
 
