@@ -486,6 +486,12 @@ int GM_CheckControlTouches(CONTROL *control, int param_2)
     if (control->touch_flag == 2)
     {
         near = control->nears[1];
+#ifdef PORT_BUILD
+        if (!near || (uintptr_t)near > 0xFFFFFFFFFFULL) {
+            printf("[BUG] GM_CheckControlTouches: nears[1]=%p touch=%d\n", (void*)near, control->touch_flag);
+            return 0;
+        }
+#endif
         if (near->p1.h < 0 || GV_VecLen3(&control->nearvecs[1]) <= param_2)
         {
             return 2;
@@ -493,6 +499,13 @@ int GM_CheckControlTouches(CONTROL *control, int param_2)
     }
 
     near = control->nears[0];
+#ifdef PORT_BUILD
+    if (!near || (uintptr_t)near > 0xFFFFFFFFFFULL) {
+        printf("[BUG] GM_CheckControlTouches: nears[0]=%p touch=%d nears[1]=%p\n",
+               (void*)near, control->touch_flag, control->nears[1]);
+        return 0;
+    }
+#endif
     if (near->p1.h < 0 || GV_VecLen3(&control->nearvecs[0]) <= param_2)
     {
         return 1;
