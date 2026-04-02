@@ -201,16 +201,28 @@ void port_DrawTile(int x, int y, int w, int h, unsigned char r, unsigned char g,
     uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
     x += draw_x; y += draw_y;
 
-    for (int dy = 0; dy < h; dy++)
+    /* Clip to VRAM bounds */
+    int x0 = x, y0 = y, x1 = x + w, y1 = y + h;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > VRAM_WIDTH) x1 = VRAM_WIDTH;
+    if (y1 > VRAM_HEIGHT) y1 = VRAM_HEIGHT;
+    int cw = x1 - x0;
+    if (cw <= 0 || y0 >= y1) return;
+
+    /* Use memset-style fill for speed */
+    for (int vy = y0; vy < y1; vy++)
     {
-        int vy = y + dy;
-        if (vy < 0 || vy >= VRAM_HEIGHT) continue;
-        for (int dx = 0; dx < w; dx++)
-        {
-            int vx = x + dx;
-            if (vx >= 0 && vx < VRAM_WIDTH)
-                vram[vy][vx] = color;
-        }
+        uint16_t *row = &vram[vy][x0];
+        /* Fill with 32-bit writes for speed */
+        uint32_t color32 = ((uint32_t)color << 16) | color;
+        int i = 0;
+        uint32_t *row32 = (uint32_t *)row;
+        int cw2 = cw / 2;
+        for (; i < cw2; i++)
+            row32[i] = color32;
+        if (cw & 1)
+            row[cw - 1] = color;
     }
 }
 
@@ -368,6 +380,16 @@ void port_DrawOTag(unsigned long *ot)
             printf("[ot] ABORT: >100000 nodes, likely cycle\n");
             break;
         }
+        if (node_count == 1 && drawot_debug < 10) {
+            /* Count total nodes once to measure OT length */
+            unsigned long *scan = ot;
+            int total = 0;
+            while (scan && !isendprim(scan) && total < 500000) {
+                scan = (unsigned long *)nextPrim(scan);
+                total++;
+            }
+            printf("[ot] chain length: %d nodes\n", total);
+        }
 
         if (len > 0)
         {
@@ -388,7 +410,10 @@ void port_DrawOTag(unsigned long *ot)
                 short y = *(short *)(data + 6);
                 short w = *(short *)(data + 8);
                 short h = *(short *)(data + 10);
-                port_DrawTile(x, y, w, h, r, g, b);
+                /* Skip large background-clear TILEs — ClearImage handles this.
+                   Only draw small TILEs (UI elements, HUD, etc). */
+                if (w <= 64 && h <= 64)
+                    port_DrawTile(x, y, w, h, r, g, b);
                 prim_count++;
                 break;
             }

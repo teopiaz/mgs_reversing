@@ -7,6 +7,19 @@
 #include "psxdefs.h"    // for getScratchAddr2
 #include "libdg/libdg.h"
 
+#ifdef PORT_BUILD
+/* On PSX, sizeof(int) == sizeof(void*) == 4, so pointers fit in int scratchpad slots.
+   On 64-bit, pointers are 8 bytes and overflow 4-byte slots, corrupting adjacent data.
+   This side-channel stores full 64-bit pointers for scratchpad slots that hold pointers. */
+static struct {
+    void *wall_054;         /* wall ptr in result block at 0x04C+8 (PointTestSegment candidate) */
+    void *wall_070;         /* wall ptr in result block at 0x068+8 (PointTestSegment best) */
+    void *wall_08C;         /* wall ptr in result block at 0x084+8 (PointTestSegment 2nd best) */
+    char *pt_flags_ptr;     /* pFlagsEnd for PointTestSegment */
+    int   pt_flags_base;    /* 0 or 0x80 for PointTestSegment */
+} collide_ptrs;
+#endif
+
 static void CopyVector(SVECTOR *src, HZD_VEC *dst)
 {
     dst->x = src->vx;
@@ -215,17 +228,30 @@ STATIC void PointTestSegment(HZD_SEG *wall, int index, int flags)
     ptr2 = (int *)(SCRPAD_ADDR + 0x068);
     ptr3 = (int *)(SCRPAD_ADDR + 0x000);
 
+#ifdef PORT_BUILD
+    ptr1[2] = 0; /* wall pointer stored in side-channel */
+    collide_ptrs.wall_054 = (void *)wall;
+    ptr1[3] = (flags & 0x7F) | collide_ptrs.pt_flags_base | (*(collide_ptrs.pt_flags_ptr - index) << 8);
+#else
     ptr1[2] = (int)wall;
     ptr1[3] = (flags & 0x7F) | (*(int *)(ptr3 + 0x2C)) | (*(*(char **)(ptr3 + 0x2D) - index) << 8);
+#endif
 
     if (opz < ptr2[1])
     {
         memcpy(ptr, ptr2, 28);
         memcpy(ptr2, ptr1, 28);
+#ifdef PORT_BUILD
+        collide_ptrs.wall_08C = collide_ptrs.wall_070;
+        collide_ptrs.wall_070 = collide_ptrs.wall_054;
+#endif
     }
     else if (*(int *)(SCRPAD_ADDR + 0x05C) != *(int *)(SCRPAD_ADDR + 0x078))
     {
         memcpy(ptr, ptr1, 28);
+#ifdef PORT_BUILD
+        collide_ptrs.wall_08C = collide_ptrs.wall_054;
+#endif
     }
     else
     {
@@ -282,6 +308,11 @@ int HZD_NearHazardCheck(HZD_HDL *hzd, SVECTOR *from, int range, int chk_flag, in
     CreateBoundingBox((HZD_VEC *)(SCRPAD_ADDR + 0x00C), range);
 
     *(int *)(SCRPAD_ADDR + 0x048) = 0;
+#ifdef PORT_BUILD
+    collide_ptrs.wall_054 = NULL;
+    collide_ptrs.wall_070 = NULL;
+    collide_ptrs.wall_08C = NULL;
+#endif
 
     if (chk_flag & HZD_CHK_F_SEGMENT)
     {
@@ -296,9 +327,14 @@ int HZD_NearHazardCheck(HZD_HDL *hzd, SVECTOR *from, int range, int chk_flag, in
         pFlags = pArea->wallsFlags;
         wall_count = pArea->n_walls;
 
+#ifdef PORT_BUILD
+        collide_ptrs.pt_flags_base = 0;
+        collide_ptrs.pt_flags_ptr = pFlags + wall_count * 2;
+#else
         ptr = (char **)SCRPAD_ADDR;
         ptr[0x2C] = (char *)0;
         ptr[0x2D] = pFlags + wall_count * 2;
+#endif
 
         *(int *)(SCRPAD_ADDR + 0x044) = n_unknown;
 
@@ -318,9 +354,14 @@ int HZD_NearHazardCheck(HZD_HDL *hzd, SVECTOR *from, int range, int chk_flag, in
         queue_size = hzd->max_dynamic_segments;
         idx = hzd->dynamic_queue_index;
 
+#ifdef PORT_BUILD
+        collide_ptrs.pt_flags_base = 0x80;
+        collide_ptrs.pt_flags_ptr = pFlags + queue_size + idx;
+#else
         ptr2 = (char **)SCRPAD_ADDR;
         ptr2[0x2C] = (char *)0x80;
         ptr2[0x2D] = pFlags + queue_size + idx;
+#endif
 
         *(int *)(SCRPAD_ADDR + 0x044) = 0;
 
@@ -344,8 +385,13 @@ int HZD_NearHazardCheck(HZD_HDL *hzd, SVECTOR *from, int range, int chk_flag, in
 
 void HZD_GetNearHazard(HZD_SEG **segs)
 {
+#ifdef PORT_BUILD
+    segs[0] = collide_ptrs.wall_070;
+    segs[1] = collide_ptrs.wall_08C;
+#else
     segs[0] = *(HZD_SEG **)(SCRPAD_ADDR + 0x70);
     segs[1] = *(HZD_SEG **)(SCRPAD_ADDR + 0x8c);
+#endif
 }
 
 void HZD_GetIsEdge(signed char *ie)
