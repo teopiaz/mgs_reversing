@@ -38,6 +38,7 @@ static void Act( StreamCtrlWork *work )
 
     GM_CurrentMap = work->map;
     FS_StreamSync();
+
     switch ( work->field_20_state )
     {
     case 1:
@@ -55,17 +56,6 @@ static void Act( StreamCtrlWork *work )
             work->field_34_pStreamData = ( int* )FS_StreamGetData( 0x10 );
             FS_StreamTickStart();
             work->field_22_sub_state = 1;
-#ifdef PORT_BUILD
-            /* No stream data available — simulate what stream types would do:
-               Type 5 sets DG_UnDrawFrameCount=3 (fade in) and starts the demo
-               thread that drives the cutscene camera via DM_ThreadStream.
-               Without stream data, trigger both immediately. */
-            if (!work->field_34_pStreamData) {
-                DG_UnDrawFrameCount = 3;
-                DM_ThreadStream(1, 0);
-                work->field_24 = 1;
-            }
-#endif
             return;
         }
         break;
