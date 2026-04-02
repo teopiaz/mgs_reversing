@@ -346,7 +346,13 @@ skip_clamp_z:
             work->field_130 = HZD_LineNearSurface();
             work->field_16C = HZD_LineNearFlag();
 
-            if ((unsigned int)work->field_130 & 0x80000000) // Wall
+#ifdef PORT_BUILD
+            if (!work->field_130) {
+                work->field_140 = 0;
+                goto bullet_skip_surface;
+            }
+#endif
+            if ((uintptr_t)work->field_130 & 0x80000000) // Wall
             {
                 work->field_164 = f168;
                 HZD_SurfaceNormal(work->field_130, &work->field_128);
@@ -359,6 +365,9 @@ skip_clamp_z:
                 work->field_128.vy = work->field_130->p3.h * 16;
             }
 
+#ifdef PORT_BUILD
+            bullet_skip_surface:
+#endif
             work->field_140 = 1;
 
             vec2.vx = (work->field_118.vx - svec3.vx) >> 1;
