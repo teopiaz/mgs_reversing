@@ -1,12 +1,14 @@
 CC = clang
+CXX = clang++
 SRCDIR = ../source
 
 INCLUDES = -I psx -I include -I . -I $(SRCDIR)/include -I $(SRCDIR)
 CFLAGS = -w -O0 -g -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
          -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
          -Wno-incompatible-pointer-types
+CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends
 SDL_CFLAGS = $(shell sdl2-config --cflags)
-LDFLAGS = $(shell sdl2-config --libs) -lm
+LDFLAGS = $(shell sdl2-config --libs) -lm -lc++
 
 OBJDIR = obj
 TARGET = mgs
@@ -97,6 +99,13 @@ OVERLAY_OBJ = $(patsubst $(SRCDIR)/overlays/%.c,$(OBJDIR)/ovl_%.o,$(OVERLAY_SRC)
 PORT_OBJ = \
 	$(OBJDIR)/main.o \
 	$(OBJDIR)/main_game.o \
+	$(OBJDIR)/imgui_debug.o \
+	$(OBJDIR)/imgui.o \
+	$(OBJDIR)/imgui_draw.o \
+	$(OBJDIR)/imgui_tables.o \
+	$(OBJDIR)/imgui_widgets.o \
+	$(OBJDIR)/imgui_impl_sdl2.o \
+	$(OBJDIR)/imgui_impl_sdlrenderer2.o \
 	$(OBJDIR)/port_memory.o \
 	$(OBJDIR)/extern_stubs.o \
 	$(OBJDIR)/game_stubs.o \
@@ -135,8 +144,24 @@ BSS_OBJ = $(OBJDIR)/bss.o
 ALL_OBJ = $(PORT_OBJ) $(STAGE_OBJ) $(OVERLAY_OBJ) $(LIBGV_OBJ) $(LIBGCL_OBJ) $(LIBHZD_OBJ) $(BSS_OBJ) $(GAME_OBJ)
 
 $(TARGET): $(ALL_OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 	codesign -s - --entitlements entitlements.plist -f $@ 2>/dev/null || true
+
+# --- ImGui rules ---
+$(OBJDIR)/imgui.o: imgui/imgui.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_draw.o: imgui/imgui_draw.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_tables.o: imgui/imgui_tables.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_widgets.o: imgui/imgui_widgets.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_impl_sdl2.o: imgui/backends/imgui_impl_sdl2.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_impl_sdlrenderer2.o: imgui/backends/imgui_impl_sdlrenderer2.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_debug.o: imgui_debug.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) $(INCLUDES) -c -o $@ $<
 
 # --- Port source rules ---
 $(OBJDIR)/main.o: main.c | $(OBJDIR)
