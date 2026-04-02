@@ -13,6 +13,7 @@
 #include "memcard/memcard.h"
 #include "sound/sd_cli.h"
 #include "game/game.h"
+#include "linkvar.h"
 
 /* From port_memory.c */
 extern int port_init_memory(void);
@@ -216,12 +217,11 @@ void game_tick(void)
         extern int GM_GameStatus;
         extern long mts_PadRead(int);
         long raw = mts_PadRead(0);
-        extern int linkvarbuf[];
-        printf("[tick %d] pad=0x%lX gs=0x%X hp=%d/%d snake=(%d,%d,%d)\n",
+        printf("[tick %d] pad=0x%lX gs=0x%X hp=%d/%d item=%d snake=(%d,%d,%d)\n",
                tick_count,
                (unsigned long)GV_PadData[0].status,
                GM_GameStatus,
-               linkvarbuf[11], linkvarbuf[12],
+               GM_SnakeCurrentHealth, GM_SnakeMaxHealth, GM_CurrentItemId,
                GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
     }
 
