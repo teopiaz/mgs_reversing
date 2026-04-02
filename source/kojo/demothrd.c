@@ -136,7 +136,27 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
         if (data)
         {
+#ifdef PORT_BUILD
+            /* DMO_DEF in stream data uses PSX 28-byte layout with 32-bit
+               pointer fields. Convert to 64-bit struct. */
+            {
+                unsigned char *raw = (unsigned char *)(data - 4);
+                static DMO_DEF port_def;
+                port_def.tag      = *(unsigned int *)&raw[0];
+                port_def.frame    = *(int *)&raw[4];
+                port_def.n_frames = *(int *)&raw[8];
+                port_def.n_maps   = *(int *)&raw[12];
+                port_def.n_models = *(int *)&raw[16];
+                /* 32-bit offsets at raw[20] and raw[24] are relative to raw */
+                uint32_t maps_off   = *(uint32_t *)&raw[20];
+                uint32_t models_off = *(uint32_t *)&raw[24];
+                port_def.maps   = (DMO_MAP *)(raw + maps_off);
+                port_def.models = (DMO_MDL *)(raw + models_off);
+                def = &port_def;
+            }
+#else
             def = (DMO_DEF *)(data - 4);
+#endif
             status = CreateDemo(lpAct, def);
 
             FS_StreamClear(data);
