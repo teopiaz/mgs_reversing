@@ -26,6 +26,13 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
     int            gcl_code;
     int            size;
 
+    if (!top) {
+        /* 64-bit port: GCL script pointer is NULL — likely a parameter
+           was not resolved correctly or the script ran past its end */
+        printf("[gcl] WARNING: GCL_GetNextValue called with NULL top\n");
+        *type_p = 0; *value_p = 0; return NULL;
+    }
+
     ptr = top;
     gcl_code = *ptr;
     ptr++;
@@ -181,11 +188,19 @@ char *GCL_GetOption(char c)
     int            code;
     int            value = 0;  /* must be int to match GCL_GetNextValue's int* param */
 
+    if (!commandline_p) {
+        printf("[gcl] WARNING: GCL_GetOption('%c') called with NULL commandline_p\n", c);
+        return NULL;
+    }
     pScript = *(commandline_p - 1);
+    if (!pScript) {
+        printf("[gcl] WARNING: GCL_GetOption('%c') script pointer is NULL\n", c);
+        return NULL;
+    }
     do
     {
         pScript = GCL_GetNextValue(pScript, &code, &value);
-        if (code == GCLCODE_NULL)
+        if (!pScript || code == GCLCODE_NULL)
         {
             return NULL;
         }
@@ -209,6 +224,10 @@ int GCL_StrToSV(unsigned char *pInScript, SVECTOR *pOut3Words)
     int             counter = 0;
     unsigned short *pOutIter = (unsigned short *)pOut3Words;
     unsigned char  *pScript = pInScript;
+    if (!pScript) {
+        printf("[gcl] WARNING: GCL_StrToSV called with NULL script\n");
+        return 0;
+    }
     do
     {
         int code;
@@ -243,6 +262,10 @@ char *GCL_ReadString(char *ptr)
 
 unsigned char *GCL_GetParamResult(void)
 {
+    if (!next_str_ptr) {
+        printf("[gcl] WARNING: GCL_GetParamResult: next_str_ptr is NULL\n");
+        return NULL;
+    }
     if (!*next_str_ptr || GCL_IsParam(*next_str_ptr))
     {
         return NULL;

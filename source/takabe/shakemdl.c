@@ -132,6 +132,11 @@ static int GetResources( Work *work, int model )
 
     work->def = GV_GetCache(GV_CacheID(model, 'k'));
 
+    if (!work->def) {
+        printf("[shakemdl] ERROR: GV_GetCache(0x%X, 'k') returned NULL (cacheID=0x%X)\n",
+               model, GV_CacheID(model, 'k'));
+        return -1;
+    }
     if (AllocVertsMemory(work))
     {
         return -1;

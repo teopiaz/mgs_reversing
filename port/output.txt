@@ -1,0 +1,406 @@
+port: SDL initialized
+port: game_init starting
+port: WARNING: could not map scratchpad at 0x1f800000 (0xffffffffffffffff)
+port: memory pools allocated (normal=0x48ac00000, pkt0=0x48ae00000, pkt1=0x48ae80000)
+mem:mem:pad:gv:fs:fs: STAGE.DIR RADIO.DAT FACE.DAT ZMOVIE.STR VOX.DAT DEMO.DAT BRF.DAT
+  [fs] 95 stages in STAGE.DIR: brf abst d00a d01a d03a d11c d16e d18a init rank ...
+  [fs] FS_StartDaemon complete
+dg:dg:[ot] walked 22 nodes, 0 prims rendered
+[ot] walked 22 nodes, 0 prims rendered
+gcl:hzd:sound:gm:RESIDENT TOP 8AE00000
+LoadReq
+  [fs] Loading stage 'init' at sector 2761...
+  [fs]   DATACNF: version=1, size=283 sectors (579584 bytes)
+  [fs]   tag[0]: id=0x0000 mode='r' ext='d' size=168012
+  [fs]   tag[1]: id=0x0000 mode='n' ext='d' size=141656
+  [fs]   tag[2]: id=0xA0BE mode='c' ext='p' size=0
+  [fs]   tag[3]: id=0xEA54 mode='c' ext='g' size=880
+  [fs]   tag[4]: id=0x0000 mode='c' ext='?' size=4472
+  [fs]   tag[5]: id=0xAE34 mode='s' ext='w' size=257600
+  [fs]   Loaded 579584 bytes, 6 tags
+  [fs]   Processing 'r' archive (168012 bytes):
+    dar: id=0x992D ext='o' size=81832
+    dar: id=0xCA68 ext='r' size=18184
+    dar: id=0x992D ext='k' size=13608
+    dar: id=0x5D43 ext='r' size=13484
+    dar: id=0xE1D2 ext='k' size=3600
+    dar: id=0x1303 ext='s' size=3324
+    dar: id=0xE2A9 ext='s' size=3220
+    dar: id=0xA798 ext='s' size=2904
+    dar: id=0x4244 ext='k' size=2464
+    dar: id=0x2D3B ext='k' size=2160
+    dar: id=0x57F8 ext='k' size=1684
+    dar: id=0xA797 ext='s' size=1528
+    dar: id=0x15A9 ext='k' size=1520
+    dar: id=0x76AB ext='k' size=1496
+    dar: id=0x15A9 ext='s' size=1464
+    dar: id=0x9A90 ext='k' size=1424
+    dar: id=0x4725 ext='k' size=1376
+    dar: id=0xC70E ext='r' size=1344
+    dar: id=0xE0E3 ext='r' size=1180
+    dar: id=0x36F6 ext='k' size=1024
+    dar: id=0x761A ext='k' size=900
+    dar: id=0x7A64 ext='k' size=852
+    dar: id=0x3B88 ext='k' size=764
+    dar: id=0x21B6 ext='k' size=720
+    dar: id=0x17A1 ext='k' size=680
+    dar: id=0x51C8 ext='s' size=584
+    dar: id=0xF83D ext='k' size=548
+    dar: id=0xE2A9 ext='k' size=492
+    dar: id=0x84DB ext='s' size=432
+    dar: id=0x8504 ext='s' size=432
+    dar: id=0x121F ext='r' size=424
+    dar: id=0x2EF8 ext='k' size=340
+    dar: id=0xDB4D ext='k' size=316
+    dar: id=0xEEE9 ext='s' size=248
+    dar: id=0xA796 ext='s' size=216
+    dar: id=0x57F8 ext='s' size=216
+    dar: id=0xB3CD ext='s' size=216
+    dar: id=0x117C ext='k' size=180
+    dar: id=0x84DC ext='s' size=76
+    dar: id=0x8505 ext='s' size=76
+    dar: id=0x84DD ext='s' size=72
+    dar: id=0x8506 ext='s' size=72
+  [fs]   Nocache texture data: 141656 bytes
+  [fs]   Processed 127 nocache entries
+  [fs]   Stage processing complete
+start
+port: entering main loop
+[gpu] PutDispEnv #1: disp=(0,0,320,224)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1033215fc val=0x250
+[ot] walked 297 nodes, 0 prims rendered
+[render] 0 faces drawn (0 visible, 0 objs)
+[gpu] PutDispEnv #2: disp=(0,0,320,224)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1033215fc val=0x250
+[render] 0 faces drawn (0 visible, 0 objs)
+[gpu] PutDispEnv #3: disp=(0,0,320,224)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1033215fc val=0x250
+[render] 0 faces drawn (0 visible, 0 objs)
+LoadEnd
+[gpu] PutDispEnv #4: disp=(0,0,320,224)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1033215fc val=0x250
+[render] 0 faces drawn (0 visible, 0 objs)
+exec scenario
+[menu_number_init] called
+jimaku_font_buffer_size 4896
+[res] alloc 4896 bytes → 0x48adfece0 (bottom=0x48adfece0, area=0x48ae00000)
+MENU INIT END
+end scenario
+[gpu] PutDispEnv #5: disp=(0,0,320,224)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1033215fc val=0x250
+[render] 0 faces drawn (0 visible, 0 objs)
+GM_StreamPlayStop
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+RESIDENT TOP 8ADFECE0
+LoadReq
+  [fs] Loading stage 'select' at sector 35595...
+  [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
+  [fs]   tag[0]: id=0x8D5C mode='s' ext='b' size=8416
+  [fs]   tag[1]: id=0xE224 mode='c' ext='k' size=0
+  [fs]   tag[2]: id=0xE224 mode='c' ext='l' size=180
+  [fs]   tag[3]: id=0xE224 mode='c' ext='h' size=184
+  [fs]   tag[4]: id=0xEA54 mode='c' ext='g' size=236
+  [fs]   tag[5]: id=0x0000 mode='c' ext='?' size=576
+  [fs]   Loaded 14336 bytes, 6 tags
+[bin] Stage overlay 0x8D5C → 0x102fd3398
+  [fs]   Stage processing complete
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+LoadEnd
+[render] 0 faces drawn (0 visible, 0 objs)
+exec scenario
+[gcl] chara: name=0x5947 func=0x102f2f014 binds=0x0
+end scenario
+[menu-text] SPRT at (0,120) u=114 v=493 ot=0x1033215f4
+[menu-text] SPRT at (7,120) u=48 v=493 ot=0x1033215f4
+[menu-text] SPRT at (10,120) u=114 v=493 ot=0x1033215f4
+[menu-text] SPRT at (16,120) u=66 v=493 ot=0x1033215f4
+[menu-text] SPRT at (22,120) u=24 v=493 ot=0x1033215f4
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+str_status 0 irq 0 0 0
+key 00000000
+[render] 0 faces drawn (0 visible, 0 objs)
+GM_StreamPlayStop
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+[render] 0 faces drawn (0 visible, 0 objs)
+RESIDENT TOP 8ADFECE0
+LoadReq
+  [fs] Loading stage 'selectd' at sector 36301...
+  [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
+  [fs]   tag[0]: id=0xABF5 mode='s' ext='b' size=721
+  [fs]   tag[1]: id=0xE224 mode='c' ext='k' size=0
+  [fs]   tag[2]: id=0xE224 mode='c' ext='l' size=180
+  [fs]   tag[3]: id=0xE224 mode='c' ext='h' size=184
+  [fs]   tag[4]: id=0xEA54 mode='c' ext='g' size=236
+  [fs]   tag[5]: id=0x0000 mode='c' ext='?' size=9640
+  [fs]   Loaded 14336 bytes, 6 tags
+[bin] Stage overlay 0xABF5 → 0x102fd3448
+  [fs]   Stage processing complete
+LoadEnd
+exec scenario
+[gcl] chara: name=0x887F func=0x102f2f014 binds=0x0
+end scenario
+str_status 0 irq 0 0 0
+key 00000000
+[gcl] chara: name=0x282C func=0x102f2f014 binds=0x0
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+str_status 0 irq 0 0 0
+key 00000000
+GM_StreamPlayStop
+RESIDENT TOP 8ADFECE0
+LoadReq
+  [fs] Loading stage 'd00a' at sector 219...
+  [fs]   DATACNF: version=1, size=424 sectors (868352 bytes)
+  [fs]   tag[0]: id=0xC693 mode='s' ext='b' size=124056
+  [fs]   tag[1]: id=0x0000 mode='n' ext='d' size=261504
+  [fs]   tag[2]: id=0x0000 mode='n' ext='d' size=254772
+  [fs]   tag[3]: id=0xC661 mode='c' ext='k' size=0
+  [fs]   tag[4]: id=0x5C54 mode='c' ext='k' size=60752
+  [fs]   tag[5]: id=0x7696 mode='c' ext='k' size=77040
+  [fs]   tag[6]: id=0x7694 mode='c' ext='k' size=91068
+  [fs]   tag[7]: id=0x7692 mode='c' ext='k' size=104908
+  [fs]   tag[8]: id=0x7693 mode='c' ext='k' size=118700
+  [fs]   tag[9]: id=0x7695 mode='c' ext='k' size=131964
+  [fs]   tag[10]: id=0x96B6 mode='c' ext='k' size=144600
+  [fs]   tag[11]: id=0x6DA4 mode='c' ext='k' size=154536
+  [fs]   tag[12]: id=0x6D46 mode='c' ext='k' size=164400
+  [fs]   tag[13]: id=0xA212 mode='c' ext='k' size=170680
+  [fs]   tag[14]: id=0x6D43 mode='c' ext='k' size=176508
+  [fs]   tag[15]: id=0x6D44 mode='c' ext='k' size=180668
+  [fs]   tag[16]: id=0x88FA mode='c' ext='k' size=183920
+  [fs]   tag[17]: id=0x69CE mode='c' ext='k' size=186712
+  [fs]   tag[18]: id=0xFDDC mode='c' ext='k' size=189424
+  [fs]   tag[19]: id=0x6DA3 mode='c' ext='k' size=192108
+  [fs]   tag[20]: id=0x28DF mode='c' ext='k' size=194548
+  [fs]   tag[21]: id=0x617C mode='c' ext='k' size=196780
+  [fs]   tag[22]: id=0x2142 mode='c' ext='k' size=198904
+  [fs]   tag[23]: id=0xFAB4 mode='c' ext='k' size=200656
+  [fs]   tag[24]: id=0x6D45 mode='c' ext='k' size=201632
+  [fs]   tag[25]: id=0xC3D0 mode='c' ext='k' size=202552
+  [fs]   tag[26]: id=0x8077 mode='c' ext='k' size=203012
+  [fs]   tag[27]: id=0x8076 mode='c' ext='k' size=203468
+  [fs]   tag[28]: id=0x8075 mode='c' ext='k' size=203924
+  [fs]   tag[29]: id=0xE224 mode='c' ext='k' size=204316
+  [fs]   tag[30]: id=0xC661 mode='c' ext='h' size=204496
+  [fs]   tag[31]: id=0xC661 mode='c' ext='l' size=217960
+  [fs]   tag[32]: id=0xE224 mode='c' ext='l' size=219148
+  [fs]   tag[33]: id=0xE224 mode='c' ext='h' size=219152
+  [fs]   tag[34]: id=0xEA54 mode='c' ext='g' size=219204
+  [fs]   tag[35]: id=0xA242 mode='c' ext='g' size=220736
+  [fs]   tag[36]: id=0x0000 mode='c' ext='?' size=222300
+  [fs]   Loaded 868352 bytes, 37 tags
+[bin] Stage overlay 0xC693 → 0x102fcc4a8
+  [fs]   Nocache texture data: 261504 bytes
+  [fs]   Processed 34 nocache entries
+  [fs]   Nocache texture data: 254772 bytes
+  [fs]   Processed 256 nocache entries
+  [fs]   Stage processing complete
+LoadEnd
+exec scenario
+[map] GM_CreateMap: name=0x7DF9
+[hzd] Created handler: area=0, 48 dyn_segs, 24 dyn_floors
+[map]   hazard loaded: name=0xC661 area=0
+[map]   lit loaded: name=0xC661
+  [map] LoadMapModel: name=0xC661
+  [map]   model loaded OK
+  [map] LoadMapModel: name=0x6DA4
+  [map]   model loaded OK
+[gcl] chara: name=0x6ECA func=0x102f8c864 binds=0x1
+[gcl] chara: name=0xD6C9 func=0x102facb58 binds=0x1
+[gcl] chara: name=0x2D07 func=0x102fafdfc binds=0x1
+[gcl] chara: name=0x2D07 func=0x102fafdfc binds=0x1
+[gcl] chara: name=0x2D07 func=0x102fafdfc binds=0x1
+[gcl] chara: name=0x2D07 func=0x102fafdfc binds=0x1
+[gcl] chara: name=0x2D07 func=0x102fafdfc binds=0x1
+[gcl] chara: name=0xD14A func=0x102f0f318 binds=0x1
+[gcl] chara: name=0xC056 func=0x102f0f318 binds=0x1
+[gcl] chara: name=0xC056 func=0x102f0f318 binds=0x1
+[gcl] chara: name=0x790B func=0x102fa5e18 binds=0x1
+[cache] MISS: id=0xA006D (name=0x6D ext='k')
+[shakemdl] ERROR: GV_GetCache(0x6D, 'k') returned NULL (cacheID=0xA006D)
+[gcl] chara: name=0x790B func=0x102fa5e18 binds=0x1
+[cache] MISS: id=0xA006D (name=0x6D ext='k')
+[shakemdl] ERROR: GV_GetCache(0x6D, 'k') returned NULL (cacheID=0xA006D)
+[gcl] chara: name=0x790B func=0x102fa5e18 binds=0x1
+[cache] MISS: id=0xA006D (name=0x6D ext='k')
+[shakemdl] ERROR: GV_GetCache(0x6D, 'k') returned NULL (cacheID=0xA006D)
+[gcl] chara: name=0x5BA4 func=0x102f72abc binds=0x1
+add map 1
+NewStream 5185
+end scenario
+[actor] CRASH in actor 0x48aceaba0 (act=0x102ea4848 name=shakemdl.c), disabling
+[actor] CRASH in actor 0x48aceac40 (act=0x102ea4848 name=shakemdl.c), disabling
+[actor] CRASH in actor 0x48aceace0 (act=0x102ea4848 name=shakemdl.c), disabling
+StreamPlay end
+GM_StreamPlayStop
+destroy
+destroy
+destroy
+RESIDENT TOP 8ADFECE0
+LoadReq
+  [fs] Loading stage 's00a' at sector 3454...
+  [fs]   DATACNF: version=1, size=511 sectors (1046528 bytes)
+  [fs]   tag[0]: id=0x469B mode='s' ext='b' size=122720
+  [fs]   tag[1]: id=0x0000 mode='n' ext='d' size=250980
+  [fs]   tag[2]: id=0x0000 mode='n' ext='d' size=246860
+  [fs]   tag[3]: id=0xA8A1 mode='c' ext='o' size=0
+  [fs]   tag[4]: id=0xC661 mode='c' ext='k' size=64600
+  [fs]   tag[5]: id=0xE8FE mode='c' ext='o' size=127664
+  [fs]   tag[6]: id=0x7693 mode='c' ext='k' size=161348
+  [fs]   tag[7]: id=0x6DA4 mode='c' ext='k' size=174612
+  [fs]   tag[8]: id=0x96B6 mode='c' ext='k' size=185664
+  [fs]   tag[9]: id=0x6D46 mode='c' ext='k' size=195600
+  [fs]   tag[10]: id=0xD7E3 mode='c' ext='k' size=201880
+  [fs]   tag[11]: id=0x6D43 mode='c' ext='k' size=207940
+  [fs]   tag[12]: id=0x6D44 mode='c' ext='k' size=212100
+  [fs]   tag[13]: id=0x69CE mode='c' ext='k' size=215352
+  [fs]   tag[14]: id=0x6DA3 mode='c' ext='k' size=218064
+  [fs]   tag[15]: id=0xC318 mode='c' ext='s' size=220504
+  [fs]   tag[16]: id=0xFAB4 mode='c' ext='k' size=222692
+  [fs]   tag[17]: id=0x6D45 mode='c' ext='k' size=223668
+  [fs]   tag[18]: id=0xB299 mode='c' ext='k' size=224588
+  [fs]   tag[19]: id=0xC3D0 mode='c' ext='k' size=225152
+  [fs]   tag[20]: id=0x8077 mode='c' ext='k' size=225612
+  [fs]   tag[21]: id=0x8076 mode='c' ext='k' size=226068
+  [fs]   tag[22]: id=0x9BC7 mode='c' ext='k' size=226524
+  [fs]   tag[23]: id=0x4D61 mode='c' ext='k' size=226980
+  [fs]   tag[24]: id=0x4D63 mode='c' ext='k' size=227424
+  [fs]   tag[25]: id=0x8075 mode='c' ext='k' size=227868
+  [fs]   tag[26]: id=0xE224 mode='c' ext='k' size=228260
+  [fs]   tag[27]: id=0x6DA5 mode='c' ext='h' size=228440
+  [fs]   tag[28]: id=0x6DA4 mode='c' ext='h' size=228632
+  [fs]   tag[29]: id=0xC661 mode='c' ext='h' size=228808
+  [fs]   tag[30]: id=0xC661 mode='c' ext='l' size=242272
+  [fs]   tag[31]: id=0xF796 mode='c' ext='c' size=243460
+  [fs]   tag[32]: id=0x6DA3 mode='c' ext='h' size=243480
+  [fs]   tag[33]: id=0xE224 mode='c' ext='l' size=243652
+  [fs]   tag[34]: id=0xE224 mode='c' ext='h' size=243656
+  [fs]   tag[35]: id=0xEA54 mode='c' ext='g' size=243708
+  [fs]   tag[36]: id=0xA242 mode='c' ext='g' size=262420
+  [fs]   tag[37]: id=0x0000 mode='c' ext='?' size=264192
+  [fs]   tag[38]: id=0xAD1E mode='s' ext='w' size=62800
+  [fs]   tag[39]: id=0x6CFA mode='s' ext='e' size=4240
+  [fs]   tag[40]: id=0xED1A mode='s' ext='m' size=7344
+  [fs]   tag[41]: id=0xAD5E mode='s' ext='w' size=78256
+  [fs]   Loaded 1046528 bytes, 42 tags
+[bin] Stage overlay 0x469B → 0x102fcd138
+  [fs]   Nocache texture data: 250980 bytes
+  [fs]   Processed 32 nocache entries
+  [fs]   Nocache texture data: 246860 bytes
+  [fs]   Processed 238 nocache entries
+  [fs]   Stage processing complete
+LoadEnd
+exec scenario
+[map] GM_CreateMap: name=0x7DF9
+[hzd] Created handler: area=0, 48 dyn_segs, 24 dyn_floors
+[map]   hazard loaded: name=0xC661 area=0
+[map]   lit loaded: name=0xC661
+  [map] LoadMapModel: name=0xC661
+  [map]   model loaded OK
+  [map] LoadMapModel: name=0x6DA4
+  [map]   model loaded OK
+add map 1
+[gcl] chara: name=0x21CA func=0x102ef034c binds=0x1
+[cache] MISS: id=0xE992D (name=0x992D ext='o')
+[cache] MISS: id=0xA117C (name=0x117C ext='k')
+[actor] CRASH in actor 0x10330c800 (act=0x102f23f84 name=gamed.c), disabling
+GM_StreamPlayStop
+port: shutdown complete
