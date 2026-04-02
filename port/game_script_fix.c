@@ -755,7 +755,7 @@ static int GM_Command_system(unsigned char *top)
 
     int i, proc;
 
-    for (i = 0; i <= (int)sizeof(options); i++)
+    for (i = 0; i < (int)sizeof(options); i++)
     {
         if (GCL_GetOption(options[i]))
         {
