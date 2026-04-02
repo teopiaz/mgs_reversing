@@ -1,0 +1,127 @@
+# Known Issues
+
+Current bugs and limitations with root cause analysis.
+
+---
+
+## 1. Snake Does Not Move
+
+**Symptom**: Snake spawns in the stage but does not respond to directional input. The character model may appear but remains stationary.
+
+**Root cause**: `HZD_GetAddress` returns 0 for Snake's position (see issue #2). The movement system depends on valid collision data: `HZD_StepCheck` needs to find floor polygons under Snake to allow movement, and the floor height query determines where Snake can walk. If the collision handle is not producing correct results, the movement vector is zeroed out.
+
+Additionally, the `GM_GameStatus` flag `STATE_PADRELEASE` was previously stuck, though this has been fixed. Remaining movement issues are collision-related.
+
+**Status**: Blocked by issue #2.
+
+---
+
+## 2. HZD_GetAddress Returns 0 (Zone Lookup Failure)
+
+**Symptom**: `HZD_GetAddress` always returns 0 for Snake's world position. This sets `GM_PlayerAddress = 0`.
+
+**Root cause**: The zone lookup iterates `HZD_ZON` entries and checks if the query position falls within each zone's bounding box (x, z, w, h). The zone data contains only scalar fields (no pointers), so the 64-bit loader does not need to convert it -- it points directly into the raw buffer. Possible causes:
+
+1. Snake's initial spawn position (set by GCL `start` or `chara` command) may be in a coordinate space that does not match the zone coordinate space
+2. The zone bounding box check may use different axes than expected (HZD uses x/z as horizontal, y as vertical, which may not match the world transform)
+3. The zones pointer itself may be offset incorrectly if the raw buffer base address calculation is wrong
+
+**Impact**: All enemy AI pathfinding is broken. Enemies cannot compute routes to the player. Triggers and event zones may also fail.
+
+---
+
+## 3. GCL Proc ID Corruption (0x7F0000xx)
+
+**Symptom**: GCL `bind` callbacks registered during stage initialization have corrupted proc IDs of the form `0x7F0000xx` instead of valid GCL proc hashes.
+
+**Root cause**: When `bind` processes its parameters, it reads a value that was encoded via `gcl_store_ptr()` as a pointer table index (marker `0x7F000000 | idx`). This index is stored as the proc ID in the `HZD_BIND` struct's `field_14_proc_and_block` field. When a trigger fires and calls `GCL_ExecProc` with this corrupted ID, `get_proc_block` cannot find a matching proc and returns NULL.
+
+The fix requires either:
+- Resolving the pointer at bind registration time and extracting the actual proc ID
+- Storing the full pointer alongside the bind entry
+
+**Impact**: Stage trigger callbacks (zone enter/exit, trap activation) do not fire. This breaks scripted events, door triggers, alert zones, and cutscene triggers.
+
+---
+
+## 4. Dangling DG_OBJS in Render Queue
+
+**Symptom**: The software renderer encounters `DG_OBJS` entries whose memory has been freed (fields contain 0xFCFCFCFC pattern). Detected by the freed-memory check in `DG_BoundObjs`.
+
+**Root cause**: When an actor is destroyed, it frees its `DG_OBJS` via the die callback. However, the render queue (ordering table entries, `DG_OBJS` linked lists) may still contain pointers to the freed object if the object was not properly dequeued before destruction. The port's `malloc`/`free` implementation fills freed memory with 0xFC, making this detectable.
+
+On PSX, this was masked because memory was recycled from a pool and freed memory often still contained valid-looking data until overwritten. On the port, freed memory is poisoned.
+
+**Impact**: Occasional rendering glitches or skipped objects. Currently handled by detecting and skipping, but the root cause (improper dequeue on actor destruction) remains.
+
+---
+
+## 5. "Where Is Snake ????" Spam
+
+**Symptom**: The message "Where Is Snake ????" prints to console every frame.
+
+**Root cause**: This is a direct consequence of issue #2. Enemy AI code in `source/enemy/think.c` (and related files) calls `HZD_GetAddress` for the player's position. When it returns 0, the AI prints this debug message. `GM_PlayerAddress` being 0 means the enemy AI's "find player" logic cannot determine which zone Snake is in.
+
+**Impact**: Console spam, minor performance impact from repeated printf. Resolves automatically when issue #2 is fixed.
+
+---
+
+## 6. shakemdl Model Hash Mismatch
+
+**Symptom**: `shakemdl.c` (camera shake model effect) fails to load its model, or loads the wrong model.
+
+**Root cause**: The actor reads a GCL parameter to determine which model to load. The parameter hash `0x6D` ('m') is being parsed incorrectly, possibly returning a pointer table index instead of the actual model cache ID. This may be related to the GCL 64-bit pointer table issue (issue #3).
+
+**Impact**: Camera shake effects do not display correctly. Non-critical for gameplay.
+
+---
+
+## 7. 31 Stages with Raw PSX Addresses in Character Entries
+
+**Symptom**: Actors defined in 31 stage files do not spawn because their constructor addresses are raw PSX values (e.g., `0x800ABCDE`).
+
+**Root cause**: These stages reference actors whose source code has not been decompiled into named C functions. On PSX, the linker resolved these to absolute addresses. In the port, these addresses are meaningless -- they point to unmapped memory on macOS.
+
+**Affected stages**: Mostly later-game and variant stages where overlay decompilation is incomplete.
+
+**Impact**: Stage-specific actors (enemies, objects, effects) do not spawn in these 31 stages. The stage still loads and core systems work, but the stage will be empty of its unique content.
+
+---
+
+## 8. No Sound Effects
+
+**Symptom**: No audio plays during gameplay. `PcmOpen` returns -1.
+
+**Root cause**: The SPU emulator (`port/sound/spu_emu.c`) implements low-level ADPCM decoding and voice mixing, but the higher-level sound driver interface (`PcmOpen`, `PcmRead`, `PcmClose`) is not fully connected. `PcmOpen` attempts to open a sound bank file and returns -1 (failure) because the file path resolution from PSX CD-ROM paths to local filesystem paths is not implemented for sound data.
+
+The sound data files (VXX.DAT, ZMOVIE.STR audio tracks) need to be located and their format parsed. The SPU emulator can decode ADPCM samples once they are loaded into SPU RAM, but the pipeline from file to SPU RAM is incomplete.
+
+**Impact**: No sound effects, no voice, no BGM. Game is silent.
+
+---
+
+## 9. No FMV Playback
+
+**Symptom**: FMV sequences are automatically skipped.
+
+**Root cause**: `FS_StreamIsForceStop` is set to 1, which causes all stream open/read operations to immediately return "done". This was intentionally set to prevent hangs, since the STR (MDEC video) streaming pipeline is fully stubbed.
+
+Implementing FMV would require:
+- STR file demuxing (interleaved MDEC video + ADPCM audio)
+- MDEC decompression (Huffman + IDCT, similar to JPEG)
+- Frame-accurate audio/video sync
+- Display integration with the software renderer
+
+**Impact**: Opening movies, cutscene movies, and codec sequences with video are skipped. The game proceeds as if the movie finished.
+
+---
+
+## 10. Five Source Files Still Excluded
+
+**Symptom**: Five source files are excluded from the port build due to compilation errors or conflicts.
+
+**Root cause**: These files contain constructs that do not compile under clang targeting 64-bit macOS:
+- R-variant overlay files (d18ar, s08br, s19br) have duplicate symbols with their non-R counterparts when linked statically
+- Remaining files may have unresolved PSX-specific dependencies
+
+**Impact**: Actors defined exclusively in these files will not be available. This affects specific R-variant stage configurations (alternate versions of certain stages).
