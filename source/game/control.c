@@ -486,7 +486,6 @@ int GM_CheckControlTouches(CONTROL *control, int param_2)
     if (control->touch_flag == 2)
     {
         near = control->nears[1];
-
         if (near->p1.h < 0 || GV_VecLen3(&control->nearvecs[1]) <= param_2)
         {
             return 2;
@@ -494,7 +493,6 @@ int GM_CheckControlTouches(CONTROL *control, int param_2)
     }
 
     near = control->nears[0];
-
     if (near->p1.h < 0 || GV_VecLen3(&control->nearvecs[0]) <= param_2)
     {
         return 1;
