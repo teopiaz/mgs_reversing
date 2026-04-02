@@ -335,7 +335,13 @@ skip_clamp_z:
             work->seg = HZD_GetOnlineHazard();
             work->seg_atr = HZD_GetOnlineHazardAtr();
 
-            if ((unsigned int)work->seg & 0x80000000) // Wall
+#ifdef PORT_BUILD
+            if (!work->seg) {
+                work->hit = 0;
+                goto bullet_skip_surface;
+            }
+#endif
+            if ((uintptr_t)work->seg & 0x80000000) // Wall
             {
                 work->seg_flag = 1;
                 HZD_GetNormal(work->seg, &work->normal);
@@ -348,6 +354,9 @@ skip_clamp_z:
                 work->normal.vy = work->seg->p3.h * 16;
             }
 
+#ifdef PORT_BUILD
+            bullet_skip_surface:
+#endif
             work->hit = 1;
 
             vec2.vx = (work->hitpos.vx - svec3.vx) >> 1;
