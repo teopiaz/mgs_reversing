@@ -5,6 +5,7 @@
 #include <execinfo.h>
 #include <unistd.h>
 #include <SDL.h>
+#include "imgui_debug.h"
 
 static void crash_handler(int sig)
 {
@@ -86,6 +87,7 @@ static void port_poll_events(void)
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+        imgui_process_event(&event);
         switch (event.type)
         {
         case SDL_QUIT:
@@ -99,6 +101,8 @@ static void port_poll_events(void)
                 extern void port_vram_toggle_debug(void);
                 port_vram_toggle_debug();
             }
+            if (event.key.keysym.sym == SDLK_p)
+                imgui_toggle_actors();
             break;
         case SDL_CONTROLLERDEVICEADDED:
         {
@@ -117,6 +121,8 @@ extern void port_vram_display(void);
 static void port_render(void)
 {
     port_vram_display();
+    imgui_render(g_renderer);
+    SDL_RenderPresent(g_renderer);
 }
 
 /* From main_game.c */
@@ -139,6 +145,7 @@ int main(int argc, char *argv[])
     }
 
     port_vram_init(g_renderer);
+    imgui_init(g_window, g_renderer);
     game_init();
 
     printf("port: entering main loop\n");
@@ -156,6 +163,7 @@ int main(int argc, char *argv[])
         port_render();
     }
 
+    imgui_shutdown();
     port_shutdown();
     return 0;
 }

@@ -108,7 +108,7 @@ void port_vram_display(void)
         SDL_RenderClear(sdl_renderer);
     }
 
-    SDL_RenderPresent(sdl_renderer);
+    /* SDL_RenderPresent is called by main.c after ImGui renders */
 }
 
 /*---------------------------------------------------------------------------*/
