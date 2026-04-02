@@ -420,9 +420,9 @@ void port_DrawOTag(unsigned long *ot)
                 short y = *(short *)(data + 6);
                 short w = *(short *)(data + 8);
                 short h = *(short *)(data + 10);
-                /* Skip large background-clear TILEs — ClearImage handles this.
-                   Only draw small TILEs (UI elements, HUD, etc). */
-                if (w <= 64 && h <= 64)
+                /* Skip full-screen background clears (ClearImage handles those).
+                   Draw everything else (menu panels, HUD bars, etc). */
+                if (!(w >= 320 && h >= 200))
                     port_DrawTile(x, y, w, h, r, g, b);
                 prim_count++;
                 break;

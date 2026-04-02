@@ -139,6 +139,16 @@ void game_tick(void)
         DG_HikituriFlagOld = DG_HikituriFlag;
         DG_HikituriFlag = 0;
     }
+
+    /* Clear STATE_PADRELEASE each frame before pad reading.
+       On PSX, actors set this during cutscenes and clear it when done.
+       In the port, many sequences don't complete (stubbed actors), leaving
+       the flag stuck and blocking ALL pad input including L2/R2 menus.
+       Clearing here lets actors re-set it each frame if they're still active. */
+    {
+        extern int GM_GameStatus;
+        GM_GameStatus &= ~STATE_PADRELEASE;
+    }
     /* Match original PSX frame order:
        1. DG_ActFirst (DAEMON): swap frame, read pad
        2. Game actors: collision, movement, animation
