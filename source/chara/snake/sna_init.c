@@ -7996,8 +7996,13 @@ static inline void sna_act_helper2_8005AD10(SnaInitWork *work)
 
 void sna_act_8005AD10(SnaInitWork *work)
 {
-    /* Skip if critical resources not loaded (no model/weapon/animation) */
-    if (!work->body.objs || !work->field_918_n_bullets || !work->field_88C) return;
+    /* Skip if critical resources not loaded (no model/animation) */
+    if (!work->body.objs || !work->field_88C) return;
+    /* Port: ensure bullets pointer is valid (weapon init may fail on first frame) */
+    if (!work->field_918_n_bullets) {
+        static short dummy_bullets = 0;
+        work->field_918_n_bullets = &dummy_bullets;
+    }
 
     SVECTOR vec;
     SVECTOR vec2;

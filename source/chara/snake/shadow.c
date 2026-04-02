@@ -191,7 +191,11 @@ static void Die(Work *work)
 static int GetResources(Work *work, CONTROL *control, OBJECT *parent, SVECTOR indices)
 {
     GM_InitObjectNoRots(&work->object, GV_StrCode("kage"), SHADOW_FLAG, 0);
-    if (!work->object.objs) return -1; /* model not loaded */
+    if (!work->object.objs) {
+        printf("[shadow] FAILED: kage model objs=NULL\n");
+        return -1;
+    }
+    printf("[shadow] OK: kage loaded, n_models=%d\n", work->object.objs->n_models);
     GM_ConfigObjectLight((OBJECT *)&work->object, work->light);
 
     DG_GroupObjs(work->object.objs, parent->map_name);
