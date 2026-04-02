@@ -15,33 +15,34 @@
 /*---------------------------------------------------------------------------*/
 
 typedef struct {
-    /* Data registers */
+    /* Data registers — must be 32-bit to match PSX COP2 hardware registers.
+       Using int (not long) because long is 8 bytes on 64-bit. */
     SVECTOR V0, V1, V2;         /* Input vectors (COP2 r0-5) */
     CVECTOR RGBC;               /* Input color (COP2 r6) */
-    long    OTZ;                /* Average Z (COP2 r7) */
-    long    IR0, IR1, IR2, IR3; /* Intermediate results (COP2 r8-11) */
+    int     OTZ;                /* Average Z (COP2 r7) */
+    int     IR0, IR1, IR2, IR3; /* Intermediate results (COP2 r8-11) */
     DVECTOR SXY0, SXY1, SXY2;  /* Screen XY FIFO (COP2 r12-14) */
-    long    SZ0, SZ1, SZ2, SZ3;/* Screen Z FIFO (COP2 r16-19) */
+    int     SZ0, SZ1, SZ2, SZ3;/* Screen Z FIFO (COP2 r16-19) */
     CVECTOR RGB0, RGB1, RGB2;   /* Color FIFO (COP2 r20-22) */
-    long    RES1;               /* Prohibited (COP2 r23) */
-    long    MAC0;               /* Sum of products (COP2 r24) */
-    long    MAC1, MAC2, MAC3;   /* Sum of products (COP2 r25-27) */
-    long    IRGB, ORGB;        /* Color conversion (COP2 r28-29) */
-    long    LZCS, LZCR;        /* Leading zero count (COP2 r30-31) */
-    long    FLAG;               /* Overflow flags (COP2 r63) */
+    int     RES1;               /* Prohibited (COP2 r23) */
+    int     MAC0;               /* Sum of products (COP2 r24) */
+    int     MAC1, MAC2, MAC3;   /* Sum of products (COP2 r25-27) */
+    int     IRGB, ORGB;        /* Color conversion (COP2 r28-29) */
+    int     LZCS, LZCR;        /* Leading zero count (COP2 r30-31) */
+    int     FLAG;               /* Overflow flags (COP2 r63) */
 
     /* Control registers */
     MATRIX  R;                  /* Rotation matrix (COP2 c0-4) */
-    long    TRX, TRY, TRZ;     /* Translation vector (COP2 c5-7) */
+    int     TRX, TRY, TRZ;     /* Translation vector (COP2 c5-7) */
     MATRIX  L;                  /* Light matrix (COP2 c8-12) */
-    long    RBK, GBK, BBK;     /* Background color (COP2 c13-15) */
+    int     RBK, GBK, BBK;     /* Background color (COP2 c13-15) */
     MATRIX  LR;                 /* Light color matrix (COP2 c16-20) */
-    long    RFC, GFC, BFC;     /* Far color (COP2 c21-23) */
-    long    OFX, OFY;          /* Screen offset (COP2 c24-25) */
-    long    H;                  /* Projection plane distance (COP2 c26) */
-    long    DQA;                /* Depth que parameter A (COP2 c27) */
-    long    DQB;                /* Depth que parameter B (COP2 c28) */
-    long    ZSF3, ZSF4;        /* Average Z scale factors (COP2 c29-30) */
+    int     RFC, GFC, BFC;     /* Far color (COP2 c21-23) */
+    int     OFX, OFY;          /* Screen offset (COP2 c24-25) */
+    int     H;                  /* Projection plane distance (COP2 c26) */
+    int     DQA;                /* Depth que parameter A (COP2 c27) */
+    int     DQB;                /* Depth que parameter B (COP2 c28) */
+    int     ZSF3, ZSF4;        /* Average Z scale factors (COP2 c29-30) */
 } GTE_State;
 
 extern GTE_State gte_state;
@@ -554,38 +555,38 @@ void gte_op_lc(void);
 #define gte_stsxy3_gt4(r0)  gte_stsxy3_f3(r0)
 
 /* Store depth / Z values */
-#define gte_stdp(r0)    do { *(long *)(r0) = gte_state.IR0; } while(0)
-#define gte_stsz(r0)    do { *(long *)(r0) = gte_state.SZ3; } while(0)
+#define gte_stdp(r0)    do { *(int *)(r0) = (int)gte_state.IR0; } while(0)
+#define gte_stsz(r0)    do { *(int *)(r0) = (int)gte_state.SZ3; } while(0)
 
 #define gte_stsz3(r0, r1, r2) do { \
-    *(long *)(r0) = gte_state.SZ1; \
-    *(long *)(r1) = gte_state.SZ2; \
-    *(long *)(r2) = gte_state.SZ3; \
+    *(int *)(r0) = (int)gte_state.SZ1; \
+    *(int *)(r1) = (int)gte_state.SZ2; \
+    *(int *)(r2) = (int)gte_state.SZ3; \
 } while(0)
 
 #define gte_stsz4(r0, r1, r2, r3) do { \
-    *(long *)(r0) = gte_state.SZ0; \
-    *(long *)(r1) = gte_state.SZ1; \
-    *(long *)(r2) = gte_state.SZ2; \
-    *(long *)(r3) = gte_state.SZ3; \
+    *(int *)(r0) = (int)gte_state.SZ0; \
+    *(int *)(r1) = (int)gte_state.SZ1; \
+    *(int *)(r2) = (int)gte_state.SZ2; \
+    *(int *)(r3) = (int)gte_state.SZ3; \
 } while(0)
 
 #define gte_stsz3c(r0) do { \
-    long *_p = (long *)(r0); \
-    _p[0] = gte_state.SZ1; _p[1] = gte_state.SZ2; _p[2] = gte_state.SZ3; \
+    int *_p = (int *)(r0); \
+    _p[0] = (int)gte_state.SZ1; _p[1] = (int)gte_state.SZ2; _p[2] = (int)gte_state.SZ3; \
 } while(0)
 
 #define gte_stsz4c(r0) do { \
-    long *_p = (long *)(r0); \
-    _p[0] = gte_state.SZ0; _p[1] = gte_state.SZ1; _p[2] = gte_state.SZ2; _p[3] = gte_state.SZ3; \
+    int *_p = (int *)(r0); \
+    _p[0] = (int)gte_state.SZ0; _p[1] = (int)gte_state.SZ1; _p[2] = (int)gte_state.SZ2; _p[3] = (int)gte_state.SZ3; \
 } while(0)
 
-#define gte_stszotz(r0)  do { *(long *)(r0) = gte_state.SZ0 + gte_state.OTZ; } while(0)
-#define gte_stotz(r0)    do { *(long *)(r0) = gte_state.OTZ; } while(0)
-#define gte_stopz(r0)    do { *(long *)(r0) = gte_state.MAC0; } while(0)
+#define gte_stszotz(r0)  do { *(int *)(r0) = (int)(gte_state.SZ0 + gte_state.OTZ); } while(0)
+#define gte_stotz(r0)    do { *(int *)(r0) = (int)gte_state.OTZ; } while(0)
+#define gte_stopz(r0)    do { *(int *)(r0) = (int)gte_state.MAC0; } while(0)
 
 /* Store flags */
-#define gte_stflg(r0)   do { *(long *)(r0) = gte_state.FLAG; } while(0)
+#define gte_stflg(r0)   do { *(int *)(r0) = (int)gte_state.FLAG; } while(0)
 #define gte_stflg_4(r0)  gte_stflg(r0)
 
 /* Store vectors */
@@ -669,23 +670,23 @@ void gte_op_lc(void);
 } while(0)
 
 #define gte_sttr(r0) do { \
-    long *_p = (long *)(r0); \
-    _p[0] = gte_state.TRX; _p[1] = gte_state.TRY; _p[2] = gte_state.TRZ; \
+    int *_p = (int *)(r0); \
+    _p[0] = (int)gte_state.TRX; _p[1] = (int)gte_state.TRY; _p[2] = (int)gte_state.TRZ; \
 } while(0)
 
 #define gte_ReadGeomOffset(r0, r1) do { \
-    *(long *)(r0) = gte_state.OFX; *(long *)(r1) = gte_state.OFY; \
+    *(int *)(r0) = (int)gte_state.OFX; *(int *)(r1) = (int)gte_state.OFY; \
 } while(0)
 
 #define gte_ReadGeomScreen(r0) do { \
-    *(long *)(r0) = gte_state.H; \
+    *(int *)(r0) = (int)gte_state.H; \
 } while(0)
 
-#define gte_stlzc(r0)   do { *(long *)(r0) = gte_state.LZCR; } while(0)
+#define gte_stlzc(r0)   do { *(int *)(r0) = (int)gte_state.LZCR; } while(0)
 
 #define gte_stfc(r0) do { \
-    long *_p = (long *)(r0); \
-    _p[0] = gte_state.RFC; _p[1] = gte_state.GFC; _p[2] = gte_state.BFC; \
+    int *_p = (int *)(r0); \
+    _p[0] = (int)gte_state.RFC; _p[1] = (int)gte_state.GFC; _p[2] = (int)gte_state.BFC; \
 } while(0)
 
 /*---------------------------------------------------------------------------*/
