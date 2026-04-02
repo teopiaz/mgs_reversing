@@ -222,10 +222,13 @@ void gte_op_lc(void);
 #define gte_ldsxy1(r0)  do { gte_state.SXY1 = *(const DVECTOR *)(r0); } while(0)
 #define gte_ldsxy2(r0)  do { gte_state.SXY2 = *(const DVECTOR *)(r0); } while(0)
 
+/* gte_ldsxy3 — loads three packed (x,y) short pairs as VALUES into SXY FIFO.
+   PSX: mtc2 r0,$12; mtc2 r1,$13; mtc2 r2,$14 — these are values, not pointers. */
 #define gte_ldsxy3(r0, r1, r2) do { \
-    gte_state.SXY0 = *(const DVECTOR *)(r0); \
-    gte_state.SXY1 = *(const DVECTOR *)(r1); \
-    gte_state.SXY2 = *(const DVECTOR *)(r2); \
+    long _v0 = (long)(r0), _v1 = (long)(r1), _v2 = (long)(r2); \
+    memcpy(&gte_state.SXY0, &_v0, sizeof(DVECTOR)); \
+    memcpy(&gte_state.SXY1, &_v1, sizeof(DVECTOR)); \
+    memcpy(&gte_state.SXY2, &_v2, sizeof(DVECTOR)); \
 } while(0)
 
 #define gte_ldsxy3c(r0) do { \
@@ -339,7 +342,23 @@ void gte_op_lc(void);
 #define gte_ldopv1SV(r0) gte_ld_intpol_sv0(r0)
 #define gte_ldopv2SV(r0) gte_ld_intpol_sv0(r0)
 
-#define gte_ldlzc(r0)   do { gte_state.LZCS = *(const long *)(r0); } while(0)
+/* gte_ldlzc — loads a VALUE into LZCS (COP2 r30). PSX: mtc2 r0, $30 */
+#define gte_ldlzc(r0)   do { \
+    long _lzcs_val = (long)(r0); \
+    gte_state.LZCS = _lzcs_val; \
+    /* Compute LZCR: count leading zeros/ones */ \
+    if (_lzcs_val > 0) { \
+        int _n = 0; long _v = _lzcs_val; \
+        while (_n < 32 && !(_v & 0x80000000L)) { _n++; _v <<= 1; } \
+        gte_state.LZCR = _n; \
+    } else if (_lzcs_val < 0) { \
+        int _n = 0; long _v = _lzcs_val; \
+        while (_n < 32 && (_v & 0x80000000L)) { _n++; _v <<= 1; } \
+        gte_state.LZCR = _n; \
+    } else { \
+        gte_state.LZCR = 32; \
+    } \
+} while(0)
 
 /*---------------------------------------------------------------------------*/
 /* GTE compute operations                                                    */
@@ -577,7 +596,7 @@ void gte_op_lc(void);
 
 #define gte_stlvnl(r0) do { \
     VECTOR *_v = (VECTOR *)(r0); \
-    _v->vx = gte_state.IR1; _v->vy = gte_state.IR2; _v->vz = gte_state.IR3; \
+    _v->vx = gte_state.MAC1; _v->vy = gte_state.MAC2; _v->vz = gte_state.MAC3; \
 } while(0)
 
 #define gte_stlvnl0(r0) do { \
