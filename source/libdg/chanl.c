@@ -269,9 +269,16 @@ int DG_QueueObjs( DG_OBJS *objs )
     cp = &DG_Chanls[ which ];
 
     n = cp->objs_index;
-    if ( n >= cp->prim_index ) return -1;
+
+    if ( n >= cp->prim_index )
+    {
+        printf("[dg] QueueObjs FULL: chanl=%d objs_index=%d prim_index=%d\n", which, n, cp->prim_index);
+        return -1;
+    }
+
     cp->queue[ n++ ] = objs;
     cp->objs_index = n;
+    printf("[dg] QueueObjs: chanl=%d objs_index=%d def=%p n_models=%d\n", which, n, objs->def, objs->n_models);
     return 0;
 }
 
