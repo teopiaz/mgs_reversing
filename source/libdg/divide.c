@@ -297,7 +297,7 @@ STATIC int DG_CopyPackToRVector( DG_RVECTOR *rvec )
 
     divide_mem = GetDivideMem();
 
-    if ( ( (unsigned int)divide_mem->rvec < 0x1f800254 ) && ( divide_mem->n_packs >= 4 ) )
+    if ( ( (unsigned long)divide_mem->rvec < (SCRPAD_ADDR + 0x254) ) && ( divide_mem->n_packs >= 4 ) )
     {
         gte_NormalClip( *(int*)&rvec->sxy, *(int*)&rvec[1].sxy, *(int*)&rvec[3].sxy, &divide_mem->opz );
         v1 = divide_mem->opz;
@@ -412,10 +412,10 @@ typedef struct cpystrct {
 
 static inline void copy_verts(unsigned char *faceIndexOffset, SVECTOR *vertexIndexOffset)
 {
-    *(cpystrct*)0x1F800038 = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[0]];
-    *(cpystrct*)0x1F800060 = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[1]];
-    *(cpystrct*)0x1F8000B0 = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[3]];
-    *(cpystrct*)0x1F8000D8 = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[2]];
+    *(cpystrct*)(SCRPAD_ADDR + 0x038) = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[0]];
+    *(cpystrct*)(SCRPAD_ADDR + 0x060) = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[1]];
+    *(cpystrct*)(SCRPAD_ADDR + 0x0B0) = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[3]];
+    *(cpystrct*)(SCRPAD_ADDR + 0x0D8) = *(cpystrct*)&vertexIndexOffset[faceIndexOffset[2]];
 }
 
 //function seems to call scratchpad addresses directly rather than through a struct
@@ -426,7 +426,7 @@ STATIC void DG_InitRVector( DG_OBJ *obj,  int idx )
     int           n_packs;
 
     org_pack = obj->packs[ idx ];
-    *(short*)0x1F800006 = obj->raise;
+    *(short*)(SCRPAD_ADDR + 0x006) = obj->raise;
 
     while ( obj )
     {
@@ -440,46 +440,46 @@ STATIC void DG_InitRVector( DG_OBJ *obj,  int idx )
             int pack_raise = pack->tag & 0xFFFF;
             int pack_addr  = pack->tag >> 8;
 
-            if ( ( *(unsigned int*)0x1F800014 < pack_addr ) &&
-                 ( pack_raise < *(int*)0x1F800018 )         &&
-                 ( *(int*)0x1F800028 >= 4 ) )
+            if ( ( *(unsigned int*)(SCRPAD_ADDR + 0x014) < pack_addr ) &&
+                 ( pack_raise < *(int*)(SCRPAD_ADDR + 0x018) )         &&
+                 ( *(int*)(SCRPAD_ADDR + 0x028) >= 4 ) )
             {
                 *(short*)pack = 0;
-                *(int*)0x1F80001C = (int)pack;
+                *(int*)(SCRPAD_ADDR + 0x01C) = (int)pack;
 
                 if ( pack_addr & 0x100 )
                 {
-                    *(int*)0x1F80000C = -*(int*)0x1F800010;
+                    *(int*)(SCRPAD_ADDR + 0x00C) = -*(int*)(SCRPAD_ADDR + 0x010);
                 }
                 else
                 {
-                    *(int*)0x1F80000C = *(int*)0x1F800010;
+                    *(int*)(SCRPAD_ADDR + 0x00C) = *(int*)(SCRPAD_ADDR + 0x010);
                 }
 
                 //loc_80019A04:
-                *(int*)0x1F800034 = (int)0x1F800038;
+                *(int*)(SCRPAD_ADDR + 0x034) = (int)(SCRPAD_ADDR + 0x038);
 
                 copy_verts( faceIndexOffset, vertexIndexOffset );
 
-                LCOPY2(  &pack->x0 , (void*)0x1F800044 , &pack->x1 , (void*)0x1F80006C );
-                LCOPY2(  &pack->x2 , (void*)0x1F8000BC , &pack->x3 , (void*)0x1F8000E4 );
-                SCOPYL2( &pack->u0 , (void*)0x1F80003E , &pack->u1 , (void*)0x1F800066 );
-                SCOPYL2( &pack->u2 , (void*)0x1F8000B6 , &pack->u3 , (void*)0x1F8000DE );
-                LCOPY2(  &pack->r0 , (void*)0x1F800040 , &pack->r1 , (void*)0x1F800068 );
-                LCOPY2(  &pack->r2 , (void*)0x1F8000B8 , &pack->r3 , (void*)0x1F8000E0 );
+                LCOPY2(  &pack->x0 , (void*)(SCRPAD_ADDR + 0x044) , &pack->x1 , (void*)(SCRPAD_ADDR + 0x06C) );
+                LCOPY2(  &pack->x2 , (void*)(SCRPAD_ADDR + 0x0BC) , &pack->x3 , (void*)(SCRPAD_ADDR + 0x0E4) );
+                SCOPYL2( &pack->u0 , (void*)(SCRPAD_ADDR + 0x03E) , &pack->u1 , (void*)(SCRPAD_ADDR + 0x066) );
+                SCOPYL2( &pack->u2 , (void*)(SCRPAD_ADDR + 0x0B6) , &pack->u3 , (void*)(SCRPAD_ADDR + 0x0DE) );
+                LCOPY2(  &pack->r0 , (void*)(SCRPAD_ADDR + 0x040) , &pack->r1 , (void*)(SCRPAD_ADDR + 0x068) );
+                LCOPY2(  &pack->r2 , (void*)(SCRPAD_ADDR + 0x0B8) , &pack->r3 , (void*)(SCRPAD_ADDR + 0x0E0) );
 
-                gte_ldv3( 0x1F800060 , 0x1F8000B0 , 0x1F8000D8 );
+                gte_ldv3( (SCRPAD_ADDR + 0x060) , (SCRPAD_ADDR + 0x0B0) , (SCRPAD_ADDR + 0x0D8) );
                 gte_rtpt();
-                gte_stsz3( 0x1F800070 , 0x1F8000C0 , 0x1F8000E8 );
+                gte_stsz3( (SCRPAD_ADDR + 0x070) , (SCRPAD_ADDR + 0x0C0) , (SCRPAD_ADDR + 0x0E8) );
 
-                gte_ldv0( 0x1F800038 );
+                gte_ldv0( (SCRPAD_ADDR + 0x038) );
                 gte_rtps();
-                gte_stsz( 0x1F800048 );
+                gte_stsz( (SCRPAD_ADDR + 0x048) );
 
-                DG_SetRVectorCode( (DG_RVECTOR*)0x1F800038 );
-                DG_SetRVectorCode( (DG_RVECTOR*)0x1F800060 );
-                DG_SetRVectorCode( (DG_RVECTOR*)0x1F8000B0 );
-                DG_SetRVectorCode( (DG_RVECTOR*)0x1F8000D8 );
+                DG_SetRVectorCode( (DG_RVECTOR*)(SCRPAD_ADDR + 0x038) );
+                DG_SetRVectorCode( (DG_RVECTOR*)(SCRPAD_ADDR + 0x060) );
+                DG_SetRVectorCode( (DG_RVECTOR*)(SCRPAD_ADDR + 0x0B0) );
+                DG_SetRVectorCode( (DG_RVECTOR*)(SCRPAD_ADDR + 0x0D8) );
                 DG_SubDivideRVectors();
 
             }
@@ -490,8 +490,8 @@ STATIC void DG_InitRVector( DG_OBJ *obj,  int idx )
                     u_long *ot;
                     u_short raise;
 
-                    ot = (*(u_long **)0x1F800000);
-                    raise = *(u_short *)0x1F800006;
+                    ot = (*(u_long **)(SCRPAD_ADDR));
+                    raise = *(u_short *)(SCRPAD_ADDR + 0x006);
 
                     raise = pack_raise - raise;
                     pack_raise = raise;

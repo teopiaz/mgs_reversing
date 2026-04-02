@@ -26,7 +26,11 @@ void DG_ResetPipeline(void)
     DG_Chanls[0].objs_index = 0;
     DG_Chanls[0].prim_index = DG_Chanls[0].queue_size;
 }
-void DG_ResetTextureCache(void) {}
+void DG_ResetTextureCache(void)
+{
+    DG_InitTextureSystem();
+    DG_LoadResidentTextureCache();
+}
 
 void DG_StartDaemon(void)
 {

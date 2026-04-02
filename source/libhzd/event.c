@@ -461,15 +461,15 @@ static inline int CheckTrapBounds(void)
 
 static inline int HZD_8002A27C_helper2(unsigned short *ptrIn, unsigned int target)
 {
-    int             count = *(unsigned int *)0x1F800018;
-    unsigned short *ptr = (unsigned short *)0x1F80001C;
+    int             count = *(unsigned int *)(SCRPAD_ADDR + 0x018);
+    unsigned short *ptr = (unsigned short *)(SCRPAD_ADDR + 0x01C);
 
     for (; count > 0; count--)
     {
         if (*ptr++ == target)
         {
-            *(int *)0x1F800018 -= 1;
-            ptr[-1] = (ptrIn + 0x0E)[*(int *)0x1F800018];
+            *(int *)(SCRPAD_ADDR + 0x018) -= 1;
+            ptr[-1] = (ptrIn + 0x0E)[*(int *)(SCRPAD_ADDR + 0x018)];
             return 1;
         }
     }
@@ -563,10 +563,10 @@ void HZD_EnterTrap(HZD_HDL *hzd, HZD_EVT *event)
 
     pSrcVec = &event->pos;
 
-    *(short *)0x1F800000 = pSrcVec->vx;
+    *(short *)(SCRPAD_ADDR + 0x000) = pSrcVec->vx;
     do {} while (0);
 
-    *(short *)0x1F800004 = pSrcVec->vy;
+    *(short *)(SCRPAD_ADDR + 0x004) = pSrcVec->vy;
     pArr = event->triggers;
     do {} while (0);
 
@@ -575,7 +575,7 @@ void HZD_EnterTrap(HZD_HDL *hzd, HZD_EVT *event)
 
     do {} while (0);
 
-    *(short *)0x1F800002 = tmp;
+    *(short *)(SCRPAD_ADDR + 0x002) = tmp;
     *getScratchAddr(6) = event->n_triggers;
 
     for (i = event->n_triggers; i > 0; i--)

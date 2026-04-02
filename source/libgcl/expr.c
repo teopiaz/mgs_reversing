@@ -60,7 +60,7 @@ int GCL_Expr(unsigned char *pScript, int *retValue)
     char       *ptr;
     int code, value, operator;
 
-    sp = (EXPR_STACK *)0x1F800200;
+    sp = (EXPR_STACK *)(SCRPAD_ADDR + 0x200);
     ptr = pScript;
     for (;;)
     {

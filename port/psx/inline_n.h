@@ -212,7 +212,7 @@ void gte_op_lc(void);
     gte_state.IR1 = _s[0]; gte_state.IR2 = _s[3]; gte_state.IR3 = _s[6]; \
 } while(0)
 
-#define gte_lddp(r0)    do { gte_state.IR0 = *(const long *)(r0); } while(0)
+#define gte_lddp(r0)    do { gte_state.IR0 = (long)(r0); } while(0)
 
 /*---------------------------------------------------------------------------*/
 /* Screen coordinate load macros                                             */

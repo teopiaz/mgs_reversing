@@ -174,23 +174,23 @@ void drawBorder_800390FC(MenuWork *menuMan, u_long *ot)
     menu_render_rect_8003DB2C(menuMan->prim, x2, y1 + 68, 70, 1, 0); // Bottom border.
 }
 
-// clang-format off
 // gte_stbv but with sh instead of sb
-#define gte_stbh( r0 ) __asm__ volatile (                       \
-        "mfc2   $12, $9;"                                       \
-        "mfc2   $13, $10;"                                      \
-        "sh     $12, 0( %0 );"                                  \
-        "sh     $13, 2( %0 )"                                   \
-        :                                                       \
-        : "r"( r0 )                                             \
-        : "$12", "$13", "memory" )
+// Stores IR1 and IR2 as halfwords (shorts) at r0[0] and r0[1].
+// On PSX: mfc2 from $9 (IR1) and $10 (IR2), then sh (store halfword).
+#define gte_stbh(r0) do {           \
+    short *_p = (short *)(r0);      \
+    _p[0] = (short)gte_state.IR1;   \
+    _p[1] = (short)gte_state.IR2;   \
+} while(0)
 
-// gte_ldv0 but without the second load
-#define gte_ldv0h( r0 ) __asm__ volatile (                      \
-        "lwc2   $0, 0( %0 )"                                    \
-        :                                                       \
-        : "r"( r0 ) )
-// clang-format on
+// gte_ldv0 but without the second load (only loads VXY0, not VZ0).
+// On PSX: lwc2 $0 loads the packed vx/vy of V0 from 4 bytes at r0.
+#define gte_ldv0h(r0) do {              \
+    const short *_s = (const short *)(r0); \
+    gte_state.V0.vx = _s[0];           \
+    gte_state.V0.vy = _s[1];           \
+    gte_state.V0.vz = 0;               \
+} while(0)
 
 extern CONTROL         *GM_WhereList[96];
 extern int              gControlCount_800AB9B4;
@@ -524,7 +524,7 @@ void drawMap_800391D0(MenuWork *work, u_long *ot, int arg2)
                     }
                 }
 
-                gte_ldv0h(0x1F800020);
+                gte_ldv0h((SCRPAD_ADDR + 0x020));
                 gte_rt();
 
                 if (((((int *)scratchShort)[0x18 / 4] < pWall->p1.y) ||
@@ -551,7 +551,7 @@ void drawMap_800391D0(MenuWork *work, u_long *ot, int arg2)
 
                 gte_stbh(&pLine->x0);
 
-                gte_ldv0h(0x1F800024);
+                gte_ldv0h((SCRPAD_ADDR + 0x024));
                 gte_rt();
 
                 LSTORE(rgb, &pLine->r0);

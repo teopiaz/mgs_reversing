@@ -409,6 +409,7 @@ static void Act(gameWork *work)
         {
             GV_SaveResidentFileCache();
             DG_SaveResidentTextureCache();
+            FS_ResidentCacheDirty = 0;
         }
 
         GM_ResetMap();

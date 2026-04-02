@@ -112,8 +112,8 @@ static inline void HZD_LevelPointHeight_helper(void)
     // the source and destination two arguments swaps the registers
     short *scratch2 = ( short * )SCRPAD_ADDR;
 
-    scratch2[3] = *(short *)0x1f800038;
-    scratch2[2] = -*(short *)0x1f80003a;
+    scratch2[3] = *(short *)(SCRPAD_ADDR + 0x038);
+    scratch2[2] = -*(short *)(SCRPAD_ADDR + 0x03a);
 }
 
 static inline void assign_subtract( int idx, short idx2, short idx3, short *val )
@@ -130,18 +130,18 @@ STATIC int HZD_LevelHeight(HZD_FLR *floor)
     assign_subtract( 27, 7, 1, ( short * )&floor->p1 );
 
     //todo: fix below, probably some inline
-    test = ( short * )0x1F800038;
+    test = ( short * )(SCRPAD_ADDR + 0x038);
     test[0] = floor->p1.h;
     do {} while(0);
     test[y = 1] = floor->p2.h;
 
     HZD_LevelPointHeight_helper();
 
-    gte_ldsxy3(0, *( int * )0x1F800034, *( int* )0x1F800004);
+    gte_ldsxy3(0, *( int * )(SCRPAD_ADDR + 0x034), *( int* )(SCRPAD_ADDR + 0x004));
     gte_nclip();
-    gte_stopz( 0x1F800008 );
+    gte_stopz( (SCRPAD_ADDR + 0x008) );
 
-    x = *(int * )0x1F800008;
+    x = *(int * )(SCRPAD_ADDR + 0x008);
     return floor->p1.y - x / floor->p3.h;
 }
 
