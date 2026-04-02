@@ -157,15 +157,18 @@ void game_tick(void)
     /* Actor system: game logic, camera actors call DG_LookAt */
     GV_ExecActorSystem();
 
-    /* Debug: print Snake position and pad state periodically */
-    if ((tick_count % 120) == 0 && tick_count > 300) {
+    /* Debug: print pad state every second */
+    if ((tick_count % 60) == 0) {
         extern int GM_GameStatus;
-        extern int DG_UnDrawFrameCount;
-        printf("[tick %d] snake=(%d,%d,%d) pad=0x%lX gs=0x%X undraw=%d\n",
+        extern long mts_PadRead(int);
+        long raw = mts_PadRead(0);
+        printf("[tick %d] raw_pad=0x%lX status=0x%lX press=0x%lX gs=0x%X snake=(%d,%d,%d)\n",
                tick_count,
-               GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz,
+               raw,
                (unsigned long)GV_PadData[0].status,
-               GM_GameStatus, DG_UnDrawFrameCount);
+               (unsigned long)GV_PadData[0].press,
+               GM_GameStatus,
+               GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
     }
 
     GV_Clock = 1 - GV_Clock;
