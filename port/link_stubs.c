@@ -24,7 +24,10 @@ int GM_Photocode = 0;
 int GM_PlayerAction = 0;
 int GM_PlayerAddress = 0;
 void *GM_PlayerBody = NULL;        /* OBJECT * */
-void *GM_PlayerControl = NULL;     /* CONTROL * */
+/* CONTROL struct: starts with SVECTOR mov, SVECTOR rot, ...
+   Provide a static zero-initialized one so GM_PlayerControl is never NULL */
+static char _default_control[256] = {0};
+void *GM_PlayerControl = _default_control;  /* CONTROL * */
 int GM_PlayerMap = 0;
 STUB_SVECTOR GM_PlayerPosition = {0};  /* SVECTOR */
 short GM_WeaponChanged = 0;
@@ -63,14 +66,11 @@ int  ENE_SetPutChar_800D9D6C(void *work, int idx) { return 0; }
 void HZD_LineNearSurface(void) { }
 void s07a_meryl_unk_800D952C(void) { }
 int PClseek(int fd, int offset, int mode) { (void)fd; (void)offset; (void)mode; return 0; }
-void MENU_SetRadarFunc(void) { }
-void MENU_SetRadarScale(void) { }
+
 void NewVibrationEditor(void) { }
 int  SafetyCheck(int a, int b, int c) { return 0; }
 void SetPriority(void) { }
-void menu_radar_init_8003B474(void) { }
-void menu_radar_kill_8003B554(void) { }
-void menu_radar_load_rpk_8003AD64(void) { }
+
 
 /* Overlay actor stubs — constructors for actors in excluded source files */
 void *NewBed_800C70DC(int name, int where, int argc, char **argv) { return NULL; }

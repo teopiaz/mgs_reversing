@@ -268,7 +268,7 @@ void *FS_LoadStageRequest(const char *dirname)
                     }
                 }
 
-                printf("    dar: id=0x%04X ext='%c' size=%d\n", dar->id, (char)dar->ext, dar->size);
+               // printf("    dar: id=0x%04X ext='%c' size=%d\n", dar->id, (char)dar->ext, dar->size);
 
                 GV_LoadInit(file_data, cache_id, region);
 
@@ -391,7 +391,8 @@ int FS_LoadStageSync(void *info)
 void FS_LoadStageComplete(void *info)
 {
     (void)info;
-    /* Nothing to clean up — memory stays allocated */
+    /* FS_ResidentCacheDirty is cleared by gamed.c after it saves resident caches.
+       Do NOT clear it here — gamed.c reads it during the WAIT_LOAD transition. */
 }
 
 /*---------------------------------------------------------------------------*/
