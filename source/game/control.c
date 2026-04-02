@@ -493,12 +493,25 @@ int GM_CheckControlTouches(CONTROL *ctrl, int range)
 
     if (ctrl->n_touches == 2)
     {
+#ifdef PORT_BUILD
+        if (!ctrl->segs[1] || (uintptr_t)ctrl->segs[1] > 0xFFFFFFFFFFULL) {
+            printf("[BUG] GM_CheckControlTouches: segs[1]=%p touch=%d\n", (void*)ctrl->segs[1], ctrl->touch_flag);
+            return 0;
+        }
+#endif
         if (ctrl->segs[1]->p1.h < 0 || GV_VecLen3(&ctrl->vecs[1]) <= range)
         {
             return 2;
         }
     }
 
+#ifdef PORT_BUILD
+    if (!ctrl->segs[0] || (uintptr_t)ctrl->segs[0] > 0xFFFFFFFFFFULL) {
+        printf("[BUG] GM_CheckControlTouches: segs[0]=%p touch=%d segs[1]=%p\n",
+               (void*)ctrl->segs[0], ctrl->touch_flag, ctrl->segs[1]);
+        return 0;
+    }
+#endif
     if (ctrl->segs[0]->p1.h < 0 || GV_VecLen3(&ctrl->vecs[0]) <= range)
     {
         return 1;
