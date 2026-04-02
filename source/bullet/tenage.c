@@ -178,6 +178,12 @@ static void Act(Work *work)
 
     if (control->n_touches > 0 && GM_CheckControlTouches(control, 300))
     {
+#ifdef PORT_BUILD
+        if (!control->segs[0] || (uintptr_t)control->segs[0] > 0xFFFFFFFFFFULL) {
+            printf("[BUG] tenage segs[0]=%p touch=%d\n", control->segs[0], control->n_touches);
+            goto tenage_skip_touch;
+        }
+#endif
         HZD_GetNormal(control->segs[0], &vec);
         DG_ReflectVector(&vec, &work->step, &work->step);
 
@@ -192,6 +198,9 @@ static void Act(Work *work)
             }
         }
     }
+#ifdef PORT_BUILD
+    tenage_skip_touch: (void)0;
+#endif
 }
 
 static void Die(Work *work)
