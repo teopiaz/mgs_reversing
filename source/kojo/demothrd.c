@@ -210,26 +210,40 @@ static void ActStream(LPMGSDEMOACT lpAct)
         }
 
 #ifdef PORT_BUILD
-        /* DMO_DAT in stream has PSX 36-byte layout. Convert pointers. */
+        /* DMO_DAT in stream has PSX 36-byte layout. Convert pointers.
+           Use memcpy for unaligned reads (ARM64 SIGBUS on misaligned int). */
         {
             static DMO_DAT port_dat;
             unsigned char *raw = (unsigned char *)def;
-            port_dat.tag       = *(unsigned int *)&raw[0];
-            port_dat.frame     = *(int *)&raw[4];
-            port_dat.eye_x     = *(short *)&raw[8];
-            port_dat.eye_y     = *(short *)&raw[10];
-            port_dat.eye_z     = *(short *)&raw[12];
-            port_dat.center_x  = *(short *)&raw[14];
-            port_dat.center_y  = *(short *)&raw[16];
-            port_dat.center_z  = *(short *)&raw[18];
-            port_dat.roll      = *(short *)&raw[20];
-            port_dat.clip_dist = *(short *)&raw[22];
-            port_dat.n_charas  = *(short *)&raw[24];
-            uint32_t chara_off = *(uint32_t *)&raw[26];
-            port_dat.chara     = chara_off ? (DMO_CHA *)(raw + chara_off) : NULL;
-            port_dat.n_adjusts = *(short *)&raw[30];
-            uint32_t adj_off   = *(uint32_t *)&raw[32];
-            port_dat.adjust    = adj_off ? (DMO_ADJ *)(raw + adj_off) : NULL;
+            memcpy(&port_dat.tag,       &raw[0],  4);
+            memcpy(&port_dat.frame,     &raw[4],  4);
+            memcpy(&port_dat.eye_x,     &raw[8],  2);
+            memcpy(&port_dat.eye_y,     &raw[10], 2);
+            memcpy(&port_dat.eye_z,     &raw[12], 2);
+            memcpy(&port_dat.center_x,  &raw[14], 2);
+            memcpy(&port_dat.center_y,  &raw[16], 2);
+            memcpy(&port_dat.center_z,  &raw[18], 2);
+            memcpy(&port_dat.roll,      &raw[20], 2);
+            memcpy(&port_dat.clip_dist, &raw[22], 2);
+            memcpy(&port_dat.n_charas,  &raw[24], 2);
+            uint32_t chara_off; memcpy(&chara_off, &raw[26], 4);
+            /* Copy chara/adjust data to aligned static buffers */
+            static DMO_CHA port_charas[16];
+            static DMO_ADJ port_adjusts[16];
+            if (chara_off && port_dat.n_charas > 0 && port_dat.n_charas <= 16) {
+                memcpy(port_charas, raw + chara_off, sizeof(DMO_CHA) * port_dat.n_charas);
+                port_dat.chara = port_charas;
+            } else {
+                port_dat.chara = NULL;
+            }
+            memcpy(&port_dat.n_adjusts, &raw[30], 2);
+            uint32_t adj_off;   memcpy(&adj_off,   &raw[32], 4);
+            if (adj_off && port_dat.n_adjusts > 0 && port_dat.n_adjusts <= 16) {
+                memcpy(port_adjusts, raw + adj_off, sizeof(DMO_ADJ) * port_dat.n_adjusts);
+                port_dat.adjust = port_adjusts;
+            } else {
+                port_dat.adjust = NULL;
+            }
             status = FrameRunDemo(lpAct, &port_dat);
         }
 #else
