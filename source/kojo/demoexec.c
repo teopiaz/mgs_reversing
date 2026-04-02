@@ -78,8 +78,10 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
     lpAct->old_item = GM_CurrentItemId;
     lpAct->old_weapon = GM_CurrentWeaponId;
 
+#ifndef PORT_BUILD
     OFFSET_TO_PTR(header, &header->maps);
     OFFSET_TO_PTR(header, &header->models);
+#endif
 
     InitChain(&lpAct->chain);
 
