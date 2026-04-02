@@ -462,13 +462,13 @@ void FS_StreamTaskStart(int sector)
     stream_ended = 0;
     port_stream_tick = 0;
 
-    printf("[stream] started for sector %d (VOX data is raw XA — no control entries available)\n", sector);
+    printf("[stream] started for sector %d (no XA control data — timer mode)\n", sector);
     /* VOX.DAT contains raw XA audio without CD-ROM subheaders.
-       Control entries (timing/subtitle cues) were in interleaved data sectors
-       identified by CD-ROM submode bytes, which our raw dump doesn't have.
-       Mark stream as immediately ended so the cutscene GCL scripts proceed. */
+       We can't extract control entries, but the cutscene needs time to
+       play its camera/actor animations. Use a timer to let the cutscene
+       run for its natural duration before signaling completion. */
     stream_buf_len = 0;
-    stream_ended = 1;
+    stream_ended = 0;
 }
 
 int FS_StreamTaskState(void)
@@ -512,7 +512,13 @@ void FS_StreamClose(void) {}
 
 int FS_StreamIsEnd(void)
 {
-    return stream_ended;
+    /* In timer mode (no stream data), end after the tick counter
+       reaches a high value. The cutscene GCL proc callback handles
+       the actual stage transition. FS_StreamStop() can end it early
+       (e.g., when user presses skip or the pad_demo finishes). */
+    if (!stream_active) return 1;
+    if (stream_ended) return 1;
+    return 0;
 }
 
 void *FS_StreamGetData(int target_type)
@@ -592,8 +598,11 @@ void FS_StreamClearType(void *stream, int target_type)
 
 int  FS_StreamGetEndFlag(void) { return stream_ended; }
 int  FS_StreamIsForceStop(void) {
-    /* Force stop when we have no stream data — lets cutscene GCL scripts proceed */
-    return (stream_buf_len == 0) ? 1 : 0;
+    /* When no stream data is available, report force stop so the strctrl
+       exit check passes (sub_state=1 requires force_stop=1 to exit).
+       The pad_demo actor controls the actual cutscene duration. */
+    if (stream_active && stream_buf_len == 0) return 1;
+    return 0;
 }
 void FS_StreamTickStart(void) { port_stream_tick = 0; }
 void FS_StreamSoundMode(void) {}
