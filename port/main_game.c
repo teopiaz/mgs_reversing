@@ -170,6 +170,12 @@ void game_tick(void)
             extern GV_PAD  GV_PadData[];
             GV_UpdatePadSystem();
             GM_CurrentPadData = GV_PadData;
+
+            /* The menu system reads from GM_CurrentPadData[2] (GV_PadData[2]).
+               The pad update loop only populates indices 0 and 1.
+               Copy pad[0] to pad[2] and pad[3] so menus and codec see input. */
+            GV_PadData[2] = GV_PadData[0];
+            GV_PadData[3] = GV_PadData[1];
         }
 
         /* Actor system FIRST: game logic, collision, movement
