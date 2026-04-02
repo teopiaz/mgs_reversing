@@ -178,7 +178,7 @@ static void Act(Work *work)
 
     if (control->n_touches > 0 && GM_CheckControlTouches(control, 300))
     {
-#ifdef PORT_BUILD
+#ifdef PORT_BUILDS
         if (!control->segs[0] || (uintptr_t)control->segs[0] > 0xFFFFFFFFFFULL) {
             printf("[BUG] tenage segs[0]=%p touch=%d\n", control->segs[0], control->touch_flag);
             goto tenage_skip_touch;
@@ -198,7 +198,7 @@ static void Act(Work *work)
             }
         }
     }
-#ifdef PORT_BUILD
+#ifdef PORT_BUILDS
     tenage_skip_touch: (void)0;
 #endif
 }
