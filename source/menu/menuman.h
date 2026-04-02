@@ -9,7 +9,11 @@
 #include "face.h"
 #include "memcard/memcard.h"
 
+#ifdef PORT_BUILD
+#define UNTAG_PTR(Type, Ptr) (Type *)((uintptr_t)(Ptr) & ~(uintptr_t)0x80000000)
+#else
 #define UNTAG_PTR(Type, Ptr) (Type *)((unsigned int)Ptr & 0x7FFFFFFF)
+#endif
 
 typedef struct
 {
