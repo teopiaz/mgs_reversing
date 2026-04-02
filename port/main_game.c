@@ -131,12 +131,14 @@ void game_tick(void)
         memset(port_scratchpad, 0, 1024);
     }
 
-    /* Force draw: clear blockers that GameWork sets during transitions */
+    /* Track draw state for rendering */
     {
         extern int DG_UnDrawFrameCount;
         extern int DG_HikituriFlag;
         extern int DG_HikituriFlagOld;
-        DG_UnDrawFrameCount = 0;
+        /* Don't force DG_UnDrawFrameCount to 0 — it's a countdown used by
+           cutscene camera cuts (pad_demo.c) and scene transitions. DG_SwapFrame
+           decrements it naturally. Forcing it to 0 breaks cutscene flow. */
         DG_HikituriFlagOld = DG_HikituriFlag;
         DG_HikituriFlag = 0;
     }
