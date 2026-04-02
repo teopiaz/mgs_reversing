@@ -138,6 +138,10 @@ void game_tick(void)
         DG_HikituriFlagOld = DG_HikituriFlag;
         DG_HikituriFlag = 0;
     }
+    /* Match original PSX frame order:
+       1. DG_ActFirst (DAEMON): swap frame, read pad
+       2. Game actors: collision, movement, animation
+       3. DG_ActLast (DAEMON2): render pipeline */
     DG_SwapFrame();
 
     /* Pad update — matches DG_ActFirst in original dgd.c */
@@ -149,13 +153,16 @@ void game_tick(void)
         GM_CurrentPadData = GV_PadData;
     }
 
+    /* Actor system FIRST: game logic, collision, movement
+       (uses scratchpad for collision results) */
+    GV_ExecActorSystem();
+
+    /* Render pipeline AFTER actors: transforms, sorts, draws
+       (uses scratchpad for bounding box calculations) */
     DG_RenderFrame();
 
     /* Direct 3D renderer */
     port_RenderObjects(GV_Clock);
-
-    /* Actor system: game logic, camera actors call DG_LookAt */
-    GV_ExecActorSystem();
 
     /* Debug: print pad state every second */
     if ((tick_count % 60) == 0) {
