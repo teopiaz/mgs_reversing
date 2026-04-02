@@ -44,7 +44,7 @@ LIBGCL_SRC = $(wildcard libgcl_fix/*.c)
 LIBGCL_OBJ = $(patsubst libgcl_fix/%.c,$(OBJDIR)/libgcl_%.o,$(LIBGCL_SRC))
 
 # Exclude collide.c (hardcoded scratchpad) and hzdd.c (OFFSET_TO_PTR)
-LIBHZD_SRC = $(filter-out $(SRCDIR)/libhzd/collide.c $(SRCDIR)/libhzd/hzdd.c, $(wildcard $(SRCDIR)/libhzd/*.c))
+LIBHZD_SRC = $(filter-out $(SRCDIR)/libhzd/collide.c, $(wildcard $(SRCDIR)/libhzd/*.c))
 LIBHZD_OBJ = $(patsubst $(SRCDIR)/libhzd/%.c,$(OBJDIR)/libhzd_%.o,$(LIBHZD_SRC))
 
 # --- All stage definition files ---
