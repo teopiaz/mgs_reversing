@@ -49,6 +49,10 @@ void HZD_LineNearVec(SVECTOR *out)
 int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclude)
 {
     (void)hzd; (void)point; (void)range; (void)flag; (void)exclude;
+    /* Clear scratchpad fields that level.c reads via MAX_FLOOR etc. */
+    extern char port_scratchpad[];
+    *(void **)(port_scratchpad + 0x3C) = NULL;  /* MAX_FLOOR */
+    *(int *)(port_scratchpad + 0x48) = 0;       /* result count */
     return 0;
 }
 

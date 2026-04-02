@@ -123,6 +123,12 @@ void game_tick(void)
     DG_CurrentGroupID = 0xFFFFFFFF;
     port_ot_next = 0;
 
+    /* Clear scratchpad each frame — collision stubs don't initialize it properly */
+    {
+        extern char port_scratchpad[1024];
+        memset(port_scratchpad, 0, 1024);
+    }
+
     /* Force draw: clear blockers that GameWork sets during transitions */
     {
         extern int DG_UnDrawFrameCount;
