@@ -17,7 +17,6 @@ TARGET = mgs
 EXCLUDE_FILES = \
 	$(SRCDIR)/libhzd/collide.c \
 	$(SRCDIR)/game/movie.c \
-	$(SRCDIR)/menu/radar.c \
 	$(SRCDIR)/takabe/vib_edit.c \
 	$(SRCDIR)/game/script.c \
 	$(SRCDIR)/enemy/merylaction.c \

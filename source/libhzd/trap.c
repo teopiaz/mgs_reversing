@@ -151,10 +151,10 @@ void HZD_EnterTrap(HZD_HDL *hzd, HZD_EVT *ev)
 
     mov = &ev->mov;
 
-    *(short *)0x1F800000 = mov->vx;
+    *(short *)(SCRPAD_ADDR) = mov->vx;
     do {} while (0);
 
-    *(short *)0x1F800004 = mov->vy;
+    *(short *)(SCRPAD_ADDR + 0x004) = mov->vy;
     from = ev->inside;
     do {} while (0);
 
@@ -163,7 +163,7 @@ void HZD_EnterTrap(HZD_HDL *hzd, HZD_EVT *ev)
 
     do {} while (0);
 
-    *(short *)0x1F800002 = tmp;
+    *(short *)(SCRPAD_ADDR + 0x002) = tmp;
     *N_INSIDE = ev->n_inside;
 
     for (i = ev->n_inside; i > 0; i--)

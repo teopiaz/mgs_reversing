@@ -51,7 +51,7 @@ int GCL_Expr( char *data, int *value )
     char *p;
     EXPR_STACK *sp;
 
-    sp = (EXPR_STACK *)SCRPAD_ADDR + 64;
+    sp = (EXPR_STACK *)(SCRPAD_ADDR + 0x200);
 
     p = data;
 

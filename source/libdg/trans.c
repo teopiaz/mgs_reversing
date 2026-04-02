@@ -156,7 +156,7 @@ STATIC POLY_GT4 *DG_WriteObjVertices( unsigned int *vindices, POLY_GT4 *packs, i
 
         LCOPY(n3, &packs->x3);
 
-        gte_stopz((int *)0x1f8001f8);
+        gte_stopz((int *)(SCRPAD_ADDR + 0x1f8));
         gte_stsxy3_gt3(&packs->tag);
 
         area = *(int *)(scrpad_addr + 0x1f8);

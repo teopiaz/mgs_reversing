@@ -438,7 +438,7 @@ void FogSortChanl_800D4E98(DG_CHANL *chanl, int idx)
 
     gte_ldfcdir(0, 0, 0);
 
-    scratch->unk18 = (void *)0x1F800020;
+    scratch->unk18 = (void *)(SCRPAD_ADDR + 0x020);
     scratch->unk1C = s12c_800DAA44;
 
     group_id = DG_CurrentGroupID;
@@ -467,7 +467,7 @@ void FogSortChanl_800D4E98(DG_CHANL *chanl, int idx)
                       fog_prim_funcs_800C347C[type]);
     }
 
-    gte_strgb_s0(*(void **)0x1F800018);
+    gte_strgb_s0(*(void **)(SCRPAD_ADDR + 0x018));
 }
 
 typedef struct {
@@ -1226,7 +1226,7 @@ POLY_GT4 *s12c_800D5DE0(unsigned int *pFaceIndices, POLY_GT4 *pPoly, int n_packs
         {
             int new_var;
 
-            if ((*(unsigned short *)0x1f8001fc) || opz == 0)
+            if ((*(unsigned short *)(SCRPAD_ADDR + 0x1fc)) || opz == 0)
             {
                 tag = 0;
                 continue;
@@ -1356,7 +1356,7 @@ void s12c_800D6020(DG_OBJ *obj, int idx)
         mdl = obj->model;
         verts = (DG_PVECTOR *)mdl->verts;
 
-        if (*(unsigned short *)0x1F8001FE & 1)
+        if (*(unsigned short *)(SCRPAD_ADDR + 0x1FE) & 1)
         {
             DG_TransVerticesBound(verts, mdl->n_verts);
         }
@@ -1365,7 +1365,7 @@ void s12c_800D6020(DG_OBJ *obj, int idx)
             s12c_800D5C48(verts, mdl->n_verts);
         }
 
-        *(unsigned short *)0x1F8001FC = !(mdl->flag & DG_MODEL_BOTHFACE);
+        *(unsigned short *)(SCRPAD_ADDR + 0x1FC) = !(mdl->flag & DG_MODEL_BOTHFACE);
         do
         {
         } while (0);
@@ -1578,7 +1578,7 @@ void s12c_800D6698(DG_MDL *mdl)
     v5 = nidx[4];
     v6 = nidx[5];
 
-    scrpd_nidx2 = (DG_VECTOR *)0x1F800020;
+    scrpd_nidx2 = (DG_VECTOR *)(SCRPAD_ADDR + 0x020);
     while (n_normals > 0)
     {
         gte_ldVXY0(v1);
@@ -1638,7 +1638,7 @@ POLY_GT4 *s12c_800D6744(unsigned int *face_normals, POLY_GT4 *packs, int n_packs
 {
     for (--n_packs; n_packs >= 0; --n_packs)
     {
-        void *scrpad_pack = (void *)0x1F800020;
+        void *scrpad_pack = (void *)(SCRPAD_ADDR + 0x020);
         if (packs->tag & 0xFFFF)
         {
             DG_ShadePack(face_normals, packs, scrpad_pack);
@@ -1659,7 +1659,7 @@ POLY_GT4 *s12c_800D67F0(unsigned int *face_normals, POLY_GT4 *packs, int n_packs
     for (--n_packs; n_packs >= 0; packs++, face_normals++, face++, --n_packs)
     {
         t6 = 0x80808080;
-        scrpad_pack = (void *)0x1F800020;
+        scrpad_pack = (void *)(SCRPAD_ADDR + 0x020);
         fa = *face_normals;
 
         if (!(packs->tag & 0xFFFF) && !(*face_normals & t6))
