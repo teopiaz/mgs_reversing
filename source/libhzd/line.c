@@ -142,8 +142,12 @@ STATIC int CalculateHitTime(void)
     SVECTOR *pa;
     SVECTOR *pb;
 
+#ifdef PORT_BUILD
+    long *t0;
+#else
     // Can't get the code to generate a useless absolute load without this
     register long *t0 asm("t0");
+#endif
 
     Sub2D((SVECTOR *)(SCRPAD_ADDR + 0x048), (SVECTOR *)(SCRPAD_ADDR + 0x03C), (SVECTOR *)(SCRPAD_ADDR + 0x034));
 
@@ -166,7 +170,11 @@ STATIC int CalculateHitTime(void)
     opz_b = *t0;
     opz_a /= 16;
 
+#ifdef PORT_BUILD
+    (void)t0;
+#else
     asm("" :: "r"(t0));
+#endif
 
     if (opz_a == 0)
     {
@@ -495,7 +503,11 @@ static inline int sub_helper2_80027F10(void)
 }
 
 //todo: include proper
+#ifdef PORT_BUILD
+#define UNTAG_PTR(_type, _ptr) (_type *)((unsigned long)_ptr & ~0x80000000UL)
+#else
 #define UNTAG_PTR(_type, _ptr) (_type *)((unsigned int)_ptr & 0x7fffffff)
+#endif
 
 STATIC void TestFloor(HZD_FLR *floor)
 {
@@ -743,7 +755,7 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
 
     if (*(int *)(SCRPAD_ADDR + 0x08C) != 0)
     {
-        gte_SetRotMatrix(0x1f800090);
+        gte_SetRotMatrix((SCRPAD_ADDR + 0x090));
     }
 
     if (*(int *)(SCRPAD_ADDR + 0x064) != 0)
