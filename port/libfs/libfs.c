@@ -442,10 +442,12 @@ static int port_stream_tick = 0;
 
 void FS_StreamTaskStart(int sector)
 {
-    /* Load VOX.DAT data starting at the given sector offset */
-    FILE *vox = dat_files[4]; /* VOX.DAT */
-    if (!vox) {
-        printf("[stream] VOX.DAT not available\n");
+    /* Try DEMO.DAT first (index 5) — contains structured stream entries.
+       VOX.DAT (index 4) contains raw XA audio without usable control data. */
+    FILE *f = dat_files[5]; /* DEMO.DAT */
+    if (!f) f = dat_files[4]; /* fallback to VOX.DAT */
+    if (!f) {
+        printf("[stream] no stream file available\n");
         stream_active = 0;
         return;
     }
@@ -455,20 +457,14 @@ void FS_StreamTaskStart(int sector)
     }
 
     long byte_offset = (long)sector * 2048;
-    fseek(vox, byte_offset, SEEK_SET);
-    stream_buf_len = (int)fread(stream_buf, 1, STREAM_BUF_SIZE, vox);
+    fseek(f, byte_offset, SEEK_SET);
+    stream_buf_len = (int)fread(stream_buf, 1, STREAM_BUF_SIZE, f);
     stream_read_pos = 0;
     stream_active = 1;
     stream_ended = 0;
     port_stream_tick = 0;
 
-    printf("[stream] started for sector %d (no XA control data — timer mode)\n", sector);
-    /* VOX.DAT contains raw XA audio without CD-ROM subheaders.
-       We can't extract control entries, but the cutscene needs time to
-       play its camera/actor animations. Use a timer to let the cutscene
-       run for its natural duration before signaling completion. */
-    stream_buf_len = 0;
-    stream_ended = 0;
+    printf("[stream] loaded %d bytes from sector %d\n", stream_buf_len, sector);
 }
 
 int FS_StreamTaskState(void)
@@ -524,45 +520,41 @@ int FS_StreamIsEnd(void)
 void *FS_StreamGetData(int target_type)
 {
     /* Scan stream buffer for next entry matching target_type.
-       Stream entries are 4-byte ints: {tick:24bit, type:8bit}.
-       Return pointer to the entry, or NULL if not found. */
-    if (!stream_active || !stream_buf) return NULL;
+       Entry format: {size:24, type:8} where size = total entry bytes.
+       Returns pointer to data (after 4-byte header), matching PSX FS_StreamGetData. */
+    if (!stream_active || !stream_buf || stream_buf_len == 0) return NULL;
 
-    while (stream_read_pos + 4 <= stream_buf_len)
+    int pos = stream_read_pos;
+    while (pos + 4 <= stream_buf_len)
     {
-        int *entry = (int *)(stream_buf + stream_read_pos);
-        int type = *entry & 0xFF;
+        int tag = *(int *)(stream_buf + pos);
+        int type = tag & 0xFF;
+        int size = tag >> 8;
+
+        if (type == 0xFF) {
+            /* Wrap marker — restart from beginning */
+            pos = 0;
+            continue;
+        }
 
         if (type == 0xF0) {
-            /* End marker */
             stream_ended = 1;
             return NULL;
         }
 
-        if (type == 0xFF) {
-            /* Wrap/boundary marker — skip */
-            stream_read_pos += 4;
-            continue;
+        if (size <= 0 || size > stream_buf_len) {
+            /* Invalid size — stop scanning */
+            return NULL;
         }
 
-        if (type == 0x00) {
-            /* Cleared/padding — skip */
-            stream_read_pos += 4;
-            continue;
+        if (type == target_type) {
+            /* Found — mark as read (set bit 7) and return data pointer */
+            *(unsigned char *)(stream_buf + pos) = type | 0x80;
+            return (void *)(stream_buf + pos + 4);
         }
 
-        if (type == target_type || type == (target_type | 0x80)) {
-            /* Found matching entry — return pointer but don't advance yet.
-               Caller will call FS_StreamClear to consume it. */
-            return (void *)entry;
-        }
-
-        /* Skip non-matching entry: advance by entry size.
-           Entry size is in upper bytes for data entries, or just 4 bytes for tags. */
-        int size = (*entry >> 8) & 0xFFFF;
-        if (size == 0) size = 1;
-        stream_read_pos += 4; /* advance past this tag */
-        break; /* only check one at a time */
+        /* Skip entries already read (type | 0x80) or non-matching */
+        pos += size;
     }
 
     return NULL;
@@ -579,31 +571,26 @@ void FS_StreamUngetData(void *stream) { (void)stream; }
 
 void FS_StreamClear(void *stream)
 {
-    /* Mark entry as consumed by clearing its type byte */
+    /* Mark entry as consumed by clearing the header's type byte.
+       stream points to data (header is at stream - 4). */
     if (!stream) return;
-    *(int *)stream = 0; /* clear to type 0 (padding) */
-    /* Advance read position past this entry */
-    stream_read_pos += 4;
+    unsigned char *hdr = (unsigned char *)stream - 4;
+    *hdr = 0; /* clear type to 0 (consumed) */
 }
 
 void FS_StreamClearType(void *stream, int target_type)
 {
-    /* Clear only if type matches */
+    /* Clear type byte of the entry header (at stream - 4) if it matches */
     if (!stream) return;
-    int type = *(int *)stream & 0xFF;
-    if (type == target_type || type == (target_type | 0x80)) {
-        *(int *)stream = (*(int *)stream & ~0xFF); /* clear type byte */
+    unsigned char *hdr = (unsigned char *)stream - 4;
+    int type = *hdr & 0x7F; /* strip read flag */
+    if (type == target_type) {
+        *hdr = 0;
     }
 }
 
 int  FS_StreamGetEndFlag(void) { return stream_ended; }
-int  FS_StreamIsForceStop(void) {
-    /* When no stream data is available, report force stop so the strctrl
-       exit check passes (sub_state=1 requires force_stop=1 to exit).
-       The pad_demo actor controls the actual cutscene duration. */
-    if (stream_active && stream_buf_len == 0) return 1;
-    return 0;
-}
+int  FS_StreamIsForceStop(void) { return 0; }
 void FS_StreamTickStart(void) { port_stream_tick = 0; }
 void FS_StreamSoundMode(void) {}
 int  FS_StreamGetTick(void) { return port_stream_tick++; }
