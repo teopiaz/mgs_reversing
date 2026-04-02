@@ -8,10 +8,17 @@
 /**
  * Hazard 16-bit vector
  */
+#ifdef PORT_BUILD
+typedef struct {
+    int         long_access[0]; /* Must be 4 bytes to alias {x,z} for GTE ops */
+    short       x, z, y, h;
+} HZD_VEC;
+#else
 typedef struct {
     long        long_access[0];
     short       x, z, y, h;
 } HZD_VEC;
+#endif
 
 /**
  * Hazard segment (a.k.a "wall")
