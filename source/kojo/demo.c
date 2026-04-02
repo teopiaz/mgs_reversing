@@ -64,8 +64,10 @@ int CreateDemo(DemoWork *work, DMO_DEF *header)
     work->old_item = GM_CurrentItemId;
     work->old_weapon = GM_CurrentWeaponId;
 
+#ifndef PORT_BUILD
     OFFSET_TO_PTR(header, &header->maps);
     OFFSET_TO_PTR(header, &header->models);
+#endif
 
     InitChain(&work->chain);
 
