@@ -1402,12 +1402,9 @@ void HZD_PointNearSurface(void **surface)
 #ifdef PORT_BUILD
     surface[0] = collide_ptrs.wall_070;
     surface[1] = collide_ptrs.wall_08C;
-    /* Debug: detect garbage pointers early */
-    if (surface[0] && (uintptr_t)surface[0] < 0x1000) {
-        printf("[HZD] WARNING: wall_070=%p looks invalid\n", surface[0]);
-    }
-    if (surface[1] && (uintptr_t)surface[1] < 0x1000) {
-        printf("[HZD] WARNING: wall_08C=%p looks invalid\n", surface[1]);
+    if (surface[0] && (uintptr_t)surface[0] > 0xFFFFFFFFFFULL) {
+        printf("[HZD] BUG: wall_070=%p is garbage! wall_054=%p wall_08C=%p\n",
+               surface[0], collide_ptrs.wall_054, surface[1]);
     }
 #else
     surface[0] = *(void **)(SCRPAD_ADDR + 0x70);
