@@ -87,7 +87,7 @@ int DG_LoadInitKmd(unsigned char *buf, int id)
         mdl->max = rm->max;
         mdl->pos = rm->pos;
         mdl->parent = rm->parent;
-        mdl->extend = NULL; /* extend chain not used in file format */
+        mdl->extend = (struct _DG_OBJ *)(intptr_t)rm->extend; /* model index, NOT a pointer */
         mdl->n_verts = rm->n_verts;
         mdl->n_normals = rm->n_normals;
         mdl->padding = rm->padding;
