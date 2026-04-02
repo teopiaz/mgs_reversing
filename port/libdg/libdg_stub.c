@@ -396,14 +396,15 @@ void port_RenderObjects(int idx)
 
                         /* Quad split: (v0,v1,v3) and (v1,v2,v3) — this worked for mesh.
                            UV must match: screen v0→uv0, v1→uv1, v2→uv2, v3→uv3 */
-                        port_tri_u[0] = uv[0][0]; port_tri_v[0] = uv[0][1];
-                        port_tri_u[1] = uv[1][0]; port_tri_v[1] = uv[1][1];
-                        port_tri_u[2] = uv[3][0]; port_tri_v[2] = uv[3][1];
+                        extern int port_tri_z[3];
+                        port_tri_u[0] = uv[0][0]; port_tri_v[0] = uv[0][1]; port_tri_z[0] = sz0;
+                        port_tri_u[1] = uv[1][0]; port_tri_v[1] = uv[1][1]; port_tri_z[1] = sz1;
+                        port_tri_u[2] = uv[3][0]; port_tri_v[2] = uv[3][1]; port_tri_z[2] = sz3;
                         draw_flat_tri(fx0, fy0, fx1, fy1, fx3, fy3, color);
 
-                        port_tri_u[0] = uv[1][0]; port_tri_v[0] = uv[1][1];
-                        port_tri_u[1] = uv[2][0]; port_tri_v[1] = uv[2][1];
-                        port_tri_u[2] = uv[3][0]; port_tri_v[2] = uv[3][1];
+                        port_tri_u[0] = uv[1][0]; port_tri_v[0] = uv[1][1]; port_tri_z[0] = sz1;
+                        port_tri_u[1] = uv[2][0]; port_tri_v[1] = uv[2][1]; port_tri_z[1] = sz2;
+                        port_tri_u[2] = uv[3][0]; port_tri_v[2] = uv[3][1]; port_tri_z[2] = sz3;
                         draw_flat_tri(fx1, fy1, fx2, fy2, fx3, fy3, color);
 
                         port_tex_enabled = 0;
