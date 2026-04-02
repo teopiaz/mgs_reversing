@@ -319,10 +319,19 @@ int mts_get_pad(int channel, MTS_PAD *pad)
 {
     (void)channel;
     memset(pad, 0, sizeof(*pad));
-    pad->flag = MTS_PAD_ANALOG;
+    if (port_controller)
+    {
+        pad->flag = MTS_PAD_ANALOG;
+        pad->lx = port_pad_lx;
+        pad->ly = port_pad_ly;
+    }
+    else
+    {
+        pad->flag = MTS_PAD_DIGITAL;
+        pad->lx = 128;
+        pad->ly = 128;
+    }
     pad->button = ~port_pad_buttons; /* PSX uses active-low */
-    pad->lx = port_pad_lx;
-    pad->ly = port_pad_ly;
     pad->rx = 128;
     pad->ry = 128;
     return 1;
