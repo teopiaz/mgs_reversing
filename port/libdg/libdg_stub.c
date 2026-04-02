@@ -274,9 +274,10 @@ void port_RenderObjects(int idx)
     memset(port_zbuf, 0xFF, sizeof(port_zbuf));
 
     DG_OBJS **queue = (DG_OBJS **)chanl->queue;
-    if (chanl->objs_index > 0 || render_debug < 3) {
+    /* Only log occasionally to reduce spam */
+    render_debug++;
+    if ((render_debug % 120) == 0) {
         printf("[render] chanl1: objs_index=%d\n", chanl->objs_index);
-        render_debug++;
     }
     for (int n = chanl->objs_index; n > 0; n--)
     {
@@ -287,6 +288,8 @@ void port_RenderObjects(int idx)
         MATRIX *eye = &chanl->eye_inv;
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
+
+        /* Debug removed */
 
         for (int mi = 0; mi < n_models; mi++, obj++)
         {
@@ -412,10 +415,9 @@ void port_RenderObjects(int idx)
         }
     }
 
-    if (render_debug < 100) {
+    if ((render_debug % 300) == 0 && chanl->objs_index > 0) {
         printf("[render] %d faces drawn (%d visible, %d objs)\n",
                drawn_faces, total_faces, chanl->objs_index);
-        render_debug++;
     }
 }
 
