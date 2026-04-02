@@ -835,9 +835,9 @@ MATRIX *MulMatrix(MATRIX *m0, MATRIX *m1)
     return MulMatrix0(m0, m1, m0);
 }
 
-MATRIX *MulMatrix2(MATRIX *m0, MATRIX *m1, MATRIX *m2)
+MATRIX *MulMatrix2(MATRIX *m0, MATRIX *m1)
 {
-    return MulMatrix0(m0, m1, m2);
+    return MulMatrix0(m0, m1, m1);
 }
 
 void CompMatrix(MATRIX *m0, MATRIX *m1, MATRIX *m2)

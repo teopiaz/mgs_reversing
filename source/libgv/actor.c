@@ -182,30 +182,7 @@ void GV_ExecActorSystem( void )
                 next = this->next;
                 if ( ( act = this->act ) != NULL )
                 {
-                    struct sigaction sa, old_bus, old_segv;
-                    sa.sa_handler = actor_crash_handler;
-                    sa.sa_flags = SA_NODEFER;
-                    sigemptyset(&sa.sa_mask);
-                    sigaction(SIGBUS, &sa, &old_bus);
-                    sigaction(SIGSEGV, &sa, &old_segv);
-
-                    actor_in_handler = 1;
-                    if (sigsetjmp(actor_jmp, 1) == 0)
-                    {
-                        act( this );
-                    }
-                    else
-                    {
-                        static int crash_count = 0;
-                        if (crash_count < 10)
-                            printf("[actor] CRASH in actor %p (act=%p name=%s), disabling\n", this, this->act, this->filename ? this->filename : "?");
-                        crash_count++;
-                        this->act = NULL;
-                    }
-                    actor_in_handler = 0;
-
-                    sigaction(SIGBUS, &old_bus, NULL);
-                    sigaction(SIGSEGV, &old_segv, NULL);
+                    act( this );
                 }
                 GM_CurrentMap = 0;
             } while ( ( this = next ) != NULL );

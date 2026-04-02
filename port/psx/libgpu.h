@@ -564,7 +564,7 @@ static inline long PCclose(long fd) { (void)fd; return 0; }
 static inline long PCread(long fd, void *buf, long size) { (void)fd; (void)buf; (void)size; return 0; }
 static inline long PCwrite(long fd, void *buf, long size) { (void)fd; (void)buf; (void)size; return 0; }
 static inline void StFreeRing(u_long *addr) { (void)addr; }
-static inline long _get_mode(void) { return 0; }
+static inline long _get_mode(long dfe, long dtd, long tpage) { (void)dfe; (void)dtd; return tpage; }
 
 /* Additional GTE functions */
 static inline void RotMatrix_gte(SVECTOR *r, MATRIX *m) { RotMatrix(r, m); }

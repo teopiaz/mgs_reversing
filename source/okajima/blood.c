@@ -124,10 +124,10 @@ static void UpdateVerts(SVECTOR *speed, SVECTOR *verts, int count)
         y = speed->vy;
         z = speed->vz;
 
-        applyVector(&verts[0], x, y, z, +=);
-        applyVector(&verts[3], x, y, z, +=);
-        applyVector(&verts[1], x, y, z, +=);
-        applyVector(&verts[2], x, y, z, +=);
+        verts[0].vx += x; verts[0].vy += y; verts[0].vz += z;
+        verts[3].vx += x; verts[3].vy += y; verts[3].vz += z;
+        verts[1].vx += x; verts[1].vy += y; verts[1].vz += z;
+        verts[2].vx += x; verts[2].vy += y; verts[2].vz += z;
 
         verts += 4;
 
