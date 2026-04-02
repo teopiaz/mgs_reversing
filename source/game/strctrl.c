@@ -67,6 +67,15 @@ static void Act( Work *work )
             work->field_34_pStreamData = ( int* )FS_StreamGetData( 0x10 );
             FS_StreamTickStart();
             work->field_22_sub_state = 1;
+#ifdef PORT_BUILD
+            /* No stream data available — clear the blackout frame counter
+               that GM_Command_demo set to 0x7FFF0000. On PSX, stream type 5
+               would set this to 3 to fade in. Without stream data, do it now
+               so the cutscene renders instead of staying black. */
+            if (!work->field_34_pStreamData) {
+                DG_UnDrawFrameCount = 3;
+            }
+#endif
             return;
         }
         break;

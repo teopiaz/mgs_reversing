@@ -23,6 +23,9 @@ CHARA MainCharacterEntries[] = {
     CHARA_SNAKE,
     CHARA_ITEM,
     CHARA_DOOR,
+    CHARA_PADDEMO,
+    CHARA_PADVIBRATE,
+    CHARA_PADCONTROL,
     CHARA_END
 };
 
