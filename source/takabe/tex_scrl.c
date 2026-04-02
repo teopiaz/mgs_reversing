@@ -170,7 +170,9 @@ static int GetResources(Work *work, int name, int map, int n_entries)
     {
         for (i = 0; i < n_entries; i++)
         {
-            tex = DG_GetTexture(GCL_StrToInt(GCL_GetParamResult()));
+            unsigned char *param = GCL_GetParamResult();
+            if (param == NULL) break;
+            tex = DG_GetTexture(GCL_StrToInt(param));
             if (tex == NULL)
             {
                 n_entries--;

@@ -208,7 +208,7 @@ void GV_ExecActorSystem(void)
                     {
                         static int crash_count = 0;
                         if (crash_count < 10)
-                            printf("[actor] CRASH in actor %p (act=%p), disabling\n", current, current->act);
+                            printf("[actor] CRASH in actor %p (act=%p name=%s), disabling\n", current, current->act, current->filename ? current->filename : "?");
                         crash_count++;
                         current->act = NULL;
                     }

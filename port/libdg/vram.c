@@ -364,6 +364,11 @@ void port_DrawOTag(unsigned long *ot)
         int len = getlen(p);
         node_count++;
 
+        if (node_count > 100000) {
+            printf("[ot] ABORT: >100000 nodes, likely cycle\n");
+            break;
+        }
+
         if (len > 0)
         {
             unsigned char code = *((unsigned char *)p + 7);  /* command byte */
