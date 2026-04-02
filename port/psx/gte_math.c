@@ -65,9 +65,9 @@ static u_char clamp_rgb(long val)
 
 static void mat_vec_mul(const MATRIX *m, long vx, long vy, long vz)
 {
-    gte_state.MAC1 = (long)m->m[0][0] * vx + (long)m->m[0][1] * vy + (long)m->m[0][2] * vz;
-    gte_state.MAC2 = (long)m->m[1][0] * vx + (long)m->m[1][1] * vy + (long)m->m[1][2] * vz;
-    gte_state.MAC3 = (long)m->m[2][0] * vx + (long)m->m[2][1] * vy + (long)m->m[2][2] * vz;
+    gte_state.MAC1 = (int)m->m[0][0] * vx + (int)m->m[0][1] * vy + (int)m->m[0][2] * vz;
+    gte_state.MAC2 = (int)m->m[1][0] * vx + (int)m->m[1][1] * vy + (int)m->m[1][2] * vz;
+    gte_state.MAC3 = (int)m->m[2][0] * vx + (int)m->m[2][1] * vy + (int)m->m[2][2] * vz;
     gte_state.IR1 = clamp_mac_to_ir(gte_state.MAC1 >> 12);
     gte_state.IR2 = clamp_mac_to_ir(gte_state.MAC2 >> 12);
     gte_state.IR3 = clamp_mac_to_ir(gte_state.MAC3 >> 12);
@@ -75,9 +75,9 @@ static void mat_vec_mul(const MATRIX *m, long vx, long vy, long vz)
 
 static void mat_vec_mul_add_tr(const MATRIX *m, long vx, long vy, long vz)
 {
-    gte_state.MAC1 = ((long)gte_state.TRX << 12) + (long)m->m[0][0] * vx + (long)m->m[0][1] * vy + (long)m->m[0][2] * vz;
-    gte_state.MAC2 = ((long)gte_state.TRY << 12) + (long)m->m[1][0] * vx + (long)m->m[1][1] * vy + (long)m->m[1][2] * vz;
-    gte_state.MAC3 = ((long)gte_state.TRZ << 12) + (long)m->m[2][0] * vx + (long)m->m[2][1] * vy + (long)m->m[2][2] * vz;
+    gte_state.MAC1 = ((int)gte_state.TRX << 12) + (int)m->m[0][0] * vx + (int)m->m[0][1] * vy + (int)m->m[0][2] * vz;
+    gte_state.MAC2 = ((int)gte_state.TRY << 12) + (int)m->m[1][0] * vx + (int)m->m[1][1] * vy + (int)m->m[1][2] * vz;
+    gte_state.MAC3 = ((int)gte_state.TRZ << 12) + (int)m->m[2][0] * vx + (int)m->m[2][1] * vy + (int)m->m[2][2] * vz;
     gte_state.IR1 = clamp_mac_to_ir(gte_state.MAC1 >> 12);
     gte_state.IR2 = clamp_mac_to_ir(gte_state.MAC2 >> 12);
     gte_state.IR3 = clamp_mac_to_ir(gte_state.MAC3 >> 12);
@@ -85,9 +85,9 @@ static void mat_vec_mul_add_tr(const MATRIX *m, long vx, long vy, long vz)
 
 static void mat_vec_mul_add_bk(const MATRIX *m, long vx, long vy, long vz)
 {
-    gte_state.MAC1 = gte_state.RBK * 4096L + (long)m->m[0][0] * vx + (long)m->m[0][1] * vy + (long)m->m[0][2] * vz;
-    gte_state.MAC2 = gte_state.GBK * 4096L + (long)m->m[1][0] * vx + (long)m->m[1][1] * vy + (long)m->m[1][2] * vz;
-    gte_state.MAC3 = gte_state.BBK * 4096L + (long)m->m[2][0] * vx + (long)m->m[2][1] * vy + (long)m->m[2][2] * vz;
+    gte_state.MAC1 = gte_state.RBK * 4096L + (int)m->m[0][0] * vx + (int)m->m[0][1] * vy + (int)m->m[0][2] * vz;
+    gte_state.MAC2 = gte_state.GBK * 4096L + (int)m->m[1][0] * vx + (int)m->m[1][1] * vy + (int)m->m[1][2] * vz;
+    gte_state.MAC3 = gte_state.BBK * 4096L + (int)m->m[2][0] * vx + (int)m->m[2][1] * vy + (int)m->m[2][2] * vz;
     gte_state.IR1 = clamp_ir(gte_state.MAC1 >> 12, 1);
     gte_state.IR2 = clamp_ir(gte_state.MAC2 >> 12, 1);
     gte_state.IR3 = clamp_ir(gte_state.MAC3 >> 12, 1);
@@ -111,14 +111,14 @@ static void do_perspective(void)
     long quotient = (h * 0x20000) / sz3;
     if (quotient > 0x1ffff) quotient = 0x1ffff;
 
-    long sx = (long)(((long long)gte_state.IR1 * quotient + gte_state.OFX) >> 16);
-    long sy = (long)(((long long)gte_state.IR2 * quotient + gte_state.OFY) >> 16);
+    long sx = (int)(((long long)gte_state.IR1 * quotient + gte_state.OFX) >> 16);
+    long sy = (int)(((long long)gte_state.IR2 * quotient + gte_state.OFY) >> 16);
 
     gte_state.SXY2.vx = (short)sx;
     gte_state.SXY2.vy = (short)sy;
 
     /* MAC0 = depth queing */
-    gte_state.MAC0 = (long)(((long long)gte_state.DQA * quotient + gte_state.DQB) >> 12);
+    gte_state.MAC0 = (int)(((long long)gte_state.DQA * quotient + gte_state.DQB) >> 12);
     gte_state.IR0 = gte_state.MAC0 < 0 ? 0 : (gte_state.MAC0 > 0x1000 ? 0x1000 : gte_state.MAC0);
 }
 
@@ -172,9 +172,9 @@ void gte_op_rtir(void)  { mat_vec_mul(&gte_state.R, gte_state.IR1, gte_state.IR2
 void gte_op_rtir_sf0(void)
 {
     /* Same as rtir but without shift (sf=0) */
-    gte_state.MAC1 = (long)gte_state.R.m[0][0] * gte_state.IR1 + (long)gte_state.R.m[0][1] * gte_state.IR2 + (long)gte_state.R.m[0][2] * gte_state.IR3;
-    gte_state.MAC2 = (long)gte_state.R.m[1][0] * gte_state.IR1 + (long)gte_state.R.m[1][1] * gte_state.IR2 + (long)gte_state.R.m[1][2] * gte_state.IR3;
-    gte_state.MAC3 = (long)gte_state.R.m[2][0] * gte_state.IR1 + (long)gte_state.R.m[2][1] * gte_state.IR2 + (long)gte_state.R.m[2][2] * gte_state.IR3;
+    gte_state.MAC1 = (int)gte_state.R.m[0][0] * gte_state.IR1 + (int)gte_state.R.m[0][1] * gte_state.IR2 + (int)gte_state.R.m[0][2] * gte_state.IR3;
+    gte_state.MAC2 = (int)gte_state.R.m[1][0] * gte_state.IR1 + (int)gte_state.R.m[1][1] * gte_state.IR2 + (int)gte_state.R.m[1][2] * gte_state.IR3;
+    gte_state.MAC3 = (int)gte_state.R.m[2][0] * gte_state.IR1 + (int)gte_state.R.m[2][1] * gte_state.IR2 + (int)gte_state.R.m[2][2] * gte_state.IR3;
     gte_state.IR1 = clamp_mac_to_ir(gte_state.MAC1);
     gte_state.IR2 = clamp_mac_to_ir(gte_state.MAC2);
     gte_state.IR3 = clamp_mac_to_ir(gte_state.MAC3);
@@ -228,10 +228,12 @@ void gte_op_lcirbk(void) { mat_vec_mul_add_bk(&gte_state.LR, gte_state.IR1, gte_
 
 void gte_op_nclip(void)
 {
-    gte_state.MAC0 =
-        (long)gte_state.SXY0.vx * ((long)gte_state.SXY1.vy - (long)gte_state.SXY2.vy) +
-        (long)gte_state.SXY1.vx * ((long)gte_state.SXY2.vy - (long)gte_state.SXY0.vy) +
-        (long)gte_state.SXY2.vx * ((long)gte_state.SXY0.vy - (long)gte_state.SXY1.vy);
+    /* Compute in 64-bit to avoid overflow, then truncate to 32-bit MAC0 */
+    long long result =
+        (long long)gte_state.SXY0.vx * ((long long)gte_state.SXY1.vy - (long long)gte_state.SXY2.vy) +
+        (long long)gte_state.SXY1.vx * ((long long)gte_state.SXY2.vy - (long long)gte_state.SXY0.vy) +
+        (long long)gte_state.SXY2.vx * ((long long)gte_state.SXY0.vy - (long long)gte_state.SXY1.vy);
+    gte_state.MAC0 = (int)result;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -240,7 +242,7 @@ void gte_op_nclip(void)
 
 void gte_op_avsz3(void)
 {
-    gte_state.MAC0 = gte_state.ZSF3 * ((long)gte_state.SZ1 + (long)gte_state.SZ2 + (long)gte_state.SZ3);
+    gte_state.MAC0 = gte_state.ZSF3 * ((int)gte_state.SZ1 + (int)gte_state.SZ2 + (int)gte_state.SZ3);
     gte_state.OTZ = gte_state.MAC0 >> 12;
     if (gte_state.OTZ < 0) gte_state.OTZ = 0;
     if (gte_state.OTZ > 0xffff) gte_state.OTZ = 0xffff;
@@ -248,7 +250,7 @@ void gte_op_avsz3(void)
 
 void gte_op_avsz4(void)
 {
-    gte_state.MAC0 = gte_state.ZSF4 * ((long)gte_state.SZ0 + (long)gte_state.SZ1 + (long)gte_state.SZ2 + (long)gte_state.SZ3);
+    gte_state.MAC0 = gte_state.ZSF4 * ((int)gte_state.SZ0 + (int)gte_state.SZ1 + (int)gte_state.SZ2 + (int)gte_state.SZ3);
     gte_state.OTZ = gte_state.MAC0 >> 12;
     if (gte_state.OTZ < 0) gte_state.OTZ = 0;
     if (gte_state.OTZ > 0xffff) gte_state.OTZ = 0xffff;
@@ -293,9 +295,9 @@ static void do_ncds(long vx, long vy, long vz)
     /* LR * IR + BK -> color */
     mat_vec_mul_add_bk(&gte_state.LR, gte_state.IR1, gte_state.IR2, gte_state.IR3);
     /* Interpolate with far color */
-    long r = ((long)gte_state.RFC - gte_state.IR1) * gte_state.IR0;
-    long g = ((long)gte_state.GFC - gte_state.IR2) * gte_state.IR0;
-    long b = ((long)gte_state.BFC - gte_state.IR3) * gte_state.IR0;
+    long r = ((int)gte_state.RFC - gte_state.IR1) * gte_state.IR0;
+    long g = ((int)gte_state.GFC - gte_state.IR2) * gte_state.IR0;
+    long b = ((int)gte_state.BFC - gte_state.IR3) * gte_state.IR0;
     gte_state.MAC1 = (gte_state.IR1 << 12) + r;
     gte_state.MAC2 = (gte_state.IR2 << 12) + g;
     gte_state.MAC3 = (gte_state.IR3 << 12) + b;
@@ -319,9 +321,9 @@ static void do_nccs(long vx, long vy, long vz)
     mat_vec_mul(&gte_state.L, vx, vy, vz);
     mat_vec_mul_add_bk(&gte_state.LR, gte_state.IR1, gte_state.IR2, gte_state.IR3);
     /* Modulate with RGBC */
-    gte_state.MAC1 = ((long)gte_state.RGBC.r * gte_state.IR1) << 4;
-    gte_state.MAC2 = ((long)gte_state.RGBC.g * gte_state.IR2) << 4;
-    gte_state.MAC3 = ((long)gte_state.RGBC.b * gte_state.IR3) << 4;
+    gte_state.MAC1 = ((int)gte_state.RGBC.r * gte_state.IR1) << 4;
+    gte_state.MAC2 = ((int)gte_state.RGBC.g * gte_state.IR2) << 4;
+    gte_state.MAC3 = ((int)gte_state.RGBC.b * gte_state.IR3) << 4;
     gte_state.IR1 = clamp_ir(gte_state.MAC1 >> 12, 1);
     gte_state.IR2 = clamp_ir(gte_state.MAC2 >> 12, 1);
     gte_state.IR3 = clamp_ir(gte_state.MAC3 >> 12, 1);
@@ -340,9 +342,9 @@ void gte_op_ncct(void)
 void gte_op_cc(void)
 {
     mat_vec_mul_add_bk(&gte_state.LR, gte_state.IR1, gte_state.IR2, gte_state.IR3);
-    gte_state.MAC1 = ((long)gte_state.RGBC.r * gte_state.IR1) << 4;
-    gte_state.MAC2 = ((long)gte_state.RGBC.g * gte_state.IR2) << 4;
-    gte_state.MAC3 = ((long)gte_state.RGBC.b * gte_state.IR3) << 4;
+    gte_state.MAC1 = ((int)gte_state.RGBC.r * gte_state.IR1) << 4;
+    gte_state.MAC2 = ((int)gte_state.RGBC.g * gte_state.IR2) << 4;
+    gte_state.MAC3 = ((int)gte_state.RGBC.b * gte_state.IR3) << 4;
     gte_state.IR1 = clamp_ir(gte_state.MAC1 >> 12, 1);
     gte_state.IR2 = clamp_ir(gte_state.MAC2 >> 12, 1);
     gte_state.IR3 = clamp_ir(gte_state.MAC3 >> 12, 1);
@@ -353,12 +355,12 @@ void gte_op_cdp(void)
 {
     mat_vec_mul_add_bk(&gte_state.LR, gte_state.IR1, gte_state.IR2, gte_state.IR3);
     /* Modulate with RGBC + depth cue */
-    long ir1 = ((long)gte_state.RGBC.r * gte_state.IR1) >> 8;
-    long ir2 = ((long)gte_state.RGBC.g * gte_state.IR2) >> 8;
-    long ir3 = ((long)gte_state.RGBC.b * gte_state.IR3) >> 8;
-    gte_state.MAC1 = (ir1 << 12) + ((long)gte_state.RFC - ir1) * gte_state.IR0;
-    gte_state.MAC2 = (ir2 << 12) + ((long)gte_state.GFC - ir2) * gte_state.IR0;
-    gte_state.MAC3 = (ir3 << 12) + ((long)gte_state.BFC - ir3) * gte_state.IR0;
+    long ir1 = ((int)gte_state.RGBC.r * gte_state.IR1) >> 8;
+    long ir2 = ((int)gte_state.RGBC.g * gte_state.IR2) >> 8;
+    long ir3 = ((int)gte_state.RGBC.b * gte_state.IR3) >> 8;
+    gte_state.MAC1 = (ir1 << 12) + ((int)gte_state.RFC - ir1) * gte_state.IR0;
+    gte_state.MAC2 = (ir2 << 12) + ((int)gte_state.GFC - ir2) * gte_state.IR0;
+    gte_state.MAC3 = (ir3 << 12) + ((int)gte_state.BFC - ir3) * gte_state.IR0;
     gte_state.IR1 = clamp_ir(gte_state.MAC1 >> 12, 1);
     gte_state.IR2 = clamp_ir(gte_state.MAC2 >> 12, 1);
     gte_state.IR3 = clamp_ir(gte_state.MAC3 >> 12, 1);
@@ -371,9 +373,9 @@ void gte_op_cdp(void)
 
 void gte_op_dpcs(void)
 {
-    long r = (long)gte_state.RGBC.r << 16;
-    long g = (long)gte_state.RGBC.g << 16;
-    long b = (long)gte_state.RGBC.b << 16;
+    long r = (int)gte_state.RGBC.r << 16;
+    long g = (int)gte_state.RGBC.g << 16;
+    long b = (int)gte_state.RGBC.b << 16;
     gte_state.MAC1 = r + ((gte_state.RFC - (r >> 4)) * gte_state.IR0);
     gte_state.MAC2 = g + ((gte_state.GFC - (g >> 4)) * gte_state.IR0);
     gte_state.MAC3 = b + ((gte_state.BFC - (b >> 4)) * gte_state.IR0);
@@ -391,9 +393,9 @@ void gte_op_dpct(void)
 
 void gte_op_dpcl(void)
 {
-    long r = ((long)gte_state.RGBC.r * gte_state.IR1) << 4;
-    long g = ((long)gte_state.RGBC.g * gte_state.IR2) << 4;
-    long b = ((long)gte_state.RGBC.b * gte_state.IR3) << 4;
+    long r = ((int)gte_state.RGBC.r * gte_state.IR1) << 4;
+    long g = ((int)gte_state.RGBC.g * gte_state.IR2) << 4;
+    long b = ((int)gte_state.RGBC.b * gte_state.IR3) << 4;
     gte_state.MAC1 = r + ((gte_state.RFC - (r >> 12)) * gte_state.IR0);
     gte_state.MAC2 = g + ((gte_state.GFC - (g >> 12)) * gte_state.IR0);
     gte_state.MAC3 = b + ((gte_state.BFC - (b >> 12)) * gte_state.IR0);
@@ -405,9 +407,9 @@ void gte_op_dpcl(void)
 
 void gte_op_intpl(void)
 {
-    gte_state.MAC1 = (gte_state.IR1 << 12) + ((long)gte_state.RFC - gte_state.IR1) * gte_state.IR0;
-    gte_state.MAC2 = (gte_state.IR2 << 12) + ((long)gte_state.GFC - gte_state.IR2) * gte_state.IR0;
-    gte_state.MAC3 = (gte_state.IR3 << 12) + ((long)gte_state.BFC - gte_state.IR3) * gte_state.IR0;
+    gte_state.MAC1 = (gte_state.IR1 << 12) + ((int)gte_state.RFC - gte_state.IR1) * gte_state.IR0;
+    gte_state.MAC2 = (gte_state.IR2 << 12) + ((int)gte_state.GFC - gte_state.IR2) * gte_state.IR0;
+    gte_state.MAC3 = (gte_state.IR3 << 12) + ((int)gte_state.BFC - gte_state.IR3) * gte_state.IR0;
     gte_state.IR1 = clamp_ir(gte_state.MAC1 >> 12, 1);
     gte_state.IR2 = clamp_ir(gte_state.MAC2 >> 12, 1);
     gte_state.IR3 = clamp_ir(gte_state.MAC3 >> 12, 1);
@@ -420,9 +422,9 @@ void gte_op_intpl(void)
 
 void gte_op_sqr12(void)
 {
-    gte_state.MAC1 = ((long)gte_state.IR1 * gte_state.IR1) >> 12;
-    gte_state.MAC2 = ((long)gte_state.IR2 * gte_state.IR2) >> 12;
-    gte_state.MAC3 = ((long)gte_state.IR3 * gte_state.IR3) >> 12;
+    gte_state.MAC1 = ((int)gte_state.IR1 * gte_state.IR1) >> 12;
+    gte_state.MAC2 = ((int)gte_state.IR2 * gte_state.IR2) >> 12;
+    gte_state.MAC3 = ((int)gte_state.IR3 * gte_state.IR3) >> 12;
     gte_state.IR1 = clamp_mac_to_ir(gte_state.MAC1);
     gte_state.IR2 = clamp_mac_to_ir(gte_state.MAC2);
     gte_state.IR3 = clamp_mac_to_ir(gte_state.MAC3);
@@ -430,9 +432,9 @@ void gte_op_sqr12(void)
 
 void gte_op_sqr0(void)
 {
-    gte_state.MAC1 = (long)gte_state.IR1 * gte_state.IR1;
-    gte_state.MAC2 = (long)gte_state.IR2 * gte_state.IR2;
-    gte_state.MAC3 = (long)gte_state.IR3 * gte_state.IR3;
+    gte_state.MAC1 = (int)gte_state.IR1 * gte_state.IR1;
+    gte_state.MAC2 = (int)gte_state.IR2 * gte_state.IR2;
+    gte_state.MAC3 = (int)gte_state.IR3 * gte_state.IR3;
     gte_state.IR1 = clamp_mac_to_ir(gte_state.MAC1);
     gte_state.IR2 = clamp_mac_to_ir(gte_state.MAC2);
     gte_state.IR3 = clamp_mac_to_ir(gte_state.MAC3);
@@ -633,27 +635,27 @@ long ratan2(long y, long x)
 {
     if (x == 0 && y == 0) return 0;
     double angle = atan2((double)y, (double)x);
-    long result = (long)(angle * 4096.0 / (2.0 * 3.14159265358979323846));
+    long result = (int)(angle * 4096.0 / (2.0 * 3.14159265358979323846));
     return result & 0xfff;
 }
 
 long SquareRoot0(long a)
 {
     if (a <= 0) return 0;
-    return (long)sqrt((double)a);
+    return (int)sqrt((double)a);
 }
 
 long SquareRoot12(long a)
 {
     if (a <= 0) return 0;
-    return (long)(sqrt((double)a / 4096.0) * 4096.0);
+    return (int)(sqrt((double)a / 4096.0) * 4096.0);
 }
 
 long Square0(SVECTOR *v0, VECTOR *v1)
 {
-    v1->vx = (long)v0->vx * v0->vx;
-    v1->vy = (long)v0->vy * v0->vy;
-    v1->vz = (long)v0->vz * v0->vz;
+    v1->vx = (int)v0->vx * v0->vx;
+    v1->vy = (int)v0->vy * v0->vy;
+    v1->vz = (int)v0->vz * v0->vz;
     return v1->vx + v1->vy + v1->vz;
 }
 
@@ -824,9 +826,9 @@ MATRIX *MulMatrix0(MATRIX *m0, MATRIX *m1, MATRIX *m2)
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
             m2->m[i][j] = (short)(
-                ((long)m0->m[i][0] * m1->m[0][j] +
-                 (long)m0->m[i][1] * m1->m[1][j] +
-                 (long)m0->m[i][2] * m1->m[2][j]) >> 12);
+                ((int)m0->m[i][0] * m1->m[0][j] +
+                 (int)m0->m[i][1] * m1->m[1][j] +
+                 (int)m0->m[i][2] * m1->m[2][j]) >> 12);
     return m2;
 }
 
@@ -844,9 +846,9 @@ void CompMatrix(MATRIX *m0, MATRIX *m1, MATRIX *m2)
 {
     MulMatrix0(m0, m1, m2);
     /* Also transform translation */
-    m2->t[0] = m0->t[0] + ((long)m0->m[0][0] * m1->t[0] + (long)m0->m[0][1] * m1->t[1] + (long)m0->m[0][2] * m1->t[2]) / 4096;
-    m2->t[1] = m0->t[1] + ((long)m0->m[1][0] * m1->t[0] + (long)m0->m[1][1] * m1->t[1] + (long)m0->m[1][2] * m1->t[2]) / 4096;
-    m2->t[2] = m0->t[2] + ((long)m0->m[2][0] * m1->t[0] + (long)m0->m[2][1] * m1->t[1] + (long)m0->m[2][2] * m1->t[2]) / 4096;
+    m2->t[0] = m0->t[0] + ((int)m0->m[0][0] * m1->t[0] + (int)m0->m[0][1] * m1->t[1] + (int)m0->m[0][2] * m1->t[2]) / 4096;
+    m2->t[1] = m0->t[1] + ((int)m0->m[1][0] * m1->t[0] + (int)m0->m[1][1] * m1->t[1] + (int)m0->m[1][2] * m1->t[2]) / 4096;
+    m2->t[2] = m0->t[2] + ((int)m0->m[2][0] * m1->t[0] + (int)m0->m[2][1] * m1->t[1] + (int)m0->m[2][2] * m1->t[2]) / 4096;
 }
 
 void CompMatrixLV(MATRIX *m0, MATRIX *m1, MATRIX *m2)
@@ -865,9 +867,9 @@ void ScaleMatrix(MATRIX *m, VECTOR *v)
 {
     for (int i = 0; i < 3; i++)
     {
-        m->m[0][i] = (short)(((long)m->m[0][i] * v->vx) >> 12);
-        m->m[1][i] = (short)(((long)m->m[1][i] * v->vy) >> 12);
-        m->m[2][i] = (short)(((long)m->m[2][i] * v->vz) >> 12);
+        m->m[0][i] = (short)(((int)m->m[0][i] * v->vx) >> 12);
+        m->m[1][i] = (short)(((int)m->m[1][i] * v->vy) >> 12);
+        m->m[2][i] = (short)(((int)m->m[2][i] * v->vz) >> 12);
     }
 }
 
@@ -883,15 +885,15 @@ MATRIX *RotMatrix(SVECTOR *r, MATRIX *m)
     int sy = rsin(r->vy); int cy = rcos(r->vy);
     int sz = rsin(r->vz); int cz = rcos(r->vz);
 
-    m->m[0][0] = (short)(((long)cy * cz) >> 12);
-    m->m[0][1] = (short)((((long)sx * sy >> 12) * cz >> 12) - ((long)cx * sz >> 12));
-    m->m[0][2] = (short)((((long)cx * sy >> 12) * cz >> 12) + ((long)sx * sz >> 12));
-    m->m[1][0] = (short)(((long)cy * sz) >> 12);
-    m->m[1][1] = (short)((((long)sx * sy >> 12) * sz >> 12) + ((long)cx * cz >> 12));
-    m->m[1][2] = (short)((((long)cx * sy >> 12) * sz >> 12) - ((long)sx * cz >> 12));
+    m->m[0][0] = (short)(((int)cy * cz) >> 12);
+    m->m[0][1] = (short)((((int)sx * sy >> 12) * cz >> 12) - ((int)cx * sz >> 12));
+    m->m[0][2] = (short)((((int)cx * sy >> 12) * cz >> 12) + ((int)sx * sz >> 12));
+    m->m[1][0] = (short)(((int)cy * sz) >> 12);
+    m->m[1][1] = (short)((((int)sx * sy >> 12) * sz >> 12) + ((int)cx * cz >> 12));
+    m->m[1][2] = (short)((((int)cx * sy >> 12) * sz >> 12) - ((int)sx * cz >> 12));
     m->m[2][0] = (short)(-sy);
-    m->m[2][1] = (short)(((long)sx * cy) >> 12);
-    m->m[2][2] = (short)(((long)cx * cy) >> 12);
+    m->m[2][1] = (short)(((int)sx * cy) >> 12);
+    m->m[2][2] = (short)(((int)cx * cy) >> 12);
     return m;
 }
 
@@ -951,23 +953,23 @@ MATRIX *RotMatrixYXZ_gte(SVECTOR *r, MATRIX *m)
 
 void ApplyMatrix(MATRIX *m, SVECTOR *v0, VECTOR *v1)
 {
-    v1->vx = ((long)m->m[0][0] * v0->vx + (long)m->m[0][1] * v0->vy + (long)m->m[0][2] * v0->vz) >> 12;
-    v1->vy = ((long)m->m[1][0] * v0->vx + (long)m->m[1][1] * v0->vy + (long)m->m[1][2] * v0->vz) >> 12;
-    v1->vz = ((long)m->m[2][0] * v0->vx + (long)m->m[2][1] * v0->vy + (long)m->m[2][2] * v0->vz) >> 12;
+    v1->vx = ((int)m->m[0][0] * v0->vx + (int)m->m[0][1] * v0->vy + (int)m->m[0][2] * v0->vz) >> 12;
+    v1->vy = ((int)m->m[1][0] * v0->vx + (int)m->m[1][1] * v0->vy + (int)m->m[1][2] * v0->vz) >> 12;
+    v1->vz = ((int)m->m[2][0] * v0->vx + (int)m->m[2][1] * v0->vy + (int)m->m[2][2] * v0->vz) >> 12;
 }
 
 void ApplyMatrixLV(MATRIX *m, VECTOR *v0, VECTOR *v1)
 {
-    v1->vx = ((long)m->m[0][0] * v0->vx + (long)m->m[0][1] * v0->vy + (long)m->m[0][2] * v0->vz) >> 12;
-    v1->vy = ((long)m->m[1][0] * v0->vx + (long)m->m[1][1] * v0->vy + (long)m->m[1][2] * v0->vz) >> 12;
-    v1->vz = ((long)m->m[2][0] * v0->vx + (long)m->m[2][1] * v0->vy + (long)m->m[2][2] * v0->vz) >> 12;
+    v1->vx = ((int)m->m[0][0] * v0->vx + (int)m->m[0][1] * v0->vy + (int)m->m[0][2] * v0->vz) >> 12;
+    v1->vy = ((int)m->m[1][0] * v0->vx + (int)m->m[1][1] * v0->vy + (int)m->m[1][2] * v0->vz) >> 12;
+    v1->vz = ((int)m->m[2][0] * v0->vx + (int)m->m[2][1] * v0->vy + (int)m->m[2][2] * v0->vz) >> 12;
 }
 
 void ApplyMatrixSV(MATRIX *m, SVECTOR *v0, SVECTOR *v1)
 {
-    v1->vx = (short)(((long)m->m[0][0] * v0->vx + (long)m->m[0][1] * v0->vy + (long)m->m[0][2] * v0->vz) >> 12);
-    v1->vy = (short)(((long)m->m[1][0] * v0->vx + (long)m->m[1][1] * v0->vy + (long)m->m[1][2] * v0->vz) >> 12);
-    v1->vz = (short)(((long)m->m[2][0] * v0->vx + (long)m->m[2][1] * v0->vy + (long)m->m[2][2] * v0->vz) >> 12);
+    v1->vx = (short)(((int)m->m[0][0] * v0->vx + (int)m->m[0][1] * v0->vy + (int)m->m[0][2] * v0->vz) >> 12);
+    v1->vy = (short)(((int)m->m[1][0] * v0->vx + (int)m->m[1][1] * v0->vy + (int)m->m[1][2] * v0->vz) >> 12);
+    v1->vz = (short)(((int)m->m[2][0] * v0->vx + (int)m->m[2][1] * v0->vy + (int)m->m[2][2] * v0->vz) >> 12);
 }
 
 void ApplyRotMatrix(SVECTOR *v0, VECTOR *v1)
@@ -982,9 +984,9 @@ void ApplyRotMatrixLV(VECTOR *v0, VECTOR *v1)
 
 void OuterProduct0(SVECTOR *v0, SVECTOR *v1, VECTOR *v2)
 {
-    v2->vx = (long)v0->vy * v1->vz - (long)v0->vz * v1->vy;
-    v2->vy = (long)v0->vz * v1->vx - (long)v0->vx * v1->vz;
-    v2->vz = (long)v0->vx * v1->vy - (long)v0->vy * v1->vx;
+    v2->vx = (int)v0->vy * v1->vz - (int)v0->vz * v1->vy;
+    v2->vy = (int)v0->vz * v1->vx - (int)v0->vx * v1->vz;
+    v2->vz = (int)v0->vx * v1->vy - (int)v0->vy * v1->vx;
 }
 
 void OuterProduct12(VECTOR *v0, VECTOR *v1, VECTOR *v2)
@@ -1016,11 +1018,11 @@ long VectorNormalS(VECTOR *v0, SVECTOR *v1)
 
 long VectorNormalSS(SVECTOR *v0, SVECTOR *v1)
 {
-    long len = SquareRoot0((long)v0->vx * v0->vx + (long)v0->vy * v0->vy + (long)v0->vz * v0->vz);
+    long len = SquareRoot0((int)v0->vx * v0->vx + (int)v0->vy * v0->vy + (int)v0->vz * v0->vz);
     if (len == 0) { v1->vx = v1->vy = v1->vz = 0; return 0; }
-    v1->vx = (short)(((long)v0->vx * ONE) / len);
-    v1->vy = (short)(((long)v0->vy * ONE) / len);
-    v1->vz = (short)(((long)v0->vz * ONE) / len);
+    v1->vx = (short)(((int)v0->vx * ONE) / len);
+    v1->vy = (short)(((int)v0->vy * ONE) / len);
+    v1->vz = (short)(((int)v0->vz * ONE) / len);
     return len;
 }
 

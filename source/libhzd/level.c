@@ -31,9 +31,9 @@ typedef struct {
     HZD_VEC  point;         // 0C
     char     unused2[0x20]; // 14
     HZD_VEC  f34;           // 34
-    char     pad_3a[2];     // 3A - padding (was pointer on PSX)
-    int      max_floor_stub; // 3C - 4 bytes (was HZD_FLR* on PSX)
-    int      min_floor_stub; // 40 - 4 bytes (was HZD_FLR* on PSX)
+    /* 0x3C-0x43: was max_floor/min_floor pointers on PSX (4 bytes each).
+       On port, floor pointers are in port_max_floor/port_min_floor statics. */
+    char     unused3[8];    // 3C-43
     int      max_level;     // 44
     int      min_level;     // 48
 } SCRPAD_DATA;
@@ -157,6 +157,9 @@ STATIC int SlopeFloorLevel(HZD_FLR *floor)
     gte_stopz( (SCRPAD_ADDR + 0x008) );
 
     x = *(int * )(SCRPAD_ADDR + 0x008);
+#ifdef PORT_BUILD
+    if (floor->p3.h == 0) return floor->p1.y;
+#endif
     return floor->p1.y - x / floor->p3.h;
 }
 
@@ -265,6 +268,16 @@ int HZD_LevelHazardCheck( HZD_HDL *hzd, SVECTOR *from, int chk_flag )
         }
     }
 
+#ifdef PORT_BUILD
+    /* On PSX, pScr[15] and pScr[16] held max_floor/min_floor pointers
+       (4 bytes each at offsets 0x3C/0x40). The return value checks if
+       they were set. In the port, floor pointers are in the side-channel. */
+    if (port_min_floor == NULL)
+    {
+        return port_max_floor != NULL;
+    }
+    return (port_max_floor == NULL) ? 2 : 3;
+#else
     pScr2 = (int *)getScratchAddr(0);
     if (pScr2[16] == 0)
     {
@@ -272,6 +285,7 @@ int HZD_LevelHazardCheck( HZD_HDL *hzd, SVECTOR *from, int chk_flag )
     }
 
     return (pScr2[15] == 0) ? 2 : 3;
+#endif
 }
 
 void HZD_GetLevelHazard( HZD_FLR **flr )
