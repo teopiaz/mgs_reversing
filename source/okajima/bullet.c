@@ -347,7 +347,13 @@ skip_clamp_z:
             work->floor = HZD_GetOnlineHazard();
             work->field_16C = HZD_GetOnlineHazardAtr();
 
-            if ((unsigned int)work->floor & 0x80000000) // Wall
+#ifdef PORT_BUILD
+            if (!work->floor) {
+                work->field_140 = 0;
+                goto bullet_skip_surface;
+            }
+#endif
+            if ((uintptr_t)work->floor & 0x80000000) // Wall
             {
                 work->field_164 = f168;
                 HZD_GetNormal(work->floor, &work->field_128);
@@ -360,6 +366,9 @@ skip_clamp_z:
                 work->field_128.vy = work->floor->p3.h * 16;
             }
 
+#ifdef PORT_BUILD
+            bullet_skip_surface:
+#endif
             work->field_140 = 1;
 
             vec2.vx = (work->field_118.vx - svec3.vx) >> 1;
