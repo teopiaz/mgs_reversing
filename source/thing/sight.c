@@ -352,6 +352,11 @@ static void sight_act_helper_800713FC(Work *work, int clock)
 // Called every frame to display the scope's text pseudo-primitives.
 static void sight_act_helper_80071498(SightTextPseudoPrim *textPrim)
 {
+#ifdef PORT_BUILD
+    /* Validate the text prim pointer before accessing it — the primitive
+       buffer may contain data at unexpected offsets after 64-bit fixup. */
+    if (!textPrim || (uintptr_t)textPrim < 0x1000) return;
+#endif
     MENU_Locate(textPrim->posX, textPrim->posY, 0);
     MENU_Color(textPrim->r, textPrim->g, textPrim->b);
     MENU_Printf("%s", textPrim->text);
@@ -405,13 +410,6 @@ static void Act(Work *work)
     work->clock = GV_Clock;
     CheckMessage(work);
     work->currentMap = GM_CurrentMap;
-
-#ifdef PORT_BUILD
-    /* No primitive data loaded — skip HUD overlay rendering.
-       The actor stays alive so scope camera zoom logic works. */
-    if (!work->primitiveDoubleBuffer[0])
-        return;
-#endif
 
     primBufInfo = work->primitiveBufferInfo;
     primCount = primBufInfo->primCount;
@@ -475,11 +473,13 @@ static void Act(Work *work)
         ancField1Anded = tPageInfo & 0x3f; // This keeps the 6 LSBs.
         ancField1Shifted = tPageInfo >> 6;
 
+#ifndef PORT_BUILD
         if (frameCountPositive != 0 && offsetIndicesIndex != 0)
         {
             sight_800711C0(work, frameCount, offsetPrimBuf, offsetIndicesIndex, primOffsetIndicesArray,
                            primOffsetInfoArray, primOffset, field54Flags);
         }
+#endif
 
         if (ancField1Anded != 0)
         {
@@ -492,10 +492,17 @@ static void Act(Work *work)
                 continue;
             }
         }
+#ifndef PORT_BUILD
         if (field30 != 0 && xyOffsetBuffer != (short *)0x0)
         {
             sight_act_helper_80071320(work, offsetPrimBuf, xyOffsetBuffer, primOffset);
         }
+#endif
+#ifndef PORT_BUILD
+        /* Primitive rendering — skipped on port because the copied primitive
+           buffer contains PSX GPU primitives with 32-bit tag fields that are
+           incompatible with the 64-bit OT handle system. The state machine
+           logic above this block still runs. */
         tag = *(int *)offsetPrimBuf;
         if (tag == 0xff)
         {
@@ -521,6 +528,7 @@ static void Act(Work *work)
                 tPageBuf += 1;
             }
         }
+#endif
     }
 
     if (work->frameCount < 0x7fff0000 && GV_PauseLevel == 0)
@@ -602,31 +610,37 @@ static int GetResources(Work *work, int hashedFileName, short *itemEquippedIndic
     }
 
 #ifdef PORT_BUILD
-    /* Sight data is in PSX binary format with 32-bit pointers baked into the struct.
-       Skip the primitive overlay but let the actor succeed so scope/binoculars
-       camera zoom logic works. The visual HUD overlay won't render. */
-    work->primitiveDoubleBuffer[0] = NULL;
-    work->primitiveDoubleBuffer[1] = NULL;
-    work->tPageDoubleBuffer[0] = NULL;
-    work->tPageDoubleBuffer[1] = NULL;
-    work->field_54_maybeFlags = flags;
-    work->itemId = itemId;
-    work->itemEquippedIndicator = itemEquippedIndicator;
-    work->field_30 = (flags >> 1) & 1;
-    work->frameCount = 0;
-    work->field_50 = 0;
-    work->field_5A_maybeFlags = 0;
-    work->clock = -1;
-    work->xyOffsetBuffer = xyOffsetBuffer;
-    return 0;
-#else
+    /* SightPrimitiveBufferInfo is stored in PSX binary format: 24 bytes with
+       32-bit pointers. On 64-bit the C struct is 48 bytes. Parse the raw
+       bytes into a separately allocated 64-bit struct. */
+    {
+        static SightPrimitiveBufferInfo port_sight_info;
+        unsigned char *raw = (unsigned char *)info;
+        uint32_t psx_ptrs[5];
+        port_sight_info.primitiveBufferSize = *(unsigned short *)&raw[0];
+        port_sight_info.field_2 = raw[2];
+        port_sight_info.primCount = raw[3];
+        for (int j = 0; j < 5; j++)
+            psx_ptrs[j] = *(uint32_t *)&raw[4 + j * 4];
+
+        /* The 32-bit values are offsets from the start of the cache block.
+           raw IS the cache block start. */
+        port_sight_info.ancillaryInfo         = (SightPrimBufInfoStruct *)(raw + psx_ptrs[0]);
+        port_sight_info.primitiveBuffer       = (void *)                  (raw + psx_ptrs[1]);
+        port_sight_info.primOffsetIndicesArray = (SightPrimOffsetIndices *)(raw + psx_ptrs[2]);
+        port_sight_info.primOffsetInfoArray    = (SightPrimOffsetInfo *)   (raw + psx_ptrs[3]);
+        port_sight_info.field_14_array         = (SightPrimBufInfo_0x14 *)(raw + psx_ptrs[4]);
+
+        info = &port_sight_info;
+        work->primitiveBufferInfo = info;
+    }
+#endif
     ancillaryInfo = info->ancillaryInfo;
     primitiveBufferSize = info->primitiveBufferSize;
     primCount = info->primCount;
     primOffsetIndices = info->primOffsetIndicesArray;
     tPageCount = 0;
     primOffsetInfo = info->primOffsetInfoArray;
-#endif
 
     primitiveBuffer = (unsigned int *)GV_Malloc(primitiveBufferSize * 2);
     work->primitiveDoubleBuffer[0] = primitiveBuffer;
