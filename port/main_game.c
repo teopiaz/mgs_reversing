@@ -216,15 +216,16 @@ void game_tick(void)
         extern int GM_GameStatus;
         extern long mts_PadRead(int);
         long raw = mts_PadRead(0);
-        printf("[tick %d] raw_pad=0x%lX status=0x%lX press=0x%lX gs=0x%X snake=(%d,%d,%d)\n",
+        extern int linkvarbuf[];
+        printf("[tick %d] pad=0x%lX gs=0x%X hp=%d/%d snake=(%d,%d,%d)\n",
                tick_count,
-               raw,
                (unsigned long)GV_PadData[0].status,
-               (unsigned long)GV_PadData[0].press,
                GM_GameStatus,
+               linkvarbuf[11], linkvarbuf[12],
                GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
     }
 
-    GV_Clock = 1 - GV_Clock;
+    /* GV_Clock is toggled by the GV daemon actor (gvd.c) inside
+       GV_ExecActorSystem — do NOT toggle it here or it double-flips. */
     tick_count++;
 }
