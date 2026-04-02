@@ -58,6 +58,13 @@ void *GM_GetCharaID(int chara_id)
         {
             if (chara->class_id == chara_id)
             {
+#ifdef PORT_BUILD
+                /* Some stage tables still have raw PSX addresses (0x80XXXXXX)
+                   for characters that weren't mapped to port functions.
+                   Treat these as missing rather than calling a PSX address. */
+                if ((uintptr_t)chara->func < 0x100000000ULL)
+                    return NULL;
+#endif
                 return chara->func;
             }
         }

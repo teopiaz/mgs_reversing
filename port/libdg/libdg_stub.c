@@ -279,6 +279,17 @@ void port_RenderObjects(int idx)
     memset(port_zbuf, 0xFF, sizeof(port_zbuf));
 
     DG_OBJS **queue = (DG_OBJS **)chanl->queue;
+
+    /* Skip rendering during stage transitions — the queue may contain
+       dangling pointers to DG_OBJS that were freed during stage unload.
+       Also skip for the first few frames after load to let the queue stabilize. */
+    {
+        extern int GM_LoadComplete;
+        static int frames_since_load = 999;
+        if (GM_LoadComplete <= 0) { frames_since_load = 0; return; }
+        if (frames_since_load < 3) { frames_since_load++; return; }
+    }
+
     /* Only log occasionally to reduce spam */
     render_debug++;
     if ((render_debug % 120) == 0) {
@@ -287,8 +298,9 @@ void port_RenderObjects(int idx)
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
-        if (!objs || !objs->def) continue;
+        if (!objs || !objs->def || !objs->objs) continue;
         if (objs->group_id && !(objs->group_id & group_id)) continue;
+        if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
 
         MATRIX *eye = &chanl->eye_inv;
         DG_OBJ *obj = objs->objs;
