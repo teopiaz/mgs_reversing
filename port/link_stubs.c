@@ -63,7 +63,6 @@ int s12c_800D4AB4 = 0;
 void ENE_ExecPutChar_800D9DE8(void) { }
 void ENE_PutMark_800D998C(void) { }
 int  ENE_SetPutChar_800D9D6C(void *work, int idx) { return 0; }
-void HZD_LineNearSurface(void) { }
 void s07a_meryl_unk_800D952C(void) { }
 int PClseek(int fd, int offset, int mode) { (void)fd; (void)offset; (void)mode; return 0; }
 

@@ -15,7 +15,6 @@ TARGET = mgs
 
 # Files that can't compile due to MIPS asm or PSX-specific constructs
 EXCLUDE_FILES = \
-	$(SRCDIR)/libhzd/collide.c \
 	$(SRCDIR)/game/movie.c \
 	$(SRCDIR)/takabe/vib_edit.c \
 	$(SRCDIR)/game/script.c \
@@ -43,8 +42,7 @@ LIBGV_OBJ = $(patsubst $(SRCDIR)/libgv/%.c,$(OBJDIR)/libgv_%.o,$(LIBGV_SRC))
 LIBGCL_SRC = $(wildcard libgcl_fix/*.c)
 LIBGCL_OBJ = $(patsubst libgcl_fix/%.c,$(OBJDIR)/libgcl_%.o,$(LIBGCL_SRC))
 
-# Exclude collide.c (hardcoded scratchpad) and hzdd.c (OFFSET_TO_PTR)
-LIBHZD_SRC = $(filter-out $(SRCDIR)/libhzd/collide.c, $(wildcard $(SRCDIR)/libhzd/*.c))
+LIBHZD_SRC = $(wildcard $(SRCDIR)/libhzd/*.c)
 LIBHZD_OBJ = $(patsubst $(SRCDIR)/libhzd/%.c,$(OBJDIR)/libhzd_%.o,$(LIBHZD_SRC))
 
 # --- All stage definition files ---
@@ -115,7 +113,6 @@ PORT_OBJ = \
 	$(OBJDIR)/libfs.o \
 	$(OBJDIR)/spu_emu.o \
 	$(OBJDIR)/memcard_stub.o \
-	$(OBJDIR)/libhzd_collide_stub.o \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o
@@ -198,9 +195,6 @@ $(OBJDIR)/spu_emu.o: sound/spu_emu.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/memcard_stub.o: memcard/memcard_stub.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(OBJDIR)/libhzd_collide_stub.o: libhzd_collide_stub.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/hzd_loader.o: libhzd/hzd_loader.c | $(OBJDIR)
