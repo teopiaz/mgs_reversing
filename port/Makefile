@@ -3,7 +3,7 @@ CXX = clang++
 SRCDIR = ../source
 
 INCLUDES = -I psx -I include -I . -I $(SRCDIR)/include -I $(SRCDIR)
-CFLAGS = -w -O0 -g -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
+CFLAGS = -Wno-everything -Wno-error -O0 -g -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
          -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
          -Wno-incompatible-pointer-types
 CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends
@@ -17,29 +17,11 @@ TARGET = mgs
 EXCLUDE_FILES = \
 	$(SRCDIR)/libhzd/collide.c \
 	$(SRCDIR)/game/movie.c \
-	$(SRCDIR)/enemy/action.c \
-	$(SRCDIR)/bullet/jirai.c \
-	$(SRCDIR)/menu/life.c \
 	$(SRCDIR)/menu/radar.c \
-	$(SRCDIR)/menu/radioanim.c \
-	$(SRCDIR)/menu/radiofacedraw.c \
-	$(SRCDIR)/menu/debug.c \
-	$(SRCDIR)/enemy/searchli.c \
-	$(SRCDIR)/okajima/blood.c \
-	$(SRCDIR)/okajima/splash.c \
-	$(SRCDIR)/kojo/demothrd.c \
-	$(SRCDIR)/takabe/ending2.c \
-	$(SRCDIR)/takabe/envmap3.c \
-	$(SRCDIR)/takabe/sub_efct.c \
-	$(SRCDIR)/takabe/spark2.c \
-	$(SRCDIR)/takabe/thing.c \
 	$(SRCDIR)/takabe/vib_edit.c \
-	$(SRCDIR)/onoda/change/change.c \
-	$(SRCDIR)/onoda/demosel/demosel.c \
+	$(SRCDIR)/game/script.c \
 	$(SRCDIR)/enemy/merylaction.c \
-	$(SRCDIR)/enemy/merylcheck.c \
-	$(SRCDIR)/contrib/dev/overlay_table.c \
-	$(SRCDIR)/game/script.c
+	$(SRCDIR)/enemy/merylcheck.c
 
 all: $(TARGET)
 
@@ -49,7 +31,7 @@ GAME_ALL_SRC = $(shell find $(SRCDIR)/game $(SRCDIR)/chara $(SRCDIR)/enemy \
 	$(SRCDIR)/weapon $(SRCDIR)/bullet $(SRCDIR)/equip $(SRCDIR)/anime \
 	$(SRCDIR)/thing $(SRCDIR)/font $(SRCDIR)/menu $(SRCDIR)/animal \
 	$(SRCDIR)/kojo $(SRCDIR)/okajima $(SRCDIR)/onoda $(SRCDIR)/takabe \
-	$(SRCDIR)/contrib -name "*.c" -not -path "*/snake_vr/*" -not -path "*/torture/*" | sort)
+	$(SRCDIR)/contrib $(SRCDIR)/sound -name "*.c" -not -path "*/snake_vr/*" -not -path "*/torture/*" | sort)
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_OBJ = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/src_%.o,$(GAME_SRC))
@@ -132,7 +114,7 @@ PORT_OBJ = \
 	$(OBJDIR)/libdg_shade.o \
 	$(OBJDIR)/libdg_text.o \
 	$(OBJDIR)/libfs.o \
-	$(OBJDIR)/sd_stubs.o \
+	$(OBJDIR)/spu_emu.o \
 	$(OBJDIR)/memcard_stub.o \
 	$(OBJDIR)/libhzd_collide_stub.o \
 	$(OBJDIR)/hzd_loader.o \
@@ -213,8 +195,8 @@ $(OBJDIR)/libfs.o: libfs/libfs.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 
-$(OBJDIR)/sd_stubs.o: sound/sd_stubs.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(OBJDIR)/spu_emu.o: sound/spu_emu.c | $(OBJDIR)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/memcard_stub.o: memcard/memcard_stub.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<

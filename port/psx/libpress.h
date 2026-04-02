@@ -11,6 +11,6 @@ int  DecDCToutSync(int mode);
 void DecDCToutCallback(void (*func)(void));
 void DecDCTvlc(u_long *bs, u_long *buf);
 void DecDCTvlc2(u_long *bs, u_long *buf, int q);
-void DecDCTvlcBuild(void);
+void DecDCTvlcBuild(u_long *addr);
 
 #endif /* __PSX_LIBPRESS_H__ */

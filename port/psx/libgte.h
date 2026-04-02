@@ -98,7 +98,7 @@ void SetBackColor(long rbk, long gbk, long bbk);
 
 MATRIX *MulMatrix0(MATRIX *m0, MATRIX *m1, MATRIX *m2);
 MATRIX *MulMatrix(MATRIX *m0, MATRIX *m1);
-MATRIX *MulMatrix2(MATRIX *m0, MATRIX *m1, MATRIX *m2);
+MATRIX *MulMatrix2(MATRIX *m0, MATRIX *m1);
 void CompMatrix(MATRIX *m0, MATRIX *m1, MATRIX *m2);
 void CompMatrixLV(MATRIX *m0, MATRIX *m1, MATRIX *m2);
 

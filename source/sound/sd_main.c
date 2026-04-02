@@ -248,8 +248,7 @@ void KeyOffStr(void)
     case SPU_OFF:
         break;
 
-    case SPU_ON:
-    case SPU_ON_ENV_OFF:
+    case SPU_ON: /* SPU_ON_ENV_OFF */
         SpuSetKey(SPU_OFF, SPU_21CH | SPU_22CH);
         break;
 
@@ -287,8 +286,7 @@ void KeyOffStr2(void)
     case SPU_OFF:
         break;
 
-    case SPU_ON:
-    case SPU_ON_ENV_OFF:
+    case SPU_ON: /* SPU_ON_ENV_OFF */
         SpuSetKey(SPU_OFF, SPU_21CH | SPU_22CH);
         break;
 
