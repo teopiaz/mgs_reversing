@@ -1,13 +1,13 @@
 port: SDL initialized
 port: game_init starting
 port: WARNING: could not map scratchpad at 0x1f800000 (0xffffffffffffffff)
-port: memory pools allocated (normal=0x684c00000, pkt0=0x684e00000, pkt1=0x684e80000)
+port: memory pools allocated (normal=0xbf6800000, pkt0=0xbf6a00000, pkt1=0xbf6a80000)
 mem:mem:pad:gv:fs:fs: STAGE.DIR RADIO.DAT FACE.DAT ZMOVIE.STR VOX.DAT DEMO.DAT BRF.DAT
   [fs] 95 stages in STAGE.DIR: brf abst d00a d01a d03a d11c d16e d18a init rank ...
   [fs] FS_StartDaemon complete
 dg:dg:[ot] walked 22 nodes, 0 prims rendered
 [ot] walked 22 nodes, 0 prims rendered
-gcl:hzd:sound:gm:RESIDENT TOP 84E00000
+gcl:hzd:sound:gm:RESIDENT TOP F6A00000
 LoadReq
   [fs] Loading stage 'init' at sector 2761...
   [fs]   DATACNF: version=1, size=283 sectors (579584 bytes)
@@ -19,402 +19,103 @@ LoadReq
 start
 port: entering main loop
 [gpu] PutDispEnv #1: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x1011855fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
 [ot] walked 297 nodes, 0 prims rendered
-[render] chanl1: objs_index=0
-[render] 0 faces drawn (0 visible, 0 objs)
 [gpu] PutDispEnv #2: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x1011855fc val=0x250
-[render] chanl1: objs_index=0
-[render] 0 faces drawn (0 visible, 0 objs)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
 [gpu] PutDispEnv #3: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x1011855fc val=0x250
-[render] 0 faces drawn (0 visible, 0 objs)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
 LoadEnd
 [gpu] PutDispEnv #4: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x1011855fc val=0x250
-[render] 0 faces drawn (0 visible, 0 objs)
-[res] alloc 672 bytes → 0x684dffd60 (bottom=0x684dffd60, area=0x684e00000)
-[res] alloc 1536 bytes → 0x684dff760 (bottom=0x684dff760, area=0x684e00000)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
+[res] alloc 672 bytes → 0xbf69ffd60 (bottom=0xbf69ffd60, area=0xbf6a00000)
+[res] alloc 1536 bytes → 0xbf69ff760 (bottom=0xbf69ff760, area=0xbf6a00000)
 exec scenario
 [menu_number_init] called
 jimaku_font_buffer_size 4896
-[res] alloc 4896 bytes → 0x684dfe440 (bottom=0x684dfe440, area=0x684e00000)
+[res] alloc 4896 bytes → 0xbf69fe440 (bottom=0xbf69fe440, area=0xbf6a00000)
 MENU INIT END
 end scenario
 [gpu] PutDispEnv #5: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x1011855fc val=0x250
-[render] 0 faces drawn (0 visible, 0 objs)
+[DG_DrawOTag] which=1 ch2_ot[1]=0x102df95fc val=0x250
 GM_StreamPlayStop
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-RESIDENT TOP 84DFE440
+RESIDENT TOP F69FE440
 LoadReq
   [fs] Loading stage 'select' at sector 35595...
   [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
   [fs]   Loaded 14336 bytes, 6 tags
-[bin] Stage overlay 0x8D5C → 0x100dab3b0
+[bin] Stage overlay 0x8D5C → 0x102a1f3b0
   [fs]   Stage processing complete
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
 LoadEnd
-[render] 0 faces drawn (0 visible, 0 objs)
 exec scenario
-[gcl] chara: name=0x5947 func=0x100cc2788 binds=0x0
+[gcl] chara: name=0x5947 func=0x102935d88 binds=0x0
 end scenario
-[menu-text] SPRT at (0,120) u=114 v=493 ot=0x1011855f4
-[menu-text] SPRT at (7,120) u=48 v=493 ot=0x1011855f4
-[menu-text] SPRT at (10,120) u=114 v=493 ot=0x1011855f4
-[menu-text] SPRT at (16,120) u=66 v=493 ot=0x1011855f4
-[menu-text] SPRT at (22,120) u=24 v=493 ot=0x1011855f4
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
+[menu-text] SPRT at (0,120) u=114 v=493 ot=0x102df95f4
+[menu-text] SPRT at (7,120) u=48 v=493 ot=0x102df95f4
+[menu-text] SPRT at (10,120) u=114 v=493 ot=0x102df95f4
+[menu-text] SPRT at (16,120) u=66 v=493 ot=0x102df95f4
+[menu-text] SPRT at (22,120) u=24 v=493 ot=0x102df95f4
 str_status 0 irq 0 0 0
 key 00000000
-[render] 0 faces drawn (0 visible, 0 objs)
 GM_StreamPlayStop
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-RESIDENT TOP 84DFE440
+RESIDENT TOP F69FE440
 LoadReq
   [fs] Loading stage 'select1' at sector 36297...
   [fs]   DATACNF: version=1, size=4 sectors (8192 bytes)
   [fs]   Loaded 8192 bytes, 6 tags
-[bin] Stage overlay 0xABC2 → 0x100dab3e0
-  [fs]   Stage processing complete
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-LoadEnd
-[render] 0 faces drawn (0 visible, 0 objs)
-exec scenario
-[gcl] chara: name=0x291C func=0x100cc2788 binds=0x0
-end scenario
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-[render] 0 faces drawn (0 visible, 0 objs)
-str_status 0 irq 0 0 0
-key 00000000
-GM_StreamPlayStop
-RESIDENT TOP 84DFE440
-LoadReq
-  [fs] Loading stage 'select1' at sector 36297...
-  [fs]   DATACNF: version=1, size=4 sectors (8192 bytes)
-  [fs]   Loaded 8192 bytes, 6 tags
-[bin] Stage overlay 0xABC2 → 0x100dab3e0
+[bin] Stage overlay 0xABC2 → 0x102a1f3e0
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x291C func=0x100cc2788 binds=0x0
+[gcl] chara: name=0x291C func=0x102935d88 binds=0x0
 end scenario
+[render] chanl1: objs_index=0
+[render] chanl1: objs_index=0
 str_status 0 irq 0 0 0
 key 00000000
 GM_StreamPlayStop
-RESIDENT TOP 84DFE440
+RESIDENT TOP F69FE440
 LoadReq
-  [fs] Loading stage 'd01a' at sector 643...
-  [fs]   DATACNF: version=1, size=493 sectors (1009664 bytes)
-  [fs]   Loaded 1009664 bytes, 35 tags
-[bin] Stage overlay 0xC6B3 → 0x100da4680
-  [fs]   Nocache texture data: 268380 bytes
-  [fs]   Processed 60 nocache entries
-  [fs]   Nocache texture data: 264508 bytes
-  [fs]   Processed 258 nocache entries
+  [fs] Loading stage 's01a' at sector 3965...
+  [fs]   DATACNF: version=1, size=545 sectors (1116160 bytes)
+  [fs]   Loaded 1116160 bytes, 34 tags
+[bin] Stage overlay 0x46BB → 0x102a19310
+  [fs]   Nocache texture data: 248884 bytes
+  [fs]   Processed 51 nocache entries
+  [fs]   Nocache texture data: 247780 bytes
+  [fs]   Processed 211 nocache entries
     [img] id=0x8C681: 2048x800 tile=32x32 tex_off=20 att_off=36 til_off=404
 Warning:old version hzm
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-set map 32249
+[map] GM_CreateMap: name=0x7DF9
+[map]   hazard loaded: name=0xC681 area=0
+[map]   lit loaded: name=0xC681
   [map] LoadMapModel: name=0xC681
-[dg] QueueObjs: chanl=1 objs_index=1 def=0xba276c000 n_models=174
+[dg] QueueObjs: chanl=1 objs_index=1 def=0x8b2fc0000 n_models=122
   [map]   model loaded OK
-add map 1
-[gcl] chara: name=0x6ECA func=0x100d3b9bc binds=0x1
-[gcl] chara: name=0xF810 func=0x100d6868c binds=0x1
-[gcl] chara: name=0x4692 func=0x100d6730c binds=0x1
-[gcl] chara: name=0xAEF1 func=0x100d63f20 binds=0x1
-[gcl] chara: name=0xAEF2 func=0x100d63f20 binds=0x1
-[gcl] chara: name=0xAEF3 func=0x100d63f20 binds=0x1
-[gcl] chara: name=0xBB75 func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB77 func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB78 func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB79 func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB7A func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB7B func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB7C func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB7D func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0xBB94 func=0x100c9c9f4 binds=0x1
-[gcl] chara: name=0x5BA4 func=0x100d10d7c binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=2 def=0xba2d8d180 n_models=2
-[dg] QueueObjs: chanl=1 objs_index=3 def=0xba3cbaee0 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=4 def=0xba3cbb0c0 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=5 def=0xba3cbb0c0 n_models=1
-end scenario
-[render] chanl1: objs_index=5
-GM_StreamPlayStop
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-[render] chanl1: objs_index=5
-port: shutdown complete
+[gcl] chara: name=0x23EF func=0x1028ff70c binds=0x1
+ COM_NOISEMODE_DIS =8000 
+eee 4000 5000 4000 t 3 
+[gcl] chara: name=0x1465 func=0x102917990 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=2 def=0x8b3725000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=3 def=0x8b35b9680 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=4 def=0x8b35b9ea0 n_models=1
+[gcl] chara: name=0x1466 func=0x102917990 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=5 def=0x8b3725000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=6 def=0x8b35b9680 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=7 def=0x8b35b9ea0 n_models=1
+[gcl] chara: name=0x1467 func=0x102917990 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=8 def=0x8b3725000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=9 def=0x8b35b9680 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=10 def=0x8b35b9ea0 n_models=1
+[gcl] chara: name=0xDD6D func=0x1028fbcb8 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=11 def=0x8b35bad00 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=12 def=0x8b35bab20 n_models=1
+[gcl] chara: name=0xDD6E func=0x1028fbcb8 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=13 def=0x8b35bad00 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=14 def=0x8b35bab20 n_models=1
+[gcl] chara: name=0x5DF7 func=0x10290f5a0 binds=0x1
+
+=== CRASH: signal 11 ===
