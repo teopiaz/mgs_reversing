@@ -13,7 +13,7 @@ typedef long (*openevent_cb_t)();
 
 extern char port_scratchpad[1024];
 
-#define SCRPAD_ADDR     ((unsigned long)(port_scratchpad))
+#define SCRPAD_ADDR     ((unsigned long long)(port_scratchpad))
 #define SCRPAD_SIZE     0x400
 
 #define getScratchAddr2(type, offset) ((type *)(port_scratchpad + (offset)))
