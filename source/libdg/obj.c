@@ -58,13 +58,18 @@ DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
         for (numMesh = def->n_models; numMesh > 0; numMesh--)
         {
             obj->model = model;
-            if (model->extend < 0)
             {
-                obj->extend = 0;
-            }
-            else
-            {
-                obj->extend = &objs_buf->objs[model->extend];
+                /* model->extend stores an index (as intptr_t cast to pointer).
+                   On PSX it was int; on 64-bit the sign extension is lost. */
+                int extend_idx = (int)(intptr_t)model->extend;
+                if (extend_idx < 0)
+                {
+                    obj->extend = 0;
+                }
+                else
+                {
+                    obj->extend = &objs_buf->objs[extend_idx];
+                }
             }
 
             obj->raise = DG_MakeObjs_helper(model);

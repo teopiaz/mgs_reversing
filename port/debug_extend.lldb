@@ -1,0 +1,21 @@
+env MGS_AUTO_INPUT=1
+break set -f obj.c -l 75 -c "def->n_models == 181"
+run
+script
+import lldb
+frame = lldb.debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetSelectedFrame()
+addr_val = frame.EvaluateExpression("(long long)&objs_buf->objs[0].extend")
+addr = addr_val.GetValueAsUnsigned()
+print(f"Setting watchpoint on extend field at 0x{addr:x}")
+target = lldb.debugger.GetSelectedTarget()
+err = lldb.SBError()
+wp = target.WatchAddress(addr, 8, False, True, err)
+if err.Success():
+    print(f"Watchpoint set: {wp}")
+else:
+    print(f"Watchpoint failed: {err}")
+DONE
+breakpoint delete 1
+continue
+bt 8
+quit
