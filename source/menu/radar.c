@@ -436,14 +436,14 @@ void drawMap_800391D0(MenuWork *work, u_long *ot, int arg2)
         area_bits = HZD_CurrentGroup;
 
         area_mask = 1 << pMap->hzd->header->n_groups;
-        areas = pMap->hzd->header->n_groups * 24;
+        areas = pMap->hzd->header->n_groups * sizeof(HZD_GRP);
 
         while (1)
         {
             if (i == 0)
             {
                 area_mask >>= 1;
-                areas -= 24;
+                areas -= sizeof(HZD_GRP);
 
                 if (area_mask == 0)
                 {

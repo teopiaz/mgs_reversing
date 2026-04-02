@@ -323,6 +323,7 @@ END:
     }
 
     n_objs--;
+    chanl->queue[n_objs] = NULL; /* Clear the freed slot to prevent dangling access */
     chanl->objs_index = n_objs;
 }
 
