@@ -9,6 +9,16 @@
 #include "game/map.h"   // for GM_IterHazard
 #include "psxdefs.h"    // for getScratchAddr2
 
+#ifdef PORT_BUILD
+/* On PSX, sizeof(int) == sizeof(void*) == 4, so pointers fit in int scratchpad slots.
+   On 64-bit, pointers are 8 bytes and overflow 4-byte slots, corrupting adjacent data.
+   This side-channel stores full 64-bit pointers for scratchpad slots that hold pointers. */
+static struct {
+    void *seg_064;          /* HZD_SEG or HZD_FLR pointer at byte 0x64 */
+    char *flags_end_070;    /* pFlagsEnd at byte 0x70 (HZD_LineCheck path) */
+} collide_ptrs;
+#endif
+
 typedef struct SPAD_DATA
 {
     char    pad[4];
@@ -320,14 +330,23 @@ STATIC void TestSegment(HZD_SEG *seg, int a2, int a3)
                     do {} while (0);
 
                     *(int *)(SCRPAD_ADDR + 0x05C) = tmp1;
+#ifdef PORT_BUILD
+                    tmp5 = collide_ptrs.flags_end_070;
+#else
                     tmp5 = *(char **)(scratch3 + 0x70);
+#endif
                     tmp6 = *(short *)(scratch3 + 0x6A);
                     tmp4 = a3 & 127;
                     do
                     {
                     } while (0);
 
+#ifdef PORT_BUILD
+                    *(int *)(SCRPAD_ADDR + 0x064) = (int)(intptr_t)seg;
+                    collide_ptrs.seg_064 = seg;
+#else
                     *(HZD_SEG **)(SCRPAD_ADDR + 0x064) = seg;
+#endif
                     tmp3 = *(tmp5 - a2);
                     tmp3 <<= 8;
                     *(short *)(SCRPAD_ADDR + 0x068) = tmp6 | tmp4 | tmp3;
@@ -587,7 +606,12 @@ STATIC void TestFloor(HZD_FLR *floor)
         *(int *)(SCRPAD_ADDR + 0x06C) += 1;
         *(HZD_VEC *)(SCRPAD_ADDR + 0x054) = *(HZD_VEC *)(SCRPAD_ADDR + 0x04C);
         *(int *)(SCRPAD_ADDR + 0x05C) = length;
+#ifdef PORT_BUILD
+        *(int *)(SCRPAD_ADDR + 0x064) = (int)(intptr_t)UNTAG_PTR(HZD_FLR, floor);
+        collide_ptrs.seg_064 = UNTAG_PTR(HZD_FLR, floor);
+#else
         *(HZD_FLR **)(SCRPAD_ADDR + 0x064) = UNTAG_PTR(HZD_FLR, floor);
+#endif
     }
 }
 
@@ -633,6 +657,9 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
     CopySvectorToSpad(6, from);
 
     *((int *)(SCRPAD_ADDR + 0x064)) = (*((int *)(SCRPAD_ADDR + 0x06C)) = 0);
+#ifdef PORT_BUILD
+    collide_ptrs.seg_064 = NULL;
+#endif
 
     CopySvectorToSpad(10, to);
     CopySvector((SVECTOR *)(SCRPAD_ADDR + 0x054), (SVECTOR *)(SCRPAD_ADDR + 0x014));
@@ -669,7 +696,11 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
                     *((short *)(scratchpad + 0x6A)) = 0;
                 } while (0);
 
+#ifdef PORT_BUILD
+                collide_ptrs.flags_end_070 = pFlagsEnd;
+#else
                 *((char **)(scratchpad + 0x70)) = pFlagsEnd;
+#endif
                 *((int *)(SCRPAD_ADDR + 0x060)) = n_unknown;
 
                 for (count = pArea->n_walls; count > 0; count--, pWall++, pFlags++)
@@ -703,7 +734,11 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
                 } while (0);
 
                 pFlagsEnd2 = (pFlags + queue_size) + idx;
+#ifdef PORT_BUILD
+                collide_ptrs.flags_end_070 = pFlagsEnd2;
+#else
                 *((char **)(scratchpad + 0x70)) = pFlagsEnd2;
+#endif
             } while (0); // TODO: Is it the same macro as above in "if (flag & HZD_CHECK_SEG)" case?
 
             count = pNextMap->dynamic_queue_index;
@@ -758,7 +793,11 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
         gte_SetRotMatrix((SCRPAD_ADDR + 0x090));
     }
 
+#ifdef PORT_BUILD
+    if (collide_ptrs.seg_064 != NULL)
+#else
     if (*(int *)(SCRPAD_ADDR + 0x064) != 0)
+#endif
     {
         return *(int *)(SCRPAD_ADDR + 0x06C);
     }
@@ -767,7 +806,11 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
 
 void *HZD_LineNearSurface(void)
 {
+#ifdef PORT_BUILD
+    return collide_ptrs.seg_064;
+#else
     return *getScratchAddr2(void **, 0x64);
+#endif
 }
 
 int HZD_LineNearFlag(void)
