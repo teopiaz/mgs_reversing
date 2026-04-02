@@ -88,8 +88,8 @@ int HZD_StepCheck( SVECTOR *nears, int count, int scale, SVECTOR *out )
         return 1;
     }
 
-    AssignVecXYXZ(0x1F80000C, nears);
-    area = get_area((SVECTOR *)0x1F800004, (SVECTOR *)0x1F80000C, (SVECTOR *)0x1F800008);
+    AssignVecXYXZ((SCRPAD_ADDR + 0x00C), nears);
+    area = get_area((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x00C), (SVECTOR *)(SCRPAD_ADDR + 0x008));
 
     if ( area >= scale )
     {
@@ -103,37 +103,37 @@ int HZD_StepCheck( SVECTOR *nears, int count, int scale, SVECTOR *out )
 
     if ( count == 2 )
     {
-        AssignVecXYXZ(0x1F800010, &nears[1]);
-        area2 = get_area((SVECTOR *)0x1F800004, (SVECTOR *)0x1F800010, (SVECTOR *)0x1F800008);
+        AssignVecXYXZ((SCRPAD_ADDR + 0x010), &nears[1]);
+        area2 = get_area((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x010), (SVECTOR *)(SCRPAD_ADDR + 0x008));
 
         if ( area2 < scale )
         {
-            IntVecXY((SVECTOR *)0x1F800014, (SVECTOR *)0x1F80000C, scale, area);
-            IntVecXY((SVECTOR *)0x1F800018, (SVECTOR *)0x1F800010, scale, area2);
+            IntVecXY((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x00C), scale, area);
+            IntVecXY((SVECTOR *)(SCRPAD_ADDR + 0x018), (SVECTOR *)(SCRPAD_ADDR + 0x010), scale, area2);
 
-            SubVecXY((SVECTOR *)0x1F800014, (SVECTOR *)0x1F800014, (SVECTOR *)0x1F80000C);
-            SubVecXY((SVECTOR *)0x1F800018, (SVECTOR *)0x1F800018, (SVECTOR *)0x1F800010);
+            SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x00C));
+            SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x018), (SVECTOR *)(SCRPAD_ADDR + 0x018), (SVECTOR *)(SCRPAD_ADDR + 0x010));
 
-            SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F800014);
-            area3 = get_area2((SVECTOR *)0x1F800014, (SVECTOR *)0x1F800004, (SVECTOR *)0x1F800008);
+            SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x014));
+            area3 = get_area2((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x008));
 
-            SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F800018);
-            area4 = get_area2((SVECTOR *)0x1F800018, (SVECTOR *)0x1F800004, (SVECTOR *)0x1F800008);
+            SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x018));
+            area4 = get_area2((SVECTOR *)(SCRPAD_ADDR + 0x018), (SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x008));
 
-            SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F800018);
-            area5 = get_area2((SVECTOR *)0x1F800014, (SVECTOR *)0x1F800004, (SVECTOR *)0x1F800008);
+            SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x018));
+            area5 = get_area2((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x008));
 
             if ((area5 < area3) && (area5 < area4))
             {
-                area6 = get_area2((SVECTOR *)0x1F800014, (SVECTOR *)0x1F800018, (SVECTOR *)0x1F800008);
+                area6 = get_area2((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x018), (SVECTOR *)(SCRPAD_ADDR + 0x008));
 
                 if ( area6 != 0 )
                 {
-                    pVec1 = (SVECTOR *)0x1F800014;
+                    pVec1 = (SVECTOR *)(SCRPAD_ADDR + 0x014);
 
                     temp = pVec1->vy * area4;
 
-                    pVec2 = (SVECTOR *)0x1F800018;
+                    pVec2 = (SVECTOR *)(SCRPAD_ADDR + 0x018);
 
                     out->vx = (temp - pVec2->vy * area3) / area6;
 
@@ -152,10 +152,10 @@ int HZD_StepCheck( SVECTOR *nears, int count, int scale, SVECTOR *out )
         }
     }
 
-    IntVecXY((SVECTOR *)0x1F800014, (SVECTOR *)0x1F80000C, scale, area);
-    SubVecXY((SVECTOR *)0x1F800014, (SVECTOR *)0x1F80000C, (SVECTOR *)0x1F800014);
+    IntVecXY((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x00C), scale, area);
+    SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x014), (SVECTOR *)(SCRPAD_ADDR + 0x00C), (SVECTOR *)(SCRPAD_ADDR + 0x014));
 
-    AssignVecXZXY(out, (SVECTOR *)0x1F800014);
+    AssignVecXZXY(out, (SVECTOR *)(SCRPAD_ADDR + 0x014));
     return 1;
 }
 
@@ -187,7 +187,7 @@ STATIC int ComputeDirection(void)
     pVec1->y = pVec2->y - pVec3->y;
     pVec1->z = pVec2->z - pVec3->z;
 
-    SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F80001C);
+    SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x01C));
 
     gte_NormalClip(0, SPAD->vec[3].long_access[0], SPAD->vec[0].long_access[0], &SPAD->vec[0].long_access[1]);
 
@@ -305,31 +305,29 @@ STATIC int CalculateHitTime(void)
     SVECTOR *pa;
     SVECTOR *pb;
 
-    // Can't get the code to generate a useless absolute load without this
-    register long *t0 asm("t0");
+    long *t0_val;
 
-    SubVecXY((SVECTOR *)0x1F800048, (SVECTOR *)0x1F80003C, (SVECTOR *)0x1F800034);
+    SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x048), (SVECTOR *)(SCRPAD_ADDR + 0x03C), (SVECTOR *)(SCRPAD_ADDR + 0x034));
 
-    a = *(long *)0x1F800048;
+    a = *(long *)(SCRPAD_ADDR + 0x048);
 
-    t0 = 0;
-    gte_ldsxy3(t0, a, *(long *)0x1F80001C);
+    gte_ldsxy3(0, a, *(long *)(SCRPAD_ADDR + 0x01C));
     gte_nclip();
 
-    ptr = (SVECTOR *)0x1F800044;
-    pa = (SVECTOR *)0x1F80000C;
-    pb = (SVECTOR *)0x1F800034;
+    ptr = (SVECTOR *)(SCRPAD_ADDR + 0x044);
+    pa = (SVECTOR *)(SCRPAD_ADDR + 0x00C);
+    pb = (SVECTOR *)(SCRPAD_ADDR + 0x034);
 
     SubVecXY(ptr, pa, pb);
     ptr = 0;
 
     gte_read_opz(opz_a);
 
-    t0 = (long *)0x1F800044;
-    opz_b = *t0;
+    t0_val = (long *)(SCRPAD_ADDR + 0x044);
+    opz_b = *t0_val;
     opz_a /= 16;
 
-    asm("" :: "r"(t0));
+    (void)t0_val;
 
     if (opz_a == 0)
     {
@@ -370,17 +368,17 @@ STATIC int CalculateHitPoint(int mult)
     short  x, y, z;
     short *scratch1, *scratch2, *scratch3, *scratch4;
 
-    scratch1 = (short *)0x1F80001C;
-    scratch2 = (short *)0x1F80004C;
-    scratch3 = (short *)0x1F80000C;
+    scratch1 = (short *)(SCRPAD_ADDR + 0x01C);
+    scratch2 = (short *)(SCRPAD_ADDR + 0x04C);
+    scratch3 = (short *)(SCRPAD_ADDR + 0x00C);
 
     x = scratch2[0] = scratch3[0] + (scratch1[0] * mult) / 256;
     z = scratch2[2] = scratch3[2] + (scratch1[2] * mult) / 256;
     y = scratch2[1] = scratch3[1] + (scratch1[1] * mult) / 256;
 
-    if (*(short *)0x1F800048 != 0)
+    if (*(short *)(SCRPAD_ADDR + 0x048) != 0)
     {
-        scratch4 = (short *)0x1F800034;
+        scratch4 = (short *)(SCRPAD_ADDR + 0x034);
         if (x < scratch4[0] - 32 || scratch4[4] + 32 < x)
         {
             return 0;
@@ -392,7 +390,7 @@ STATIC int CalculateHitPoint(int mult)
     }
     else
     {
-        scratch4 = (short *)0x1F800034;
+        scratch4 = (short *)(SCRPAD_ADDR + 0x034);
         if (y < scratch4[1] - 32 || scratch4[5] + 32 < y)
         {
             return 0;
@@ -411,27 +409,27 @@ STATIC void CalculateSegmentHeight(int a0)
 
     if (a0 == 1)
     {
-        v0 = *(short *)0x1F80004C;
-        v1 = *(short *)0x1F800034;
+        v0 = *(short *)(SCRPAD_ADDR + 0x04C);
+        v1 = *(short *)(SCRPAD_ADDR + 0x034);
         v0 -= v1;
-        v1 = *(short *)0x1F800048;
+        v1 = *(short *)(SCRPAD_ADDR + 0x048);
     }
     else
     {
-        v0 = *(short *)0x1F80004E;
-        v1 = *(short *)0x1F800036;
+        v0 = *(short *)(SCRPAD_ADDR + 0x04E);
+        v1 = *(short *)(SCRPAD_ADDR + 0x036);
         v0 -= v1;
-        v1 = *(short *)0x1F80004A;
+        v1 = *(short *)(SCRPAD_ADDR + 0x04A);
     }
 
     v0 *= 4096;
     v1 = v0 / v1;
 
     gte_lddp(v1);
-    gte_ld_intpol_sv0((SVECTOR *)0x1F800040);
-    gte_ldopv2SV((SVECTOR *)0x1F800038);
+    gte_ld_intpol_sv0((SVECTOR *)(SCRPAD_ADDR + 0x040));
+    gte_ldopv2SV((SVECTOR *)(SCRPAD_ADDR + 0x038));
     gte_intpl();
-    gte_stsv((SVECTOR *)0x1F800038);
+    gte_stsv((SVECTOR *)(SCRPAD_ADDR + 0x038));
 }
 
 STATIC void TestSegment(HZD_SEG *seg, int a2, int a3)
@@ -452,31 +450,31 @@ STATIC void TestSegment(HZD_SEG *seg, int a2, int a3)
     char    *tmp5;
     short    tmp6;
 
-    *((HZD_SEG *)0x1F800034) = *seg;
+    *((HZD_SEG *)(SCRPAD_ADDR + 0x034)) = *seg;
     if (CheckWallBounds())
     {
         tmp1 = CalculateHitTime();
         tmp4 = CalculateHitPoint(tmp1);
         if (tmp4)
         {
-            if (*(int *)0x1F800060 < a2)
+            if (*(int *)(SCRPAD_ADDR + 0x060) < a2)
             {
                 CalculateSegmentHeight(tmp4);
             }
-            scratch1 = (short *)0x1F80004C;
-            scratch2 = (HZD_SEG *)0x1F800034;
+            scratch1 = (short *)(SCRPAD_ADDR + 0x04C);
+            scratch2 = (HZD_SEG *)(SCRPAD_ADDR + 0x034);
             tmp2 = scratch1[2] - scratch2->p1.y;
             if (tmp2 >= 0 && scratch2->p1.h >= tmp2)
             {
-                *(int *)0x1F80006C += 1;
-                if (*(int *)0x1F80005C >= tmp1)
+                *(int *)(SCRPAD_ADDR + 0x06C) += 1;
+                if (*(int *)(SCRPAD_ADDR + 0x05C) >= tmp1)
                 {
                     scratch3 = (char *)SCRPAD_ADDR;
 
-                    *(struct copier *)0x1F800054 = *(struct copier *)scratch1;
+                    *(struct copier *)(SCRPAD_ADDR + 0x054) = *(struct copier *)scratch1;
                     do {} while (0);
 
-                    *(int *)0x1F80005C = tmp1;
+                    *(int *)(SCRPAD_ADDR + 0x05C) = tmp1;
                     tmp5 = *(char **)(scratch3 + 0x70);
                     tmp6 = *(short *)(scratch3 + 0x6A);
                     tmp4 = a3 & 127;
@@ -484,10 +482,10 @@ STATIC void TestSegment(HZD_SEG *seg, int a2, int a3)
                     {
                     } while (0);
 
-                    *(HZD_SEG **)0x1F800064 = seg;
+                    *(HZD_SEG **)(SCRPAD_ADDR + 0x064) = seg;
                     tmp3 = *(tmp5 - a2);
                     tmp3 <<= 8;
-                    *(short *)0x1F800068 = tmp6 | tmp4 | tmp3;
+                    *(short *)(SCRPAD_ADDR + 0x068) = tmp6 | tmp4 | tmp3;
                 }
             }
         }
@@ -633,12 +631,12 @@ static inline void SetScratch(int offset, int value)
 
 static inline int sub_helper_80027F10(void)
 {
-    if ((*(short *)0x1F800036 > *(short *)0x1F800030) ||
-        (*(short *)0x1F80003E < *(short *)0x1F800028) ||
-        (*(short *)0x1F800034 > *(short *)0x1F80002C) ||
-        (*(short *)0x1F80003C < *(short *)0x1F800024) ||
-        (*(short *)0x1F800038 > *(short *)0x1F80002E) ||
-        (*(short *)0x1F800040 < *(short *)0x1F800026))
+    if ((*(short *)(SCRPAD_ADDR + 0x036) > *(short *)(SCRPAD_ADDR + 0x030)) ||
+        (*(short *)(SCRPAD_ADDR + 0x03E) < *(short *)(SCRPAD_ADDR + 0x028)) ||
+        (*(short *)(SCRPAD_ADDR + 0x034) > *(short *)(SCRPAD_ADDR + 0x02C)) ||
+        (*(short *)(SCRPAD_ADDR + 0x03C) < *(short *)(SCRPAD_ADDR + 0x024)) ||
+        (*(short *)(SCRPAD_ADDR + 0x038) > *(short *)(SCRPAD_ADDR + 0x02E)) ||
+        (*(short *)(SCRPAD_ADDR + 0x040) < *(short *)(SCRPAD_ADDR + 0x026)))
     {
         return 0;
     }
@@ -648,10 +646,10 @@ static inline int sub_helper_80027F10(void)
 
 static inline int sub_helper2_80027F10(void)
 {
-    if ((*(short *)0x1F80004C < *(short *)0x1F800034) ||
-        (*(short *)0x1F80003C < *(short *)0x1F80004C) ||
-        (*(short *)0x1F80004E < *(short *)0x1F800036) ||
-        (*(short *)0x1F80003E < *(short *)0x1F80004E))
+    if ((*(short *)(SCRPAD_ADDR + 0x04C) < *(short *)(SCRPAD_ADDR + 0x034)) ||
+        (*(short *)(SCRPAD_ADDR + 0x03C) < *(short *)(SCRPAD_ADDR + 0x04C)) ||
+        (*(short *)(SCRPAD_ADDR + 0x04E) < *(short *)(SCRPAD_ADDR + 0x036)) ||
+        (*(short *)(SCRPAD_ADDR + 0x03E) < *(short *)(SCRPAD_ADDR + 0x04E)))
     {
         return 0;
     }
@@ -660,7 +658,11 @@ static inline int sub_helper2_80027F10(void)
 }
 
 //todo: include proper
+#ifdef PORT_BUILD
+#define UNTAG_PTR(_type, _ptr) (_type *)((unsigned long)_ptr & ~0x80000000UL)
+#else
 #define UNTAG_PTR(_type, _ptr) (_type *)((unsigned int)_ptr & 0x7fffffff)
+#endif
 
 STATIC void TestFloor(HZD_FLR *floor)
 {
@@ -668,7 +670,7 @@ STATIC void TestFloor(HZD_FLR *floor)
     int length;
     int n, d;
 
-    *(HZD_SEG *)0x1F800034 = *(HZD_SEG *)floor;
+    *(HZD_SEG *)(SCRPAD_ADDR + 0x034) = *(HZD_SEG *)floor;
     do {} while (0);
 
     if (!sub_helper_80027F10())
@@ -676,11 +678,11 @@ STATIC void TestFloor(HZD_FLR *floor)
         return;
     }
 
-    flags = *(short *)0x1F80003A;
+    flags = *(short *)(SCRPAD_ADDR + 0x03A);
 
     if ((flags & 2) != 0)
     {
-        if (*(short *)0x1F800010 == *(short *)0x1F800018)
+        if (*(short *)(SCRPAD_ADDR + 0x010) == *(short *)(SCRPAD_ADDR + 0x018))
         {
             return;
         }
@@ -691,33 +693,33 @@ STATIC void TestFloor(HZD_FLR *floor)
     {
         if (GetScratch(0x23) == 0)
         {
-            gte_ReadRotMatrix(0x1F800090);
+            gte_ReadRotMatrix((SCRPAD_ADDR + 0x090));
             SetScratch(0x23, 1);
         }
 
         SetScratch(0x1F, floor->p1.h);
         SetScratch(0x20, floor->p3.h);
         SetScratch(0x21, floor->p2.h);
-        gte_ldlvl(0x1F80007C);
+        gte_ldlvl((SCRPAD_ADDR + 0x07C));
 
-        SubVecXYZ((HZD_VEC *)0x1F8000B0, (HZD_FLR *)0x1F800004, (HZD_VEC *)0x1F80000C);
-        SubVecXYZ((HZD_VEC *)0x1F8000B6, floor, (HZD_VEC *)0x1F80000C);
+        SubVecXYZ((HZD_VEC *)(SCRPAD_ADDR + 0x0B0), (HZD_FLR *)(SCRPAD_ADDR + 0x004), (HZD_VEC *)(SCRPAD_ADDR + 0x00C));
+        SubVecXYZ((HZD_VEC *)(SCRPAD_ADDR + 0x0B6), floor, (HZD_VEC *)(SCRPAD_ADDR + 0x00C));
 
-        gte_SetRotMatrix(0x1F8000B0);
+        gte_SetRotMatrix((SCRPAD_ADDR + 0x0B0));
         gte_rtir();
-        gte_stlvnl(0x1F80007C);
+        gte_stlvnl((SCRPAD_ADDR + 0x07C));
 
-        n = *(int *)0x1F800080;
-        d = *(int *)0x1F80007C;
+        n = *(int *)(SCRPAD_ADDR + 0x080);
+        d = *(int *)(SCRPAD_ADDR + 0x07C);
 
         if (((d < 0) && (n < 0)) || ((d > 0) && (n > 0)))
         {
-            *(int *)0x1F800074 = 0xF4240;
-            *(short *)0x1F80004C = *(short *)0x1F80000C + (*(short *)0x1F8000B0 * n) / d;
-            *(short *)0x1F800050 = *(short *)0x1F800010 + (*(short *)0x1F8000B2 * n) / d;
-            *(short *)0x1F80004E = *(short *)0x1F80000E + (*(short *)0x1F8000B4 * n) / d;
+            *(int *)(SCRPAD_ADDR + 0x074) = 0xF4240;
+            *(short *)(SCRPAD_ADDR + 0x04C) = *(short *)(SCRPAD_ADDR + 0x00C) + (*(short *)(SCRPAD_ADDR + 0x0B0) * n) / d;
+            *(short *)(SCRPAD_ADDR + 0x050) = *(short *)(SCRPAD_ADDR + 0x010) + (*(short *)(SCRPAD_ADDR + 0x0B2) * n) / d;
+            *(short *)(SCRPAD_ADDR + 0x04E) = *(short *)(SCRPAD_ADDR + 0x00E) + (*(short *)(SCRPAD_ADDR + 0x0B4) * n) / d;
 
-            length = HZD_80027BF8((SVECTOR *)0x1F80004C);
+            length = HZD_80027BF8((SVECTOR *)(SCRPAD_ADDR + 0x04C));
         }
         else
         {
@@ -725,7 +727,7 @@ STATIC void TestFloor(HZD_FLR *floor)
         }
     }
 
-    if (length >= *(int *)0x1F80005C)
+    if (length >= *(int *)(SCRPAD_ADDR + 0x05C))
     {
         return;
     }
@@ -737,10 +739,10 @@ STATIC void TestFloor(HZD_FLR *floor)
 
     if ((flags & 1) || HZD_80027D80(floor))
     {
-        *(int *)0x1F80006C += 1;
-        *(HZD_VEC *)0x1F800054 = *(HZD_VEC *)0x1F80004C;
-        *(int *)0x1F80005C = length;
-        *(HZD_FLR **)0x1F800064 = UNTAG_PTR(HZD_FLR, floor);
+        *(int *)(SCRPAD_ADDR + 0x06C) += 1;
+        *(HZD_VEC *)(SCRPAD_ADDR + 0x054) = *(HZD_VEC *)(SCRPAD_ADDR + 0x04C);
+        *(int *)(SCRPAD_ADDR + 0x05C) = length;
+        *(HZD_FLR **)(SCRPAD_ADDR + 0x064) = UNTAG_PTR(HZD_FLR, floor);
     }
 }
 
@@ -785,18 +787,18 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
 
     CopySvectorToSpad(6, from);
 
-    *((int *)0x1F800064) = (*((int *)0x1F80006C) = 0);
+    *((int *)(SCRPAD_ADDR + 0x064)) = (*((int *)(SCRPAD_ADDR + 0x06C)) = 0);
 
     CopySvectorToSpad(10, to);
-    CopySvector((SVECTOR *)0x1F800054, (SVECTOR *)0x1F800014);
+    CopySvector((SVECTOR *)(SCRPAD_ADDR + 0x054), (SVECTOR *)(SCRPAD_ADDR + 0x014));
 
-    *((int *)0x1F80008C) = 0;
+    *((int *)(SCRPAD_ADDR + 0x08C)) = 0;
 
-    ComputeBounds((SVECTOR *)0x1F80000C, (SVECTOR *)0x1F800054);
+    ComputeBounds((SVECTOR *)(SCRPAD_ADDR + 0x00C), (SVECTOR *)(SCRPAD_ADDR + 0x054));
 
-    *((int *)0x1F80005C) = ComputeDirection();
+    *((int *)(SCRPAD_ADDR + 0x05C)) = ComputeDirection();
 
-    if (!(*(int *)0x1F80005C))
+    if (!(*(int *)(SCRPAD_ADDR + 0x05C)))
     {
         return 0;
     }
@@ -823,7 +825,7 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
                 } while (0);
 
                 *((char **)(scratchpad + 0x70)) = pFlagsEnd;
-                *((int *)0x1F800060) = n_unknown;
+                *((int *)(SCRPAD_ADDR + 0x060)) = n_unknown;
 
                 for (count = pArea->n_walls; count > 0; count--, pWall++, pFlags++)
                 {
@@ -860,7 +862,7 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
             } while (0); // TODO: Is it the same macro as above in "if (flag & HZD_CHECK_SEG)" case?
 
             count = pNextMap->dynamic_queue_index;
-            *((int *)0x1F800060) = 0;
+            *((int *)(SCRPAD_ADDR + 0x060)) = 0;
 
             for (; count > 0; count--, ppWall++, pFlags++)
             {
@@ -871,9 +873,9 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
             }
         }
     }
-    ComputeBounds((SVECTOR *)0x1F80000C, (SVECTOR *)0x1F800054);
-    *((int *)0x1F80005C) = HZD_80027BF8((SVECTOR *)0x1F800054);
-    *((int *)0x1F800074) = 0xF4240;
+    ComputeBounds((SVECTOR *)(SCRPAD_ADDR + 0x00C), (SVECTOR *)(SCRPAD_ADDR + 0x054));
+    *((int *)(SCRPAD_ADDR + 0x05C)) = HZD_80027BF8((SVECTOR *)(SCRPAD_ADDR + 0x054));
+    *((int *)(SCRPAD_ADDR + 0x074)) = 0xF4240;
 
     if (flag & HZD_CHECK_FLR)
     {
@@ -906,14 +908,14 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
         }
     }
 
-    if (*(int *)0x1F80008C != 0)
+    if (*(int *)(SCRPAD_ADDR + 0x08C) != 0)
     {
-        gte_SetRotMatrix(0x1f800090);
+        gte_SetRotMatrix((SCRPAD_ADDR + 0x090));
     }
 
-    if (*(int *)0x1F800064 != 0)
+    if (*(int *)(SCRPAD_ADDR + 0x064) != 0)
     {
-        return *(int *)0x1F80006C;
+        return *(int *)(SCRPAD_ADDR + 0x06C);
     }
     return 0;
 }
@@ -1000,42 +1002,42 @@ STATIC int HZD_80028930(void)
     short *ptr1;
     short *ptr2;
 
-    SubVecXY((SVECTOR *)0x1F800038, (SVECTOR *)0x1F80002C, (SVECTOR *)0x1F800024);
-    SubVecXY((SVECTOR *)0x1F800034, (SVECTOR *)0x1F80000C, (SVECTOR *)0x1F800024);
-    SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F800034);
+    SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x038), (SVECTOR *)(SCRPAD_ADDR + 0x02C), (SVECTOR *)(SCRPAD_ADDR + 0x024));
+    SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x034), (SVECTOR *)(SCRPAD_ADDR + 0x00C), (SVECTOR *)(SCRPAD_ADDR + 0x024));
+    SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x034));
 
-    gte_NormalClip(0, *(int *)0x1F800038, *(int *)0x1F800004, 0x1F800008);
+    gte_NormalClip(0, *(int *)(SCRPAD_ADDR + 0x038), *(int *)(SCRPAD_ADDR + 0x004), (void *)(SCRPAD_ADDR + 0x008));
     opz = ReadOpz();
 
-    *(int *)0x1F80004C = 1;
-    *(int *)0x1F8000AC = 1;
+    *(int *)(SCRPAD_ADDR + 0x04C) = 1;
+    *(int *)(SCRPAD_ADDR + 0x0AC) = 1;
 
     if (opz < 0)
     {
-        *(int *)0x1F8000A8 = 0;
-        SubVecXY((SVECTOR *)0x1F80005C, (SVECTOR *)0x1F800024, (SVECTOR *)0x1F80000C);
+        *(int *)(SCRPAD_ADDR + 0x0A8) = 0;
+        SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x05C), (SVECTOR *)(SCRPAD_ADDR + 0x024), (SVECTOR *)(SCRPAD_ADDR + 0x00C));
     }
     else
     {
-        SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F800038);
+        SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x038));
 
-        gte_NormalClip(0, *(int *)0x1F800038, *(int *)0x1F800004, 0x1F800008);
+        gte_NormalClip(0, *(int *)(SCRPAD_ADDR + 0x038), *(int *)(SCRPAD_ADDR + 0x004), (void *)(SCRPAD_ADDR + 0x008));
         opz2 = ReadOpz();
 
         if (opz2 < opz)
         {
-            *(int *)0x1F8000A8 = 1;
-            SubVecXY((SVECTOR *)0x1F80005C, (SVECTOR *)0x1F80002C, (SVECTOR *)0x1F80000C);
+            *(int *)(SCRPAD_ADDR + 0x0A8) = 1;
+            SubVecXY((SVECTOR *)(SCRPAD_ADDR + 0x05C), (SVECTOR *)(SCRPAD_ADDR + 0x02C), (SVECTOR *)(SCRPAD_ADDR + 0x00C));
         }
         else
         {
-            gte_NormalClip(0, *(int *)0x1F800038, *(int *)0x1F800034, 0x1F800008);
+            gte_NormalClip(0, *(int *)(SCRPAD_ADDR + 0x038), *(int *)(SCRPAD_ADDR + 0x034), (void *)(SCRPAD_ADDR + 0x008));
             opz3 = ReadOpz();
 
             gte_ldlzc(opz2);
-            gte_stlzc(0x1F8000A4);
+            gte_stlzc((SCRPAD_ADDR + 0x0A4));
 
-            lzcnt = 16 - *(int *)0x1F8000A4;
+            lzcnt = 16 - *(int *)(SCRPAD_ADDR + 0x0A4);
 
             if (lzcnt > 0)
             {
@@ -1044,12 +1046,12 @@ STATIC int HZD_80028930(void)
                 opz2 >>= lzcnt;
             }
 
-            *(int *)0x1F8000A8 = opz;
-            *(int *)0x1F8000AC = opz2;
+            *(int *)(SCRPAD_ADDR + 0x0A8) = opz;
+            *(int *)(SCRPAD_ADDR + 0x0AC) = opz2;
 
-            num = *(short *)0x1F80003A * opz3;
+            num = *(short *)(SCRPAD_ADDR + 0x03A) * opz3;
 
-            ptr1 = (short *)0x1F80004C;
+            ptr1 = (short *)(SCRPAD_ADDR + 0x04C);
             ptr1[8] = num / opz2;
 
             if ((ptr1[8] == 0) && (num != 0))
@@ -1057,9 +1059,9 @@ STATIC int HZD_80028930(void)
                 ptr1[8] = (num > 0) ? 1 : -1;
             }
 
-            num = -*(short *)0x1F800038 * opz3;
+            num = -*(short *)(SCRPAD_ADDR + 0x038) * opz3;
 
-            ptr2 = (short*)0x1F80004C;
+            ptr2 = (short*)(SCRPAD_ADDR + 0x04C);
             ptr2[9] = num / opz2;
 
             if ((ptr2[9] == 0) && (num != 0))
@@ -1067,27 +1069,27 @@ STATIC int HZD_80028930(void)
                 ptr2[9] = (num > 0) ? 1 : -1;
             }
 
-            *(int *)0x1F80004C = 0;
-            *(int *)0x1F800060 = *(int *)0x1F800024;
-            *(int *)0x1F800064 = *(int *)0x1F80002C;
+            *(int *)(SCRPAD_ADDR + 0x04C) = 0;
+            *(int *)(SCRPAD_ADDR + 0x060) = *(int *)(SCRPAD_ADDR + 0x024);
+            *(int *)(SCRPAD_ADDR + 0x064) = *(int *)(SCRPAD_ADDR + 0x02C);
         }
     }
 
-    SwapNegateVecXY((SVECTOR *)0x1F800004, (SVECTOR *)0x1F80005C);
+    SwapNegateVecXY((SVECTOR *)(SCRPAD_ADDR + 0x004), (SVECTOR *)(SCRPAD_ADDR + 0x05C));
 
-    gte_NormalClip(0, *(int *)0x1F80005C, *(int *)0x1F800004, 0x1F800008);
-    *(int *)0x1F800050 = ReadOpz();
+    gte_NormalClip(0, *(int *)(SCRPAD_ADDR + 0x05C), *(int *)(SCRPAD_ADDR + 0x004), (void *)(SCRPAD_ADDR + 0x008));
+    *(int *)(SCRPAD_ADDR + 0x050) = ReadOpz();
 
-    return *(int *)0x1F800008;
+    return *(int *)(SCRPAD_ADDR + 0x008);
 }
 
 STATIC void HZD_80028CF8(void)
 {
-    gte_lddp((*(int *)0x1F8000A8 * 4096) / (*(int *)0x1F8000AC));
-    gte_ld_intpol_sv0((SVECTOR *)0x1F800030);
-    gte_ldopv2SV((SVECTOR *)0x1F800028);
+    gte_lddp((*(int *)(SCRPAD_ADDR + 0x0A8) * 4096) / (*(int *)(SCRPAD_ADDR + 0x0AC)));
+    gte_ld_intpol_sv0((SVECTOR *)(SCRPAD_ADDR + 0x030));
+    gte_ldopv2SV((SVECTOR *)(SCRPAD_ADDR + 0x028));
     gte_intpl();
-    gte_stsv((SVECTOR *)0x1F800028);
+    gte_stsv((SVECTOR *)(SCRPAD_ADDR + 0x028));
 
     return;
 }
@@ -1099,7 +1101,7 @@ static inline int PointTestSegment_inline(HZD_SEG *wall)
     int height;
     int y1, y2;
 
-    if ((wall->p1.x > *(short *)0x1F80001C) || (wall->p2.x < *(short *)0x1F800014))
+    if ((wall->p1.x > *(short *)(SCRPAD_ADDR + 0x01C)) || (wall->p2.x < *(short *)(SCRPAD_ADDR + 0x014)))
     {
         return 0;
     }
@@ -1114,12 +1116,12 @@ static inline int PointTestSegment_inline(HZD_SEG *wall)
         z2 = tmp;
     }
 
-    if ((z1 > *(short *)0x1F800020) || (z2 < *(short *)0x1F800018))
+    if ((z1 > *(short *)(SCRPAD_ADDR + 0x020)) || (z2 < *(short *)(SCRPAD_ADDR + 0x018)))
     {
         return 0;
     }
 
-    height = *(short *)0x1F800016;
+    height = *(short *)(SCRPAD_ADDR + 0x016);
 
     y1 = wall->p1.y;
     y2 = wall->p2.y;
@@ -1129,7 +1131,7 @@ static inline int PointTestSegment_inline(HZD_SEG *wall)
         return 0;
     }
 
-    height = *(short *)0x1F80001E;
+    height = *(short *)(SCRPAD_ADDR + 0x01E);
 
     y1 += wall->p1.h;
     y2 += wall->p2.h;
@@ -1154,9 +1156,9 @@ STATIC void PointTestSegment(HZD_SEG *wall, int index, int flags)
         return;
     }
 
-    *(HZD_SEG *)0x1F800024 = *wall;
+    *(HZD_SEG *)(SCRPAD_ADDR + 0x024) = *wall;
 
-    ptr = (int *)0x1F800084;
+    ptr = (int *)(SCRPAD_ADDR + 0x084);
     opz = HZD_80028930();
 
     if (opz >= ptr[1])
@@ -1164,21 +1166,21 @@ STATIC void PointTestSegment(HZD_SEG *wall, int index, int flags)
         return;
     }
 
-    if (index > *(int *)0x1F800044)
+    if (index > *(int *)(SCRPAD_ADDR + 0x044))
     {
         HZD_80028CF8();
 
-        height = *(short *)0x1F800010 - ((HZD_SEG *)0x1F800024)->p1.y;
+        height = *(short *)(SCRPAD_ADDR + 0x010) - ((HZD_SEG *)(SCRPAD_ADDR + 0x024))->p1.y;
 
-        if (height < 0 || height > ((HZD_SEG *)0x1F800024)->p1.h)
+        if (height < 0 || height > ((HZD_SEG *)(SCRPAD_ADDR + 0x024))->p1.h)
         {
             return;
         }
     }
 
-    ptr1 = (int *)0x1F80004C;
-    ptr2 = (int *)0x1F800068;
-    ptr3 = (int *)0x1F800000;
+    ptr1 = (int *)(SCRPAD_ADDR + 0x04C);
+    ptr2 = (int *)(SCRPAD_ADDR + 0x068);
+    ptr3 = (int *)SCRPAD_ADDR;
 
     ptr1[2] = (int)wall;
     ptr1[3] = (flags & 0x7F) | (*(int *)(ptr3 + 0x2C)) | (*(*(char **)(ptr3 + 0x2D) - index) << 8);
@@ -1188,7 +1190,7 @@ STATIC void PointTestSegment(HZD_SEG *wall, int index, int flags)
         memcpy(ptr, ptr2, 28);
         memcpy(ptr2, ptr1, 28);
     }
-    else if (*(int *)0x1F80005C != *(int *)0x1F800078)
+    else if (*(int *)(SCRPAD_ADDR + 0x05C) != *(int *)(SCRPAD_ADDR + 0x078))
     {
         memcpy(ptr, ptr1, 28);
     }
@@ -1197,7 +1199,7 @@ STATIC void PointTestSegment(HZD_SEG *wall, int index, int flags)
         return;
     }
 
-    *(int *)0x1F800048 += 1;
+    *(int *)(SCRPAD_ADDR + 0x048) += 1;
 }
 
 static inline void AddVecXY(SVECTOR *dst, SVECTOR *a, SVECTOR *b)
@@ -1208,29 +1210,29 @@ static inline void AddVecXY(SVECTOR *dst, SVECTOR *a, SVECTOR *b)
 
 static inline void sub_helper_80029098(void)
 {
-    if (*(int *)0x1F800084 == 0)
+    if (*(int *)(SCRPAD_ADDR + 0x084) == 0)
     {
         return;
     }
 
-    if (*(int *)0x1F800068 != 0)
+    if (*(int *)(SCRPAD_ADDR + 0x068) != 0)
     {
-        if (*(int *)0x1F800078 != *(int *)0x1F800094)
+        if (*(int *)(SCRPAD_ADDR + 0x078) != *(int *)(SCRPAD_ADDR + 0x094))
         {
             return;
         }
     }
     else
     {
-        AddVecXY((SVECTOR *)0x1F8000A0, (SVECTOR *)0x1F80000C, (SVECTOR *)0x1F800094);
+        AddVecXY((SVECTOR *)(SCRPAD_ADDR + 0x0A0), (SVECTOR *)(SCRPAD_ADDR + 0x00C), (SVECTOR *)(SCRPAD_ADDR + 0x094));
 
-        if (*(int *)0x1F8000A0 != *(int *)0x1F80007C && *(int *)0x1F8000A0 != *(int *)0x1F800080)
+        if (*(int *)(SCRPAD_ADDR + 0x0A0) != *(int *)(SCRPAD_ADDR + 0x07C) && *(int *)(SCRPAD_ADDR + 0x0A0) != *(int *)(SCRPAD_ADDR + 0x080))
         {
             return;
         }
     }
 
-    *(int *)0x1F800048 = 1;
+    *(int *)(SCRPAD_ADDR + 0x048) = 1;
 }
 
 int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclude)
@@ -1249,17 +1251,17 @@ int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclud
 
     pArea = hzd->group;
 
-    HZD_CopyVector(point, (SVECTOR *)0x1F80000C);
-    HZD_800288E0((SVECTOR *)0x1F80000C, range);
+    HZD_CopyVector(point, (SVECTOR *)(SCRPAD_ADDR + 0x00C));
+    HZD_800288E0((SVECTOR *)(SCRPAD_ADDR + 0x00C), range);
 
-    *(int *)0x1F800048 = 0;
+    *(int *)(SCRPAD_ADDR + 0x048) = 0;
 
     if (flag & HZD_CHECK_SEG)
     {
         n_unknown = pArea->n_flat_walls;
 
-        *(int *)0x1F800088 = range * range;
-        *(int *)0x1F80006C = range * range;
+        *(int *)(SCRPAD_ADDR + 0x088) = range * range;
+        *(int *)(SCRPAD_ADDR + 0x06C) = range * range;
 
         do {} while (0);
 
@@ -1271,7 +1273,7 @@ int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclud
         ptr[0x2C] = (char *)0;
         ptr[0x2D] = pFlags + wall_count * 2;
 
-        *(int *)0x1F800044 = n_unknown;
+        *(int *)(SCRPAD_ADDR + 0x044) = n_unknown;
 
         for (i = pArea->n_walls; i > 0; i--, pWalls++, pFlags++)
         {
@@ -1293,7 +1295,7 @@ int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclud
         ptr2[0x2C] = (char *)0x80;
         ptr2[0x2D] = pFlags + queue_size + idx;
 
-        *(int *)0x1F800044 = 0;
+        *(int *)(SCRPAD_ADDR + 0x044) = 0;
 
         for (i = hzd->dynamic_queue_index; i > 0; i--, ppWalls++, pFlags++)
         {
@@ -1304,13 +1306,13 @@ int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclud
         }
     }
 
-    if (*(int *)0x1F800048 > 1)
+    if (*(int *)(SCRPAD_ADDR + 0x048) > 1)
     {
-        *(int *)0x1F800048 = 2;
+        *(int *)(SCRPAD_ADDR + 0x048) = 2;
         sub_helper_80029098();
     }
 
-    return *(int *)0x1F800048;
+    return *(int *)(SCRPAD_ADDR + 0x048);
 }
 
 /**
