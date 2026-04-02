@@ -388,12 +388,9 @@ void HZD_GetNearHazard(HZD_SEG **segs)
 #ifdef PORT_BUILD
     segs[0] = collide_ptrs.wall_070;
     segs[1] = collide_ptrs.wall_08C;
-    /* Debug: detect garbage pointers early */
-    if (segs[0] && (uintptr_t)segs[0] < 0x1000) {
-        printf("[HZD] WARNING: wall_070=%p looks invalid\n", segs[0]);
-    }
-    if (segs[1] && (uintptr_t)segs[1] < 0x1000) {
-        printf("[HZD] WARNING: wall_08C=%p looks invalid\n", segs[1]);
+    if (segs[0] && (uintptr_t)segs[0] > 0xFFFFFFFFFFULL) {
+        printf("[HZD] BUG: wall_070=%p is garbage! wall_054=%p wall_08C=%p\n",
+               segs[0], collide_ptrs.wall_054, segs[1]);
     }
 #else
     segs[0] = *(HZD_SEG **)(SCRPAD_ADDR + 0x70);
