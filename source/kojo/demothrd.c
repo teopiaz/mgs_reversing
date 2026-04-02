@@ -40,9 +40,12 @@ int DM_ThreadStream(int flag, int unused)
 {
     LPMGSDEMOACT lpAct;
 
+    printf("[DM_ThreadStream] flag=%d\n", flag);
+
     lpAct = GV_NewActor(GV_ACTOR_MANAGER, sizeof(MGSDEMOACT));
     if (!lpAct)
     {
+        printf("[DM_ThreadStream] FAILED to create actor\n");
         return 0;
     }
 
@@ -133,6 +136,7 @@ static void ActStream(LPMGSDEMOACT lpAct)
     if (lpAct->frame == -1)
     {
         data = FS_StreamGetData(5);
+        printf("[StreamAct] frame=%d data=%p ticks=%d\n", lpAct->frame, data, ticks);
 
         if (data)
         {
@@ -206,7 +210,32 @@ static void ActStream(LPMGSDEMOACT lpAct)
             FS_StreamClear(data);
         }
 
+#ifdef PORT_BUILD
+        /* DMO_DAT in stream has PSX 36-byte layout. Convert pointers. */
+        {
+            static DMO_DAT port_dat;
+            unsigned char *raw = (unsigned char *)def;
+            port_dat.tag       = *(unsigned int *)&raw[0];
+            port_dat.frame     = *(int *)&raw[4];
+            port_dat.eye_x     = *(short *)&raw[8];
+            port_dat.eye_y     = *(short *)&raw[10];
+            port_dat.eye_z     = *(short *)&raw[12];
+            port_dat.center_x  = *(short *)&raw[14];
+            port_dat.center_y  = *(short *)&raw[16];
+            port_dat.center_z  = *(short *)&raw[18];
+            port_dat.roll      = *(short *)&raw[20];
+            port_dat.clip_dist = *(short *)&raw[22];
+            port_dat.n_charas  = *(short *)&raw[24];
+            uint32_t chara_off = *(uint32_t *)&raw[26];
+            port_dat.chara     = chara_off ? (DMO_CHA *)(raw + chara_off) : NULL;
+            port_dat.n_adjusts = *(short *)&raw[30];
+            uint32_t adj_off   = *(uint32_t *)&raw[32];
+            port_dat.adjust    = adj_off ? (DMO_ADJ *)(raw + adj_off) : NULL;
+            status = FrameRunDemo(lpAct, &port_dat);
+        }
+#else
         status = FrameRunDemo(lpAct, (DMO_DAT *)def);
+#endif
 
         if (status == 0)
         {
