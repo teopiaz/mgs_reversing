@@ -1753,14 +1753,14 @@ void s12c_800D6958(DG_OBJ *obj, int idx)
         }
 
         gte_ldrgb( code );
-        scrpd_nidx = (DG_VECTOR*)0x1F800020;
+        scrpd_nidx = (DG_VECTOR*)(SCRPAD_ADDR + 0x020);
         nidx = (DG_VECTOR*)mdl->normals; //a2
         n_normals = mdl->n_normals;
 
         scrpd_nidx[0] = nidx[0]; //maybe copyvector macro
         scrpd_nidx[1] = nidx[1];
 
-        scrpd_nidx2 = (DG_VECTOR*)0x1F800020;
+        scrpd_nidx2 = (DG_VECTOR*)(SCRPAD_ADDR + 0x020);
         while ( n_normals > 0 )
         {
 
