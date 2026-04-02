@@ -438,14 +438,15 @@ int  FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; ret
 void FS_StreamStop(void) {}
 void FS_StreamOpen(void) {}
 void FS_StreamClose(void) {}
-int  FS_StreamIsEnd(void) { return 1; }
+int  FS_StreamIsEnd(void) { return 0; /* stream never ends — cutscene controls its own exit */ }
 void *FS_StreamGetData(int target_type) { (void)target_type; return NULL; }
 int  FS_StreamGetSize(void *stream) { (void)stream; return 0; }
 void FS_StreamUngetData(void *stream) { (void)stream; }
 void FS_StreamClear(void *stream) { (void)stream; }
 void FS_StreamClearType(void *stream, int target_type) { (void)stream; (void)target_type; }
 int  FS_StreamGetEndFlag(void) { return 1; }
-int  FS_StreamIsForceStop(void) { return 1; /* port: skip FMV streams */ }
-void FS_StreamTickStart(void) {}
+int  FS_StreamIsForceStop(void) { return 0; /* allow cutscene timing to run */ }
+static int port_stream_tick = 0;
+void FS_StreamTickStart(void) { port_stream_tick = 0; }
 void FS_StreamSoundMode(void) {}
-int  FS_StreamGetTick(void) { return 0; }
+int  FS_StreamGetTick(void) { return port_stream_tick++; }
