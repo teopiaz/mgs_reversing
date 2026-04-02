@@ -6,6 +6,12 @@ static int AllocPacks( DG_OBJ *obj, int index )
     int size;
     DG_OBJ *iter;
 
+    /* Port: detect freed memory (macOS scribble pattern) */
+    if ((unsigned long)obj > 0x100 && *(unsigned char *)obj == 0xfc) {
+        printf("[opack] CRASH: obj=%p is freed memory! Called from DG_BoundObjs\n", obj);
+        return -1;
+    }
+
     size = 0;
     for ( iter = obj; iter != NULL; iter = iter->extend )
     {
