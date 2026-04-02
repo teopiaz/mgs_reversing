@@ -298,7 +298,13 @@ void port_RenderObjects(int idx)
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
-        if (!objs || !objs->def || !objs->objs) continue;
+        if (!objs) continue;
+        /* Validate object hasn't been freed — during stage transitions,
+           memory pools get wiped but queue entries remain. A freed DG_OBJS
+           has garbage in its def pointer (freed memory fill pattern). */
+        if ((uintptr_t)objs->def < 0x1000 ||
+            (uintptr_t)objs->def > 0xFFFFFFFFFFULL) continue;
+        if (!objs->objs) continue;
         if (objs->group_id && !(objs->group_id & group_id)) continue;
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
 
