@@ -18,7 +18,14 @@ int DG_HikituriFlag = 0;
 extern int DG_LoadInitPcx(unsigned char *buf, int id);
 static int port_dg_safe_loader(unsigned char *buf, int id) { (void)buf; (void)id; return 1; }
 
-void DG_ResetPipeline(void) {}
+void DG_ResetPipeline(void)
+{
+    /* Only reset channel 0 (background) object queue.
+       Channel 1 (3D) keeps its objects across stage resets. */
+    extern DG_CHANL DG_Chanls[];
+    DG_Chanls[0].objs_index = 0;
+    DG_Chanls[0].prim_index = DG_Chanls[0].queue_size;
+}
 void DG_ResetTextureCache(void) {}
 
 void DG_StartDaemon(void)
@@ -42,7 +49,7 @@ void DG_StartDaemon(void)
     GV_SetLoader('r', (void *)port_dg_safe_loader);
     GV_SetLoader('s', (void *)port_dg_safe_loader);
     GV_SetLoader('l', (void *)port_dg_safe_loader); /* LIT data is POD, raw buffer works */
-    GV_SetLoader('i', (void *)port_dg_safe_loader);
+    { extern int DG_LoadInitImg(unsigned char *, int); GV_SetLoader('i', (void *)DG_LoadInitImg); }
     GV_SetLoader('z', (void *)port_dg_safe_loader);
 }
 
@@ -73,8 +80,8 @@ int DG_LoadInitOar(unsigned char *buf, int id)
 
     unsigned char *data = buf + 16;
 
-    /* Allocate proper 64-bit DG_OAR (data stays in cache buffer) */
-    DG_OAR *oar = (DG_OAR *)GV_AllocMemory(GV_NORMAL_MEMORY, sizeof(DG_OAR));
+    /* Allocate persistent DG_OAR — NOT per-frame memory (GV_NORMAL_MEMORY is cleared every frame) */
+    DG_OAR *oar = (DG_OAR *)malloc(sizeof(DG_OAR));
     if (!oar) return 0;
 
     oar->n_joint = n_joint;
@@ -110,7 +117,36 @@ int DG_LoadInitNar(unsigned char *buf, int id)
     return 1;
 }
 
-int DG_LoadInitImg(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
+int DG_LoadInitImg(unsigned char *buf, int id)
+{
+    /* PSX DG_IMG binary layout (matches original loader.c:140):
+       On PSX, DG_IMG is {u16, u16, u16, u16, u32, u32, u32} = 20 bytes.
+       The three u32 fields are offsets from buf start (patched to pointers on PSX). */
+    DG_IMG *img = (DG_IMG *)malloc(sizeof(DG_IMG));
+    if (!img) return 0;
+
+    img->image_width  = *(unsigned short *)(buf + 0);
+    img->image_height = *(unsigned short *)(buf + 2);
+    img->tile_width   = *(unsigned short *)(buf + 4);
+    img->tile_height  = *(unsigned short *)(buf + 6);
+
+    /* Read 32-bit offsets from PSX struct positions */
+    unsigned int tex_off = *(unsigned int *)(buf + 8);
+    unsigned int att_off = *(unsigned int *)(buf + 12);
+    unsigned int til_off = *(unsigned int *)(buf + 16);
+
+    /* Original loader: ptr = (char*)img + (unsigned int)ptr — offset from struct start */
+    img->textures = (unsigned short *)((char *)buf + tex_off);
+    img->attribs  = (DG_IMG_ATTRIB *)((char *)buf + att_off);
+    img->tilemap  = (unsigned char *)((char *)buf + til_off);
+
+    printf("    [img] id=0x%X: %dx%d tile=%dx%d tex_off=%d att_off=%d til_off=%d\n",
+           id, img->image_width, img->image_height, img->tile_width, img->tile_height,
+           tex_off, att_off, til_off);
+
+    GV_SetCache(id, img);
+    return 1;
+}
 int DG_LoadInitSgt(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
 int DG_LoadInitLit(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
 int DG_LoadInitKmdar(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
@@ -234,6 +270,10 @@ void port_RenderObjects(int idx)
     memset(port_zbuf, 0xFF, sizeof(port_zbuf));
 
     DG_OBJS **queue = (DG_OBJS **)chanl->queue;
+    if (chanl->objs_index > 0 || render_debug < 3) {
+        printf("[render] chanl1: objs_index=%d\n", chanl->objs_index);
+        render_debug++;
+    }
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
@@ -250,18 +290,14 @@ void port_RenderObjects(int idx)
             DG_MDL *mdl = obj->model;
             if (!mdl->vertices || !mdl->vindices) continue;
 
-            /* Use each sub-model's own world matrix (set by DG_ScreenChanl).
-               For map objects (ONEPIECE), all obj->world are the same.
-               For animated models, each bone has a different obj->world. */
             MATRIX screen_mat;
-            MATRIX *world = &obj->world;
-
-            /* Check if the world matrix is zeroed (model not positioned) */
-            if (world->m[0][0] == 0 && world->m[1][1] == 0 && world->m[2][2] == 0) {
-                /* Fall back to parent world */
+            MATRIX *world;
+            /* Map objects use the parent world matrix (objs->world).
+               Animated models (Snake etc) use per-bone obj->world. */
+            if (obj->world.m[0][0] || obj->world.m[1][1] || obj->world.m[2][2])
+                world = &obj->world;
+            else
                 world = &objs->world;
-            }
-
             mat_mul(eye, world, &screen_mat);
 
             SVECTOR *verts = mdl->vertices;
