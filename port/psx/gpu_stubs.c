@@ -109,7 +109,28 @@ DISPENV *SetDefDispEnv(DISPENV *env, int x, int y, int w, int h)
     return port_SetDefDispEnv(env, x, y, w, h);
 }
 
-u_long *SetDrawEnv(DR_ENV *dr_env, DRAWENV *env) { (void)env; return (u_long *)dr_env; }
+u_long *SetDrawEnv(DR_ENV *dr_env, DRAWENV *env) {
+    /* Pack GPU commands into DR_ENV so the OT walker can process them.
+       The PSX GPU uses E3/E4/E5 commands for draw area and offset. */
+    int i = 0;
+    int x1 = env->clip.x, y1 = env->clip.y;
+    int x2 = x1 + env->clip.w - 1, y2 = y1 + env->clip.h - 1;
+
+    /* E3: Set Drawing Area top-left */
+    dr_env->code[i++] = 0xE3000000 | (x1 & 0x3FF) | ((y1 & 0x1FF) << 10);
+    /* E4: Set Drawing Area bottom-right */
+    dr_env->code[i++] = 0xE4000000 | (x2 & 0x3FF) | ((y2 & 0x1FF) << 10);
+    /* E5: Set Drawing Offset */
+    dr_env->code[i++] = 0xE5000000 | (env->ofs[0] & 0x7FF) | ((env->ofs[1] & 0x7FF) << 11);
+    /* E1: Draw Mode / TPage */
+    dr_env->code[i++] = 0xE1000000 | env->tpage;
+
+    /* Set the tag: length = number of words, linked list terminator */
+    setlen(dr_env, i);
+    termPrim(dr_env);
+
+    return (u_long *)dr_env;
+}
 
 void LoadImage(RECT *rect, u_long *p) { port_LoadImage(rect, p); }
 void StoreImage(RECT *rect, u_long *p) { port_StoreImage(rect, p); }

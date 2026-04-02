@@ -451,11 +451,16 @@ void port_RenderObjects(int idx)
 
 extern unsigned int *ptr_800B1400[256];
 
-/* sort.c — no-op, rendering done by port_RenderObjects */
+/* sort.c — Walk the full OT chain with draw environments.
+   DG_RenderPipeline calls this as the last pipeline step (step 6),
+   always with &DG_Chanls[1]. Walk the full ch0 env1→OT→env2 chain
+   (which includes ch1 and ch2 linked in) via DG_DrawOTag so draw
+   environments (E5 offsets for radar etc.) are properly applied. */
 void DG_SortChanl(DG_CHANL *chanl, int idx)
 {
-    if (!chanl || !chanl->ot[idx]) return;
-    DrawOTag(chanl->ot[idx]); /* still needed for menu/UI primitives */
+    (void)chanl;
+    extern void DG_DrawOTag(int which);
+    DG_DrawOTag(idx);
 }
 
 /* trans.c — no-op, rendering done by port_RenderObjects */

@@ -25,6 +25,7 @@ uint16_t port_zbuf[224][320];
 static int disp_x = 0, disp_y = 0;
 static int disp_w = 320, disp_h = 224;
 static int draw_x = 0, draw_y = 0;
+int port_ot_buffer_index = 0;  /* Set by DG_DrawOTag before OT walk */
 
 /*---------------------------------------------------------------------------*/
 /* SDL display                                                               */
@@ -380,6 +381,13 @@ void port_DrawOTag(unsigned long *ot)
     int prim_count = 0;
     int node_count = 0;
 
+    /* Reset draw offset for each OT walk. The PSX double-buffer system
+       uses offsets like (0,0) and (320,0), but our port always draws to
+       buffer 0. DR_ENV commands within the OT will set the correct offset
+       for UI elements like the radar. */
+    draw_x = 0;
+    draw_y = 0;
+
     while (p && !isendprim(p))
     {
         unsigned long *next = (unsigned long *)nextPrim(p);
@@ -493,11 +501,55 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
+            case 0x40: /* LINE_F2 — flat-colored line (used by radar) */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
+                short x1 = *(short *)(data + 8), y1 = *(short *)(data + 10);
+                uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+                /* Bresenham line */
+                int dx = abs(x1 - x0), dy = abs(y1 - y0);
+                int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+                int err = dx - dy;
+                for (int steps = 0; steps < 1024; steps++) {
+                    int vx = x0 + draw_x, vy = y0 + draw_y;
+                    if (vx >= 0 && vx < 320 && vy >= 0 && vy < 224)
+                        vram[vy][vx] = color;
+                    if (x0 == x1 && y0 == y1) break;
+                    int e2 = 2 * err;
+                    if (e2 > -dy) { err -= dy; x0 += sx; }
+                    if (e2 < dx)  { err += dx; y0 += sy; }
+                }
+                prim_count++;
+                break;
+            }
+            case 0x48: /* LINE_G2 — gouraud-colored line */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
+                /* second vertex color at data+8, coords at data+12 */
+                short x1 = *(short *)(data + 12), y1 = *(short *)(data + 14);
+                uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+                int dx = abs(x1 - x0), dy = abs(y1 - y0);
+                int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+                int err = dx - dy;
+                for (int steps = 0; steps < 1024; steps++) {
+                    int vx = x0 + draw_x, vy = y0 + draw_y;
+                    if (vx >= 0 && vx < 320 && vy >= 0 && vy < 224)
+                        vram[vy][vx] = color;
+                    if (x0 == x1 && y0 == y1) break;
+                    int e2 = 2 * err;
+                    if (e2 > -dy) { err -= dy; x0 += sx; }
+                    if (e2 < dx)  { err += dx; y0 += sy; }
+                }
+                prim_count++;
+                break;
+            }
             case 0x64: /* SPRT (textured sprite — used by font system) */
             {
                 unsigned char r = data[0], g = data[1], b = data[2];
-                short x = *(short *)(data + 4);
-                short y = *(short *)(data + 6);
+                short x = *(short *)(data + 4) + draw_x;
+                short y = *(short *)(data + 6) + draw_y;
                 unsigned char u0 = data[8];
                 unsigned char v0 = data[9];
                 uint16_t clut = *(uint16_t *)(data + 10);
@@ -531,16 +583,37 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
-            case 0xE0: /* DR_TPAGE — update current texture page state */
+            case 0xE0: /* GPU environment commands (E1-E6) */
+            case 0xE4:
             {
-                port_current_tpage = *(uint16_t *)(data + 0);
+                /* DR_ENV nodes pack multiple GPU commands (E1-E6) into one
+                   OT entry with len words. Process ALL words, not just the first. */
+                for (int wi = 0; wi < len; wi++) {
+                    uint32_t cmd = ((uint32_t *)data)[wi];
+                    uint8_t cmd_code = (cmd >> 24) & 0xFF;
+                    switch (cmd_code) {
+                    case 0xE1: /* Draw Mode / TPage */
+                        port_current_tpage = (uint16_t)(cmd & 0xFFFF);
+                        break;
+                    case 0xE5: /* Set Drawing Offset */
+                    {
+                        int ox = (cmd & 0x7FF);
+                        int oy = (cmd >> 11) & 0x7FF;
+                        if (ox & 0x400) ox |= ~0x7FF;
+                        if (oy & 0x400) oy |= ~0x7FF;
+                        /* Subtract PSX double-buffer base for this OT.
+                           Buffer 0 base=0, buffer 1 base=320. The port
+                           always displays buffer 0. */
+                        draw_x = ox - (port_ot_buffer_index * 320);
+                        draw_y = oy;
+                        break;
+                    }
+                    /* E2=tex window, E3/E4=draw area, E6=mask — ignored for now */
+                    }
+                }
                 prim_count++;
                 break;
             }
-            case 0xE4: /* DR_AREA */
-            case 0xE8: /* DR_OFFSET */
-                prim_count++;
-                break;
             default:
                 break;
             }
