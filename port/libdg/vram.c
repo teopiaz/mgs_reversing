@@ -18,7 +18,7 @@
 
 uint16_t vram[VRAM_HEIGHT][VRAM_WIDTH];
 
-/* Simple Z-buffer for the framebuffer area (320x224) */
+/* Z-buffer for the framebuffer area (320x224) */
 uint16_t port_zbuf[224][320];
 
 /* Current display environment */
@@ -242,10 +242,13 @@ extern uint16_t sample_vram_texel(uint16_t tpage, uint16_t clut, int u, int v);
 
 /* Draw a textured or flat-colored triangle */
 
+/* Per-vertex Z for perspective-correct interpolation */
+int port_tri_z[3] = {1, 1, 1};
+
 void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color)
 {
-    /* Sort vertices by y, keeping UV indices in sync */
-    int ui[3] = {0, 1, 2}; /* UV index tracking for sort */
+    /* Sort vertices by y, keeping UV/Z indices in sync */
+    int ui[3] = {0, 1, 2};
     if (y0 > y1) { int t; t=x0;x0=x1;x1=t; t=y0;y0=y1;y1=t; t=ui[0];ui[0]=ui[1];ui[1]=t; }
     if (y0 > y2) { int t; t=x0;x0=x2;x2=t; t=y0;y0=y2;y2=t; t=ui[0];ui[0]=ui[2];ui[2]=t; }
     if (y1 > y2) { int t; t=x1;x1=x2;x2=t; t=y1;y1=y2;y2=t; t=ui[1];ui[1]=ui[2];ui[2]=t; }
@@ -253,12 +256,15 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
     uint16_t z = port_current_z;
     int textured = port_tex_enabled;
 
-    /* Get sorted UVs (fixed-point 8.8) */
-    int su[3], sv[3];
+    /* Get sorted UVs and per-vertex 1/Z for perspective correction */
+    float su[3], sv[3], sw[3]; /* u/z, v/z, 1/z */
     if (textured) {
-        su[0] = port_tri_u[ui[0]]; sv[0] = port_tri_v[ui[0]];
-        su[1] = port_tri_u[ui[1]]; sv[1] = port_tri_v[ui[1]];
-        su[2] = port_tri_u[ui[2]]; sv[2] = port_tri_v[ui[2]];
+        for (int i = 0; i < 3; i++) {
+            float iz = 1.0f / (float)(port_tri_z[ui[i]] > 0 ? port_tri_z[ui[i]] : 1);
+            su[i] = (float)port_tri_u[ui[i]] * iz;
+            sv[i] = (float)port_tri_v[ui[i]] * iz;
+            sw[i] = iz;
+        }
     }
 
     int dy_total = y2 - y0;
@@ -269,61 +275,69 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
         int vy = y + draw_y;
         if (vy < 0 || vy >= 224) continue;
 
-        /* Compute scanline x endpoints */
+        /* Compute scanline x endpoints and interpolated values */
         int xa, xb;
-        int ua, va, ub, vb; /* UV at endpoints */
+        float uza, vza, wa, uzb, vzb, wb;
         int dy0 = y - y0;
+        float t_a = (float)dy0 / (float)dy_total;
 
         /* Edge a: v0 → v2 (long edge) */
         xa = x0 + (x2 - x0) * dy0 / dy_total;
         if (textured) {
-            ua = su[0] + (su[2] - su[0]) * dy0 / dy_total;
-            va = sv[0] + (sv[2] - sv[0]) * dy0 / dy_total;
+            uza = su[0] + (su[2] - su[0]) * t_a;
+            vza = sv[0] + (sv[2] - sv[0]) * t_a;
+            wa  = sw[0] + (sw[2] - sw[0]) * t_a;
         }
 
         /* Edge b: v0→v1 or v1→v2 */
         if (y < y1) {
             int dy01 = y1 - y0; if (dy01 == 0) dy01 = 1;
+            float t_b = (float)dy0 / (float)dy01;
             xb = x0 + (x1 - x0) * dy0 / dy01;
             if (textured) {
-                ub = su[0] + (su[1] - su[0]) * dy0 / dy01;
-                vb = sv[0] + (sv[1] - sv[0]) * dy0 / dy01;
+                uzb = su[0] + (su[1] - su[0]) * t_b;
+                vzb = sv[0] + (sv[1] - sv[0]) * t_b;
+                wb  = sw[0] + (sw[1] - sw[0]) * t_b;
             }
         } else {
             int dy12 = y2 - y1; if (dy12 == 0) dy12 = 1;
             int dy1 = y - y1;
+            float t_b = (float)dy1 / (float)dy12;
             xb = x1 + (x2 - x1) * dy1 / dy12;
             if (textured) {
-                ub = su[1] + (su[2] - su[1]) * dy1 / dy12;
-                vb = sv[1] + (sv[2] - sv[1]) * dy1 / dy12;
+                uzb = su[1] + (su[2] - su[1]) * t_b;
+                vzb = sv[1] + (sv[2] - sv[1]) * t_b;
+                wb  = sw[1] + (sw[2] - sw[1]) * t_b;
             }
         }
 
         /* Ensure xa <= xb */
         if (xa > xb) {
             int t; t=xa;xa=xb;xb=t;
-            if (textured) { t=ua;ua=ub;ub=t; t=va;va=vb;vb=t; }
+            if (textured) { float ft; ft=uza;uza=uzb;uzb=ft; ft=vza;vza=vzb;vzb=ft; ft=wa;wa=wb;wb=ft; }
         }
 
         int dx = xb - xa;
         if (dx == 0) dx = 1;
+        float inv_dx = 1.0f / (float)dx;
 
         for (int x = xa; x <= xb; x++)
         {
             int vx = x + draw_x;
-            if (vx >= 0 && vx < 320 && z <= port_zbuf[vy][vx])
+            if (vx >= 0 && vx < 320 && vy >= 0 && vy < 224 && z <= port_zbuf[vy][vx])
             {
                 uint16_t c;
                 if (textured) {
-                    int frac = (x - xa);
-                    int u = ua + (ub - ua) * frac / dx;
-                    int v = va + (vb - va) * frac / dx;
+                    float frac = (float)(x - xa) * inv_dx;
+                    /* Perspective-correct: interpolate u/z, v/z, 1/z then divide */
+                    float w_interp = wa + (wb - wa) * frac;
+                    if (w_interp <= 0.0f) w_interp = 0.0001f;
+                    float rw = 1.0f / w_interp;
+                    int u = (int)((uza + (uzb - uza) * frac) * rw);
+                    int v = (int)((vza + (vzb - vza) * frac) * rw);
                     c = sample_vram_texel(port_tex_tpage, port_tex_clut, u, v);
 
-                    /* PSX transparency:
-                       - texel 0x0000 = fully transparent (skip pixel)
-                       - STP bit (bit 15) + semi-trans model = alpha blend */
-                    if (c == 0) continue; /* fully transparent */
+                    if (c == 0) continue;
 
                     if (port_tex_semi_trans && (c & 0x8000)) {
                         uint16_t bg = vram[vy][vx];
@@ -331,14 +345,10 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                         int fr = c & 0x1F,  fg = (c>>5)&0x1F,   fb = (c>>10)&0x1F;
                         int rr, rg, rb;
                         switch (port_tex_abr) {
-                        case 0: /* 50% blend: B/2 + F/2 */
-                            rr=(br+fr)/2; rg=(bg2+fg)/2; rb=(bb+fb)/2; break;
-                        case 1: /* additive: B + F */
-                            rr=br+fr; rg=bg2+fg; rb=bb+fb; break;
-                        case 2: /* subtractive: B - F */
-                            rr=br-fr; rg=bg2-fg; rb=bb-fb; break;
-                        case 3: /* additive 25%: B + F/4 */
-                            rr=br+fr/4; rg=bg2+fg/4; rb=bb+fb/4; break;
+                        case 0: rr=(br+fr)/2; rg=(bg2+fg)/2; rb=(bb+fb)/2; break;
+                        case 1: rr=br+fr; rg=bg2+fg; rb=bb+fb; break;
+                        case 2: rr=br-fr; rg=bg2-fg; rb=bb-fb; break;
+                        case 3: rr=br+fr/4; rg=bg2+fg/4; rb=bb+fb/4; break;
                         default: rr=fr; rg=fg; rb=fb; break;
                         }
                         if(rr<0)rr=0; if(rr>31)rr=31;
