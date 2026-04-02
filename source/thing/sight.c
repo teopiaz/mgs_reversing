@@ -406,6 +406,13 @@ static void Act(Work *work)
     CheckMessage(work);
     work->currentMap = GM_CurrentMap;
 
+#ifdef PORT_BUILD
+    /* No primitive data loaded — skip HUD overlay rendering.
+       The actor stays alive so scope camera zoom logic works. */
+    if (!work->primitiveDoubleBuffer[0])
+        return;
+#endif
+
     primBufInfo = work->primitiveBufferInfo;
     primCount = primBufInfo->primCount;
     ancillaryInfo = primBufInfo->ancillaryInfo;
@@ -595,10 +602,23 @@ static int GetResources(Work *work, int hashedFileName, short *itemEquippedIndic
     }
 
 #ifdef PORT_BUILD
-    /* Sight data (scope/binoculars HUD) is stored in PSX binary format with
-       32-bit pointers baked into the struct. Proper loading requires a dedicated
-       binary parser like KMD/OAR loaders. Skip for now — sight is cosmetic. */
-    return -1;
+    /* Sight data is in PSX binary format with 32-bit pointers baked into the struct.
+       Skip the primitive overlay but let the actor succeed so scope/binoculars
+       camera zoom logic works. The visual HUD overlay won't render. */
+    work->primitiveDoubleBuffer[0] = NULL;
+    work->primitiveDoubleBuffer[1] = NULL;
+    work->tPageDoubleBuffer[0] = NULL;
+    work->tPageDoubleBuffer[1] = NULL;
+    work->field_54_maybeFlags = flags;
+    work->itemId = itemId;
+    work->itemEquippedIndicator = itemEquippedIndicator;
+    work->field_30 = (flags >> 1) & 1;
+    work->frameCount = 0;
+    work->field_50 = 0;
+    work->field_5A_maybeFlags = 0;
+    work->clock = -1;
+    work->xyOffsetBuffer = xyOffsetBuffer;
+    return 0;
 #else
     ancillaryInfo = info->ancillaryInfo;
     primitiveBufferSize = info->primitiveBufferSize;
