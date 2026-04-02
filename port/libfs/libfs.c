@@ -221,9 +221,9 @@ void *FS_LoadStageRequest(const char *dirname)
     int tag_num = 0;
     while (tag->mode != 0)
     {
-        printf("  [fs]   tag[%d]: id=0x%04X mode='%c' ext='%c' size=%d\n",
-               tag_num, tag->id, tag->mode,
-               (tag->ext != (char)0xff) ? tag->ext : '?', tag->size);
+        // printf("  [fs]   tag[%d]: id=0x%04X mode='%c' ext='%c' size=%d\n",
+        //        tag_num, tag->id, tag->mode,
+        //        (tag->ext != (char)0xff) ? tag->ext : '?', tag->size);
         tag++;
         tag_num++;
     }
@@ -240,6 +240,8 @@ void *FS_LoadStageRequest(const char *dirname)
         if (tag->mode == 'r')
         {
             /* DAR archive — sequence of DARFILE_TAG entries */
+            extern int FS_ResidentCacheDirty;
+            FS_ResidentCacheDirty = 1;
             int region = (tag->mode == 'r') ? GV_REGION_RESIDENT : GV_REGION_NOCACHE;
             DARFILE_TAG *dar = (DARFILE_TAG *)data_ptr;
             int remaining = tag->size;

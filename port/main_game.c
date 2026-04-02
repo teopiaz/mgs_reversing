@@ -148,10 +148,7 @@ void game_tick(void)
     /* Direct 3D renderer */
     port_RenderObjects(GV_Clock);
 
-    /* Port-specific: update free-fly camera */
-    update_camera();
-
-    /* Actor system: game logic, menu actors add 2D prims to OT */
+    /* Actor system: game logic, camera actors call DG_LookAt */
     GV_ExecActorSystem();
 
     GV_Clock = 1 - GV_Clock;
