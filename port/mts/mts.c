@@ -310,6 +310,32 @@ void port_update_pad(void)
         if (b & BTN_DOWN)  port_pad_ly = 255;
     }
 
+    /* Auto-input for headless testing: replay a scripted button sequence */
+    {
+        static int auto_frame = 0;
+        const char *auto_env = getenv("MGS_AUTO_INPUT");
+        if (auto_env && auto_env[0] == '1') {
+            auto_frame++;
+            /* Scripted sequence: down, circle, circle, circle, down, down, circle
+               Each action: press for 5 frames, wait 55 frames */
+            struct { int frame; unsigned short btn; } script[] = {
+                {  60, BTN_DOWN   },  /* select: move down */
+                { 120, BTN_CIRCLE },  /* select: confirm */
+                { 180, BTN_CIRCLE },  /* selectd: confirm */
+                { 240, BTN_CIRCLE },  /* opening: skip */
+                { 300, BTN_DOWN   },  /* select1: move down */
+                { 360, BTN_DOWN   },  /* select1: move down */
+                { 420, BTN_CIRCLE },  /* select1: confirm (s00a) */
+            };
+            int n = sizeof(script) / sizeof(script[0]);
+            for (int i = 0; i < n; i++) {
+                if (auto_frame >= script[i].frame && auto_frame < script[i].frame + 5) {
+                    b |= script[i].btn;
+                }
+            }
+        }
+    }
+
     port_pad_buttons = b;
 }
 
