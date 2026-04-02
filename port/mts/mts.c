@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include "mts.h"
 #include "mts_new.h"
 #include "mts_pad.h"
@@ -343,6 +344,65 @@ void port_update_pad(void)
     }
 
     port_pad_buttons = b;
+
+    /* Input recording/replay for crash reproduction.
+       MGS_INPUT_RECORD=<file>  — record input to file
+       MGS_INPUT_REPLAY=<file>  — replay input from file (overrides pad) */
+    {
+        static FILE *rec_file = NULL;
+        static FILE *play_file = NULL;
+        static int io_init = 0;
+        static unsigned int frame = 0;
+
+        if (!io_init) {
+            io_init = 1;
+            const char *rec_path = getenv("MGS_INPUT_RECORD");
+            const char *play_path = getenv("MGS_INPUT_REPLAY");
+            printf("[input] env: RECORD=%s REPLAY=%s\n",
+                   rec_path ? rec_path : "(null)", play_path ? play_path : "(null)");
+            if (play_path && play_path[0]) {
+                play_file = fopen(play_path, "r");
+                if (play_file) printf("[input] replaying from %s\n", play_path);
+                else printf("[input] FAILED to open replay: %s\n", play_path);
+            } else if (rec_path && rec_path[0]) {
+                rec_file = fopen(rec_path, "w");
+                if (rec_file) printf("[input] recording to %s\n", rec_path);
+                else printf("[input] FAILED to open record: %s\n", rec_path);
+            }
+        }
+
+        if (rec_file) {
+            /* Write on button state changes + first frame.
+               Use fileno+write for crash-safe unbuffered I/O. */
+            static unsigned short prev_b = 0xFFFF; /* force first write */
+            if (port_pad_buttons != prev_b) {
+                char line[32];
+                int len = snprintf(line, sizeof(line), "%u 0x%04X\n", frame, port_pad_buttons);
+                write(fileno(rec_file), line, len);
+                prev_b = port_pad_buttons;
+            }
+        }
+
+        if (play_file) {
+            static unsigned int next_frame = 0;
+            static unsigned short next_buttons = 0;
+            static int eof = 0;
+            /* Read ahead to find the next input event */
+            while (!eof && frame >= next_frame) {
+                port_pad_buttons = next_buttons;
+                unsigned int f; unsigned int btn;
+                if (fscanf(play_file, "%u 0x%X", &f, &btn) == 2) {
+                    next_frame = f;
+                    next_buttons = (unsigned short)btn;
+                } else {
+                    eof = 1;
+                    printf("[input] replay ended at frame %u\n", frame);
+                }
+            }
+        }
+
+        frame++;
+    }
 }
 
 void mts_init_controller(void) {}
