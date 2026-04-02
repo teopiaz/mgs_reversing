@@ -48,6 +48,11 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
     n_models = objs->n_models;
     obj = (DG_OBJ *)&objs->objs;
 
+    /* Port: verify the DG_OBJ memory is valid (not freed/scribbled) */
+    if (n_models > 0 && obj->model && ((unsigned long)obj->model & 0xFCFCFCFC00000000ULL)) {
+        return; /* Memory was freed — skip this object set */
+    }
+
     for (; n_models > 0; --n_models)
     {
         bound_mode = 0;
@@ -209,6 +214,12 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
     {
         DG_OBJS *current_objs = *objs;
         objs++;
+
+        /* Port: skip freed/corrupt queue entries.
+           Check for macOS freed-memory scribble (0xfcfc pattern in world matrix) */
+        if (!current_objs || current_objs->world.m[0][0] == (short)0xfcfc)
+            continue;
+
         flag = current_objs->flag;
 
         bound_mode = 0;

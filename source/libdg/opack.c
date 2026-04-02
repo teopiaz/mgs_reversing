@@ -8,12 +8,6 @@ STATIC int DG_AllocPacks( DG_OBJ *obj, int idx )
     int     total_packs = 0;
     DG_OBJ *object = obj;
 
-    /* Port: detect freed memory (macOS scribble pattern) */
-    if ((unsigned long)obj > 0x100 && *(unsigned char *)obj == 0xfc) {
-        printf("[opack] CRASH: obj=%p is freed memory! Called from DG_BoundObjs\n", obj);
-        return -1;
-    }
-
     while (object)
     {
         total_packs += object->n_packs;
