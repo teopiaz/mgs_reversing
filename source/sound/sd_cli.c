@@ -145,6 +145,7 @@ int SePlay(int sound_code)
     }
     else
     {
+        if (!se_header) return; /* SE data not loaded */
         se_tracks = se_header[sound_code - 128].tracks;
         se_tmp.character = se_header[sound_code - 128].character;
     }
