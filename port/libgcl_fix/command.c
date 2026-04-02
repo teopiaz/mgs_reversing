@@ -88,17 +88,22 @@ static unsigned char *get_proc_block(int proc_id)
 
 void GCL_ForceExecProc(int proc_id, GCL_ARGS *args)
 {
-    GCL_ExecBlock(get_proc_block(proc_id) + 3, args);
+    unsigned char *block = get_proc_block(proc_id);
+    if (!block) return;
+    GCL_ExecBlock(block + 3, args);
 }
 
 int GCL_ExecProc(int proc_id, GCL_ARGS *args)
 {
+    unsigned char *block;
     if (GM_LoadRequest || (GM_PlayerStatus & PLAYER_GAME_OVER))
     {
         printf("proc %d cancel\n", proc_id);
         return 0;
     }
-    return GCL_ExecBlock(get_proc_block(proc_id) + 3, args);
+    block = get_proc_block(proc_id);
+    if (!block) return 0;
+    return GCL_ExecBlock(block + 3, args);
 }
 
 #define GCL_MakeShort(b1, b2) ((b1) | (b2 << 8))

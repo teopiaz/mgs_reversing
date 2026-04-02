@@ -10,10 +10,18 @@ int SECTION(".sbss") dword_800AB9AC; // unused
 
 //------------------------------------------------------------------------------
 
+#ifdef PORT_BUILD
+void HZD_StartDaemon(void)
+{
+    extern int HZD_LoadInitHzd(void *, int);
+    GV_SetLoader('h', (GV_LOADFUNC)&HZD_LoadInitHzd);
+}
+#else
 void HZD_StartDaemon(void)
 {
     GV_SetLoader('h', (GV_LOADFUNC)&HZD_LoadInitHzd);
 }
+#endif
 
 STATIC void HZD_ProcessTraps(HZD_TRG *trap, int n_traps)
 {
@@ -57,6 +65,7 @@ STATIC void HZD_ProcessRoutes(HZD_PAT *routes, int n_routes, HZD_MAP *hzm)
     }
 }
 
+#ifndef PORT_BUILD
 int HZD_LoadInitHzd(void *buf, int id)
 {
     HZD_MAP *hzm;
@@ -91,6 +100,7 @@ int HZD_LoadInitHzd(void *buf, int id)
 
     return 1;
 }
+#endif /* PORT_BUILD */
 
 HZD_HDL *HZD_MakeHandler(HZD_MAP *hzd, int areaIndex, int dynamic_segments, int dynamic_floors)
 {
@@ -100,15 +110,24 @@ HZD_HDL *HZD_MakeHandler(HZD_MAP *hzd, int areaIndex, int dynamic_segments, int 
     int      i;
     HZD_TRG *trig;
 
-    if (*(int *)hzd == 0)
+    /* Port: use a static to store the route pointer instead of cramming it
+       into the first 4 bytes of HZD_MAP (which truncates on 64-bit) */
     {
-        n_zones = hzd->n_zones;
-        if (n_zones > 1)
-        {
-            zones = GV_Malloc((n_zones - 1) * (n_zones - 2) / 2 + (n_zones - 1));
-            HZD_MakeRoute(hzd, zones);
-            *(int *)hzd = (int)zones;
+        static void *cached_route = NULL;
+        static HZD_MAP *cached_hzd = NULL;
+        if (cached_hzd != hzd) {
+            cached_route = NULL;
+            cached_hzd = hzd;
         }
+        if (!cached_route) {
+            n_zones = hzd->n_zones;
+            if (n_zones > 1) {
+                zones = GV_Malloc((n_zones - 1) * (n_zones - 2) / 2 + (n_zones - 1));
+                HZD_MakeRoute(hzd, zones);
+                cached_route = zones;
+            }
+        }
+        zones = cached_route;
     }
 
     hzdMap = (HZD_HDL *)GV_Malloc((4 * dynamic_floors) + sizeof(HZD_HDL) + (4 * dynamic_segments) + (2 * dynamic_segments));
@@ -124,7 +143,7 @@ HZD_HDL *HZD_MakeHandler(HZD_MAP *hzd, int areaIndex, int dynamic_segments, int 
         hzdMap->group = &hzd->groups[areaIndex];
         hzdMap->dynamic_queue_index = 0;
         hzdMap->dynamic_floor_index = 0;
-        hzdMap->route = *(u_char **)hzd;
+        hzdMap->route = (u_char *)zones;
 
         trig = hzdMap->group->triggers;
         for (i = hzdMap->group->n_triggers; i > 0; i--)
