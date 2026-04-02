@@ -66,4 +66,8 @@ extern char port_scratchpad[1024];
    modifying source, but we CAN ensure the truncated value is at least
    usable by keeping all GCL-related memory in the lower 4GB. */
 
+/* The sound driver declares 'unsigned int random(void)' in sd_ext.h
+   which conflicts with macOS stdlib's 'long random(void)'. Rename it. */
+#define random sd_random
+
 #endif /* __PORT_OVERRIDES_H__ */

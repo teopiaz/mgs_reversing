@@ -169,26 +169,7 @@ int  CheckCallback(void) { return 0; }
 void VSyncCallback(void (*func)(void)) { (void)func; }
 long PadInit(int mode) { (void)mode; return 0; }
 
-/*---------------------------------------------------------------------------*/
-/* SPU functions                                                             */
-/*---------------------------------------------------------------------------*/
-
-void SpuInit(void) {}
-void SpuReset(void) {}
-void SpuSetVoiceAttr(SpuVoiceAttr *attr) { (void)attr; }
-u_long SpuWrite(u_char *addr, u_long size) { (void)addr; return size; }
-u_long SpuRead(u_char *addr, u_long size) { (void)addr; return size; }
-long SpuIsTransferCompleted(long flag) { (void)flag; return 1; }
-u_long SpuSetTransferMode(long mode) { (void)mode; return 0; }
-u_long SpuSetTransferStartAddr(u_long addr) { (void)addr; return 0; }
-void SpuSetKey(long on_off, u_long voice_bit) { (void)on_off; (void)voice_bit; }
-void SpuSetCommonAttr(SpuCommonAttr *attr) { (void)attr; }
-void SpuSetReverb(long on_off) { (void)on_off; }
-void SpuSetReverbModeParam(SpuReverbAttr *attr) { (void)attr; }
-void SpuGetAllKeysStatus(char *status) { memset(status, 0, 24); }
-long SpuInitMalloc(long num, char *top) { (void)num; (void)top; return 0; }
-long SpuMalloc(long size) { (void)size; return 0; }
-void SpuFree(long addr) { (void)addr; }
+/* SPU functions — implemented in port/sound/spu_emu.c */
 
 /*---------------------------------------------------------------------------*/
 /* PAD functions                                                             */
@@ -247,12 +228,15 @@ int  DecDCToutSync(int mode) { (void)mode; return 0; }
 void DecDCToutCallback(void (*func)(void)) { (void)func; }
 void DecDCTvlc(u_long *bs, u_long *buf) { (void)bs; (void)buf; }
 void DecDCTvlc2(u_long *bs, u_long *buf, int q) { (void)bs; (void)buf; (void)q; }
-void DecDCTvlcBuild(void) {}
+void DecDCTvlcBuild(u_long *addr) { (void)addr; }
 
 /*---------------------------------------------------------------------------*/
 /* Streaming functions                                                       */
 /*---------------------------------------------------------------------------*/
 
+u_long *BreakDraw(void) { return NULL; }
+void StSetRing(u_long *ring, u_long size) { (void)ring; (void)size; }
+void StUnSetRing(void) {}
 void StSetStream(u_long mode, u_long start, u_long end, void (*func)(), void (*func2)()) { (void)mode; (void)start; (void)end; (void)func; (void)func2; }
 void StSetMask(u_long mask, u_long val) { (void)mask; (void)val; }
 u_long *StFindNext(u_long *type, u_long *num) { (void)type; (void)num; return NULL; }

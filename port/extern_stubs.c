@@ -27,3 +27,7 @@ CHARA MainCharacterEntries[] = {
 };
 
 /* gamed.c is now compiled from source */
+
+/* Linker-defined symbol for end of BSS section.
+   On PSX this is provided by psylink; for the port we just point to a buffer. */
+unsigned char _bss_orgend[1];

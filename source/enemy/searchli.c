@@ -485,36 +485,16 @@ void Searchli_800D7D40(Work *work)
     }
 }
 
-// clang-format off
-// $13 replaced with $14 in gte_ld_intpol_sv0_xz
-#define gte_ld_intpol_sv0_xz( r0 ) __asm__ volatile (           \
-        "lh     $12, 0( %0 );"                                  \
-        "lh     $14, 4( %0 );"                                  \
-        "ctc2   $12, $21;"                                      \
-        "ctc2   $14, $23"                                       \
-        :                                                       \
-        : "r"( r0 )                                             \
-        : "$12", "$14" )
+// GTE interpolation replaced with C for portability.
+// Original used GTE coprocessor registers to interpolate x/z components of SVECTORs.
+// Formula: result = current + (far - current) * dp / 4096
 
-#define gte_ld_intpol_sv1_xz( r0 ) __asm__ volatile (           \
-        "lhu    $12, 0( %0 );"                                  \
-        "lhu    $13, 4( %0 );"                                  \
-        "mtc2   $12, $9;"                                       \
-        "mtc2   $13, $11"                                       \
-        :                                                       \
-        : "r"( r0 )                                             \
-        : "$12", "$13" )
-
-#define gte_stsv_xz( r0 ) __asm__ volatile (                    \
-        "mfc2 $12, $9;"                                         \
-        "mfc2 $14, $11;"                                        \
-        "sh   $12, 0( %0 );"                                    \
-        "sh   $0,  2( %0 );"                                    \
-        "sh   $14, 4( %0 )"                                     \
-        :                                                       \
-        : "r"( r0 )                                             \
-        : "$12", "$13", "$14", "memory" )
-// clang-format on
+static inline void intpol_xz(SVECTOR *dst, SVECTOR *src, SVECTOR *far, int dp)
+{
+    dst->vx = src->vx + (((int)far->vx - (int)src->vx) * dp) / 4096;
+    dst->vy = 0;
+    dst->vz = src->vz + (((int)far->vz - (int)src->vz) * dp) / 4096;
+}
 
 void Searchli_800D7DBC(SVECTOR *in, SVECTOR *out, int count)
 {
@@ -529,6 +509,7 @@ void Searchli_800D7DBC(SVECTOR *in, SVECTOR *out, int count)
     int      num;
     int      temp;
     int      one;
+    SVECTOR  far_vec;
 
     temp_t7 = count + 1;
     temp_lo = temp_t7 * temp_t7;
@@ -546,21 +527,16 @@ void Searchli_800D7DBC(SVECTOR *in, SVECTOR *out, int count)
 
     for (i = 2; i > 0; i--)
     {
-        var_a0 = var_t0 + (temp_t7 - 1);
-        gte_ld_intpol_sv0_xz(var_a0);
+        far_vec = var_t0[temp_t7 - 1];
 
         var_a0 = var_t0;
         num = total;
         for (j = count - 1; j > 0; j--)
         {
-            gte_ld_intpol_sv1_xz(var_t0);
-            gte_lddp(num);
+            intpol_xz(var_a0 + 1, var_t0, &far_vec, num);
 
             num += total;
             var_a0++;
-
-            gte_intpl_b();
-            gte_stsv_xz(var_a0);
         }
 
         var_t0 = scratch + (temp_lo - temp_t7);
@@ -569,22 +545,17 @@ void Searchli_800D7DBC(SVECTOR *in, SVECTOR *out, int count)
     var_t0 = scratch;
     for (i = temp_t7; i > 0; i--)
     {
-        var_a0 = var_t0 + (temp_lo - temp_t7);
-        gte_ld_intpol_sv0_xz(var_a0);
+        far_vec = var_t0[temp_lo - temp_t7];
 
         var_a0 = var_t0;
 
         num = total;
         for (j = count - 1; j > 0; j--)
         {
-            gte_ld_intpol_sv1_xz(var_t0);
-            gte_lddp(num);
+            intpol_xz(var_a0 + temp_t7, var_t0, &far_vec, num);
 
             num += total;
             var_a0 += temp_t7;
-
-            gte_intpl_b();
-            gte_stsv_xz(var_a0);
         }
 
         var_t0++;

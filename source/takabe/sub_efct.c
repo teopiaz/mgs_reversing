@@ -22,7 +22,8 @@ typedef struct _Work
 
 #define EXEC_LEVEL GV_ACTOR_DAEMON
 
-#define gte_pop_color(r0) __asm__ volatile ("mfc2   %0, $9;" : "=r"(r0))
+/* Original MIPS asm: mfc2 from COP2 reg $9 = IR1 */
+#define gte_pop_color(r0) do { (r0) = gte_state.IR1; } while(0)
 
 void SubEfct_800CC798(DG_MDL *model)
 {
