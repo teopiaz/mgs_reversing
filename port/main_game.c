@@ -4,6 +4,7 @@
  */
 #include <stdio.h>
 #include <math.h>
+#include <mach/mach_time.h>
 #include "libgv/libgv.h"
 #include "libfs/libfs.h"
 #include "libdg/libdg.h"
@@ -142,27 +143,56 @@ void game_tick(void)
        1. DG_ActFirst (DAEMON): swap frame, read pad
        2. Game actors: collision, movement, animation
        3. DG_ActLast (DAEMON2): render pipeline */
-    DG_SwapFrame();
-
-    /* Pad update — matches DG_ActFirst in original dgd.c */
     {
-        extern void GV_UpdatePadSystem(void);
-        extern GV_PAD *GM_CurrentPadData;
-        extern GV_PAD  GV_PadData[];
-        GV_UpdatePadSystem();
-        GM_CurrentPadData = GV_PadData;
+        static uint64_t t_swap = 0, t_actors = 0, t_dgrender = 0, t_portrender = 0, t_drawotag = 0;
+        static int perf_frames = 0;
+        static mach_timebase_info_data_t tb = {0};
+        if (tb.denom == 0) mach_timebase_info(&tb);
+
+        uint64_t ts0 = mach_absolute_time();
+        DG_SwapFrame();
+        uint64_t ts1 = mach_absolute_time();
+
+        /* Pad update — matches DG_ActFirst in original dgd.c */
+        {
+            extern void GV_UpdatePadSystem(void);
+            extern GV_PAD *GM_CurrentPadData;
+            extern GV_PAD  GV_PadData[];
+            GV_UpdatePadSystem();
+            GM_CurrentPadData = GV_PadData;
+        }
+
+        /* Actor system FIRST: game logic, collision, movement
+           (uses scratchpad for collision results) */
+        uint64_t ta0 = mach_absolute_time();
+        GV_ExecActorSystem();
+        uint64_t ta1 = mach_absolute_time();
+
+        /* Render pipeline AFTER actors: transforms, sorts, draws
+           (uses scratchpad for bounding box calculations) */
+        DG_RenderFrame();
+        uint64_t ta2 = mach_absolute_time();
+
+        /* Direct 3D renderer */
+        port_RenderObjects(GV_Clock);
+        uint64_t ta3 = mach_absolute_time();
+
+        t_swap += ts1 - ts0;
+        t_actors += ta1 - ta0;
+        t_dgrender += ta2 - ta1;
+        t_portrender += ta3 - ta2;
+        perf_frames++;
+        if (perf_frames == 60) {
+            double ns = (double)tb.numer / (double)tb.denom;
+            printf("[tick-perf] swap=%.2fms actors=%.2fms DG_Render=%.2fms port_Render=%.2fms\n",
+                   (double)t_swap * ns / 1e6 / 60.0,
+                   (double)t_actors * ns / 1e6 / 60.0,
+                   (double)t_dgrender * ns / 1e6 / 60.0,
+                   (double)t_portrender * ns / 1e6 / 60.0);
+            t_swap = t_actors = t_dgrender = t_portrender = 0;
+            perf_frames = 0;
+        }
     }
-
-    /* Actor system FIRST: game logic, collision, movement
-       (uses scratchpad for collision results) */
-    GV_ExecActorSystem();
-
-    /* Render pipeline AFTER actors: transforms, sorts, draws
-       (uses scratchpad for bounding box calculations) */
-    DG_RenderFrame();
-
-    /* Direct 3D renderer */
-    port_RenderObjects(GV_Clock);
 
     /* Debug: print pad state every second */
     if ((tick_count % 60) == 0) {

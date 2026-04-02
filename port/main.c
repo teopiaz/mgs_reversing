@@ -155,12 +155,58 @@ int main(int argc, char *argv[])
     port_open_controller();
 
     g_running = true;
-    while (g_running)
     {
-        port_poll_events();
-        port_update_pad();
-        game_tick();
-        port_render();
+        Uint64 frame_count = 0;
+        Uint64 t_poll = 0, t_pad = 0, t_tick = 0, t_render = 0;
+        Uint64 freq = SDL_GetPerformanceFrequency();
+        int perf_enabled = 0;
+
+        while (g_running)
+        {
+            Uint64 t0 = SDL_GetPerformanceCounter();
+            port_poll_events();
+            Uint64 t1 = SDL_GetPerformanceCounter();
+            port_update_pad();
+            Uint64 t2 = SDL_GetPerformanceCounter();
+            game_tick();
+            Uint64 t3 = SDL_GetPerformanceCounter();
+            port_render();
+            Uint64 t4 = SDL_GetPerformanceCounter();
+
+            /* Start profiling once a gameplay stage with 3D objects is loaded */
+            {
+                extern int port_get_objs_count(void);
+                int oc = port_get_objs_count();
+                if (!perf_enabled && oc > 5) {
+                    perf_enabled = 1;
+                    frame_count = 0;
+                    t_poll = t_pad = t_tick = t_render = 0;
+                    printf("[perf] profiling started (objs=%d)\n", oc);
+                }
+            }
+
+            if (perf_enabled)
+            {
+                t_poll += t1 - t0;
+                t_pad += t2 - t1;
+                t_tick += t3 - t2;
+                t_render += t4 - t3;
+                frame_count++;
+
+                if (frame_count % 60 == 0)
+                {
+                    double ms_poll = (double)t_poll * 1000.0 / (double)freq / 60.0;
+                    double ms_pad = (double)t_pad * 1000.0 / (double)freq / 60.0;
+                    double ms_tick = (double)t_tick * 1000.0 / (double)freq / 60.0;
+                    double ms_render = (double)t_render * 1000.0 / (double)freq / 60.0;
+                    printf("[perf] poll=%.2fms pad=%.2fms tick=%.2fms render=%.2fms total=%.2fms (%.1f fps)\n",
+                           ms_poll, ms_pad, ms_tick, ms_render,
+                           ms_poll + ms_pad + ms_tick + ms_render,
+                           1000.0 / (ms_poll + ms_pad + ms_tick + ms_render));
+                    t_poll = t_pad = t_tick = t_render = 0;
+                }
+            }
+        }
     }
 
     imgui_shutdown();

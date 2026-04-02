@@ -909,26 +909,26 @@ void SearchlightAct_800D86F0(SearchlightWork *work)
 
 int Searchlight_800D8B84(SearchlightWork *work, int name, int map)
 {
-    int opt;
+    unsigned char *opt;
 
-    opt = (int)GCL_GetOption('i');
+    opt = GCL_GetOption('i');
     work->f26E = GCL_StrToInt(opt ? (char *)opt : "0");
 
-    opt = (int)GCL_GetOption('w');
+    opt = GCL_GetOption('w');
     work->f268 = GCL_StrToInt(opt ? (char *)opt : "0");
     if (work->f268 > 4000)
     {
         work->f268 = 4000;
     }
 
-    opt = (int)GCL_GetOption('x');
+    opt = GCL_GetOption('x');
     work->f26A = GCL_StrToInt(opt ? (char *)opt : "0");
     if (work->f26A > 1024)
     {
         work->f26A = 1024;
     }
 
-    opt = (int)GCL_GetOption('h');
+    opt = GCL_GetOption('h');
     work->height = GCL_StrToInt(opt ? (char *)opt : "0");
     if (work->height > 30000)
     {

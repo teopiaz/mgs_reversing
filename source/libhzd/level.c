@@ -29,6 +29,25 @@ STATIC void HZD_CopyVector2(SVECTOR *src, HZD_VEC *dst)
     dst->z = src->vz;
 }
 
+#ifdef PORT_BUILD
+/* On 64-bit, pointer size changes struct layout vs PSX hardcoded offsets.
+   Use static side-channel for floor pointers to avoid mismatch. */
+static HZD_FLR *port_max_floor = NULL;
+static HZD_FLR *port_min_floor = NULL;
+
+typedef struct {
+    char     unused1[0x8];  // 00
+    int      side;          // 08
+    HZD_VEC  point;         // 0C
+    char     unused2[0x20]; // 14
+    HZD_VEC  f34;           // 34
+    char     pad_3a[2];     // 3A - padding (was pointer on PSX)
+    int      max_floor_stub; // 3C - 4 bytes (was HZD_FLR* on PSX)
+    int      min_floor_stub; // 40 - 4 bytes (was HZD_FLR* on PSX)
+    int      max_level;     // 44
+    int      min_level;     // 48
+} SCRPAD_DATA;
+#else
 typedef struct {
     char     unused1[0x8];  // 00
     int      side;          // 08
@@ -40,13 +59,19 @@ typedef struct {
     int      max_level;     // 44
     int      min_level;     // 48
 } SCRPAD_DATA;
+#endif
 
 #define SCRPAD ((SCRPAD_DATA *)SCRPAD_ADDR)
 
 #define SIDE      (*(int *)(SCRPAD_ADDR + 0x8))
 #define POINT     (*(HZD_VEC *)(SCRPAD_ADDR + 0xC))
+#ifdef PORT_BUILD
+#define MAX_FLOOR (port_max_floor)
+#define MIN_FLOOR (port_min_floor)
+#else
 #define MAX_FLOOR (*(HZD_FLR **)(SCRPAD_ADDR + 0x3C))
 #define MIN_FLOOR (*(HZD_FLR **)(SCRPAD_ADDR + 0x40))
+#endif
 
 STATIC int HZD_LevelCheckInPoint(HZD_FLR *floor)
 {
@@ -168,7 +193,11 @@ STATIC void HZD_LevelTest(HZD_FLR *floor)
             if (y > scrpad->max_level)
             {
                 scrpad->max_level = y;
+#ifdef PORT_BUILD
+                port_max_floor = floor;
+#else
                 scrpad->max_floor = floor;
+#endif
             }
         }
         else
@@ -176,7 +205,11 @@ STATIC void HZD_LevelTest(HZD_FLR *floor)
             if (y < scrpad->min_level)
             {
                 scrpad->min_level = y;
+#ifdef PORT_BUILD
+                port_min_floor = floor;
+#else
                 scrpad->min_floor = floor;
+#endif
             }
         }
     }
@@ -211,6 +244,10 @@ int HZD_LevelTestHazard(HZD_HDL *hdl, SVECTOR *point, int flags)
     pScr[15] = 0;
     pScr[17] = -1000000;
     pScr[18] = 1000000;
+#ifdef PORT_BUILD
+    port_max_floor = NULL;
+    port_min_floor = NULL;
+#endif
 
     if (flags & 1)
     {
@@ -249,14 +286,14 @@ int HZD_LevelTestHazard(HZD_HDL *hdl, SVECTOR *point, int flags)
 
 void HZD_LevelMinMaxFloors(HZD_FLR **floors)
 {
+#ifdef PORT_BUILD
+    floors[0] = port_max_floor;
+    floors[1] = port_min_floor;
+#else
     SCRPAD_DATA *scrpad = (SCRPAD_DATA *)SCRPAD_ADDR;
-
     floors[0] = scrpad->max_floor;
     floors[1] = scrpad->min_floor;
-
-    /* Validate pointers — scratchpad data may be stale on 64-bit */
-    if ((unsigned long)floors[0] > 0x100000000000ULL) floors[0] = NULL;
-    if ((unsigned long)floors[1] > 0x100000000000ULL) floors[1] = NULL;
+#endif
 }
 
 void HZD_LevelMinMaxHeights(int *levels)
@@ -281,8 +318,13 @@ int HZD_LevelTestFloor(HZD_FLR *floor, SVECTOR *point)
     HZD_CopyVector2(point, &POINT);
 
     scrpad = (SCRPAD_DATA *)SCRPAD_ADDR;
+#ifdef PORT_BUILD
+    port_min_floor = NULL;
+    port_max_floor = NULL;
+#else
     scrpad->min_floor = NULL;
     scrpad->max_floor = NULL;
+#endif
     scrpad->max_level = -1000000;
     scrpad->min_level = 1000000;
 
@@ -291,6 +333,13 @@ int HZD_LevelTestFloor(HZD_FLR *floor, SVECTOR *point)
         HZD_LevelTest(floor);
     }
 
+#ifdef PORT_BUILD
+    if (!port_min_floor)
+    {
+        return port_max_floor != NULL;
+    }
+    return (!port_max_floor) ? 2 : 3;
+#else
     scrpad2 = (SCRPAD_DATA *)SCRPAD_ADDR;
 
     if (!scrpad2->min_floor)
@@ -299,6 +348,7 @@ int HZD_LevelTestFloor(HZD_FLR *floor, SVECTOR *point)
     }
 
     return (!scrpad2->max_floor) ? 2 : 3;
+#endif
 }
 
 int HZD_LevelMaxHeight(void)
