@@ -192,30 +192,7 @@ void GV_ExecActorSystem(void)
                 // if the actor has an update function, call it
                 if (current->act)
                 {
-                    struct sigaction sa, old_bus, old_segv;
-                    sa.sa_handler = actor_crash_handler;
-                    sa.sa_flags = SA_NODEFER;
-                    sigemptyset(&sa.sa_mask);
-                    sigaction(SIGBUS, &sa, &old_bus);
-                    sigaction(SIGSEGV, &sa, &old_segv);
-
-                    actor_in_handler = 1;
-                    if (sigsetjmp(actor_jmp, 1) == 0)
-                    {
-                        current->act(current);
-                    }
-                    else
-                    {
-                        static int crash_count = 0;
-                        if (crash_count < 10)
-                            printf("[actor] CRASH in actor %p (act=%p name=%s), disabling\n", current, current->act, current->filename ? current->filename : "?");
-                        crash_count++;
-                        current->act = NULL;
-                    }
-                    actor_in_handler = 0;
-
-                    sigaction(SIGBUS, &old_bus, NULL);
-                    sigaction(SIGSEGV, &old_segv, NULL);
+                    current->act(current);
                 }
 
                 GM_CurrentMap = 0;

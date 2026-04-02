@@ -134,10 +134,10 @@ STATIC void blood_act_helper_80072394(SVECTOR *pVecsA, SVECTOR *pVecsB, int coun
         y = pVecsA->vy;
         z = pVecsA->vz;
 
-        applyVector(&pVecsB[0], x, y, z, +=);
-        applyVector(&pVecsB[3], x, y, z, +=);
-        applyVector(&pVecsB[1], x, y, z, +=);
-        applyVector(&pVecsB[2], x, y, z, +=);
+        pVecsB[0].vx += x; pVecsB[0].vy += y; pVecsB[0].vz += z;
+        pVecsB[3].vx += x; pVecsB[3].vy += y; pVecsB[3].vz += z;
+        pVecsB[1].vx += x; pVecsB[1].vy += y; pVecsB[1].vz += z;
+        pVecsB[2].vx += x; pVecsB[2].vy += y; pVecsB[2].vz += z;
 
         pVecsB += 4;
 

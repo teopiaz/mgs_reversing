@@ -166,7 +166,10 @@ void menu_draw_bar(MenuPrim *prim, long x, long y, long rest, long now, long max
 
     _NEW_PRIM(pPoly, prim);
 
-    setXYWH(pPoly, x, y_with_offset, (now + 7) / 8, sp2C);
+    pPoly->x0 = x;                    pPoly->y0 = y_with_offset;
+    pPoly->x1 = x + (now + 7) / 8;    pPoly->y1 = y_with_offset;
+    pPoly->x2 = x;                    pPoly->y2 = y_with_offset + sp2C;
+    pPoly->x3 = x + (now + 7) / 8;    pPoly->y3 = y_with_offset + sp2C;
 
     // Set the color of the bar as gradient fill. The color is interpolated
     // between the left and right color.

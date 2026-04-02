@@ -112,16 +112,28 @@ void radio_draw_face_frame(MenuPrim *pGlue, int x, int y, int w, int h)
     }
 
     setUVWH(polys[4], 201, 176, 1, 9);
-    setXYWH(polys[4], xn, yn - size, w, 9);
+    polys[4]->x0 = xn;           polys[4]->y0 = yn - size;
+    polys[4]->x1 = xn + w;       polys[4]->y1 = yn - size;
+    polys[4]->x2 = xn;           polys[4]->y2 = yn - size + 9;
+    polys[4]->x3 = xn + w;       polys[4]->y3 = yn - size + 9;
 
     setUVWH(polys[5], 201, 186, 1, 9);
-    setXYWH(polys[5], xn, yend, w, 9);
+    polys[5]->x0 = xn;           polys[5]->y0 = yend;
+    polys[5]->x1 = xn + w;       polys[5]->y1 = yend;
+    polys[5]->x2 = xn;           polys[5]->y2 = yend + 9;
+    polys[5]->x3 = xn + w;       polys[5]->y3 = yend + 9;
 
     setUVWH(polys[6], 192, 185, 9, 1);
-    setXYWH(polys[6], xn - size, yn, 9, h);
+    polys[6]->x0 = xn - size;    polys[6]->y0 = yn;
+    polys[6]->x1 = xn - size + 9; polys[6]->y1 = yn;
+    polys[6]->x2 = xn - size;    polys[6]->y2 = yn + h;
+    polys[6]->x3 = xn - size + 9; polys[6]->y3 = yn + h;
 
     setUVWH(polys[7], 202, 185, 9, 1);
-    setXYWH(polys[7], xend, yn, 9, h);
+    polys[7]->x0 = xend;         polys[7]->y0 = yn;
+    polys[7]->x1 = xend + 9;     polys[7]->y1 = yn;
+    polys[7]->x2 = xend;         polys[7]->y2 = yn + h;
+    polys[7]->x3 = xend + 9;     polys[7]->y3 = yn + h;
 }
 
 /**
@@ -343,7 +355,10 @@ void menu_radio_draw_face_helper5_8004896C( MenuPrim *pPrim, menu_chara_struct_s
         shade = ( pChara->field_A << 7 ) / pChara->field_C;
 
         setUVWH( pPoly, idx * 64, 80, 52, 89 );
-        setXYWH( pPoly, x, y, w, h );
+        pPoly->x0 = x;       pPoly->y0 = y;
+        pPoly->x1 = x + w;   pPoly->y1 = y;
+        pPoly->x2 = x;       pPoly->y2 = y + h;
+        pPoly->x3 = x + w;   pPoly->y3 = y + h;
         setClut( pPoly, 768, idx + 258 );
         setTPage( pPoly, 1, 1, 896, 256 );
         LSTORE( shade | ( ( shade << 16 ) | ( shade << 8 ) ), &pPoly->r0 );
@@ -359,7 +374,10 @@ void menu_radio_draw_face_helper5_8004896C( MenuPrim *pPrim, menu_chara_struct_s
     _NEW_PRIM( pPoly2, pPrim );
 
     setUVWH( pPoly2, idx * 64, 80, 52, 89 );
-    setXYWH( pPoly2, x, y, w, h );
+    pPoly2->x0 = x;       pPoly2->y0 = y;
+    pPoly2->x1 = x + w;   pPoly2->y1 = y;
+    pPoly2->x2 = x;       pPoly2->y2 = y + h;
+    pPoly2->x3 = x + w;   pPoly2->y3 = y + h;
     setClut( pPoly2, 768, idx + 256 );
     setTPage( pPoly2, 1, 1, 960, 256 );
     LSTORE( color, &pPoly2->r0 );

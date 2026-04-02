@@ -26,13 +26,12 @@ MATRIX envmap3_scale = {{{63, 0, 0}, {0, 63, 0}, {0, 0, 63}}, {0, 0, 0}};
 
 #define EXEC_LEVEL GV_ACTOR_DAEMON
 
-// clang-format off
-#define gte_read_normal(x, y, z) __asm__ volatile (             \
-        "mfc2   %0, $9;"                                        \
-        "mfc2   %1, $10;"                                       \
-        "mfc2   %2, $11"                                        \
-        : "=r"(x), "=r"(y), "=r"(z))
-// clang-format on
+/* Original MIPS asm: mfc2 from COP2 regs $9/$10/$11 = IR1/IR2/IR3 */
+#define gte_read_normal(x, y, z) do { \
+    (x) = gte_state.IR1; \
+    (y) = gte_state.IR2; \
+    (z) = gte_state.IR3; \
+} while(0)
 
 void Envmap3_800C9F14(DG_MDL *mdl)
 {

@@ -5,7 +5,11 @@
 #include "mts/mts.h"
 #include "mts/taskid.h"
 
+#ifdef __mips
 #define OFFSET_TO_PTR2(ptr, offset) ((int)(offset) = (int)(ptr) + (int)(offset))
+#else
+#define OFFSET_TO_PTR2(ptr, offset) (*(intptr_t *)&(offset) = (intptr_t)(ptr) + (intptr_t)(offset))
+#endif
 
 extern menu_0x14 stru_800BDA48[2];
 

@@ -20,6 +20,7 @@
 #define SPU_VOICE_DIRECT    (0x0001 << 13)
 #define SPU_VOICE_ADSR1     (0x0001 << 14)
 #define SPU_VOICE_ADSR2     (0x0001 << 15)
+#define SPU_VOICE_LSAX      (0x0001 << 16)
 
 /* SPU on/off */
 #define SPU_ON              1
@@ -29,6 +30,37 @@
 /* SPU transfer modes */
 #define SPU_TRANSFER_BY_DMA 0
 #define SPU_TRANSFER_BY_IO  1
+
+/* SPU transfer completion check modes */
+#define SPU_TRANSFER_PEEK   0
+#define SPU_TRANSFER_WAIT   1
+
+/* SPU voice channel bits */
+#define SPU_0CH     (1 <<  0)
+#define SPU_1CH     (1 <<  1)
+#define SPU_2CH     (1 <<  2)
+#define SPU_3CH     (1 <<  3)
+#define SPU_4CH     (1 <<  4)
+#define SPU_5CH     (1 <<  5)
+#define SPU_6CH     (1 <<  6)
+#define SPU_7CH     (1 <<  7)
+#define SPU_8CH     (1 <<  8)
+#define SPU_9CH     (1 <<  9)
+#define SPU_10CH    (1 << 10)
+#define SPU_11CH    (1 << 11)
+#define SPU_12CH    (1 << 12)
+#define SPU_13CH    (1 << 13)
+#define SPU_14CH    (1 << 14)
+#define SPU_15CH    (1 << 15)
+#define SPU_16CH    (1 << 16)
+#define SPU_17CH    (1 << 17)
+#define SPU_18CH    (1 << 18)
+#define SPU_19CH    (1 << 19)
+#define SPU_20CH    (1 << 20)
+#define SPU_21CH    (1 << 21)
+#define SPU_22CH    (1 << 22)
+#define SPU_23CH    (1 << 23)
+#define SPU_ALLCH   0x00FFFFFF
 
 /* SPU reverb modes */
 #define SPU_REV_MODE_OFF    0
@@ -59,9 +91,21 @@
 #define SPU_COMMON_CDREV    (0x0001 <<  4)
 #define SPU_COMMON_CDMIX    (0x0001 <<  5)
 
+/* SPU reverb attribute masks */
+#define SPU_REV_MODE        (0x0001 << 0)
+#define SPU_REV_DEPTHL      (0x0001 << 1)
+#define SPU_REV_DEPTHR      (0x0001 << 2)
+
 /* Key on/off flags */
 #define SPU_KEYON           0
 #define SPU_KEYOFF          1
+
+/* Key status (matches PSX SDK — SPU_ON/SPU_OFF are 1/0 for key control,
+   but key STATUS uses different values) */
+#define SPU_OFF_ENV_OFF     0  /* same as SPU_OFF */
+#define SPU_ON_ENV_OFF      SPU_ON  /* same as SPU_ON — intentional duplicate */
+#define SPU_OFF_ENV_ON      2
+#define SPU_ON_ENV_ON       3
 
 /* Voice volume */
 typedef struct {
@@ -92,16 +136,19 @@ typedef struct {
     u_short     adsr2;
 } SpuVoiceAttr;
 
+/* Extended volume with mix control */
+typedef struct {
+    SpuVolume  volume;
+    long       reverb;
+    long       mix;
+} SpuExtVolume;
+
 /* Common attributes */
 typedef struct {
-    u_long     mask;
-    SpuVolume  mvol;
-    SpuVolume  cd;
-    SpuVolume  ext;
-    long       cd_reverb;
-    long       cd_mix;
-    long       ext_reverb;
-    long       ext_mix;
+    u_long       mask;
+    SpuVolume    mvol;
+    SpuExtVolume cd;
+    SpuExtVolume ext;
 } SpuCommonAttr;
 
 /* Reverb attributes */
@@ -113,19 +160,34 @@ typedef struct {
     long       feedback;
 } SpuReverbAttr;
 
+/* IRQ callback type */
+typedef void (*SpuIRQCallbackProc)(void);
+
 /* Functions */
 void SpuInit(void);
+void SpuQuit(void);
 void SpuReset(void);
 void SpuSetVoiceAttr(SpuVoiceAttr *attr);
+void SpuGetVoiceAttr(SpuVoiceAttr *attr);
 u_long SpuWrite(u_char *addr, u_long size);
 u_long SpuRead(u_char *addr, u_long size);
 long SpuIsTransferCompleted(long flag);
 u_long SpuSetTransferMode(long mode);
 u_long SpuSetTransferStartAddr(u_long addr);
 void SpuSetKey(long on_off, u_long voice_bit);
+long SpuGetKeyStatus(u_long voice_bit);
 void SpuSetCommonAttr(SpuCommonAttr *attr);
 void SpuSetReverb(long on_off);
-void SpuSetReverbModeParam(SpuReverbAttr *attr);
+long SpuSetReverbModeParam(SpuReverbAttr *attr);
+void SpuSetReverbVoice(long on_off, u_long voice_bit);
+long SpuReserveReverbWorkArea(long on_off);
+long SpuClearReverbWorkArea(long mode);
+void SpuSetReverbDepth(SpuReverbAttr *attr);
+void SpuSetPitchLFOVoice(long on_off, u_long voice_bit);
+void SpuSetNoiseVoice(long on_off, u_long voice_bit);
+void SpuSetIRQ(long on_off);
+u_long SpuSetIRQAddr(u_long addr);
+void SpuSetIRQCallback(SpuIRQCallbackProc func);
 void SpuGetAllKeysStatus(char *status);
 long SpuInitMalloc(long num, char *top);
 long SpuMalloc(long size);

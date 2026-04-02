@@ -2,9 +2,9 @@
 #include "sd_ext.h"
 
 /* local inlines */
-inline int  vib_compute(void);
-inline void por_compute(void);
-inline void swpadset(int xfreq);
+static inline int  vib_compute(void);
+static inline void por_compute(void);
+static inline void swpadset(int xfreq);
 
 void (*cntl_tbl[128])(void) = {
     /* 0x00 */ no_cmd,
@@ -366,7 +366,7 @@ void note_compute(void)
     freq_set(sptr->swpd);
 }
 
-inline void swpadset(int xfreq)
+static inline void swpadset(int xfreq)
 {
     unsigned int flame_dat;
 
@@ -588,7 +588,7 @@ void keych(void)
     }
 }
 
-inline void por_compute(void)
+static inline void por_compute(void)
 {
     int          por_freq;
     unsigned int pfreq_h;
@@ -631,7 +631,7 @@ inline void por_compute(void)
     sptr->swpd += por_freq;
 }
 
-inline int vib_compute(void)
+static inline int vib_compute(void)
 {
     unsigned int tmp;
     int          tbl_data;
