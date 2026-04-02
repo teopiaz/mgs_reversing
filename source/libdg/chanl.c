@@ -305,7 +305,9 @@ found:
         oque[ 0 ] = oque[ 1 ];
         oque++;
     }
-    cp->objs_index = --n;
+    --n;
+    cp->queue[ n ] = NULL; /* Clear the freed slot to prevent dangling access */
+    cp->objs_index = n;
 }
 
 int DG_QueuePrim( DG_PRIM *prim )
