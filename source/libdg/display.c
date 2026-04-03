@@ -101,6 +101,12 @@ void DG_SwapFrame(void)
 {
     int activeBuffer = GV_Clock;
 
+#ifdef PORT_BUILD
+    /* Cap DG_UnDrawFrameCount — demothrd.c sets it to 0x7FFF0000 during
+       demo cleanup, and if DG_RestartMainChanlSystem isn't called it stays
+       stuck, permanently blocking OT rendering. */
+    if (DG_UnDrawFrameCount > 10) DG_UnDrawFrameCount = 1;
+#endif
     if ((GV_PauseLevel & 8) != 0 || DG_UnDrawFrameCount > 0)
     {
         if (DG_CurrentBuffer < 0)
