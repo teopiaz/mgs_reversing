@@ -265,19 +265,16 @@ void game_tick(void)
             }
         }
 
-        /* Actor system FIRST: game logic, collision, movement
-           (uses scratchpad for collision results) */
+        /* Actor system: game logic, collision, movement */
         uint64_t ta0 = mach_absolute_time();
         GV_ExecActorSystem();
         uint64_t ta1 = mach_absolute_time();
 
-        /* Direct 3D renderer FIRST — draws geometry to VRAM */
+        /* Direct 3D renderer */
         port_RenderObjects(GV_Clock);
         uint64_t ta2 = mach_absolute_time();
 
-        /* OT-based render pipeline AFTER 3D — menu/UI prims draw on top.
-           On PSX, menu prims were sorted at the front of the OT (nearest depth),
-           so they drew last and appeared on top of 3D geometry. */
+        /* OT-based render pipeline — draws previous frame's OT on top of 3D */
         DG_RenderFrame();
         uint64_t ta3 = mach_absolute_time();
 
