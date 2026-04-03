@@ -256,7 +256,24 @@ static void ActStream(LPMGSDEMOACT lpAct)
             memcpy(&port_dat.n_adjusts, &raw[32], 2);
             uint32_t adj_off;   memcpy(&adj_off,   &raw[36], 4);
             if (adj_off && port_dat.n_adjusts > 0 && port_dat.n_adjusts <= 16) {
-                memcpy(port_adjusts, raw + adj_off, sizeof(DMO_ADJ) * port_dat.n_adjusts);
+                /* PSX DMO_ADJ is 24 bytes (short* is 4), port is 32 (short* is 8).
+                   Parse each entry from stream with PSX stride. */
+                unsigned char *adj_raw = raw + adj_off;
+                int ai;
+                for (ai = 0; ai < port_dat.n_adjusts; ai++) {
+                    unsigned char *a = adj_raw + ai * 24;
+                    memcpy(&port_adjusts[ai].type,    &a[0],  4);
+                    memcpy(&port_adjusts[ai].visible, &a[4],  2);
+                    memcpy(&port_adjusts[ai].rot_x,   &a[6],  2);
+                    memcpy(&port_adjusts[ai].rot_y,   &a[8],  2);
+                    memcpy(&port_adjusts[ai].rot_z,   &a[10], 2);
+                    memcpy(&port_adjusts[ai].pos_x,   &a[12], 2);
+                    memcpy(&port_adjusts[ai].pos_y,   &a[14], 2);
+                    memcpy(&port_adjusts[ai].pos_z,   &a[16], 2);
+                    memcpy(&port_adjusts[ai].n_rots,  &a[18], 2);
+                    uint32_t rots_off; memcpy(&rots_off, &a[20], 4);
+                    port_adjusts[ai].rots = rots_off ? (short *)(a + rots_off) : NULL;
+                }
                 port_dat.adjust = port_adjusts;
             } else {
                 port_dat.adjust = NULL;
@@ -279,6 +296,9 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
     if (status == temp)
     {
+#ifdef PORT_BUILD
+        printf("[SA] DESTROY: status=%d frame=%d/%d\n", status, lpAct->frame, lpAct->header->n_frames);
+#endif
         GV_DestroyActor(&lpAct->actor);
     }
 }

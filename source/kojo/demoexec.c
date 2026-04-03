@@ -503,6 +503,13 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     ShowEffectStop(lpAct, data);
 
     adjust = data->adjust;
+#ifdef PORT_BUILD
+    if (data->n_adjusts > 0) {
+        static int _adj = 0;
+        if (_adj++ < 3)
+            printf("[DEMO] adjusts=%d ptr=%p\n", data->n_adjusts, (void*)adjust);
+    }
+#endif
     for ( i = 0; i < data->n_adjusts; i++, adjust++ )
     {
         if ( !ShowScene(lpAct, adjust) )
@@ -2152,7 +2159,9 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
     int         i;
     short      *rots;
 
+#ifndef PORT_BUILD
     OFFSET_TO_PTR(adjust, &adjust->rots);
+#endif
 
     model_file = lpAct->header->models;
     model = lpAct->models;
