@@ -221,9 +221,6 @@ void *FS_LoadStageRequest(const char *dirname)
     int tag_num = 0;
     while (tag->mode != 0)
     {
-        printf("  [fs]   tag[%d]: id=0x%04X mode='%c' ext='%c' size=%d\n",
-               tag_num, tag->id, tag->mode,
-               (tag->ext != (char)0xff) ? tag->ext : '?', tag->size);
         tag++;
         tag_num++;
     }
@@ -364,44 +361,78 @@ void *FS_LoadStageRequest(const char *dirname)
         }
         else if (tag->mode == 's')
         {
-            /* 's' mode: sound data or overlay binaries. */
+            /* 's' mode: sound data or overlay binaries.
+               PSX loads each file from sector boundaries on CD.
+               Align data_ptr to next sector boundary relative to buffer start. */
             {
-                unsigned char *dp = (unsigned char *)data_ptr;
-                int off = (int)(data_ptr - (char *)port_stage_info.buffer);
-                printf("[fs] s-tag ext='%c' id=0x%x size=%d data_off=%d data=[%02x %02x %02x %02x]\n",
-                    tag->ext, tag->id, tag->size, off, dp[0], dp[1], dp[2], dp[3]);
+                uintptr_t base = (uintptr_t)port_stage_info.buffer;
+                uintptr_t cur = (uintptr_t)data_ptr;
+                uintptr_t off = cur - base;
+                uintptr_t aligned = (off + FS_SECTOR_SIZE - 1) & ~(FS_SECTOR_SIZE - 1);
+                data_ptr = (char *)base + aligned;
             }
             if (tag->ext == 'b') {
                 int cache_id = (('b' - 'a') << 16) | tag->id;
                 GV_LoadInit(data_ptr, cache_id, GV_REGION_NOCACHE);
             }
             else if (tag->ext == 'w') {
-                /* .wvx wave data — copy to temp buffer and process through
-                   SD_WavLoadBuf state machine which transfers to SPU RAM */
-                extern char *SD_WavDataLoadInit(unsigned short id);
-                extern char *SD_WavLoadBuf(char *arg0);
-                extern void SD_WavUnload(void);
-                char *buf = SD_WavDataLoadInit(tag->id);
-                if (buf) {
-                    /* Allocate temp buffer for the full wvx file */
-                    char *tmpbuf = malloc(tag->size);
-                    if (tmpbuf) {
-                        memcpy(tmpbuf, data_ptr, tag->size);
-                        /* Feed data in CDLOAD_BUF_SIZE chunks through the state machine */
-                        int chunk = 2048 * 48;
-                        int offset = 0;
-                        while (offset < tag->size) {
-                            int n = (tag->size - offset) < chunk ? (tag->size - offset) : chunk;
-                            memcpy(buf, tmpbuf + offset, n);
-                            char *end = buf + n;
-                            char *ret = SD_WavLoadBuf(end);
-                            /* If state machine wraps the buffer, reset buf */
-                            if (ret != end) buf = ret;
-                            offset += n;
+                /* .wvx wave data — load directly to SPU RAM.
+                   Parse the wave header ourselves and upload via SpuWrite. */
+                /* WAVE_W from sd_incl.h — addr is unsigned long (8 bytes on port) */
+                typedef struct { unsigned long addr; char sample_note; char sample_tune;
+                    unsigned char a_mode, ar, dr, s_mode, sr, sl, r_mode, rr, pan, decl_vol; } WAVE_W;
+                extern WAVE_W *wave_header;
+                extern unsigned long spu_wave_start_ptr;
+                extern unsigned char wavs;
+
+                unsigned char *wp = (unsigned char *)data_ptr;
+                /* Header: [4] offset into wave_header, [4] size of header data,
+                   [8] padding, then header data, then [4] spu_offset, [4] spu_size,
+                   [8] padding, then SPU ADPCM data */
+                unsigned int hdr_off  = (wp[0]<<24)|(wp[1]<<16)|(wp[2]<<8)|wp[3];
+                unsigned int hdr_size = (wp[4]<<24)|(wp[5]<<16)|(wp[6]<<8)|wp[7];
+                unsigned char *hdr_data = wp + 16;
+
+                if (hdr_size > 0 && hdr_size < (unsigned)tag->size) {
+                    /* Parse PSX-format WAVE_W entries (16 bytes each on PSX)
+                       into port WAVE_W (sizeof may differ due to unsigned long) */
+                    {
+                        int n_entries = hdr_size / 16; /* PSX WAVE_W = 16 bytes */
+                        typedef struct { unsigned int addr; char sample_note; char sample_tune;
+                            unsigned char a_mode, ar, dr, s_mode, sr, sl, r_mode, rr, pan, decl_vol; } WAVE_W_PSX;
+                        WAVE_W_PSX *src = (WAVE_W_PSX *)hdr_data;
+                        WAVE_W *dst = (WAVE_W *)((char*)wave_header + hdr_off);
+                        for (int wi = 0; wi < n_entries; wi++) {
+                            dst[wi].addr = src[wi].addr;
+                            dst[wi].sample_note = src[wi].sample_note;
+                            dst[wi].sample_tune = src[wi].sample_tune;
+                            dst[wi].a_mode = src[wi].a_mode;
+                            dst[wi].ar = src[wi].ar;
+                            dst[wi].dr = src[wi].dr;
+                            dst[wi].s_mode = src[wi].s_mode;
+                            dst[wi].sr = src[wi].sr;
+                            dst[wi].sl = src[wi].sl;
+                            dst[wi].r_mode = src[wi].r_mode;
+                            dst[wi].rr = src[wi].rr;
+                            dst[wi].pan = src[wi].pan;
+                            dst[wi].decl_vol = src[wi].decl_vol;
                         }
-                        SD_WavUnload();
-                        free(tmpbuf);
-                        printf("  [fs]   Loaded .wvx sound data (%d bytes)\n", tag->size);
+                    }
+                    wavs = 0x4F;
+
+                    /* SPU data follows after header + padding */
+                    unsigned char *spu_hdr = hdr_data + hdr_size;
+                    unsigned int spu_off  = (spu_hdr[0]<<24)|(spu_hdr[1]<<16)|(spu_hdr[2]<<8)|spu_hdr[3];
+                    unsigned int spu_size = (spu_hdr[4]<<24)|(spu_hdr[5]<<16)|(spu_hdr[6]<<8)|spu_hdr[7];
+                    unsigned char *spu_data = spu_hdr + 16;
+
+                    if (spu_size > 0 && spu_off + spu_size <= 512*1024) {
+                        extern void SpuSetTransferStartAddr(unsigned long addr);
+                        extern unsigned long SpuWrite(unsigned char *addr, unsigned long size);
+                        SpuSetTransferStartAddr(spu_wave_start_ptr + spu_off);
+                        SpuWrite(spu_data, spu_size);
+                        printf("  [fs]   Loaded .wvx: hdr=%u bytes → wave_header+%u, spu=%u bytes → 0x%x\n",
+                               hdr_size, hdr_off, spu_size, (unsigned)(spu_wave_start_ptr + spu_off));
                     }
                 }
             }

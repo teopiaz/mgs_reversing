@@ -187,7 +187,6 @@ int sound_sub(void)
     {
         sptr->tmpd = tmpd & 0xff;
         --sptr->ngc;
-
         if (sptr->ngc)
         {
             keych();
@@ -238,8 +237,7 @@ int tx_read(void)
         mdata3 = mptr[1];
         mdata4 = mptr[0];
         mptr += 4;
-
-        if ((char)mdata1 >= 128)
+        if ((unsigned char)mdata1 >= 128)
         {
             cntl_tbl[mdata1 - 128]();
             if (mdata1 == 0xF2 || mdata1 == 0xF3 || mdata1 == 0xFF)
