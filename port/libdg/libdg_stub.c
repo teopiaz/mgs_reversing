@@ -181,8 +181,8 @@ static int project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, in
     /* Clamp to near plane instead of rejecting — avoids geometry pop-in
        when camera is close to walls. PSX handles this via DG_DivideChanl. */
     if (cz < 4) cz = 4;
-    *sx = (cx * dist) / cz;
-    *sy = (cy * dist) / cz;
+    *sx = (int)((long long)cx * dist / cz);
+    *sy = (int)((long long)cy * dist / cz);
     *sz = cz;
     return 1;
 }
@@ -354,13 +354,11 @@ void port_RenderObjects(int idx)
             }
 #endif
 
-            /* Use obj->screen if computed by DG_ScreenModels/DG_CompMatrix
-               (non-zero rotation = was computed this frame).
-               Fall back to eye_inv * world for objects where screen wasn't set. */
+            /* Always compute screen matrix from eye_inv * world.
+               Use per-model obj->world if set (DG_ApplyRots/Movs),
+               otherwise fall back to parent objs->world. */
             MATRIX screen_mat;
-            if (obj->screen.m[0][0] || obj->screen.m[1][1] || obj->screen.m[2][2]) {
-                screen_mat = obj->screen;
-            } else {
+            {
                 MATRIX *world;
                 short *m = (short *)obj->world.m;
                 int is_zero = 1;
