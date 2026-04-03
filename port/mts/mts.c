@@ -150,39 +150,11 @@ void mts_set_vsync_control_func(void (*func)(void))
     vsync_control_func = func;
 }
 
-/* Forward declarations for mini-frame during mts_wait_vbl */
-extern void port_vram_display(void);
-extern void DG_RenderFrame(void);
-extern void IntSdMain(void);
-extern void StrSpuTrans(void);
-extern void StrFadeInt(void);
-
 int mts_wait_vbl(long count)
 {
-    /* Cooperative yield: run a mini-frame for each vbl tick.
-       On PSX, mts_wait_vbl yields to the MTS scheduler which runs
-       display, sound, and input tasks. On the port, we manually
-       pump these systems to prevent deadlocks in blocking loops
-       (e.g., codec waiting for VOX playback to finish). */
-    for (long i = 0; i < count; i++)
-    {
-        tick_count++;
-
-        /* Pump SDL events (so user can still close window) */
-        SDL_PumpEvents();
-
-        /* Update sound (process SE/stream/transfer) */
-        IntSdMain();
-        StrSpuTrans();
-        StrFadeInt();
-
-        /* Render current OT and present to screen */
-        DG_RenderFrame();
-        port_vram_display();
-
-        /* Frame delay (~16ms for 60Hz) */
-        SDL_Delay(16);
-    }
+    /* Advance tick count. On PSX this yields to the scheduler.
+       On the port, just advance time so timeout loops terminate. */
+    tick_count += (unsigned int)count;
     return 0;
 }
 
