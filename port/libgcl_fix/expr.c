@@ -1,4 +1,4 @@
-extern char port_scratchpad[1024];
+extern char port_scratchpad[256 * 32 + 1024];
 #include "libgcl.h"
 #include "common.h"
 

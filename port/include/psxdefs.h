@@ -11,7 +11,7 @@ typedef long (*openevent_cb_t)();
 /* Scratchpad replacement - 1KB static buffer instead of 0x1f800000          */
 /*---------------------------------------------------------------------------*/
 
-extern char port_scratchpad[1024];
+extern char port_scratchpad[256 * 32 + 1024];
 
 #define SCRPAD_ADDR     ((unsigned long)(port_scratchpad))
 #define SCRPAD_SIZE     0x400

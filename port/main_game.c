@@ -127,8 +127,8 @@ void game_tick(void)
 
     /* Clear scratchpad each frame — collision stubs don't initialize it properly */
     {
-        extern char port_scratchpad[1024];
-        memset(port_scratchpad, 0, 1024);
+        extern char port_scratchpad[256 * 32 + 1024];
+        memset(port_scratchpad, 0, 256 * 32 + 1024);
     }
 
     /* Track draw state for rendering */
