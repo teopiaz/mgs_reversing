@@ -128,7 +128,8 @@ void gte_op_lc(void);
 /* Vector load macros                                                        */
 /*---------------------------------------------------------------------------*/
 
-#define gte_ldv0(r0)    do { const SVECTOR *_v = (const SVECTOR *)(r0); gte_state.V0 = *_v; } while(0)
+#define gte_ldv0(r0)    do { const SVECTOR *_v = (const SVECTOR *)(r0); gte_state.V0 = *_v; \
+    gte_state.IR1 = _v->vx; gte_state.IR2 = _v->vy; gte_state.IR3 = _v->vz; } while(0)
 #define gte_ldv1(r0)    do { const SVECTOR *_v = (const SVECTOR *)(r0); gte_state.V1 = *_v; } while(0)
 #define gte_ldv2(r0)    do { const SVECTOR *_v = (const SVECTOR *)(r0); gte_state.V2 = *_v; } while(0)
 
