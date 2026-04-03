@@ -310,8 +310,14 @@ void keyOn(unsigned int ch)
 
 int sd_mem_alloc(void)
 {
+#ifdef PORT_BUILD
+    /* PSX uses hardcoded address 0x801E0000; port allocates real memory */
+    static unsigned char sd_mem_buf[0x40000]; /* 256KB */
+    sng_data = sd_mem_buf;
+#else
     sng_data = (unsigned char *)0x801E0000;
-    printf("sng_data %X\n", (unsigned int)sng_data);
+#endif
+    printf("sng_data %X\n", (unsigned int)(unsigned long)sng_data);
 
     wave_header = (WAVE_W *)(sng_data + 0x4000);
     printf("wave_header %X\n", (unsigned int)sng_data + 0x4000);

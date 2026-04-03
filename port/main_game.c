@@ -12,6 +12,7 @@
 #include "libhzd/libhzd.h"
 #include "memcard/memcard.h"
 #include "sound/sd_cli.h"
+#include <libspu.h>
 #include "game/game.h"
 #include "linkvar.h"
 
@@ -49,7 +50,25 @@ void game_init(void)
     HZD_StartDaemon();
 
     printf("sound:");
-    /* sound skipped — no SPU */
+    {
+        extern void spu_emu_init(void);
+        extern void sd_init(void);
+        extern int sd_mem_alloc(void);
+        extern volatile int sd_task_status;
+        spu_emu_init();
+        sd_mem_alloc();
+        sd_init();
+        sd_task_status = 128; /* mark sound as active */
+        /* { extern int sd_print_fg; sd_print_fg = 1; } */
+        /* sd_init sets master volume to 0; set a default so we hear something */
+        {
+            SpuCommonAttr c_attr;
+            c_attr.mask = SPU_COMMON_MVOLL | SPU_COMMON_MVOLR;
+            c_attr.mvol.left = 0x3FFF;
+            c_attr.mvol.right = 0x3FFF;
+            SpuSetCommonAttr(&c_attr);
+        }
+    }
 
     printf("gm:");
 
@@ -179,6 +198,36 @@ void game_tick(void)
                Copy pad[0] to pad[2] and pad[3] so menus and codec see input. */
             GV_PadData[2] = GV_PadData[0];
             GV_PadData[3] = GV_PadData[1];
+        }
+
+        /* Sound update — process SE requests, load files, SPU transfers */
+        {
+            extern void IntSdMain(void);
+            extern void WaveSpuTrans(void);
+            extern void StrSpuTrans(void);
+            extern void StrFadeInt(void);
+            extern int LoadSeFile(void);
+            extern int LoadSngData(void);
+            extern volatile int se_load_code;
+            extern volatile int sng_status;
+
+            /* Call IntSdMain multiple times per frame.
+               On PSX, SdInt runs at SPU IRQ rate (~240Hz per tick of the
+               sequence engine). The sequence uses tmpd/tmp as a tick counter
+               where ngc counts down at ~1 per IntSdMain call. With
+               ngc values of ~255 for short notes, we need ~256 calls
+               to process one note. At 30fps that's ~8 calls per frame. */
+            for (int _si = 0; _si < 16; _si++) {
+                IntSdMain();
+            }
+            WaveSpuTrans();
+            StrSpuTrans();
+            StrFadeInt();
+            if (se_load_code) LoadSeFile();
+            if (sng_status == 1) {
+                if (LoadSngData()) sng_status = 0;
+                else sng_status = 2;
+            }
         }
 
         /* Actor system FIRST: game logic, collision, movement
