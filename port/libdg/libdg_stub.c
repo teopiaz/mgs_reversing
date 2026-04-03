@@ -236,18 +236,18 @@ static void mat_mul(MATRIX *a, MATRIX *b, MATRIX *out)
 {
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++) {
-            out->m[r][c] = (
+            out->m[r][c] = (short)((
                 (int)a->m[r][0] * b->m[0][c] +
                 (int)a->m[r][1] * b->m[1][c] +
                 (int)a->m[r][2] * b->m[2][c]
-            ) / 4096;
+            ) / 4096);
         }
     }
     for (int r = 0; r < 3; r++) {
-        out->t[r] = (
-            (int)a->m[r][0] * b->t[0] +
-            (int)a->m[r][1] * b->t[1] +
-            (int)a->m[r][2] * b->t[2]
+        out->t[r] = (int)(
+            (long long)a->m[r][0] * b->t[0] +
+            (long long)a->m[r][1] * b->t[1] +
+            (long long)a->m[r][2] * b->t[2]
         ) / 4096 + a->t[r];
     }
 }
