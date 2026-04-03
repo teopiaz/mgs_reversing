@@ -143,7 +143,20 @@ void WaveCdLoad(void)
 
 void WaveSpuTrans(void)
 {
-    /* do nothing */
+#ifdef PORT_BUILD
+    /* Port: transfer wave data from cdload_buf to SPU RAM.
+       On PSX this was handled by the DMA/IRQ system. */
+    if (dword_800BF27C == 2 && wave_load_size > 0)
+    {
+        SpuSetTransferStartAddr(spu_wave_start_ptr + spu_load_offset);
+        SpuWrite(wave_load_ptr, wave_load_size);
+        spu_load_offset += wave_load_size;
+        wave_load_ptr += wave_load_size;
+        wave_load_size = 0;
+        /* Continue loading or finish */
+        WaveCdLoad();
+    }
+#endif
 }
 
 #ifdef PORT_BUILD
@@ -449,7 +462,6 @@ int SD_80083F54(char *end)
 
     wave_unload_size -= wave_load_size;
     wave_save_code = wave_load_code;
-
     if (!SpuIsTransferCompleted(SPU_TRANSFER_PEEK))
     {
         printf("$");
