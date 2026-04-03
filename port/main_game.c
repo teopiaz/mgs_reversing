@@ -135,10 +135,15 @@ void game_tick(void)
     extern int port_ot_next;
     extern void port_RenderObjects(int idx);
 
-    /* Clear framebuffer */
+    /* Clear framebuffer — deferred clear from PutDrawEnv handles
+       background color during codec/menu mode. Only clear here if
+       no deferred clear is pending. */
     {
-        RECT fb = {0, 0, 320, 224};
-        ClearImage(&fb, 0, 0, 32);
+        extern int deferred_clear;
+        if (!deferred_clear) {
+            RECT fb = {0, 0, 320, 224};
+            ClearImage(&fb, 0, 0, 0);
+        }
     }
 
     DG_CurrentGroupID = 0xFFFFFFFF;

@@ -67,9 +67,31 @@ int  DrawOTag(u_long *ot) {
 int  DrawOTagEnv(u_long *ot, DRAWENV *env) { (void)env; port_DrawOTag(ot); return 0; }
 
 static int putdraw_calls = 0;
+/* Deferred clear: PutDrawEnv sets up the draw environment for the NEXT frame.
+   On PSX, the GPU clears the draw area when it starts drawing to it.
+   On the port, we defer the clear until the next DG_DrawOTag call. */
+int deferred_clear = 0;
+static RECT deferred_clear_rect;
+static unsigned char deferred_clear_r, deferred_clear_g, deferred_clear_b;
+
+void port_apply_deferred_clear(void) {
+    if (deferred_clear) {
+        port_ClearImage(&deferred_clear_rect, deferred_clear_r, deferred_clear_g, deferred_clear_b);
+        deferred_clear = 0;
+    }
+}
+
 DRAWENV *PutDrawEnv(DRAWENV *env) {
     if (env && env->isbg) {
-        port_ClearImage(&env->clip, env->r0, env->g0, env->b0);
+        /* Defer the clear — it will be applied at the start of the next DG_DrawOTag */
+        deferred_clear = 1;
+        deferred_clear_rect = env->clip;
+        /* Normalize double-buffer offset to buffer 0 */
+        if (deferred_clear_rect.x >= 320) deferred_clear_rect.x -= 320;
+        if (deferred_clear_rect.y >= 224) deferred_clear_rect.y -= 224;
+        deferred_clear_r = env->r0;
+        deferred_clear_g = env->g0;
+        deferred_clear_b = env->b0;
     }
     return env;
 }
