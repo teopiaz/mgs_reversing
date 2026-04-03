@@ -78,13 +78,10 @@ void port_vram_display(void)
             }
             else
             {
-                /* Show just the display region */
-                for (int y = 0; y < VRAM_HEIGHT; y++)
-                {
-                    int vy = disp_y + y;
-                    if (vy >= 0 && vy < VRAM_HEIGHT)
-                        memcpy((uint8_t *)pixels + y * pitch, &vram[vy][disp_x], VRAM_WIDTH * 2);
-                }
+                /* Show the display region — always from (0,0) since
+                   the port normalizes draw offsets to buffer 0 */
+                for (int y = 0; y < 224 && y < VRAM_HEIGHT; y++)
+                    memcpy((uint8_t *)pixels + y * pitch, &vram[y][0], 320 * 2);
             }
             SDL_UnlockTexture(sdl_texture);
         }
@@ -107,7 +104,7 @@ void port_vram_display(void)
     else
     {
         /* Fallback: no texture, just clear */
-        SDL_SetRenderDrawColor(sdl_renderer, 32, 0, 32, 255);
+        SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
         SDL_RenderClear(sdl_renderer);
     }
 
@@ -412,10 +409,13 @@ void port_DrawOTag(unsigned long *ot)
     int prim_count = 0;
     int node_count = 0;
 
-    /* Reset draw offset for each OT walk. The PSX double-buffer system
-       uses offsets like (0,0) and (320,0), but our port always draws to
-       buffer 0. DR_ENV commands within the OT will set the correct offset
-       for UI elements like the radar. */
+    /* Apply deferred clear from previous PutDrawEnv (isbg=1).
+       This clears the draw area BEFORE rendering new OT prims,
+       matching PSX GPU behavior. */
+    extern void port_apply_deferred_clear(void);
+    port_apply_deferred_clear();
+
+    /* Reset draw offset for each OT walk. */
     draw_x = 0;
     draw_y = 0;
     clip_x0 = 0; clip_y0 = 0;
@@ -461,6 +461,7 @@ void port_DrawOTag(unsigned long *ot)
                 short y = *(short *)(data + 6);
                 short w = *(short *)(data + 8);
                 short h = *(short *)(data + 10);
+                /* tile debug removed */
                 /* Skip full-screen background clears (ClearImage handles those).
                    Draw everything else (menu panels, HUD bars, etc). */
                 if (!(w >= 320 && h >= 200))
@@ -637,18 +638,24 @@ void port_DrawOTag(unsigned long *ot)
                         if (ox & 0x400) ox |= ~0x7FF;
                         if (oy & 0x400) oy |= ~0x7FF;
                         /* Subtract PSX double-buffer base for this OT.
-                           Buffer 0 base=0, buffer 1 base=320. The port
-                           always displays buffer 0. */
-                        draw_x = ox - (port_ot_buffer_index * 320);
+                           PSX uses either X-based (320,0)/(0,0) or Y-based
+                           (0,0)/(0,224) double buffering. The port always
+                           displays from (0,0), so subtract the buffer offset. */
+                        draw_x = ox;
                         draw_y = oy;
+                        /* Remove double-buffer offset */
+                        if (draw_x >= 320) draw_x -= 320;
+                        if (draw_y >= 224) draw_y -= 224;
                         break;
                     }
                     case 0xE3: /* Set Drawing Area Top-Left */
                     {
                         int ax = (cmd & 0x3FF);
                         int ay = (cmd >> 10) & 0x1FF;
-                        /* Subtract double-buffer base like E5 */
-                        clip_x0 = ax - (port_ot_buffer_index * 320);
+                        /* Remove double-buffer offset */
+                        if (ax >= 320) ax -= 320;
+                        if (ay >= 224) ay -= 224;
+                        clip_x0 = ax;
                         clip_y0 = ay;
                         if (clip_x0 < 0) clip_x0 = 0;
                         if (clip_y0 < 0) clip_y0 = 0;
@@ -658,7 +665,9 @@ void port_DrawOTag(unsigned long *ot)
                     {
                         int ax = (cmd & 0x3FF);
                         int ay = (cmd >> 10) & 0x1FF;
-                        clip_x1 = ax - (port_ot_buffer_index * 320);
+                        if (ax >= 320) ax -= 320;
+                        if (ay >= 224) ay -= 224;
+                        clip_x1 = ax;
                         clip_y1 = ay;
                         if (clip_x1 > 319) clip_x1 = 319;
                         if (clip_y1 > 223) clip_y1 = 223;
@@ -677,9 +686,6 @@ void port_DrawOTag(unsigned long *ot)
 
         p = next;
         if (prim_count > 10000) break; /* safety limit */
-    }
-    if (drawot_debug < 3 && node_count > 0) {
-        printf("[ot] walked %d nodes, %d prims rendered\n", node_count, prim_count);
     }
     drawot_debug++;
 }
