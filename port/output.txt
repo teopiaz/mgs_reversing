@@ -1,17 +1,17 @@
 port: SDL initialized
 port: game_init starting
 port: WARNING: could not map scratchpad at 0x1f800000 (0xffffffffffffffff)
-port: memory pools allocated (normal=0x686800000, pkt0=0x686a00000, pkt1=0x686a80000)
+port: memory pools allocated (normal=0x54e800000, pkt0=0x54ea00000, pkt1=0x54ea80000)
 mem:mem:pad:gv:fs:fs: STAGE.DIR RADIO.DAT FACE.DAT ZMOVIE.STR VOX.DAT DEMO.DAT BRF.DAT
   [fs] 95 stages in STAGE.DIR: brf abst d00a d01a d03a d11c d16e d18a init rank ...
   [fs] FS_StartDaemon complete
-dg:dg:[DG_DrawOTag] which=0 ch2_ot[0]=0x100b255f4 val=0x127
+dg:dg:[DG_DrawOTag] which=0 ch2_ot[0]=0x10328d5f4 val=0x127
 [ot] chain length: 297 nodes
 [ot] walked 297 nodes, 5 prims rendered
-[DG_DrawOTag] which=1 ch2_ot[1]=0x100b255fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x10328d5fc val=0x250
 [ot] chain length: 297 nodes
 [ot] walked 297 nodes, 5 prims rendered
-gcl:hzd:sound:gm:RESIDENT TOP 86A00000
+gcl:hzd:sound:gm:RESIDENT TOP 4EA00000
 LoadReq
   [fs] Loading stage 'init' at sector 2761...
   [fs]   DATACNF: version=1, size=283 sectors (579584 bytes)
@@ -24,14 +24,14 @@ start
 port: entering main loop
 [input] env: RECORD=(null) REPLAY=(null)
 [gpu] PutDispEnv #1: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x100b255fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x10328d5fc val=0x250
 [ot] chain length: 297 nodes
 [ot] walked 297 nodes, 5 prims rendered
-[DG_DrawOTag] which=1 ch2_ot[1]=0x100b255fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x10328d5fc val=0x250
 [ot] chain length: 297 nodes
 [tick 0] pad=0x0 gs=0x0 hp=0/0 item=-1 snake=(0,0,0)
 [gpu] PutDispEnv #2: disp=(0,0,320,224)
-[DG_DrawOTag] which=0 ch2_ot[0]=0x100b255f4 val=0x127
+[DG_DrawOTag] which=0 ch2_ot[0]=0x10328d5f4 val=0x127
 [ot] chain length: 297 nodes
 [ot] chain length: 297 nodes
 [gpu] PutDispEnv #3: disp=(0,0,320,224)
@@ -40,58 +40,54 @@ LoadEnd
 [ot] chain length: 297 nodes
 [gpu] PutDispEnv #4: disp=(0,0,320,224)
 [ot] chain length: 297 nodes
-[res] alloc 672 bytes → 0x6869ffd60 (bottom=0x6869ffd60, area=0x686a00000)
-[res] alloc 1536 bytes → 0x6869ff760 (bottom=0x6869ff760, area=0x686a00000)
+[res] alloc 672 bytes → 0x54e9ffd60 (bottom=0x54e9ffd60, area=0x54ea00000)
+[res] alloc 1536 bytes → 0x54e9ff760 (bottom=0x54e9ff760, area=0x54ea00000)
 exec scenario
 [menu_number_init] called
 jimaku_font_buffer_size 4896
-[res] alloc 4896 bytes → 0x6869fe440 (bottom=0x6869fe440, area=0x686a00000)
+[res] alloc 4896 bytes → 0x54e9fe440 (bottom=0x54e9fe440, area=0x54ea00000)
 MENU INIT END
 end scenario
 [ot] chain length: 297 nodes
 [gpu] PutDispEnv #5: disp=(0,0,320,224)
 GM_StreamPlayStop
-RESIDENT TOP 869FE440
+RESIDENT TOP 4E9FE440
 LoadReq
   [fs] Loading stage 'select' at sector 35595...
   [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
   [fs]   Loaded 14336 bytes, 6 tags
-[bin] Stage overlay 0x8D5C → 0x10073f400
+[bin] Stage overlay 0x8D5C → 0x102ea7400
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x5947 func=0x1006544c4 binds=0x0
+[gcl] chara: name=0x5947 func=0x102dbc814 binds=0x0
 end scenario
-[menu-text] SPRT at (0,120) u=114 v=493 ot=0x100b255f4
-[menu-text] SPRT at (7,120) u=48 v=493 ot=0x100b255f4
-[menu-text] SPRT at (10,120) u=114 v=493 ot=0x100b255f4
-[menu-text] SPRT at (16,120) u=66 v=493 ot=0x100b255f4
-[menu-text] SPRT at (22,120) u=24 v=493 ot=0x100b255f4
-[tick-perf] swap=0.01ms actors=0.01ms DG_Render=0.00ms port_Render=0.01ms
-[tick 60] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
+[menu-text] SPRT at (0,120) u=114 v=493 ot=0x10328d5f4
+[menu-text] SPRT at (7,120) u=48 v=493 ot=0x10328d5f4
+[menu-text] SPRT at (10,120) u=114 v=493 ot=0x10328d5f4
+[menu-text] SPRT at (16,120) u=66 v=493 ot=0x10328d5f4
+[menu-text] SPRT at (22,120) u=24 v=493 ot=0x10328d5f4
 GM_StreamPlayStop
-RESIDENT TOP 869FE440
+RESIDENT TOP 4E9FE440
 LoadReq
   [fs] Loading stage 'select1' at sector 36297...
   [fs]   DATACNF: version=1, size=4 sectors (8192 bytes)
   [fs]   Loaded 8192 bytes, 6 tags
-[bin] Stage overlay 0xABC2 → 0x10073f430
+[bin] Stage overlay 0xABC2 → 0x102ea7430
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x291C func=0x1006544c4 binds=0x0
+[gcl] chara: name=0x291C func=0x102dbc814 binds=0x0
 end scenario
-[tick-perf] swap=0.02ms actors=0.01ms DG_Render=0.00ms port_Render=0.01ms
-[tick 120] pad=0x4000 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
-[tick-perf] swap=0.02ms actors=0.00ms DG_Render=0.00ms port_Render=0.01ms
-[tick 180] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
+[tick-perf] swap=0.01ms actors=0.01ms DG_Render=0.00ms port_Render=0.01ms
+[tick 60] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
 GM_StreamPlayStop
-RESIDENT TOP 869FE440
+RESIDENT TOP 4E9FE440
 LoadReq
   [fs] Loading stage 's01a' at sector 3965...
   [fs]   DATACNF: version=1, size=545 sectors (1116160 bytes)
   [fs]   Loaded 1116160 bytes, 34 tags
-[bin] Stage overlay 0x46BB → 0x100739360
+[bin] Stage overlay 0x46BB → 0x102ea1360
   [fs]   Nocache texture data: 248884 bytes
   [fs]   Processed 51 nocache entries
   [fs]   Nocache texture data: 247780 bytes
@@ -105,37 +101,37 @@ exec scenario
 [map]   hazard loaded: name=0xC681 area=0
 [map]   lit loaded: name=0xC681
   [map] LoadMapModel: name=0xC681
-[dg] QueueObjs: chanl=1 objs_index=1 def=0xc2c78c000 n_models=122
+[dg] QueueObjs: chanl=1 objs_index=1 def=0x88441c000 n_models=122
   [map]   model loaded OK
-[gcl] chara: name=0x23EF func=0x10061dcc0 binds=0x1
+[gcl] chara: name=0x23EF func=0x102d86010 binds=0x1
  COM_NOISEMODE_DIS =8000 
 eee 4000 5000 4000 t 3 
-[gcl] chara: name=0x1465 func=0x100635f34 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=2 def=0xc2c5ca800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=3 def=0xc2dd4bc00 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=4 def=0xc2dd4ac60 n_models=1
+[gcl] chara: name=0x1465 func=0x102d9e284 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=2 def=0x884cdd000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=3 def=0x884915d60 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=4 def=0x8849164e0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0x1466 func=0x100635f34 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=5 def=0xc2c5ca800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=6 def=0xc2dd4bc00 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=7 def=0xc2dd4ac60 n_models=1
+[gcl] chara: name=0x1466 func=0x102d9e284 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=5 def=0x884cdd000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=6 def=0x884915d60 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=7 def=0x8849164e0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0x1467 func=0x100635f34 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=8 def=0xc2c5ca800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=9 def=0xc2dd4bc00 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=10 def=0xc2dd4ac60 n_models=1
+[gcl] chara: name=0x1467 func=0x102d9e284 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=8 def=0x884cdd000 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=9 def=0x884915d60 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=10 def=0x8849164e0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0xDD6D func=0x10061a26c binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=11 def=0xc2df005a0 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=12 def=0xc2df006e0 n_models=1
-[gcl] chara: name=0xDD6E func=0x10061a26c binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=13 def=0xc2df005a0 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=14 def=0xc2df006e0 n_models=1
-[gcl] chara: name=0x5DF7 func=0x10062db44 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=15 def=0x68692adc0 n_models=1
-[gcl] chara: name=0x5DF7 func=0x10062db44 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=16 def=0x68692bb00 n_models=1
-[gcl] chara: name=0x62FE func=0x1006d8334 binds=0x1
+[gcl] chara: name=0xDD6D func=0x102d825bc binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=11 def=0x884b61cc0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=12 def=0x884b61e00 n_models=1
+[gcl] chara: name=0xDD6E func=0x102d825bc binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=13 def=0x884b61cc0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=14 def=0x884b61e00 n_models=1
+[gcl] chara: name=0x5DF7 func=0x102d95e94 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=15 def=0x54e92adc0 n_models=1
+[gcl] chara: name=0x5DF7 func=0x102d95e94 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=16 def=0x54e92bb00 n_models=1
+[gcl] chara: name=0x62FE func=0x102e40684 binds=0x1
 BIND 00000001
 BIND 00000001
 BIND 00000001
@@ -159,64 +155,64 @@ BIND 00000001
 BIND 00000001
 BIND 00000001
 BIND 00000001
-[gcl] chara: name=0x4692 func=0x1006f9550 binds=0x1
-[gcl] chara: name=0xBB75 func=0x10062e598 binds=0x1
-[gcl] chara: name=0xBB75 func=0x10062e598 binds=0x1
-[gcl] chara: name=0xBB75 func=0x10062e598 binds=0x1
-[gcl] chara: name=0xF810 func=0x1006fa8d0 binds=0x1
-[gcl] chara: name=0xCA70 func=0x1006345d4 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=17 def=0xc2df00640 n_models=1
-[gcl] chara: name=0xB455 func=0x1006da1e8 binds=0x1
-[gcl] chara: name=0xAB10 func=0x100616074 binds=0x1
-[gcl] chara: name=0x9477 func=0x1006d715c binds=0x1
-[gcl] chara: name=0xEEBA func=0x10064a700 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=18 def=0xc2df00780 n_models=1
+[gcl] chara: name=0x4692 func=0x102e618a0 binds=0x1
+[gcl] chara: name=0xBB75 func=0x102d968e8 binds=0x1
+[gcl] chara: name=0xBB75 func=0x102d968e8 binds=0x1
+[gcl] chara: name=0xBB75 func=0x102d968e8 binds=0x1
+[gcl] chara: name=0xF810 func=0x102e62c20 binds=0x1
+[gcl] chara: name=0xCA70 func=0x102d9c924 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=17 def=0x884b61d60 n_models=1
+[gcl] chara: name=0xB455 func=0x102e42538 binds=0x1
+[gcl] chara: name=0xAB10 func=0x102d7e3c4 binds=0x1
+[gcl] chara: name=0x9477 func=0x102e3f4ac binds=0x1
+[gcl] chara: name=0xEEBA func=0x102db2a50 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=18 def=0x884b61ea0 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEBB func=0x10064a700 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=19 def=0xc2df00780 n_models=1
+[gcl] chara: name=0xEEBB func=0x102db2a50 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=19 def=0x884b61ea0 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEBC func=0x10064a700 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=20 def=0xc2df00820 n_models=1
+[gcl] chara: name=0xEEBC func=0x102db2a50 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=20 def=0x884b61f40 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEBD func=0x10064a700 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=21 def=0xc2df00820 n_models=1
+[gcl] chara: name=0xEEBD func=0x102db2a50 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=21 def=0x884b61f40 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEC0 func=0x10064a700 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=22 def=0xc2df00960 n_models=1
+[gcl] chara: name=0xEEC0 func=0x102db2a50 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=22 def=0x884b62080 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEC1 func=0x10064a700 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=23 def=0xc2df00960 n_models=1
+[gcl] chara: name=0xEEC1 func=0x102db2a50 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=23 def=0x884b62080 n_models=1
 Item map = 1
-[gcl] chara: name=0x24DE func=0x1006ef50c binds=0x1
-[gcl] chara: name=0x7B22 func=0x100617614 binds=0x1
+[gcl] chara: name=0x24DE func=0x102e5785c binds=0x1
+[gcl] chara: name=0x7B22 func=0x102d7f964 binds=0x1
  migi sodesuri 5 
  migi sodesuri 5 
  migi sodesuri 177 
  migi sodesuri 5 
 add map 1
-[gcl] chara: name=0x21CA func=0x10060e934 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=24 def=0xc2cf89800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=25 def=0xc2dd4ac60 n_models=1
+[gcl] chara: name=0x21CA func=0x102d76c84 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=24 def=0x884cdc800 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=25 def=0x8849164e0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0x6F8B func=0x1005fda7c binds=0x1
-[gcl] chara: name=0xAFD func=0x1005fd618 binds=0x1
+[gcl] chara: name=0x6F8B func=0x102d65dcc binds=0x1
+[gcl] chara: name=0xAFD func=0x102d65968 binds=0x1
 end scenario
 command.c:  Where Is Snake ????
 command.c:  Where Is Snake ????
 command.c:  Where Is Snake ????
-PROC 7F000098 NOT FOUND
-[tick-perf] swap=0.02ms actors=0.32ms DG_Render=0.04ms port_Render=0.01ms
-[tick 240] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(-4605,1104,20452)
-[PORT] frame=240 objs=25
+PROC 7F00007D NOT FOUND
+[tick-perf] swap=0.02ms actors=0.30ms DG_Render=0.04ms port_Render=0.01ms
+[tick 120] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(-4605,1104,20452)
+[PORT] frame=120 objs=25
 [PORT] obj0 n=122 bm=2 fl=0x57 t=[0,0,0]
-[PORT] obj1 n=16 bm=0 fl=0x32d t=[-9000,1080,-9500]
-[PORT] obj2 n=1 bm=0 fl=0x6d t=[-9000,1080,-9500]
+[PORT] obj1 n=16 bm=0 fl=0x32d t=[-9000,1081,-9500]
+[PORT] obj2 n=1 bm=0 fl=0x6d t=[-9000,1081,-9500]
 [PORT] obj3 n=1 bm=0 fl=0x16d t=[-9000,0,-9500]
-[PORT] obj4 n=16 bm=0 fl=0x32d t=[6000,1080,-10000]
-[PORT] obj5 n=1 bm=0 fl=0x6d t=[6000,1080,-10000]
+[PORT] obj4 n=16 bm=0 fl=0x32d t=[6000,1081,-10000]
+[PORT] obj5 n=1 bm=0 fl=0x6d t=[6000,1081,-10000]
 [PORT] obj6 n=1 bm=0 fl=0x16d t=[6000,0,-10000]
-[PORT] obj7 n=16 bm=0 fl=0x32d t=[10500,7080,-13500]
-[PORT] obj8 n=1 bm=0 fl=0x6d t=[10500,7080,-13500]
+[PORT] obj7 n=16 bm=0 fl=0x32d t=[10500,7081,-13500]
+[PORT] obj8 n=1 bm=0 fl=0x6d t=[10500,7081,-13500]
 [PORT] obj9 n=1 bm=0 fl=0x16d t=[10500,6000,-13500]
 [PORT] obj10 n=1 bm=0 fl=0x32d t=[-16000,2525,4450]
 [PORT] obj11 n=1 bm=0 fl=0x36d t=[-64831300,10240000,16524400]
@@ -231,59 +227,27 @@ PROC 7F000098 NOT FOUND
 [PORT] obj20 n=1 bm=0 fl=0x36d t=[-19000,500,7500]
 [PORT] obj21 n=1 bm=0 fl=0x36d t=[-11548,6500,-14548]
 [PORT] obj22 n=1 bm=0 fl=0x36d t=[-19540,500,9393]
-[PORT] obj23 n=16 bm=0 fl=0x32d t=[-4527,1088,20452]
-[PORT] obj24 n=1 bm=2 fl=0x16d t=[-4527,0,20452]
-[PORT] faces=983 visible=983 objs=25
-[tick-perf] swap=0.00ms actors=0.04ms DG_Render=1.06ms port_Render=0.05ms
-[tick 300] pad=0x1000 gs=0x0 hp=256/256 item=-1 snake=(-3327,1074,18032)
-[PORT] faces=1003 visible=1003 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.27ms port_Render=0.05ms
-[tick 360] pad=0x1000 gs=0x0 hp=256/256 item=-1 snake=(-2890,2074,12988)
+[PORT] obj23 n=16 bm=2 fl=0x32d t=[-3660,1115,20456]
+[PORT] obj24 n=1 bm=2 fl=0x16d t=[-3660,0,20456]
+[PORT] faces=102 visible=878 objs=25
+[tick-perf] swap=0.00ms actors=0.04ms DG_Render=0.91ms port_Render=0.05ms
+[tick 180] pad=0x1000 gs=0x0 hp=256/256 item=-1 snake=(-1693,1076,18112)
+[PORT] faces=116 visible=899 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.08ms port_Render=0.05ms
+[tick 240] pad=0x1000 gs=0x0 hp=256/256 item=-1 snake=(-2874,2076,12913)
  GM_EnemyWatchCount = [1] 
-[PORT] frame=360 objs=25
+[PORT] frame=240 objs=25
 [PORT] obj0 n=122 bm=2 fl=0x57 t=[0,0,0]
-[PORT] obj1 n=16 bm=0 fl=0x32d t=[-8030,971,-7470]
-[PORT] obj2 n=1 bm=0 fl=0x6d t=[-8030,971,-7470]
-[PORT] obj3 n=1 bm=0 fl=0x16d t=[-8030,0,-7470]
+[PORT] obj1 n=16 bm=2 fl=0x32d t=[-8040,971,-7441]
+[PORT] obj2 n=1 bm=0 fl=0x6d t=[-8040,971,-7441]
+[PORT] obj3 n=1 bm=0 fl=0x16d t=[-8040,0,-7441]
 [PORT] obj4 n=16 bm=0 fl=0x32d t=[5960,1010,-12296]
 [PORT] obj5 n=1 bm=0 fl=0x6d t=[5960,1010,-12296]
 [PORT] obj6 n=1 bm=0 fl=0x16d t=[5960,0,-12296]
-[PORT] obj7 n=16 bm=2 fl=0x32d t=[9210,7037,-13611]
-[PORT] obj8 n=1 bm=0 fl=0x6d t=[9210,7037,-13611]
-[PORT] obj9 n=1 bm=0 fl=0x16d t=[9210,6000,-13611]
+[PORT] obj7 n=16 bm=0 fl=0x32d t=[9086,7080,-13455]
+[PORT] obj8 n=1 bm=0 fl=0x6d t=[9086,7080,-13455]
+[PORT] obj9 n=1 bm=0 fl=0x16d t=[9086,6000,-13455]
 [PORT] obj10 n=1 bm=0 fl=0x32d t=[-16000,2525,4450]
-[PORT] obj11 n=1 bm=0 fl=0x36d t=[-64831300,10240000,16524400]
-[PORT] obj12 n=1 bm=0 fl=0x32d t=[8500,4025,-11550]
-[PORT] obj13 n=1 bm=0 fl=0x36d t=[34816000,16384000,-49152000]
-[PORT] obj14 n=1 bm=2 fl=0x15d t=[14140,1100,7940]
-[PORT] obj15 n=1 bm=2 fl=0x15d t=[-14200,1100,7940]
-[PORT] obj16 n=1 bm=2 fl=0x57 t=[0,0,0]
-[PORT] obj17 n=1 bm=0 fl=0x36d t=[13770,2000,0]
-[PORT] obj18 n=1 bm=0 fl=0x36d t=[-12250,500,23250]
-[PORT] obj19 n=1 bm=0 fl=0x36d t=[0,1500,7000]
-[PORT] obj20 n=1 bm=0 fl=0x36d t=[-19000,500,7500]
-[PORT] obj21 n=1 bm=0 fl=0x36d t=[-11548,6500,-14548]
-[PORT] obj22 n=1 bm=0 fl=0x36d t=[-19540,500,9393]
-[PORT] obj23 n=16 bm=0 fl=0x32d t=[-2059,2100,10786]
-[PORT] obj24 n=1 bm=0 fl=0x1ed t=[-2842,736,13529]
-[PORT] faces=964 visible=964 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.20ms port_Render=0.08ms
-[tick 420] pad=0x9000 gs=0x0 hp=256/256 item=-1 snake=(-2324,2074,7711)
-[PORT] faces=957 visible=957 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.22ms port_Render=0.08ms
-[tick 480] pad=0x9000 gs=0x0 hp=256/256 item=-1 snake=(-7514,1254,4193)
-[PORT] frame=480 objs=25
-[PORT] obj0 n=122 bm=2 fl=0x57 t=[0,0,0]
-[PORT] obj1 n=16 bm=2 fl=0x32d t=[-7921,953,-7910]
-[PORT] obj2 n=1 bm=0 fl=0x6d t=[-7921,953,-7910]
-[PORT] obj3 n=1 bm=0 fl=0x16d t=[-7921,0,-7910]
-[PORT] obj4 n=16 bm=0 fl=0x32d t=[6098,1016,-10962]
-[PORT] obj5 n=1 bm=0 fl=0x6d t=[6098,1016,-10962]
-[PORT] obj6 n=1 bm=0 fl=0x16d t=[6098,0,-10962]
-[PORT] obj7 n=16 bm=0 fl=0x32d t=[9431,6984,-13784]
-[PORT] obj8 n=1 bm=0 fl=0x6d t=[9431,6984,-13784]
-[PORT] obj9 n=1 bm=0 fl=0x16d t=[9431,6000,-13784]
-[PORT] obj10 n=1 bm=2 fl=0x32d t=[-16000,2525,4450]
 [PORT] obj11 n=1 bm=0 fl=0x36d t=[-64831300,10240000,16524400]
 [PORT] obj12 n=1 bm=2 fl=0x32d t=[8500,4025,-11550]
 [PORT] obj13 n=1 bm=0 fl=0x36d t=[34816000,16384000,-49152000]
@@ -296,41 +260,10 @@ PROC 7F000098 NOT FOUND
 [PORT] obj20 n=1 bm=0 fl=0x36d t=[-19000,500,7500]
 [PORT] obj21 n=1 bm=0 fl=0x36d t=[-11548,6500,-14548]
 [PORT] obj22 n=1 bm=0 fl=0x36d t=[-19540,500,9393]
-[PORT] obj23 n=16 bm=0 fl=0x32d t=[-9041,1087,3166]
-[PORT] obj24 n=1 bm=0 fl=0x1ed t=[-2842,736,13529]
-[PORT] faces=960 visible=960 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.63ms port_Render=0.08ms
-[tick 540] pad=0x3000 gs=0x0 hp=256/256 item=-1 snake=(-6412,1093,183)
-[PORT] faces=986 visible=986 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.94ms port_Render=0.07ms
-[tick 600] pad=0x2000 gs=0x0 hp=256/256 item=-1 snake=(-1566,1121,-3316)
-[PORT] frame=600 objs=25
-[PORT] obj0 n=122 bm=2 fl=0x57 t=[0,0,0]
-[PORT] obj1 n=16 bm=0 fl=0x32d t=[-7584,971,-7978]
-[PORT] obj2 n=1 bm=0 fl=0x6d t=[-7584,971,-7978]
-[PORT] obj3 n=1 bm=0 fl=0x16d t=[-7584,0,-7978]
-[PORT] obj4 n=16 bm=0 fl=0x32d t=[6012,1020,-11138]
-[PORT] obj5 n=1 bm=0 fl=0x6d t=[6012,1020,-11138]
-[PORT] obj6 n=1 bm=0 fl=0x16d t=[6012,0,-11138]
-[PORT] obj7 n=16 bm=2 fl=0x32d t=[9492,6998,-13977]
-[PORT] obj8 n=1 bm=0 fl=0x6d t=[9492,6998,-13977]
-[PORT] obj9 n=1 bm=0 fl=0x16d t=[9492,6000,-13977]
-[PORT] obj10 n=1 bm=0 fl=0x32d t=[-16000,2525,4450]
-[PORT] obj11 n=1 bm=0 fl=0x36d t=[-64831300,10240000,16524400]
-[PORT] obj12 n=1 bm=0 fl=0x32d t=[8500,4025,-11550]
-[PORT] obj13 n=1 bm=0 fl=0x36d t=[34816000,16384000,-49152000]
-[PORT] obj14 n=1 bm=2 fl=0x15d t=[14140,1100,7940]
-[PORT] obj15 n=1 bm=2 fl=0x15d t=[-14200,1100,7940]
-[PORT] obj16 n=1 bm=2 fl=0x57 t=[0,0,0]
-[PORT] obj17 n=1 bm=0 fl=0x36d t=[13770,2000,0]
-[PORT] obj18 n=1 bm=0 fl=0x36d t=[-12250,500,23250]
-[PORT] obj19 n=1 bm=0 fl=0x36d t=[0,1500,7000]
-[PORT] obj20 n=1 bm=0 fl=0x36d t=[-19000,500,7500]
-[PORT] obj21 n=1 bm=0 fl=0x36d t=[-11548,6500,-14548]
-[PORT] obj22 n=1 bm=0 fl=0x36d t=[-19540,500,9393]
-[PORT] obj23 n=16 bm=0 fl=0x32d t=[547,1076,-4493]
-[PORT] obj24 n=1 bm=2 fl=0x16d t=[547,0,-4493]
-[PORT] faces=1058 visible=1058 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.66ms port_Render=0.08ms
-[tick 660] pad=0x6000 gs=0x0 hp=256/256 item=-1 snake=(3573,1121,-3338)
+[PORT] obj23 n=16 bm=0 fl=0x32d t=[-2885,2115,10421]
+[PORT] obj24 n=1 bm=0 fl=0x1ed t=[-2876,719,13563]
+[PORT] faces=108 visible=880 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=0.97ms port_Render=0.07ms
+[tick 300] pad=0x8000 gs=0x0 hp=256/256 item=-1 snake=(-4143,2076,9070)
+[PORT] faces=79 visible=775 objs=25
 port: shutdown complete
