@@ -470,6 +470,9 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
         // This function uses offset 0x34 of chara despite it seemingly only being 0x34 bytes in size
         if ( !ShowEffect(lpAct, (DMO_DATA_0x36 *)chara, node) )
         {
+#ifdef PORT_BUILD
+            printf("[DEMO] MakeChara failed type=%d\n", chara->field_4_type);
+#endif
             return 0;
         }
     }
@@ -490,6 +493,9 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     {
         if ( !ShowEffectExecute(lpAct, data, node) )
         {
+#ifdef PORT_BUILD
+            printf("[DEMO] demothrd_8007CDF8 failed\n");
+#endif
             return 0;
         }
     }
@@ -579,6 +585,23 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
     ReadRotMatrix(&mat1);
     DG_SetPos2(&svec1, &svec2);
     ReadRotMatrix(&mat2);
+
+#ifdef PORT_BUILD
+    {
+        static int _mc = 0;
+        if (_mc < 20) {
+            printf("[MakeChara] type=%d (0x%x) field_0=%d pos=(%d,%d,%d)\n",
+                   data->field_4_type, data->field_4_type, data->field_0,
+                   data->field_8_vec1.vx, data->field_8_vec1.vy, data->field_8_vec1.vz);
+            /* Also dump first 16 bytes of the data */
+            unsigned char *raw = (unsigned char *)data;
+            printf("[MakeChara] raw: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+                   raw[0],raw[1],raw[2],raw[3],raw[4],raw[5],raw[6],raw[7],
+                   raw[8],raw[9],raw[10],raw[11],raw[12],raw[13],raw[14],raw[15]);
+            _mc++;
+        }
+    }
+#endif
 
     switch (data->field_4_type)
     {
