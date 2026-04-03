@@ -178,8 +178,9 @@ static int project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, in
 {
     int cx, cy, cz;
     mat_transform(screen, vert, &cx, &cy, &cz);
-    if (cz <= 0) return 0; /* behind camera */
-    if (cz < 4) cz = 4;    /* clamp near plane */
+    /* Clamp to near plane instead of rejecting — avoids geometry pop-in
+       when camera is close to walls. PSX handles this via DG_DivideChanl. */
+    if (cz < 4) cz = 4;
     *sx = (cx * dist) / cz;
     *sy = (cy * dist) / cz;
     *sz = cz;
@@ -315,17 +316,11 @@ void port_RenderObjects(int idx)
     {
         DG_OBJS *objs = *queue++;
         if (!objs) continue;
-        /* Validate object hasn't been freed — during stage transitions,
-           memory pools get wiped but queue entries remain. A freed DG_OBJS
-           has garbage in its def pointer (freed memory fill pattern). */
-        if ((uintptr_t)objs->def < 0x1000 ||
-            (uintptr_t)objs->def > 0xFFFFFFFFFFULL) continue;
-        if (!objs->objs) continue;
-        /* TODO: frustum culling via bound_mode disabled — DG_BoundChanl has
-           64-bit issues in bound.c that cause all objects to be culled.
-           if (objs->bound_mode == 0) continue; */
-        if (objs->group_id && !(objs->group_id & group_id)) continue;
+        if (!objs->def) continue;
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
+        if (!objs->objs) continue;
+        if (objs->flag & DG_FLAG_INVISIBLE) continue;
+        if (objs->group_id && !(objs->group_id & group_id)) continue;
 
         MATRIX *eye = &chanl->eye_inv;
         DG_OBJ *obj = objs->objs;
@@ -341,10 +336,14 @@ void port_RenderObjects(int idx)
 
             MATRIX screen_mat;
             MATRIX *world;
-            if (obj->world.m[0][0] || obj->world.m[1][1] || obj->world.m[2][2])
-                world = &obj->world;
-            else
-                world = &objs->world;
+            /* Use per-model world matrix if it was set (non-zero rotation).
+               Fall back to parent objs->world for uninitialized models. */
+            {
+                short *m = (short *)obj->world.m;
+                int is_zero = 1;
+                for (int k = 0; k < 9; k++) { if (m[k]) { is_zero = 0; break; } }
+                world = is_zero ? &objs->world : &obj->world;
+            }
             mat_mul(eye, world, &screen_mat);
 
             SVECTOR *verts = mdl->vertices;
@@ -364,10 +363,23 @@ void port_RenderObjects(int idx)
 
                 int sx0, sy0, sz0, sx1, sy1, sz1, sx2, sy2, sz2, sx3, sy3, sz3;
 
-                if (!project(&screen_mat, &verts[i0], dist, &sx0, &sy0, &sz0)) continue;
-                if (!project(&screen_mat, &verts[i1], dist, &sx1, &sy1, &sz1)) continue;
-                if (!project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2)) continue;
-                if (!project(&screen_mat, &verts[i3], dist, &sx3, &sy3, &sz3)) continue;
+                project(&screen_mat, &verts[i0], dist, &sx0, &sy0, &sz0);
+                project(&screen_mat, &verts[i1], dist, &sx1, &sy1, &sz1);
+                project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2);
+                project(&screen_mat, &verts[i3], dist, &sx3, &sy3, &sz3);
+
+                /* Skip faces entirely off-screen (screen is 320x224 centered at 0,0) */
+                {
+                    int minx = sx0, maxx = sx0;
+                    int miny = sy0, maxy = sy0;
+                    if (sx1 < minx) minx = sx1; if (sx1 > maxx) maxx = sx1;
+                    if (sx2 < minx) minx = sx2; if (sx2 > maxx) maxx = sx2;
+                    if (sx3 < minx) minx = sx3; if (sx3 > maxx) maxx = sx3;
+                    if (sy1 < miny) miny = sy1; if (sy1 > maxy) maxy = sy1;
+                    if (sy2 < miny) miny = sy2; if (sy2 > maxy) maxy = sy2;
+                    if (sy3 < miny) miny = sy3; if (sy3 > maxy) maxy = sy3;
+                    if (maxx < -160 || minx > 160 || maxy < -112 || miny > 112) continue;
+                }
 
                 total_faces++;
 
@@ -375,9 +387,8 @@ void port_RenderObjects(int idx)
                    v0---v1
                    |    |
                    v3---v2
-                   Backface cull uses nclip(v0,v1,v2) = cross product Z */
-                int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
-                /* Backface cull */
+                   Backface cull uses nclip(v0,v1,v3) matching the first drawn triangle */
+                int area = (sx1-sx0)*(sy3-sy0) - (sx3-sx0)*(sy1-sy0);
                 if (area < 0 && !(mdl->flags & DG_MODEL_BOTHFACE)) continue;
 
                 /* Screen → framebuffer (PSX center at 160,112) */
