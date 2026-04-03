@@ -1,17 +1,17 @@
 port: SDL initialized
 port: game_init starting
 port: WARNING: could not map scratchpad at 0x1f800000 (0xffffffffffffffff)
-port: memory pools allocated (normal=0x59e800000, pkt0=0x59ea00000, pkt1=0x59ea80000)
+port: memory pools allocated (normal=0xc20800000, pkt0=0xc20a00000, pkt1=0xc20a80000)
 mem:mem:pad:gv:fs:fs: STAGE.DIR RADIO.DAT FACE.DAT ZMOVIE.STR VOX.DAT DEMO.DAT BRF.DAT
   [fs] 95 stages in STAGE.DIR: brf abst d00a d01a d03a d11c d16e d18a init rank ...
   [fs] FS_StartDaemon complete
-dg:dg:[DG_DrawOTag] which=0 ch2_ot[0]=0x104b1d5f4 val=0x127
+dg:dg:[DG_DrawOTag] which=0 ch2_ot[0]=0x1056115f4 val=0x127
 [ot] chain length: 297 nodes
 [ot] walked 297 nodes, 5 prims rendered
-[DG_DrawOTag] which=1 ch2_ot[1]=0x104b1d5fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1056115fc val=0x250
 [ot] chain length: 297 nodes
 [ot] walked 297 nodes, 5 prims rendered
-gcl:hzd:sound:gm:RESIDENT TOP 9EA00000
+gcl:hzd:sound:gm:RESIDENT TOP 20A00000
 LoadReq
   [fs] Loading stage 'init' at sector 2761...
   [fs]   DATACNF: version=1, size=283 sectors (579584 bytes)
@@ -24,14 +24,14 @@ start
 port: entering main loop
 [input] env: RECORD=(null) REPLAY=(null)
 [gpu] PutDispEnv #1: disp=(0,0,320,224)
-[DG_DrawOTag] which=1 ch2_ot[1]=0x104b1d5fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1056115fc val=0x250
 [ot] chain length: 297 nodes
 [ot] walked 297 nodes, 5 prims rendered
-[DG_DrawOTag] which=1 ch2_ot[1]=0x104b1d5fc val=0x250
+[DG_DrawOTag] which=1 ch2_ot[1]=0x1056115fc val=0x250
 [ot] chain length: 297 nodes
 [tick 0] pad=0x0 gs=0x0 hp=0/0 item=-1 snake=(0,0,0)
 [gpu] PutDispEnv #2: disp=(0,0,320,224)
-[DG_DrawOTag] which=0 ch2_ot[0]=0x104b1d5f4 val=0x127
+[DG_DrawOTag] which=0 ch2_ot[0]=0x1056115f4 val=0x127
 [ot] chain length: 297 nodes
 [ot] chain length: 297 nodes
 [gpu] PutDispEnv #3: disp=(0,0,320,224)
@@ -40,59 +40,56 @@ LoadEnd
 [ot] chain length: 297 nodes
 [gpu] PutDispEnv #4: disp=(0,0,320,224)
 [ot] chain length: 297 nodes
-[res] alloc 672 bytes → 0x59e9ffd60 (bottom=0x59e9ffd60, area=0x59ea00000)
-[res] alloc 1536 bytes → 0x59e9ff760 (bottom=0x59e9ff760, area=0x59ea00000)
+[res] alloc 672 bytes → 0xc209ffd60 (bottom=0xc209ffd60, area=0xc20a00000)
+[res] alloc 1536 bytes → 0xc209ff760 (bottom=0xc209ff760, area=0xc20a00000)
 exec scenario
 [menu_number_init] called
 jimaku_font_buffer_size 4896
-[res] alloc 4896 bytes → 0x59e9fe440 (bottom=0x59e9fe440, area=0x59ea00000)
+[res] alloc 4896 bytes → 0xc209fe440 (bottom=0xc209fe440, area=0xc20a00000)
 MENU INIT END
 end scenario
 [ot] chain length: 297 nodes
 [gpu] PutDispEnv #5: disp=(0,0,320,224)
 GM_StreamPlayStop
-RESIDENT TOP 9E9FE440
+RESIDENT TOP 209FE440
 LoadReq
   [fs] Loading stage 'select' at sector 35595...
   [fs]   DATACNF: version=1, size=7 sectors (14336 bytes)
   [fs]   Loaded 14336 bytes, 6 tags
-[bin] Stage overlay 0x8D5C → 0x10473f400
+[bin] Stage overlay 0x8D5C → 0x105233400
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x5947 func=0x1046543c0 binds=0x0
+[gcl] chara: name=0x5947 func=0x105148694 binds=0x0
 end scenario
-[menu-text] SPRT at (0,120) u=114 v=493 ot=0x104b1d5f4
-[menu-text] SPRT at (7,120) u=48 v=493 ot=0x104b1d5f4
-[menu-text] SPRT at (10,120) u=114 v=493 ot=0x104b1d5f4
-[menu-text] SPRT at (16,120) u=66 v=493 ot=0x104b1d5f4
-[menu-text] SPRT at (22,120) u=24 v=493 ot=0x104b1d5f4
-[tick-perf] swap=0.01ms actors=0.01ms DG_Render=0.00ms port_Render=0.01ms
-[tick 60] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
+[menu-text] SPRT at (0,120) u=114 v=493 ot=0x1056115f4
+[menu-text] SPRT at (7,120) u=48 v=493 ot=0x1056115f4
+[menu-text] SPRT at (10,120) u=114 v=493 ot=0x1056115f4
+[menu-text] SPRT at (16,120) u=66 v=493 ot=0x1056115f4
+[menu-text] SPRT at (22,120) u=24 v=493 ot=0x1056115f4
 GM_StreamPlayStop
-RESIDENT TOP 9E9FE440
+RESIDENT TOP 209FE440
 LoadReq
   [fs] Loading stage 'select1' at sector 36297...
   [fs]   DATACNF: version=1, size=4 sectors (8192 bytes)
   [fs]   Loaded 8192 bytes, 6 tags
-[bin] Stage overlay 0xABC2 → 0x10473f430
+[bin] Stage overlay 0xABC2 → 0x105233430
   [fs]   Stage processing complete
 LoadEnd
 exec scenario
-[gcl] chara: name=0x291C func=0x1046543c0 binds=0x0
+[gcl] chara: name=0x291C func=0x105148694 binds=0x0
 end scenario
 [tick-perf] swap=0.01ms actors=0.01ms DG_Render=0.00ms port_Render=0.01ms
+[tick 60] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
+[tick-perf] swap=0.02ms actors=0.00ms DG_Render=0.00ms port_Render=0.01ms
 [tick 120] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
-[render] chanl1: objs_index=0
-[tick-perf] swap=0.03ms actors=0.00ms DG_Render=0.00ms port_Render=0.01ms
-[tick 180] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(0,0,0)
 GM_StreamPlayStop
-RESIDENT TOP 9E9FE440
+RESIDENT TOP 209FE440
 LoadReq
   [fs] Loading stage 's01a' at sector 3965...
   [fs]   DATACNF: version=1, size=545 sectors (1116160 bytes)
   [fs]   Loaded 1116160 bytes, 34 tags
-[bin] Stage overlay 0x46BB → 0x104739360
+[bin] Stage overlay 0x46BB → 0x10522d360
   [fs]   Nocache texture data: 248884 bytes
   [fs]   Processed 51 nocache entries
   [fs]   Nocache texture data: 247780 bytes
@@ -106,37 +103,37 @@ exec scenario
 [map]   hazard loaded: name=0xC681 area=0
 [map]   lit loaded: name=0xC681
   [map] LoadMapModel: name=0xC681
-[dg] QueueObjs: chanl=1 objs_index=1 def=0x9bc4ac000 n_models=122
+[dg] QueueObjs: chanl=1 objs_index=1 def=0x84a718000 n_models=122
   [map]   model loaded OK
-[gcl] chara: name=0x23EF func=0x10461dbbc binds=0x1
+[gcl] chara: name=0x23EF func=0x105111e90 binds=0x1
  COM_NOISEMODE_DIS =8000 
 eee 4000 5000 4000 t 3 
-[gcl] chara: name=0x1465 func=0x104635e30 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=2 def=0x9bcc4f800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=3 def=0x9bcc92580 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=4 def=0x9bcc92c60 n_models=1
+[gcl] chara: name=0x1465 func=0x10512a104 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=2 def=0x84b376800 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=3 def=0x84ad0a3a0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=4 def=0x84ad0abc0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0x1466 func=0x104635e30 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=5 def=0x9bcc4f800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=6 def=0x9bcc92580 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=7 def=0x9bcc92c60 n_models=1
+[gcl] chara: name=0x1466 func=0x10512a104 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=5 def=0x84b376800 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=6 def=0x84ad0a3a0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=7 def=0x84ad0abc0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0x1467 func=0x104635e30 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=8 def=0x9bcc4f800 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=9 def=0x9bcc92580 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=10 def=0x9bcc92c60 n_models=1
+[gcl] chara: name=0x1467 func=0x10512a104 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=8 def=0x84b376800 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=9 def=0x84ad0a3a0 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=10 def=0x84ad0abc0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0xDD6D func=0x10461a168 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=11 def=0x9bc7545a0 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=12 def=0x9bc754280 n_models=1
-[gcl] chara: name=0xDD6E func=0x10461a168 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=13 def=0x9bc7545a0 n_models=1
-[dg] QueueObjs: chanl=1 objs_index=14 def=0x9bc754280 n_models=1
-[gcl] chara: name=0x5DF7 func=0x10462da40 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=15 def=0x59e92adc0 n_models=1
-[gcl] chara: name=0x5DF7 func=0x10462da40 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=16 def=0x59e92bb00 n_models=1
-[gcl] chara: name=0x62FE func=0x1046d811c binds=0x1
+[gcl] chara: name=0xDD6D func=0x10510e43c binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=11 def=0x84a6c8000 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=12 def=0x84a6c83c0 n_models=1
+[gcl] chara: name=0xDD6E func=0x10510e43c binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=13 def=0x84a6c8000 n_models=1
+[dg] QueueObjs: chanl=1 objs_index=14 def=0x84a6c83c0 n_models=1
+[gcl] chara: name=0x5DF7 func=0x105121d14 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=15 def=0xc2092adc0 n_models=1
+[gcl] chara: name=0x5DF7 func=0x105121d14 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=16 def=0xc2092bb00 n_models=1
+[gcl] chara: name=0x62FE func=0x1051cc3b0 binds=0x1
 BIND 00000001
 BIND 00000001
 BIND 00000001
@@ -160,56 +157,120 @@ BIND 00000001
 BIND 00000001
 BIND 00000001
 BIND 00000001
-[gcl] chara: name=0x4692 func=0x1046f9338 binds=0x1
-[gcl] chara: name=0xBB75 func=0x10462e494 binds=0x1
-[gcl] chara: name=0xBB75 func=0x10462e494 binds=0x1
-[gcl] chara: name=0xBB75 func=0x10462e494 binds=0x1
-[gcl] chara: name=0xF810 func=0x1046fa6b8 binds=0x1
-[gcl] chara: name=0xCA70 func=0x1046344d0 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=17 def=0x9bc754500 n_models=1
-[gcl] chara: name=0xB455 func=0x1046d9fd0 binds=0x1
-[gcl] chara: name=0xAB10 func=0x104615f70 binds=0x1
-[gcl] chara: name=0x9477 func=0x1046d6f44 binds=0x1
-[gcl] chara: name=0xEEBA func=0x10464a5fc binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=18 def=0x9bc756300 n_models=1
+[gcl] chara: name=0x4692 func=0x1051ed5cc binds=0x1
+[gcl] chara: name=0xBB75 func=0x105122768 binds=0x1
+[gcl] chara: name=0xBB75 func=0x105122768 binds=0x1
+[gcl] chara: name=0xBB75 func=0x105122768 binds=0x1
+[gcl] chara: name=0xF810 func=0x1051ee94c binds=0x1
+[gcl] chara: name=0xCA70 func=0x1051287a4 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=17 def=0x84a6c8140 n_models=1
+[gcl] chara: name=0xB455 func=0x1051ce264 binds=0x1
+[gcl] chara: name=0xAB10 func=0x10510a244 binds=0x1
+[gcl] chara: name=0x9477 func=0x1051cb1d8 binds=0x1
+[gcl] chara: name=0xEEBA func=0x10513e8d0 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=18 def=0x84a6c8500 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEBB func=0x10464a5fc binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=19 def=0x9bc756300 n_models=1
+[gcl] chara: name=0xEEBB func=0x10513e8d0 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=19 def=0x84a6c8500 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEBC func=0x10464a5fc binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=20 def=0x9bc7563a0 n_models=1
+[gcl] chara: name=0xEEBC func=0x10513e8d0 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=20 def=0x84a6c8b40 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEBD func=0x10464a5fc binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=21 def=0x9bc7563a0 n_models=1
+[gcl] chara: name=0xEEBD func=0x10513e8d0 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=21 def=0x84a6c8b40 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEC0 func=0x10464a5fc binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=22 def=0x9bc7564e0 n_models=1
+[gcl] chara: name=0xEEC0 func=0x10513e8d0 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=22 def=0x84a6c88c0 n_models=1
 Item map = 1
-[gcl] chara: name=0xEEC1 func=0x10464a5fc binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=23 def=0x9bc7564e0 n_models=1
+[gcl] chara: name=0xEEC1 func=0x10513e8d0 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=23 def=0x84a6c88c0 n_models=1
 Item map = 1
-[gcl] chara: name=0x24DE func=0x1046ef2f4 binds=0x1
-[gcl] chara: name=0x7B22 func=0x104617510 binds=0x1
+[gcl] chara: name=0x24DE func=0x1051e3588 binds=0x1
+[gcl] chara: name=0x7B22 func=0x10510b7e4 binds=0x1
  migi sodesuri 5 
  migi sodesuri 5 
  migi sodesuri 177 
  migi sodesuri 5 
 add map 1
-[gcl] chara: name=0x21CA func=0x10460e830 binds=0x1
-[dg] QueueObjs: chanl=1 objs_index=24 def=0x9bc5bc000 n_models=16
-[dg] QueueObjs: chanl=1 objs_index=25 def=0x9bcc92c60 n_models=1
+[gcl] chara: name=0x21CA func=0x105102b04 binds=0x1
+[dg] QueueObjs: chanl=1 objs_index=24 def=0x84b389800 n_models=16
+[dg] QueueObjs: chanl=1 objs_index=25 def=0x84ad0abc0 n_models=1
 [shadow] OK: kage loaded, n_models=1
-[gcl] chara: name=0x6F8B func=0x1045fd978 binds=0x1
-[gcl] chara: name=0xAFD func=0x1045fd514 binds=0x1
+[gcl] chara: name=0x6F8B func=0x1050f1c4c binds=0x1
+[gcl] chara: name=0xAFD func=0x1050f17e8 binds=0x1
 end scenario
 command.c:  Where Is Snake ????
 command.c:  Where Is Snake ????
 command.c:  Where Is Snake ????
 PROC 7F00007D NOT FOUND
-[tick-perf] swap=0.01ms actors=0.35ms DG_Render=2.58ms port_Render=0.03ms
-[tick 240] pad=0x2000 gs=0x0 hp=256/256 item=-1 snake=(-3444,1087,20456)
-[render] chanl1: objs_index=25
-[PORT] faces=2243 visible=3169 objs=25
-[tick-perf] swap=0.01ms actors=0.04ms DG_Render=5.07ms port_Render=0.05ms
-[tick 300] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(-1916,1104,18546)
+[tick-perf] swap=0.01ms actors=0.28ms DG_Render=0.35ms port_Render=0.03ms
+[tick 180] pad=0x2000 gs=0x0 hp=256/256 item=-1 snake=(-4094,1083,20451)
+[PORT] faces=278 visible=445 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.03ms port_Render=0.05ms
+[tick 240] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(-1995,1074,16729)
+[PORT] frame=240 objs=25
+[PORT] obj0 n=122 bm=2 fl=0x57 t=[0,0,0]
+[PORT] obj1 n=16 bm=0 fl=0x32d t=[-9000,1085,-8250]
+[PORT] obj2 n=1 bm=0 fl=0x6d t=[-9000,1085,-8250]
+[PORT] obj3 n=1 bm=0 fl=0x16d t=[-9000,0,-8250]
+[PORT] obj4 n=16 bm=0 fl=0x32d t=[6000,1089,-12450]
+[PORT] obj5 n=1 bm=0 fl=0x6d t=[6000,1089,-12450]
+[PORT] obj6 n=1 bm=0 fl=0x16d t=[6000,0,-12450]
+[PORT] obj7 n=16 bm=2 fl=0x32d t=[9177,7089,-13500]
+[PORT] obj8 n=1 bm=0 fl=0x6d t=[9177,7089,-13500]
+[PORT] obj9 n=1 bm=0 fl=0x16d t=[9177,6000,-13500]
+[PORT] obj10 n=1 bm=2 fl=0x32d t=[-16000,2525,4450]
+[PORT] obj11 n=1 bm=0 fl=0x36d t=[-64831300,10240000,16524400]
+[PORT] obj12 n=1 bm=2 fl=0x32d t=[8500,4025,-11550]
+[PORT] obj13 n=1 bm=0 fl=0x36d t=[34816000,16384000,-49152000]
+[PORT] obj14 n=1 bm=2 fl=0x15d t=[14140,1100,7940]
+[PORT] obj15 n=1 bm=2 fl=0x15d t=[-14200,1100,7940]
+[PORT] obj16 n=1 bm=2 fl=0x57 t=[0,0,0]
+[PORT] obj17 n=1 bm=0 fl=0x36d t=[13770,2000,0]
+[PORT] obj18 n=1 bm=0 fl=0x36d t=[-12250,500,23250]
+[PORT] obj19 n=1 bm=0 fl=0x36d t=[0,1500,7000]
+[PORT] obj20 n=1 bm=0 fl=0x36d t=[-19000,500,7500]
+[PORT] obj21 n=1 bm=0 fl=0x36d t=[-11548,6500,-14548]
+[PORT] obj22 n=1 bm=0 fl=0x36d t=[-19540,500,9393]
+[PORT] obj23 n=16 bm=2 fl=0x32d t=[-2941,1093,15775]
+[PORT] obj24 n=1 bm=2 fl=0x16d t=[-2941,0,15775]
+[PORT] faces=306 visible=497 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.10ms port_Render=0.05ms
+[tick 300] pad=0x0 gs=0x0 hp=256/256 item=-1 snake=(-3366,2074,13060)
+ GM_EnemyWatchCount = [1] 
+[PORT] faces=340 visible=498 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.07ms port_Render=0.08ms
+[tick 360] pad=0x2000 gs=0x0 hp=256/256 item=-1 snake=(-664,1093,16003)
+[PORT] frame=360 objs=25
+[PORT] obj0 n=122 bm=2 fl=0x57 t=[0,0,0]
+[PORT] obj1 n=16 bm=0 fl=0x32d t=[-9049,1001,-5002]
+[PORT] obj2 n=1 bm=0 fl=0x6d t=[-9049,1001,-5002]
+[PORT] obj3 n=1 bm=0 fl=0x16d t=[-9049,0,-5002]
+[PORT] obj4 n=16 bm=2 fl=0x32d t=[6018,1001,-10968]
+[PORT] obj5 n=1 bm=0 fl=0x6d t=[6018,1001,-10968]
+[PORT] obj6 n=1 bm=0 fl=0x16d t=[6018,0,-10968]
+[PORT] obj7 n=16 bm=0 fl=0x32d t=[9339,6998,-14060]
+[PORT] obj8 n=1 bm=0 fl=0x6d t=[9339,6998,-14060]
+[PORT] obj9 n=1 bm=0 fl=0x16d t=[9339,6000,-14060]
+[PORT] obj10 n=1 bm=0 fl=0x32d t=[-16000,2525,4450]
+[PORT] obj11 n=1 bm=0 fl=0x36d t=[-64831300,10240000,16524400]
+[PORT] obj12 n=1 bm=0 fl=0x32d t=[8500,4025,-11550]
+[PORT] obj13 n=1 bm=0 fl=0x36d t=[34816000,16384000,-49152000]
+[PORT] obj14 n=1 bm=2 fl=0x15d t=[14140,1100,7940]
+[PORT] obj15 n=1 bm=2 fl=0x15d t=[-14200,1100,7940]
+[PORT] obj16 n=1 bm=2 fl=0x57 t=[0,0,0]
+[PORT] obj17 n=1 bm=0 fl=0x36d t=[13770,2000,0]
+[PORT] obj18 n=1 bm=0 fl=0x36d t=[-12250,500,23250]
+[PORT] obj19 n=1 bm=0 fl=0x36d t=[0,1500,7000]
+[PORT] obj20 n=1 bm=0 fl=0x36d t=[-19000,500,7500]
+[PORT] obj21 n=1 bm=0 fl=0x36d t=[-11548,6500,-14548]
+[PORT] obj22 n=1 bm=0 fl=0x36d t=[-19540,500,9393]
+[PORT] obj23 n=16 bm=0 fl=0x32d t=[1829,1076,16006]
+[PORT] obj24 n=1 bm=2 fl=0x16d t=[1829,0,16006]
+[PORT] faces=271 visible=435 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=1.01ms port_Render=0.08ms
+[tick 420] pad=0x2000 gs=0x0 hp=256/256 item=-1 snake=(3824,1614,18832)
+[PORT] faces=254 visible=407 objs=25
+[tick-perf] swap=0.01ms actors=0.04ms DG_Render=0.97ms port_Render=0.09ms
+[tick 480] pad=0x1000 gs=0x0 hp=256/256 item=-1 snake=(7732,1681,15012)
 port: shutdown complete
