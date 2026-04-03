@@ -184,6 +184,15 @@ static void ActStream(LPMGSDEMOACT lpAct)
     status = 0;
     temp = 0;
 
+#ifdef PORT_BUILD
+    {
+        static int _sa = 0;
+        if (_sa < 5)
+            printf("[SA] tick=%d start=%d frame=%d/%d\n", ticks, lpAct->start_time, lpAct->frame, lpAct->header->n_frames);
+        _sa++;
+    }
+#endif
+
     if (lpAct->frame <= lpAct->header->n_frames)
     {
         while (1)
@@ -226,7 +235,15 @@ static void ActStream(LPMGSDEMOACT lpAct)
             memcpy(&port_dat.roll,      &raw[20], 2);
             memcpy(&port_dat.clip_dist, &raw[22], 2);
             memcpy(&port_dat.n_charas,  &raw[24], 2);
-            uint32_t chara_off; memcpy(&chara_off, &raw[26], 4);
+            /* PSX DMO_DAT layout:
+               offset 24: n_charas (short)
+               offset 26: padding (2 bytes, for pointer alignment)
+               offset 28: chara (4-byte PSX pointer, relative offset)
+               offset 32: n_adjusts (short)
+               offset 34: padding (2 bytes)
+               offset 36: adjust (4-byte PSX pointer, relative offset)
+               Total PSX size: 40 bytes */
+            uint32_t chara_off; memcpy(&chara_off, &raw[28], 4);
             /* Copy chara/adjust data to aligned static buffers */
             static DMO_CHA port_charas[16];
             static DMO_ADJ port_adjusts[16];
@@ -236,8 +253,8 @@ static void ActStream(LPMGSDEMOACT lpAct)
             } else {
                 port_dat.chara = NULL;
             }
-            memcpy(&port_dat.n_adjusts, &raw[30], 2);
-            uint32_t adj_off;   memcpy(&adj_off,   &raw[32], 4);
+            memcpy(&port_dat.n_adjusts, &raw[32], 2);
+            uint32_t adj_off;   memcpy(&adj_off,   &raw[36], 4);
             if (adj_off && port_dat.n_adjusts > 0 && port_dat.n_adjusts <= 16) {
                 memcpy(port_adjusts, raw + adj_off, sizeof(DMO_ADJ) * port_dat.n_adjusts);
                 port_dat.adjust = port_adjusts;
