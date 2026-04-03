@@ -169,7 +169,6 @@ int sound_sub(void)
 {
     int          fade2_shifted;
     unsigned int tmpd;
-
     key_fg = 0;
     sptr->tmpd += sptr->tmp;
     if ((unsigned int)mtrack < 0xD)
