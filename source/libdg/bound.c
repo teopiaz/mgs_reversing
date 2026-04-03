@@ -13,7 +13,11 @@ typedef	struct {
     VECTOREX bound_max;
     SVECTOR  clip[ 3 ];
     DVECTOR  vxy[ 4 ][ 3 ];
+#ifdef PORT_BUILD
+    int      vzp[ 4 ][ 3 ];    /* 4-byte stride: PSX long is 32-bit */
+#else
     long     vzp[ 4 ][ 3 ];
+#endif
 } ScrPad;
 
 #define SCRPAD      ((ScrPad *)SCRPAD_ADDR)
@@ -34,7 +38,11 @@ static inline void MakeBoundVerts( int *bound )
     int i, j;
     SVECTOR *clip;
     DVECTOR *vxy;
+#ifdef PORT_BUILD
+    int *vzp;
+#else
     long *vzp;
+#endif
 
     BOUND_MIN->vx = bound[ 0 ];
     BOUND_MIN->vy = bound[ 1 ];
@@ -75,7 +83,11 @@ static inline void MakeBoundVerts( int *bound )
 static inline int BoundCheckDepth( int xl, int yl, int xh, int yh )
 {
     int i, bound_flag;
+#ifdef PORT_BUILD
+    int *depth;
+#else
     long *depth;
+#endif
 
     if ( xh > 160 || xl < -160 || yh > 112 || yl < -112 )
     {
