@@ -231,6 +231,33 @@ void game_tick(void)
                     LoadWaveHeader();
                 }
             }
+            /* Stream (VOX/BGM) handling (normally in SdMain loop) */
+            {
+                extern volatile int str_status;
+                extern volatile int str_fout_fg;
+                extern volatile int dword_800BEFCC;
+                extern int StartStream(void);
+                extern void sub_800827A4(void);
+                extern void KeyOffStr(void);
+                extern int dword_800BF1A4;
+
+                if (str_fout_fg == 1) str_fout_fg = 2;
+                if (dword_800BEFCC) { KeyOffStr(); dword_800BEFCC = 0; }
+
+                switch (str_status) {
+                case 1:
+                    if (StartStream()) { str_status = 0; }
+                    else { str_status = 2; dword_800BF1A4 = 0; }
+                    break;
+                case 2: case 3: case 4: case 5:
+                    sub_800827A4();
+                    break;
+                case 7:
+                    KeyOffStr();
+                    str_status = 0;
+                    break;
+                }
+            }
         }
 
         /* Actor system FIRST: game logic, collision, movement

@@ -515,12 +515,23 @@ static int stream_active = 0;        /* 1 = stream loaded and active */
 static int stream_ended = 0;
 static int port_stream_tick = 0;
 
+#define VOX_SECTOR_BASE  0x40000000  /* marker: sector is relative to VOX.DAT */
+#define DEMO_SECTOR_BASE 0x20000000  /* marker: sector is relative to DEMO.DAT */
+
 void FS_StreamTaskStart(int sector)
 {
-    /* Try DEMO.DAT first (index 5) — contains structured stream entries.
-       VOX.DAT (index 4) contains raw XA audio without usable control data. */
-    FILE *f = dat_files[5]; /* DEMO.DAT */
-    if (!f) f = dat_files[4]; /* fallback to VOX.DAT */
+    /* Determine which file to read from based on sector marker */
+    FILE *f;
+    if (sector & VOX_SECTOR_BASE) {
+        sector &= ~VOX_SECTOR_BASE;
+        f = dat_files[4]; /* VOX.DAT */
+    } else if (sector & DEMO_SECTOR_BASE) {
+        sector &= ~DEMO_SECTOR_BASE;
+        f = dat_files[5]; /* DEMO.DAT */
+    } else {
+        f = dat_files[5]; /* default: DEMO.DAT */
+        if (!f) f = dat_files[4];
+    }
     if (!f) {
         printf("[stream] no stream file available\n");
         stream_active = 0;
@@ -577,11 +588,9 @@ void FS_StreamCD(void) {}
 
 int FS_StreamGetTop(int is_demo)
 {
-    /* Return the sector offset for VOX.DAT or DEMO.DAT in the file table.
-       The actual sector is stored in fs_file_info[].pos but we compute it
-       from STAGE.DIR. For now, return 0 — the caller adds the stream code. */
-    (void)is_demo;
-    return 0;
+    /* Return a marker so FS_StreamTaskStart knows which file to read.
+       The caller adds this to the stream offset: sector = offset + marker. */
+    return is_demo ? DEMO_SECTOR_BASE : VOX_SECTOR_BASE;
 }
 
 int FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; return 0; }
