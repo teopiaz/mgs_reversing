@@ -378,7 +378,7 @@ void port_RenderObjects(int idx)
                    Backface cull uses nclip(v0,v1,v2) = cross product Z */
                 int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
                 /* Backface cull */
-                if (area < 0 && !(mdl->flags & 0x4)) continue;
+                if (area < 0 && !(mdl->flags & DG_MODEL_BOTHFACE)) continue;
 
                 /* Screen → framebuffer (PSX center at 160,112) */
                 int fx0 = sx0 + 160, fy0 = sy0 + 112;
