@@ -121,7 +121,7 @@ static void decode_adpcm_block(SPU_Voice *v)
         if (flags & 2) { /* loop repeat */
             v->cur_addr = v->loop_addr;
         } else {
-            v->active = 0; /* stop */
+            v->active = 0; /* stop — loop end without repeat */
         }
         return;
     }
@@ -138,7 +138,8 @@ static void env_tick(SPU_Voice *v)
 {
     switch (v->env_phase) {
     case ENV_ATTACK: {
-        int rate = (v->ar == 0) ? 0x7FFF : (0x7FFF / (v->ar + 1));
+        /* PSX ADSR: ar=0 is slowest attack, ar=127 is fastest */
+        int rate = (v->ar >= 127) ? 0x7FFF : (0x7FFF / (128 - v->ar));
         v->env_level += rate;
         if (v->env_level >= 0x7FFF) {
             v->env_level = 0x7FFF;
@@ -149,7 +150,8 @@ static void env_tick(SPU_Voice *v)
     case ENV_DECAY: {
         int sustain_level = (v->sl + 1) * 0x800;
         if (sustain_level > 0x7FFF) sustain_level = 0x7FFF;
-        int rate = (v->dr == 0) ? 0x7FFF : (0x7FFF / (v->dr + 1));
+        /* PSX ADSR: dr=0 is slowest decay, dr=15 is fastest */
+        int rate = (v->dr >= 15) ? 0x7FFF : (0x7FFF / (16 - v->dr));
         v->env_level -= rate;
         if (v->env_level <= sustain_level) {
             v->env_level = sustain_level;
@@ -165,7 +167,8 @@ static void env_tick(SPU_Voice *v)
         }
         break;
     case ENV_RELEASE: {
-        int rate = (v->rr == 0) ? 0x7FFF : (0x7FFF / (v->rr + 1));
+        /* PSX ADSR: rr=0 is slowest release, rr=31 is fastest */
+        int rate = (v->rr >= 31) ? 0x7FFF : (0x7FFF / (32 - v->rr));
         v->env_level -= rate;
         if (v->env_level <= 0) {
             v->env_level = 0;

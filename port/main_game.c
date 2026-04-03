@@ -211,15 +211,9 @@ void game_tick(void)
             extern volatile int se_load_code;
             extern volatile int sng_status;
 
-            /* Call IntSdMain multiple times per frame.
-               On PSX, SdInt runs at SPU IRQ rate (~240Hz per tick of the
-               sequence engine). The sequence uses tmpd/tmp as a tick counter
-               where ngc counts down at ~1 per IntSdMain call. With
-               ngc values of ~255 for short notes, we need ~256 calls
-               to process one note. At 30fps that's ~8 calls per frame. */
-            for (int _si = 0; _si < 16; _si++) {
-                IntSdMain();
-            }
+            /* Call IntSdMain once per frame. On PSX it runs at vsync (~60Hz).
+               The sequence engine advances ngc by 1 per call. */
+            IntSdMain();
             WaveSpuTrans();
             StrSpuTrans();
             StrFadeInt();
@@ -227,6 +221,15 @@ void game_tick(void)
             if (sng_status == 1) {
                 if (LoadSngData()) sng_status = 0;
                 else sng_status = 2;
+            }
+            /* Wave file loading (normally in SdMain loop) */
+            {
+                extern volatile int dword_800BF27C;
+                extern int wave_load_code;
+                extern int LoadWaveHeader(void);
+                if (dword_800BF27C == 1 && wave_load_code) {
+                    LoadWaveHeader();
+                }
             }
         }
 
