@@ -146,20 +146,20 @@ void WaveSpuTrans(void)
     /* do nothing */
 }
 
-int PcmOpen(int code, int path_idx)
-{
-    return -1;
-}
+#ifdef PORT_BUILD
+/* Port implementation: load sound files from STAGE.DIR via the port FS */
+extern int port_PcmOpen(int code, int path_idx);
+extern int port_PcmRead(int fd, unsigned char *buf, int size);
+extern int port_PcmClose(int fd, int path_idx);
 
-int PcmRead(int fd, unsigned char *buf, int size)
-{
-    return -1;
-}
-
-int PcmClose(int fd, int path_idx)
-{
-    return -1;
-}
+int PcmOpen(int code, int path_idx)  { return port_PcmOpen(code, path_idx); }
+int PcmRead(int fd, unsigned char *buf, int size) { return port_PcmRead(fd, buf, size); }
+int PcmClose(int fd, int path_idx)   { return port_PcmClose(fd, path_idx); }
+#else
+int PcmOpen(int code, int path_idx)  { return -1; }
+int PcmRead(int fd, unsigned char *buf, int size) { return -1; }
+int PcmClose(int fd, int path_idx)   { return -1; }
+#endif
 
 void StrFadeWkSet(void)
 {

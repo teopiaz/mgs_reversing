@@ -221,9 +221,9 @@ void *FS_LoadStageRequest(const char *dirname)
     int tag_num = 0;
     while (tag->mode != 0)
     {
-        // printf("  [fs]   tag[%d]: id=0x%04X mode='%c' ext='%c' size=%d\n",
-        //        tag_num, tag->id, tag->mode,
-        //        (tag->ext != (char)0xff) ? tag->ext : '?', tag->size);
+        printf("  [fs]   tag[%d]: id=0x%04X mode='%c' ext='%c' size=%d\n",
+               tag_num, tag->id, tag->mode,
+               (tag->ext != (char)0xff) ? tag->ext : '?', tag->size);
         tag++;
         tag_num++;
     }
@@ -365,6 +365,12 @@ void *FS_LoadStageRequest(const char *dirname)
         else if (tag->mode == 's')
         {
             /* 's' mode: sound data or overlay binaries. */
+            {
+                unsigned char *dp = (unsigned char *)data_ptr;
+                int off = (int)(data_ptr - (char *)port_stage_info.buffer);
+                printf("[fs] s-tag ext='%c' id=0x%x size=%d data_off=%d data=[%02x %02x %02x %02x]\n",
+                    tag->ext, tag->id, tag->size, off, dp[0], dp[1], dp[2], dp[3]);
+            }
             if (tag->ext == 'b') {
                 int cache_id = (('b' - 'a') << 16) | tag->id;
                 GV_LoadInit(data_ptr, cache_id, GV_REGION_NOCACHE);
@@ -641,3 +647,92 @@ int  FS_StreamIsForceStop(void) { return 0; }
 void FS_StreamTickStart(void) { port_stream_tick = 0; }
 void FS_StreamSoundMode(void) {}
 int  FS_StreamGetTick(void) { return port_stream_tick++; }
+
+/*---------------------------------------------------------------------------*/
+/* PcmOpen/PcmRead/PcmClose — load sound files from STAGE.DIR               */
+/*---------------------------------------------------------------------------*/
+
+#define PCM_MAX_HANDLES 4
+typedef struct {
+    int    active;
+    char  *data;     /* malloc'd file data */
+    int    size;     /* total file size */
+    int    pos;      /* read position */
+} PcmHandle;
+static PcmHandle pcm_handles[PCM_MAX_HANDLES];
+
+/* Find a sound file ('s' tag with matching ext and id) in the current stage
+   and return its data. On PSX, path_idx selects: 2=wave, 4=SE, etc.
+   ext is 'w' for wave, 'm' for song, 'e' for SE. */
+static char pcm_ext_for_path[] = { 0, 0, 'w', 0, 'e', 'm' };
+
+int port_PcmOpen(int code, int path_idx)
+{
+    if (!port_stage_info.loaded || !port_stage_info.datacnf)
+        return -1;
+
+    /* Find free handle */
+    int h = -1;
+    for (int i = 0; i < PCM_MAX_HANDLES; i++) {
+        if (!pcm_handles[i].active) { h = i; break; }
+    }
+    if (h < 0) return -1;
+
+    /* Determine which ext to search for */
+    char ext = 0;
+    if (path_idx >= 0 && path_idx < (int)sizeof(pcm_ext_for_path))
+        ext = pcm_ext_for_path[path_idx];
+    if (!ext) ext = 'w'; /* default to wave */
+
+    /* Scan DATACNF tags for matching 's' tag */
+    DATACNF_TAG *tag = port_stage_info.datacnf->tags;
+    char *data_ptr = (char *)port_stage_info.buffer + FS_SECTOR_SIZE;
+    int file_id = code & 0xFFFF;
+
+    while (tag->mode != 0) {
+        if (tag->mode == 's' && tag->ext == ext && tag->id == file_id) {
+            /* Found it — data_ptr points to this tag's data in the stage blob */
+            pcm_handles[h].data = data_ptr;
+            pcm_handles[h].size = tag->size;
+            pcm_handles[h].pos = 0;
+            pcm_handles[h].active = 1;
+            return h;
+        }
+        /* Advance data pointer based on tag mode */
+        if (tag->mode == 'c') {
+            /* Cache tags: size is total size of the cache section */
+            DATACNF_TAG *t = tag;
+            while (t->mode == 'c') t++;
+            /* The terminator tag has the total size */
+            data_ptr += (t->size + (FS_SECTOR_SIZE - 1)) & ~(FS_SECTOR_SIZE - 1);
+            tag = t + 1;
+            continue;
+        }
+        data_ptr += (tag->size + (FS_SECTOR_SIZE - 1)) & ~(FS_SECTOR_SIZE - 1);
+        tag++;
+    }
+
+    printf("[pcm] File not found: code=0x%x path=%d ext='%c'\n", code, path_idx, ext);
+    return -1;
+}
+
+int port_PcmRead(int fd, unsigned char *buf, int size)
+{
+    if (fd < 0 || fd >= PCM_MAX_HANDLES || !pcm_handles[fd].active)
+        return -1;
+    PcmHandle *h = &pcm_handles[fd];
+    int avail = h->size - h->pos;
+    if (size > avail) size = avail;
+    if (size <= 0) return 0;
+    memcpy(buf, h->data + h->pos, size);
+    h->pos += size;
+    return size;
+}
+
+int port_PcmClose(int fd, int path_idx)
+{
+    (void)path_idx;
+    if (fd < 0 || fd >= PCM_MAX_HANDLES) return -1;
+    pcm_handles[fd].active = 0;
+    return 0;
+}
