@@ -319,7 +319,9 @@ void port_RenderObjects(int idx)
         if (!objs->def) continue;
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
         if (!objs->objs) continue;
-        if (objs->flag & DG_FLAG_INVISIBLE) continue;
+        /* DG_FLAG_INVISIBLE is checked by DG_BoundChanl to set bound_mode=0,
+           not by the renderer directly. The renderer checks bound_mode instead.
+           Since bound_mode is broken on 64-bit, skip this check for now. */
         if (objs->group_id && !(objs->group_id & group_id)) continue;
 
         DG_OBJ *obj = objs->objs;
@@ -332,6 +334,25 @@ void port_RenderObjects(int idx)
             if (!obj->model) continue;
             DG_MDL *mdl = obj->model;
             if (!mdl->vertices || !mdl->vindices) continue;
+
+#ifdef PORT_BUILD
+            /* Debug: print Snake's screen matrix (obj with 16 models, n_obj > 20) */
+            {
+                static int _snk = 0;
+                if (_snk < 3 && n_models == 16 && mi == 0 && n > 5) {
+                    printf("[SNAKE] screen m=[%d,%d,%d/%d,%d,%d/%d,%d,%d] t=[%d,%d,%d]\n",
+                           obj->screen.m[0][0],obj->screen.m[0][1],obj->screen.m[0][2],
+                           obj->screen.m[1][0],obj->screen.m[1][1],obj->screen.m[1][2],
+                           obj->screen.m[2][0],obj->screen.m[2][1],obj->screen.m[2][2],
+                           obj->screen.t[0],obj->screen.t[1],obj->screen.t[2]);
+                    printf("[SNAKE] world m=[%d,%d,%d] t=[%d,%d,%d] fl=0x%x\n",
+                           obj->world.m[0][0],obj->world.m[1][1],obj->world.m[2][2],
+                           objs->world.t[0],objs->world.t[1],objs->world.t[2],
+                           objs->flag);
+                    _snk++;
+                }
+            }
+#endif
 
             /* Use obj->screen if computed by DG_ScreenModels/DG_CompMatrix
                (non-zero rotation = was computed this frame).
