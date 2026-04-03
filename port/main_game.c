@@ -270,8 +270,13 @@ void game_tick(void)
         GV_ExecActorSystem();
         uint64_t ta1 = mach_absolute_time();
 
-        /* Direct 3D renderer */
-        port_RenderObjects(GV_Clock);
+        /* Direct 3D renderer — skip during codec/menu (DG_FrameRate==2)
+           so OT-rendered 2D UI is not covered by 3D geometry */
+        {
+            extern int DG_FrameRate;
+            if (DG_FrameRate != 2)
+                port_RenderObjects(GV_Clock);
+        }
         uint64_t ta2 = mach_absolute_time();
 
         /* OT-based render pipeline — draws previous frame's OT on top of 3D */
