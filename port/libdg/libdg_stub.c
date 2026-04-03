@@ -11,7 +11,7 @@
 #include "libdg/libdg.h"
 
 /* Globals */
-int DG_FrameRate = 2;
+int DG_FrameRate = 1;
 int DG_HikituriFlag = 0;
 
 /* dgd.c — our custom init */
