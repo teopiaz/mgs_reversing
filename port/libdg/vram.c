@@ -252,7 +252,7 @@ int port_tri_z[3] = {1, 1, 1};
 
 void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color)
 {
-    /* Sort vertices by y, keeping UV/Z indices in sync */
+    /* Sort vertices by y, keeping UV indices in sync */
     int ui[3] = {0, 1, 2};
     if (y0 > y1) { int t; t=x0;x0=x1;x1=t; t=y0;y0=y1;y1=t; t=ui[0];ui[0]=ui[1];ui[1]=t; }
     if (y0 > y2) { int t; t=x0;x0=x2;x2=t; t=y0;y0=y2;y2=t; t=ui[0];ui[0]=ui[2];ui[2]=t; }
@@ -261,15 +261,23 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
     uint16_t z = port_current_z;
     int textured = port_tex_enabled;
 
-    /* Get sorted UVs and per-vertex 1/Z for perspective correction */
-    float su[3], sv[3], sw[3]; /* u/z, v/z, 1/z */
+    /* Sorted UVs (affine, no perspective correction — matches PSX) */
+    int tu[3], tv[3];
     if (textured) {
-        for (int i = 0; i < 3; i++) {
-            float iz = 1.0f / (float)(port_tri_z[ui[i]] > 0 ? port_tri_z[ui[i]] : 1);
-            su[i] = (float)port_tri_u[ui[i]] * iz;
-            sv[i] = (float)port_tri_v[ui[i]] * iz;
-            sw[i] = iz;
-        }
+        tu[0] = port_tri_u[ui[0]]; tv[0] = port_tri_v[ui[0]];
+        tu[1] = port_tri_u[ui[1]]; tv[1] = port_tri_v[ui[1]];
+        tu[2] = port_tri_u[ui[2]]; tv[2] = port_tri_v[ui[2]];
+    }
+
+    /* Precompute texture constants outside pixel loop */
+    int tp = 0, tex_base_x = 0, tex_base_y = 0, clut_x = 0, clut_y = 0;
+    if (textured) {
+        tp = (port_tex_tpage >> 7) & 0x3;
+        tex_base_x = (port_tex_tpage & 0xF) * 64;
+        tex_base_y = ((port_tex_tpage >> 4) & 0x1) * 256;
+        if (port_tex_tpage & 0x800) tex_base_y += 512;
+        clut_x = (port_tex_clut & 0x3F) * 16;
+        clut_y = (port_tex_clut >> 6) & 0x1FF;
     }
 
     int dy_total = y2 - y0;
@@ -278,74 +286,84 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
     for (int y = y0; y <= y2; y++)
     {
         int vy = y + draw_y;
-        if (vy < 0 || vy >= 224) continue;
+        if (vy < clip_y0 || vy > clip_y1) continue;
 
-        /* Compute scanline x endpoints and interpolated values */
-        int xa, xb;
-        float uza, vza, wa, uzb, vzb, wb;
         int dy0 = y - y0;
-        float t_a = (float)dy0 / (float)dy_total;
+        int xa, xb, ua, va, ub, vb;
 
         /* Edge a: v0 → v2 (long edge) */
         xa = x0 + (x2 - x0) * dy0 / dy_total;
         if (textured) {
-            uza = su[0] + (su[2] - su[0]) * t_a;
-            vza = sv[0] + (sv[2] - sv[0]) * t_a;
-            wa  = sw[0] + (sw[2] - sw[0]) * t_a;
+            ua = tu[0] + (tu[2] - tu[0]) * dy0 / dy_total;
+            va = tv[0] + (tv[2] - tv[0]) * dy0 / dy_total;
         }
 
         /* Edge b: v0→v1 or v1→v2 */
         if (y < y1) {
             int dy01 = y1 - y0; if (dy01 == 0) dy01 = 1;
-            float t_b = (float)dy0 / (float)dy01;
             xb = x0 + (x1 - x0) * dy0 / dy01;
             if (textured) {
-                uzb = su[0] + (su[1] - su[0]) * t_b;
-                vzb = sv[0] + (sv[1] - sv[0]) * t_b;
-                wb  = sw[0] + (sw[1] - sw[0]) * t_b;
+                ub = tu[0] + (tu[1] - tu[0]) * dy0 / dy01;
+                vb = tv[0] + (tv[1] - tv[0]) * dy0 / dy01;
             }
         } else {
             int dy12 = y2 - y1; if (dy12 == 0) dy12 = 1;
             int dy1 = y - y1;
-            float t_b = (float)dy1 / (float)dy12;
             xb = x1 + (x2 - x1) * dy1 / dy12;
             if (textured) {
-                uzb = su[1] + (su[2] - su[1]) * t_b;
-                vzb = sv[1] + (sv[2] - sv[1]) * t_b;
-                wb  = sw[1] + (sw[2] - sw[1]) * t_b;
+                ub = tu[1] + (tu[2] - tu[1]) * dy1 / dy12;
+                vb = tv[1] + (tv[2] - tv[1]) * dy1 / dy12;
             }
         }
 
         /* Ensure xa <= xb */
         if (xa > xb) {
             int t; t=xa;xa=xb;xb=t;
-            if (textured) { float ft; ft=uza;uza=uzb;uzb=ft; ft=vza;vza=vzb;vzb=ft; ft=wa;wa=wb;wb=ft; }
+            if (textured) { int ti; ti=ua;ua=ub;ub=ti; ti=va;va=vb;vb=ti; }
         }
 
         int dx = xb - xa;
         if (dx == 0) dx = 1;
-        float inv_dx = 1.0f / (float)dx;
 
-        for (int x = xa; x <= xb; x++)
-        {
-            int vx = x + draw_x;
-            if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1 && z <= port_zbuf[vy][vx])
-            {
+        /* Clamp scanline to clip rect */
+        int x_start = xa + draw_x;
+        int x_end = xb + draw_x;
+        int x_skip = 0;
+        if (x_start < clip_x0) { x_skip = clip_x0 - x_start; x_start = clip_x0; }
+        if (x_end > clip_x1) x_end = clip_x1;
+        if (x_start > x_end) continue;
+
+        if (textured) {
+            /* Fixed-point 16.16 affine interpolation */
+            int u16 = ua << 16;
+            int v16 = va << 16;
+            int du16 = ((ub - ua) << 16) / dx;
+            int dv16 = ((vb - va) << 16) / dx;
+            u16 += du16 * x_skip;
+            v16 += dv16 * x_skip;
+
+            uint16_t *row = &vram[vy][x_start];
+            for (int x = x_start; x <= x_end; x++) {
+                int u = (u16 >> 16) & 0xFF;
+                int v = (v16 >> 16) & 0xFF;
                 uint16_t c;
-                if (textured) {
-                    float frac = (float)(x - xa) * inv_dx;
-                    /* Perspective-correct: interpolate u/z, v/z, 1/z then divide */
-                    float w_interp = wa + (wb - wa) * frac;
-                    if (w_interp <= 0.0f) w_interp = 0.0001f;
-                    float rw = 1.0f / w_interp;
-                    int u = (int)((uza + (uzb - uza) * frac) * rw);
-                    int v = (int)((vza + (vzb - vza) * frac) * rw);
-                    c = sample_vram_texel(port_tex_tpage, port_tex_clut, u, v);
 
-                    if (c == 0) continue;
+                /* Inline texel lookup */
+                if (tp == 0) { /* 4-bit CLUT */
+                    uint16_t texel = vram[tex_base_y + v][tex_base_x + (u >> 2)];
+                    int idx = (texel >> ((u & 3) * 4)) & 0xF;
+                    c = vram[clut_y][clut_x + idx];
+                } else if (tp == 1) { /* 8-bit CLUT */
+                    uint16_t texel = vram[tex_base_y + v][tex_base_x + (u >> 1)];
+                    int idx = (u & 1) ? (texel >> 8) & 0xFF : texel & 0xFF;
+                    c = vram[clut_y][clut_x + idx];
+                } else { /* 16-bit direct */
+                    c = vram[tex_base_y + v][tex_base_x + u];
+                }
 
+                if (c != 0 && z <= port_zbuf[vy][x]) {
                     if (port_tex_semi_trans && (c & 0x8000)) {
-                        uint16_t bg = vram[vy][vx];
+                        uint16_t bg = *row;
                         int br = bg & 0x1F, bg2 = (bg>>5)&0x1F, bb = (bg>>10)&0x1F;
                         int fr = c & 0x1F,  fg = (c>>5)&0x1F,   fb = (c>>10)&0x1F;
                         int rr, rg, rb;
@@ -361,11 +379,20 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                         if(rb<0)rb=0; if(rb>31)rb=31;
                         c = (rb<<10)|(rg<<5)|rr;
                     }
-                } else {
-                    c = color;
+                    *row = c;
+                    port_zbuf[vy][x] = z;
                 }
-                vram[vy][vx] = c;
-                port_zbuf[vy][vx] = z;
+                row++;
+                u16 += du16;
+                v16 += dv16;
+            }
+        } else {
+            /* Flat shaded — just fill the scanline */
+            uint16_t *row = &vram[vy][x_start];
+            uint16_t *zrow = &port_zbuf[vy][x_start];
+            for (int x = x_start; x <= x_end; x++) {
+                if (z <= *zrow) { *row = color; *zrow = z; }
+                row++; zrow++;
             }
         }
     }
