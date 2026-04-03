@@ -56,7 +56,7 @@ int cprintf(const char *format, ...);
    directly as a pointer. We can't intercept literal casts, but we CAN
    mmap our scratchpad at that address... or just use a macro hack.
    Actually, the simplest fix: mmap a page at 0x1f800000 on macOS. */
-extern char port_scratchpad[1024];
+extern char port_scratchpad[256 * 32 + 1024];
 
 /* Redirect hardcoded scratchpad address casts via a macro.
    This won't catch all cases but helps with common patterns. */

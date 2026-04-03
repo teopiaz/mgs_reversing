@@ -322,7 +322,6 @@ void port_RenderObjects(int idx)
         if (objs->flag & DG_FLAG_INVISIBLE) continue;
         if (objs->group_id && !(objs->group_id & group_id)) continue;
 
-        MATRIX *eye = &chanl->eye_inv;
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
 
@@ -334,17 +333,26 @@ void port_RenderObjects(int idx)
             DG_MDL *mdl = obj->model;
             if (!mdl->vertices || !mdl->vindices) continue;
 
+            /* Use obj->screen if computed by DG_ScreenModels/DG_CompMatrix
+               (non-zero rotation = was computed this frame).
+               Fall back to eye_inv * world for objects where screen wasn't set. */
             MATRIX screen_mat;
-            MATRIX *world;
-            /* Use per-model world matrix if it was set (non-zero rotation).
-               Fall back to parent objs->world for uninitialized models. */
-            {
+            if (obj->screen.m[0][0] || obj->screen.m[1][1] || obj->screen.m[2][2]) {
+                screen_mat = obj->screen;
+            } else {
+                MATRIX *world;
                 short *m = (short *)obj->world.m;
                 int is_zero = 1;
                 for (int k = 0; k < 9; k++) { if (m[k]) { is_zero = 0; break; } }
                 world = is_zero ? &objs->world : &obj->world;
+                /* Apply DG_AdjustOverscan Y scaling to match PSX */
+                MATRIX eye_adj = chanl->eye_inv;
+                eye_adj.m[1][0] = (eye_adj.m[1][0] * 58) / 64;
+                eye_adj.m[1][1] = (eye_adj.m[1][1] * 58) / 64;
+                eye_adj.m[1][2] = (eye_adj.m[1][2] * 58) / 64;
+                eye_adj.t[1] = (eye_adj.t[1] * 58) / 64;
+                mat_mul(&eye_adj, world, &screen_mat);
             }
-            mat_mul(eye, world, &screen_mat);
 
             SVECTOR *verts = mdl->vertices;
             unsigned char *vindices = mdl->vindices;
@@ -383,13 +391,11 @@ void port_RenderObjects(int idx)
 
                 total_faces++;
 
-                /* PSX quad vertex layout:
-                   v0---v1
-                   |    |
-                   v3---v2
-                   Backface cull uses nclip(v0,v1,v3) matching the first drawn triangle */
-                int area = (sx1-sx0)*(sy3-sy0) - (sx3-sx0)*(sy1-sy0);
-                if (area < 0 && !(mdl->flags & DG_MODEL_BOTHFACE)) continue;
+                /* PSX uses nclip(v0,v1,v2) and culls when area <= 0. */
+                int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
+                if (area <= 0) {
+                    if (!(mdl->flags & DG_MODEL_BOTHFACE) || area == 0) continue;
+                }
 
                 /* Screen → framebuffer (PSX center at 160,112) */
                 int fx0 = sx0 + 160, fy0 = sy0 + 112;
