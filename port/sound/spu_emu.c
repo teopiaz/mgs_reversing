@@ -249,6 +249,9 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
 
 void spu_emu_init(void)
 {
+    /* Prevent double-init */
+    if (audio_dev > 0) return;
+
     memset(spu_ram, 0, SPU_RAM_SIZE);
     memset(voices, 0, sizeof(voices));
 

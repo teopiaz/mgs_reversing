@@ -364,11 +364,49 @@ void *FS_LoadStageRequest(const char *dirname)
         }
         else if (tag->mode == 's')
         {
-            /* 's' mode: sound data or overlay binaries.
-               ext='b' is the stage overlay binary — process it through the 'b' loader. */
+            /* 's' mode: sound data or overlay binaries. */
             if (tag->ext == 'b') {
                 int cache_id = (('b' - 'a') << 16) | tag->id;
                 GV_LoadInit(data_ptr, cache_id, GV_REGION_NOCACHE);
+            }
+            else if (tag->ext == 'w') {
+                /* .wvx wave data — copy to temp buffer and process through
+                   SD_WavLoadBuf state machine which transfers to SPU RAM */
+                extern char *SD_WavDataLoadInit(unsigned short id);
+                extern char *SD_WavLoadBuf(char *arg0);
+                extern void SD_WavUnload(void);
+                char *buf = SD_WavDataLoadInit(tag->id);
+                if (buf) {
+                    /* Allocate temp buffer for the full wvx file */
+                    char *tmpbuf = malloc(tag->size);
+                    if (tmpbuf) {
+                        memcpy(tmpbuf, data_ptr, tag->size);
+                        /* Feed data in CDLOAD_BUF_SIZE chunks through the state machine */
+                        int chunk = 2048 * 48;
+                        int offset = 0;
+                        while (offset < tag->size) {
+                            int n = (tag->size - offset) < chunk ? (tag->size - offset) : chunk;
+                            memcpy(buf, tmpbuf + offset, n);
+                            char *end = buf + n;
+                            char *ret = SD_WavLoadBuf(end);
+                            /* If state machine wraps the buffer, reset buf */
+                            if (ret != end) buf = ret;
+                            offset += n;
+                        }
+                        SD_WavUnload();
+                        free(tmpbuf);
+                        printf("  [fs]   Loaded .wvx sound data (%d bytes)\n", tag->size);
+                    }
+                }
+            }
+            else if (tag->ext == 'm') {
+                /* .mdx song data */
+                extern unsigned char *SD_SngDataLoadInit(unsigned short id);
+                unsigned char *buf = SD_SngDataLoadInit(tag->id);
+                if (buf) {
+                    memcpy(buf, data_ptr, tag->size);
+                    printf("  [fs]   Loaded .mdx song data (%d bytes)\n", tag->size);
+                }
             }
             data_ptr += (tag->size + (FS_SECTOR_SIZE - 1)) & ~(FS_SECTOR_SIZE - 1);
         }
