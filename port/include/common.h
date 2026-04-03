@@ -22,7 +22,7 @@
 /* Override scratchpad macros from psxdefs.h — the original uses MIPS asm
    that can't compile on ARM64/x86_64. These are included by the original
    common.h -> psxdefs.h chain and need to be overridden here. */
-extern char port_scratchpad[1024];
+extern char port_scratchpad[256 * 32 + 1024];
 
 #undef SCRPAD_ADDR
 #define SCRPAD_ADDR     ((unsigned long)(port_scratchpad))
