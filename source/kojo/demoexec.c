@@ -112,6 +112,16 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
     memcpy(lpAct->header->maps, header->maps, sizeof(DMO_MAP) * lpAct->header->n_maps);
     memcpy(lpAct->header->models, header->models, sizeof(DMO_MDL) * lpAct->header->n_models);
 
+#ifdef PORT_BUILD
+    {
+        DMO_MDL *mf = lpAct->header->models;
+        printf("[CreateDemo] n_models=%d n_maps=%d\n", lpAct->header->n_models, lpAct->header->n_maps);
+        for (i = 0; i < lpAct->header->n_models; i++)
+            printf("[CreateDemo] model%d type=%d flag=%d cache=%d name=%d\n",
+                   i, mf[i].type, mf[i].flag, mf[i].cache_id, mf[i].filename);
+    }
+#endif
+
     map = lpAct->header->maps;
     for (i = 0; i < lpAct->header->n_maps; i++)
     {
@@ -2164,6 +2174,12 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
 
     if (i >= lpAct->header->n_models)
     {
+#ifdef PORT_BUILD
+        static int _af = 0;
+        if (_af++ < 5)
+            printf("[ADJ_FAIL] adjust type=%d not found in %d models\n",
+                   adjust->type, work->header->n_models);
+#endif
         return 0;
     }
 
