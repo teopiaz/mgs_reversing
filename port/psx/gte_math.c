@@ -161,7 +161,9 @@ void gte_op_rtpt(void)
 
 void gte_op_rt(void)
 {
-    mat_vec_mul_add_tr(&gte_state.R, gte_state.V0.vx, gte_state.V0.vy, gte_state.V0.vz);
+    /* PSX GTE RT = MVMVA(sf=1, mx=R, v=IR, cv=TR).
+       gte_ldv0 copies to IR; gte_ldlv0 sets IR directly. */
+    mat_vec_mul_add_tr(&gte_state.R, gte_state.IR1, gte_state.IR2, gte_state.IR3);
 }
 
 void gte_op_rtv0(void)  { mat_vec_mul(&gte_state.R, gte_state.V0.vx, gte_state.V0.vy, gte_state.V0.vz); }
@@ -635,8 +637,11 @@ long ratan2(long y, long x)
 {
     if (x == 0 && y == 0) return 0;
     double angle = atan2((double)y, (double)x);
-    long result = (int)(angle * 4096.0 / (2.0 * 3.14159265358979323846));
-    return result & 0xfff;
+    /* PSX ratan2 returns signed values in -2048..2047 range */
+    int result = (int)(angle * 4096.0 / (2.0 * 3.14159265358979323846));
+    /* Wrap to -2048..2047 */
+    result = ((result + 2048) & 0xfff) - 2048;
+    return result;
 }
 
 long SquareRoot0(long a)
@@ -935,20 +940,36 @@ MATRIX *RotMatrixZ(long r, MATRIX *m)
 
 MATRIX *RotMatrixYXZ(SVECTOR *r, MATRIX *m)
 {
-    RotMatrix(r, m);
+    /* PSX GTE RotMatrixYXZ computes R = Ry(-vy) * Rx(vx) * Rz(vz)
+       where Ry uses negated sin (left-handed Y rotation convention). */
+    init_trig_tables();
+    int sx = rsin(r->vx); int cx = rcos(r->vx);
+    int sy = rsin(r->vy); int cy = rcos(r->vy);
+    int sz = rsin(r->vz); int cz = rcos(r->vz);
+
+    m->m[0][0] = (short)(((cy * cz) >> 12) + (((sy * sx) >> 12) * sz >> 12));
+    m->m[0][1] = (short)((-(cy * sz) >> 12) + (((sy * sx) >> 12) * cz >> 12));
+    m->m[0][2] = (short)(((sy * cx)) >> 12);
+    m->m[1][0] = (short)(((cx * sz)) >> 12);
+    m->m[1][1] = (short)(((cx * cz)) >> 12);
+    m->m[1][2] = (short)(-sx);
+    m->m[2][0] = (short)((-(sy * cz) >> 12) + (((cy * sx) >> 12) * sz >> 12));
+    m->m[2][1] = (short)(((sy * sz) >> 12) + (((cy * sx) >> 12) * cz >> 12));
+    m->m[2][2] = (short)(((cy * cx)) >> 12);
     return m;
 }
 
 MATRIX *RotMatrixZYX_gte(SVECTOR *r, MATRIX *m)
 {
+    /* For now, use the same formula as RotMatrix (XYZ order).
+       TODO: verify against PSX GTE with comparison data. */
     RotMatrix(r, m);
     return m;
 }
 
 MATRIX *RotMatrixYXZ_gte(SVECTOR *r, MATRIX *m)
 {
-    RotMatrix(r, m);
-    return m;
+    return RotMatrixYXZ(r, m);
 }
 
 void ApplyMatrix(MATRIX *m, SVECTOR *v0, VECTOR *v1)
@@ -1033,8 +1054,10 @@ MATRIX *MulRotMatrix(MATRIX *m)
 {
     MATRIX temp;
     MulMatrix0((MATRIX *)&gte_state.R, m, &temp);
+    /* PSX writes result to both GTE registers and input matrix m */
+    memcpy(m->m, temp.m, sizeof(temp.m));
     memcpy(&gte_state.R, &temp, sizeof(MATRIX));
-    return (MATRIX *)&gte_state.R;
+    return m;
 }
 
 void SetMulMatrix(MATRIX *m)

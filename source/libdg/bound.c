@@ -37,7 +37,11 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
     int        n_models;
     int        n_bounding_box_vec;
     int        ret, extra;
+#ifdef PORT_BUILD
+    int       *test;
+#else
     long      *test;
+#endif
     DG_OBJ    *obj;
     DVECTOR   *dvec;
     SVECTOR   *svec;
@@ -134,7 +138,11 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
                 else
                 {
                     ret = ((a3 >= 0xA1) || (a2 < -0xA0) || (t1 >= 0x71) || (t0 < -0x70)) ? 1 : 2;
+#ifdef PORT_BUILD
+                    test = (int *)(SCRPAD_ADDR + 0x6C);
+#else
                     test = (long *)(SCRPAD_ADDR + 0x6C);
+#endif
                     i3 = 8;
                     while (i3 > 0)
                     {
@@ -201,7 +209,11 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
     DG_VECTOR   *vec3_2;
     DG_BOUND    *mdl_bounds;
     int          n_bounding_box_vec;
+#ifdef PORT_BUILD
+    int         *test;
+#else
     long        *test;
+#endif
     unsigned int flag;
 
     DG_Clip(&chanl->clip_rect, chanl->clip_distance);
@@ -301,7 +313,11 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
                     else
                     {
                         bound_mode = ((a3 >= 0xA1) || (a2 < -0xA0) || (t1 >= 0x71) || (t0 < -0x70)) ? 1 : 2;
-                        test = (long *)(SCRPAD_ADDR + 0x6C);
+    #ifdef PORT_BUILD
+                    test = (int *)(SCRPAD_ADDR + 0x6C);
+#else
+                    test = (long *)(SCRPAD_ADDR + 0x6C);
+#endif
                         i3 = 8;
                         while (i3 > 0)
                         {
@@ -318,7 +334,6 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
                 }
             }
         }
-        // loc_80018CE0:
         current_objs->bound_mode = bound_mode;
         DG_BoundObjs(current_objs, idx, flag, bound_mode);
     }

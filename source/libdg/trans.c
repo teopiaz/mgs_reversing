@@ -25,17 +25,26 @@ void DG_TransStart( void )
 STATIC unsigned int DG_WriteObjVerticesIndirect( unsigned int vidx, POLY_GT4 *packs )
 {
     int *pack_ptr;
-    int a2, a3, t3, t5, num, stride;
+    int a3, num, stride;
     int i, temp;
-    unsigned int scrpd_idx, scrpd_idx2;
     unsigned char t6;
 
-    scrpd_idx = SCRPAD_ADDR;
-    t3 = *( int* )(scrpd_idx + 0x3F8);
-    if ( !t3 ) return 0;
+#ifdef PORT_BUILD
+    uintptr_t scrpd_idx = SCRPAD_ADDR;
+    uintptr_t scrpd_idx2 = SCRPAD_ADDR;
+    uintptr_t a2;
+    uintptr_t t3 = *(int *)(scrpd_idx + 0x3F8);
+    if (!t3) return 0;
+    uintptr_t t5 = *(int *)(scrpd_idx + 0x3FC);
+#else
+    unsigned int scrpd_idx = SCRPAD_ADDR;
+    unsigned int scrpd_idx2 = SCRPAD_ADDR;
+    int a2;
+    int t3 = *(int *)(scrpd_idx + 0x3F8);
+    if (!t3) return 0;
+    int t5 = *(int *)(scrpd_idx + 0x3FC);
+#endif
 
-
-    t5 = *( int* )( scrpd_idx + 0x3FC );
     num = 0;
     stride = 0;
 
@@ -43,7 +52,6 @@ STATIC unsigned int DG_WriteObjVerticesIndirect( unsigned int vidx, POLY_GT4 *pa
     a3 = 8;
     i = 4;
     t6 = 32;
-    scrpd_idx2 = SCRPAD_ADDR;
 
     for ( ; i > 0; i-- )
     {
@@ -65,7 +73,7 @@ STATIC unsigned int DG_WriteObjVerticesIndirect( unsigned int vidx, POLY_GT4 *pa
 
             if (temp & 4)
             {
-                * (pack_ptr - 1 ) = (t3 + a2) - 4;
+                * (pack_ptr - 1 ) = (int)((t3 + a2) - 4);
             }
 
             a2 = *(int *)(t3 + a2);
@@ -98,7 +106,11 @@ STATIC POLY_GT4 *DG_WriteObjVertices( unsigned int *vindices, POLY_GT4 *packs, i
     int area;
     unsigned int uVar7;
     int count;
+#ifdef PORT_BUILD
+    uintptr_t scrpad_addr;
+#else
     unsigned int scrpad_addr;
+#endif
     unsigned int uVar8;
     unsigned int *n0, *n1, *n2, *n3;
 
@@ -120,6 +132,19 @@ STATIC POLY_GT4 *DG_WriteObjVertices( unsigned int *vindices, POLY_GT4 *packs, i
         n2 = (unsigned int *)*vindices;
         n3 = (unsigned int *)*vindices;
 
+#ifdef PORT_BUILD
+        {
+            unsigned int vi = (unsigned int)(uintptr_t)*vindices;
+            unsigned int i0 = (vi << 2) & 0x1fc;
+            unsigned int i1 = (vi >> 6) & 0x1fc;
+            unsigned int i2 = (vi >> 22) & 0x1fc;
+            unsigned int i3 = (vi >> 14) & 0x1fc;
+            n0 = (unsigned int *)(scrpad_addr + i0);
+            n1 = (unsigned int *)(scrpad_addr + i1);
+            n2 = (unsigned int *)(scrpad_addr + i2);
+            n3 = (unsigned int *)(scrpad_addr + i3);
+        }
+#else
         n0 = (unsigned int *)((unsigned int)n0 << 2);
         n1 = (unsigned int *)((unsigned int)n1 >> 6);
         n2 = (unsigned int *)((unsigned int)n2 >> 22);
@@ -134,6 +159,7 @@ STATIC POLY_GT4 *DG_WriteObjVertices( unsigned int *vindices, POLY_GT4 *packs, i
         n1 = (unsigned int *)((int)n1 + scrpad_addr);
         n2 = (unsigned int *)((int)n2 + scrpad_addr);
         n3 = (unsigned int *)((int)n3 + scrpad_addr);
+#endif
 
 
         if ((*(unsigned short *)(scrpad_addr + 0x1fe) & 1))
