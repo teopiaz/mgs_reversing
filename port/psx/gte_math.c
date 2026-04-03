@@ -79,9 +79,10 @@ static void mat_vec_mul(const MATRIX *m, long vx, long vy, long vz)
 
 static void mat_vec_mul_add_tr(const MATRIX *m, long vx, long vy, long vz)
 {
-    gte_state.MAC1 = ((int)gte_state.TRX << 12) + (int)m->m[0][0] * vx + (int)m->m[0][1] * vy + (int)m->m[0][2] * vz;
-    gte_state.MAC2 = ((int)gte_state.TRY << 12) + (int)m->m[1][0] * vx + (int)m->m[1][1] * vy + (int)m->m[1][2] * vz;
-    gte_state.MAC3 = ((int)gte_state.TRZ << 12) + (int)m->m[2][0] * vx + (int)m->m[2][1] * vy + (int)m->m[2][2] * vz;
+    /* PSX GTE MAC registers are 44-bit. Use 64-bit to prevent overflow. */
+    gte_state.MAC1 = (int)(((long long)gte_state.TRX << 12) + (long long)m->m[0][0] * vx + (long long)m->m[0][1] * vy + (long long)m->m[0][2] * vz);
+    gte_state.MAC2 = (int)(((long long)gte_state.TRY << 12) + (long long)m->m[1][0] * vx + (long long)m->m[1][1] * vy + (long long)m->m[1][2] * vz);
+    gte_state.MAC3 = (int)(((long long)gte_state.TRZ << 12) + (long long)m->m[2][0] * vx + (long long)m->m[2][1] * vy + (long long)m->m[2][2] * vz);
     gte_state.IR1 = clamp_mac_to_ir(gte_state.MAC1 >> 12);
     gte_state.IR2 = clamp_mac_to_ir(gte_state.MAC2 >> 12);
     gte_state.IR3 = clamp_mac_to_ir(gte_state.MAC3 >> 12);
