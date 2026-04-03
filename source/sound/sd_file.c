@@ -416,7 +416,7 @@ int SD_80083F54(char *end)
 
     wave_load_ptr = cdload_buf + 16;
 
-    if (((unsigned int)src_ptr + size) >= (unsigned int)end)
+    if (((uintptr_t)src_ptr + size) >= (uintptr_t)end)
     {
         return 0;
     }
