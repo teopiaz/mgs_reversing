@@ -178,7 +178,8 @@ static int project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, in
 {
     int cx, cy, cz;
     mat_transform(screen, vert, &cx, &cy, &cz);
-    if (cz <= 4) return 0; /* behind camera or too close */
+    if (cz <= 0) return 0; /* behind camera */
+    if (cz < 4) cz = 4;    /* clamp near plane */
     *sx = (cx * dist) / cz;
     *sy = (cy * dist) / cz;
     *sz = cz;
@@ -298,10 +299,17 @@ void port_RenderObjects(int idx)
         if (frames_since_load < 3) { frames_since_load++; return; }
     }
 
-    /* Only log occasionally to reduce spam */
     render_debug++;
-    if ((render_debug % 120) == 0) {
-        printf("[render] chanl1: objs_index=%d\n", chanl->objs_index);
+    if ((render_debug % 120) == 0 && chanl->objs_index > 5) {
+        printf("[PORT] frame=%d objs=%d\n", render_debug, chanl->objs_index);
+        DG_OBJS **dq = chanl->queue;
+        for (int qi = 0; qi < chanl->objs_index; qi++) {
+            DG_OBJS *o = dq[qi];
+            if (!o) continue;
+            printf("[PORT] obj%d n=%d bm=%d fl=0x%x t=[%d,%d,%d]\n",
+                   qi, o->n_models, o->bound_mode, o->flag,
+                   o->world.t[0], o->world.t[1], o->world.t[2]);
+        }
     }
     for (int n = chanl->objs_index; n > 0; n--)
     {
@@ -313,6 +321,9 @@ void port_RenderObjects(int idx)
         if ((uintptr_t)objs->def < 0x1000 ||
             (uintptr_t)objs->def > 0xFFFFFFFFFFULL) continue;
         if (!objs->objs) continue;
+        /* TODO: frustum culling via bound_mode disabled — DG_BoundChanl has
+           64-bit issues in bound.c that cause all objects to be culled.
+           if (objs->bound_mode == 0) continue; */
         if (objs->group_id && !(objs->group_id & group_id)) continue;
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
 
@@ -330,8 +341,6 @@ void port_RenderObjects(int idx)
 
             MATRIX screen_mat;
             MATRIX *world;
-            /* Map objects use the parent world matrix (objs->world).
-               Animated models (Snake etc) use per-bone obj->world. */
             if (obj->world.m[0][0] || obj->world.m[1][1] || obj->world.m[2][2])
                 world = &obj->world;
             else
@@ -447,8 +456,8 @@ void port_RenderObjects(int idx)
         }
     }
 
-    if ((render_debug % 300) == 0 && chanl->objs_index > 0) {
-        printf("[render] %d faces drawn (%d visible, %d objs)\n",
+    if ((render_debug % 60) == 0 && chanl->objs_index > 0) {
+        printf("[PORT] faces=%d visible=%d objs=%d\n",
                drawn_faces, total_faces, chanl->objs_index);
     }
 }
