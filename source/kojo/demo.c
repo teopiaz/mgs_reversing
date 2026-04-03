@@ -488,6 +488,13 @@ int FrameRunDemo(DemoWork *work, DMO_DAT *data)
     demothrd_1_FrameRunDemo_helper4_8007CF14(work, data);
 
     adjust = data->adjust;
+#ifdef PORT_BUILD
+    if (data->n_adjusts > 0) {
+        static int _adj = 0;
+        if (_adj++ < 3)
+            printf("[DEMO] adjusts=%d ptr=%p\n", data->n_adjusts, (void*)adjust);
+    }
+#endif
     for ( i = 0; i < data->n_adjusts; i++, adjust++ )
     {
         if ( !demothrd_8007CFE8(work, adjust) )
@@ -2107,7 +2114,9 @@ static int demothrd_8007CFE8(DemoWork *work, DMO_ADJ *adjust)
     int         i;
     short      *rots;
 
+#ifndef PORT_BUILD
     OFFSET_TO_PTR(adjust, &adjust->rots);
+#endif
 
     model_file = work->header->models;
     model = work->models;
