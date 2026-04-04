@@ -130,10 +130,7 @@ HZD_HDL *HZD_MakeHandler(HZD_DEF *hzd, int areaIndex, int dynamic_segments, int 
         zones = cached_route;
     }
 
-    hzdMap = (HZD_HDL *)GV_Malloc(sizeof(HZD_HDL) +
-        (sizeof(HZD_FLR *) * dynamic_floors) +
-        (sizeof(HZD_SEG *) * dynamic_segments) +
-        (sizeof(char) * dynamic_segments));
+    hzdMap = (HZD_HDL *)GV_Malloc((4 * dynamic_floors) + sizeof(HZD_HDL) + (4 * dynamic_segments) + (2 * dynamic_segments));
     if (hzdMap)
     {
         hzdMap->dynamic_floors = (void *)&hzdMap[1];
