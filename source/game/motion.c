@@ -218,11 +218,6 @@ int GM_ConfigMotionControl(OBJECT *object, MOTION_CONTROL *m_ctrl, int name, MOT
     m_ctrl->step = &control->step;
     m_ctrl->info2.m_segs = m_segs2;
 
-#ifdef PORT_BUILD
-    if (rots && (uintptr_t)rots < 0x10000) {
-        printf("CRITICAL: GM_ConfigMotionControl BAD rots=%p object=%p\n", (void*)rots, (void*)object);
-    }
-#endif
     object->objs->rots = rots;
     object->objs->waist_rot = &m_ctrl->waist_rot;
     object->m_ctrl = m_ctrl;

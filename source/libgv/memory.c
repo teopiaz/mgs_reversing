@@ -371,16 +371,6 @@ void GV_ClearMemorySystem(int which)
         {
             GV_ResetVoidedMemorySystem(heap);
             heap->flags &= ~GV_HEAP_FLAG_VOIDED;
-#ifdef PORT_BUILD
-            /* When normal memory is voided, all DG_OBJS allocated from it
-               become invalid. Clear the render queue to prevent dangling
-               pointer access. On PSX, freed memory stays readable until
-               overwritten; on the port, macOS fills it with 0x10 pattern. */
-            if (which == GV_NORMAL_MEMORY) {
-                extern void DG_FreeObjectQueue(void);
-                DG_FreeObjectQueue();
-            }
-#endif
         }
     }
 

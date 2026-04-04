@@ -490,12 +490,6 @@ static void Act(gameWork *work)
                 }
 
                 GV_DestroyActorSystem(GV_ACTOR_LEVEL4);
-#ifdef PORT_BUILD
-                /* Void the render queue after mass actor destruction.
-                   On PSX, freed DG_OBJS memory stays readable. On the port,
-                   macOS fills it with patterns, causing crashes in DG_ScreenChanl. */
-                { extern void DG_FreeObjectQueue(void); DG_FreeObjectQueue(); }
-#endif
                 GV_PauseLevel &= ~8;
                 GM_ResetMapModel();
                 GM_StreamPlayStop();
