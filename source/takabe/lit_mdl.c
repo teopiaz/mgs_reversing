@@ -45,7 +45,10 @@ typedef struct _Work
 
 #define EXEC_LEVEL GV_ACTOR_AFTER2
 
-DG_DEF litmdl_dg_def = {
+/* Use a struct wrapper to ensure the compiler allocates sizeof(DG_DEF) + sizeof(DG_MDL).
+   The flex array DG_DEF.models[0] doesn't count toward sizeof(DG_DEF),
+   so the memcpy below would read past the global without this. */
+static struct { DG_DEF header; DG_MDL model_data; } litmdl_storage = { {
     1,                      // n_models
     1,                      // n_x_models
     -32000, -32000, -32000, // lx, ly, lz
@@ -70,7 +73,8 @@ DG_DEF litmdl_dg_def = {
             0                       // pad0
         }
     }
-};
+} };
+#define litmdl_dg_def (litmdl_storage.header)
 
 extern DG_CHANL DG_Chanls[3];
 
