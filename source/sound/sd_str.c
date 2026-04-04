@@ -230,7 +230,6 @@ int StrSpuTransWithNoLoop(void)
             }
 
             str_data_ptr = FS_StreamGetData(1);
-
             if (str_data_ptr)
             {
                 str_play_idx = 0;
