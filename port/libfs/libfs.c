@@ -696,8 +696,9 @@ void *FS_StreamGetData(int target_type)
 int FS_StreamGetSize(void *stream)
 {
     if (!stream) return 0;
-    int entry = *(int *)stream;
-    return (entry >> 8) & 0xFFFF;
+    /* stream points to data (after 4-byte header tag). Read the header. */
+    int tag = *((int *)stream - 1);
+    return (tag >> 8) & 0xFFFFFF;
 }
 
 void FS_StreamUngetData(void *stream) { (void)stream; }
@@ -724,7 +725,15 @@ void FS_StreamClearType(void *stream, int target_type)
 
 int  FS_StreamGetEndFlag(void) { return stream_ended; }
 int  FS_StreamIsForceStop(void) { return 0; }
-void FS_StreamTickStart(void) { port_stream_tick = 0; }
+void FS_StreamTickStart(void) {
+    port_stream_tick = 0;
+    /* Sync str_tick_count so jimctrl (subtitle actor) doesn't return early.
+       On PSX, str_tick_count is set by SPU IRQ which runs fast. On the port,
+       it stays -1 until StrSpuTransWithNoLoop reaches state 4 (~12 frames).
+       Setting it to 0 here lets jimctrl process subtitles immediately. */
+    extern int str_tick_count;
+    str_tick_count = 0;
+}
 void FS_StreamSoundMode(void) {}
 int  FS_StreamGetTick(void) { return port_stream_tick++; }
 

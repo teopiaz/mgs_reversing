@@ -252,12 +252,16 @@ void game_tick(void)
                 switch (str_status) {
                 case 1:
                     if (StartStream()) { str_status = 0; }
-                    else { str_status = 2; dword_800BF1A4 = 0; }
+                    else {
+                        str_status = 2; dword_800BF1A4 = 0;
+                        /* Reset str_tick_count after StartStream sets it to -1.
+                           On PSX, the SPU IRQ quickly advances to state 4 which
+                           sets it to 0. On the port, we do it here so jimctrl
+                           (subtitle actor) doesn't return early for 12+ frames. */
+                        { extern int str_tick_count; str_tick_count = 0; }
+                    }
                     break;
                 case 2: case 3: case 4: case 5: case 6:
-                    /* Call multiple times per frame — on PSX, the SPU IRQ
-                       triggers StrSpuTransWithNoLoop many times per frame
-                       to keep feeding audio blocks to voices 21/22 */
                     for (int _si = 0; _si < 16 && str_status >= 2 && str_status <= 6; _si++)
                         sub_800827A4();
                     break;
