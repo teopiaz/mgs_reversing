@@ -183,11 +183,6 @@ void GM_ConfigObjectRoot(OBJECT *obj, OBJECT *parent_obj, int num_parent)
 // configures object rots attribute
 void GM_ConfigObjectJoint(OBJECT *obj)
 {
-#ifdef PORT_BUILD
-    if (obj->objs && obj->rots && (uintptr_t)obj->rots < 0x10000) {
-        printf("CRITICAL: GM_ConfigObjectJoint BAD rots=%p obj=%p objs=%p\n", (void*)obj->rots, (void*)obj, (void*)obj->objs);
-    }
-#endif
     if (obj->objs) obj->objs->rots = obj->rots;
 }
 

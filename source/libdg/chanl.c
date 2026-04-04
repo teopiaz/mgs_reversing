@@ -289,7 +289,7 @@ int DG_QueueObjs( DG_OBJS *objs )
 
     cp->queue[ n++ ] = objs;
     cp->objs_index = n;
-    //printf("[dg] QueueObjs: chanl=%d objs_index=%d def=%p n_models=%d\n", which, n, objs->def, objs->n_models);
+    printf("[dg] QueueObjs: chanl=%d objs_index=%d def=%p n_models=%d\n", which, n, objs->def, objs->n_models);
     return 0;
 }
 
@@ -400,12 +400,6 @@ void DG_RestartMainChanlSystem( void )
 {
     stop_chanl_system_flag = FALSE;
     DG_UnDrawFrameCount = 1;
-#ifdef PORT_BUILD
-    /* Clear the render queue — old entries point to freed DG_OBJS from
-       the previous stage. On PSX, freed memory stays readable until
-       overwritten. On the port, macOS fills freed memory with patterns. */
-    DG_Chanls[1].objs_index = 0;
-#endif
 }
 
 /*---------------------------------------------------------------------------*/

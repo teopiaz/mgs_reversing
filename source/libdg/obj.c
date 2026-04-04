@@ -81,11 +81,6 @@ void DG_FreeObjs( DG_OBJS *objs )
 
 void DG_SetJointFrame( DG_OBJS *objs, SVECTOR *rots )
 {
-#ifdef PORT_BUILD
-    if (rots && (uintptr_t)rots < 0x10000) {
-        printf("CRITICAL: DG_SetJointFrame BAD rots=%p objs=%p\n", (void*)rots, (void*)objs);
-    }
-#endif
     objs->rots = rots;
 }
 
