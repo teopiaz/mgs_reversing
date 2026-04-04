@@ -359,8 +359,8 @@ void port_RenderObjects(int idx)
             }
 #endif
 
-            /* Always compute screen matrix from eye_inv * world.
-               Use per-model obj->world if set (DG_ApplyRots/Movs),
+            /* Compute screen matrix from eye_inv * world.
+               Use per-model obj->world if rotation is set (non-zero m[]),
                otherwise fall back to parent objs->world. */
             MATRIX screen_mat;
             {
@@ -369,13 +369,12 @@ void port_RenderObjects(int idx)
                 int is_zero = 1;
                 for (int k = 0; k < 9; k++) { if (m[k]) { is_zero = 0; break; } }
                 world = is_zero ? &objs->world : &obj->world;
-                /* Apply DG_AdjustOverscan Y scaling to match PSX */
-                MATRIX eye_adj = chanl->eye_inv;
-                eye_adj.m[1][0] = (eye_adj.m[1][0] * 58) / 64;
-                eye_adj.m[1][1] = (eye_adj.m[1][1] * 58) / 64;
-                eye_adj.m[1][2] = (eye_adj.m[1][2] * 58) / 64;
-                eye_adj.t[1] = (eye_adj.t[1] * 58) / 64;
-                mat_mul(&eye_adj, world, &screen_mat);
+                mat_mul(&chanl->eye_inv, world, &screen_mat);
+                /* Apply DG_AdjustOverscan Y scaling AFTER multiply (matches PSX) */
+                screen_mat.m[1][0] = (screen_mat.m[1][0] * 58) / 64;
+                screen_mat.m[1][1] = (screen_mat.m[1][1] * 58) / 64;
+                screen_mat.m[1][2] = (screen_mat.m[1][2] * 58) / 64;
+                screen_mat.t[1] = (screen_mat.t[1] * 58) / 64;
             }
 
             SVECTOR *verts = mdl->vertices;
@@ -384,7 +383,6 @@ void port_RenderObjects(int idx)
             unsigned short *materials = mdl->materials;
             CVECTOR *rgbs = obj->rgbs;
             int n_faces = mdl->n_faces;
-
             for (int fi = 0; fi < n_faces; fi++)
             {
                 unsigned int vi = ((unsigned int *)vindices)[fi];
