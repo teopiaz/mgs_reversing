@@ -254,7 +254,7 @@ void game_tick(void)
                     if (StartStream()) { str_status = 0; }
                     else { str_status = 2; dword_800BF1A4 = 0; }
                     break;
-                case 2: case 3: case 4: case 5:
+                case 2: case 3: case 4: case 5: case 6:
                     sub_800827A4();
                     break;
                 case 7:
