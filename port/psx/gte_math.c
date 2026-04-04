@@ -891,7 +891,10 @@ void ScaleMatrixL(MATRIX *m, VECTOR *v)
 MATRIX *RotMatrix(SVECTOR *r, MATRIX *m)
 {
     if (!r || (uintptr_t)r < 0x10000) {
-        printf("[RotMatrix] BAD pointer r=%p, returning identity\n", (void*)r);
+        /* Port: during stage transitions, freed DG_OBJS memory has macOS
+           scribble patterns instead of PSX's stale-but-valid data.
+           DG_UnDrawFrameCount blocks rendering for a few frames during
+           transition; this handles the remaining edge cases. */
         memset(m->m, 0, sizeof(m->m));
         m->m[0][0] = m->m[1][1] = m->m[2][2] = 4096;
         return m;
