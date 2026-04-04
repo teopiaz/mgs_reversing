@@ -61,6 +61,10 @@ typedef struct {
     /* ADSR envelope */
     EnvPhase env_phase;
     int env_level;             /* 0..0x7FFF */
+    int env_counter;           /* cycle counter for rate-based envelope */
+
+    /* Previous decoded samples for Gaussian interpolation */
+    short prev_decoded[3];     /* last 3 samples from previous blocks */
 } SPU_Voice;
 
 static SPU_Voice voices[NUM_VOICES];
@@ -132,44 +136,107 @@ static void decode_adpcm_block(SPU_Voice *v)
 }
 
 /*---------------------------------------------------------------------------*/
-/* ADSR envelope tick (simplified linear)                                     */
+/* ADSR envelope — based on pcsx-redux implementation                         */
+/* Rate table from PSX SPU hardware: maps rate (0-127) to denominator,        */
+/* increase numerator, and decrease numerator.                                */
 /*---------------------------------------------------------------------------*/
+
+/* Precomputed rate tables (from pcsx-redux adsr.cc) */
+static int adsr_denom(int rate) {
+    return (rate < 48) ? 1 : (1 << ((rate >> 2) - 11));
+}
+static int adsr_num_inc(int rate) {
+    return (rate < 48) ? (7 - (rate & 3)) << (11 - (rate >> 2))
+                       : (7 - (rate & 3));
+}
+static int adsr_num_dec(int rate) {
+    return (rate < 48) ? (-8 + (rate & 3)) << (11 - (rate >> 2))
+                       : (-8 + (rate & 3));
+}
+
+/* Called once per audio sample (44100Hz) — matches PSX SPU hardware */
 static void env_tick(SPU_Voice *v)
 {
+    int rate, denom, step;
+
     switch (v->env_phase) {
     case ENV_ATTACK: {
-        /* PSX ADSR: ar=0 is slowest attack, ar=127 is fastest */
-        int rate = (v->ar >= 127) ? 0x7FFF : (0x7FFF / (128 - v->ar));
-        v->env_level += rate;
+        rate = v->ar & 0x7F;
+        /* Exponential attack: slow down near peak */
+        if ((v->a_mode == 5 || v->a_mode == 1) && v->env_level >= 0x6000)
+            rate = (rate + 8 > 127) ? 127 : rate + 8;
+        denom = adsr_denom(rate);
+        v->env_counter++;
+        if (v->env_counter >= denom) {
+            v->env_counter = 0;
+            v->env_level += adsr_num_inc(rate);
+        }
         if (v->env_level >= 0x7FFF) {
             v->env_level = 0x7FFF;
             v->env_phase = ENV_DECAY;
+            v->env_counter = 0;
         }
         break;
     }
     case ENV_DECAY: {
-        int sustain_level = (v->sl + 1) * 0x800;
+        rate = (v->dr & 0xF) * 4;
+        denom = adsr_denom(rate);
+        v->env_counter++;
+        if (v->env_counter >= denom) {
+            v->env_counter = 0;
+            /* Always exponential decrease */
+            step = (adsr_num_dec(rate) * v->env_level) >> 15;
+            v->env_level += step;
+        }
+        int sustain_level = ((v->sl & 0xF) + 1) * 0x800;
         if (sustain_level > 0x7FFF) sustain_level = 0x7FFF;
-        /* PSX ADSR: dr=0 is slowest decay, dr=15 is fastest */
-        int rate = (v->dr >= 15) ? 0x7FFF : (0x7FFF / (16 - v->dr));
-        v->env_level -= rate;
         if (v->env_level <= sustain_level) {
             v->env_level = sustain_level;
             v->env_phase = ENV_SUSTAIN;
+            v->env_counter = 0;
         }
         break;
     }
-    case ENV_SUSTAIN:
-        /* Sustain holds level; slow decay based on sr */
-        if (v->sr > 0) {
-            v->env_level -= v->sr;
-            if (v->env_level < 0) v->env_level = 0;
+    case ENV_SUSTAIN: {
+        rate = v->sr & 0x7F;
+        denom = adsr_denom(rate);
+        v->env_counter++;
+        if (v->env_counter >= denom) {
+            v->env_counter = 0;
+            if (v->s_mode >= 4) {
+                /* Decrease (modes 5=exp dec ↑, 7=exp dec ↓, etc.) */
+                if (v->s_mode == 7 || v->s_mode == 5) {
+                    /* Exponential decrease */
+                    step = (adsr_num_dec(rate) * v->env_level) >> 15;
+                } else {
+                    /* Linear decrease */
+                    step = adsr_num_dec(rate);
+                }
+            } else {
+                /* Increase */
+                if (v->a_mode == 5 && v->env_level >= 0x6000)
+                    rate = (rate + 8 > 127) ? 127 : rate + 8;
+                step = adsr_num_inc(rate);
+            }
+            v->env_level += step;
         }
         break;
+    }
     case ENV_RELEASE: {
-        /* PSX ADSR: rr=0 is slowest release, rr=31 is fastest */
-        int rate = (v->rr >= 31) ? 0x7FFF : (0x7FFF / (32 - v->rr));
-        v->env_level -= rate;
+        rate = (v->rr & 0x1F) * 4;
+        denom = adsr_denom(rate);
+        v->env_counter++;
+        if (v->env_counter >= denom) {
+            v->env_counter = 0;
+            if (v->r_mode == 7) {
+                /* Exponential release */
+                step = (adsr_num_dec(rate) * v->env_level) >> 15;
+            } else {
+                /* Linear release */
+                step = adsr_num_dec(rate);
+            }
+            v->env_level += step;
+        }
         if (v->env_level <= 0) {
             v->env_level = 0;
             v->env_phase = ENV_OFF;
@@ -183,6 +250,58 @@ static void env_tick(SPU_Voice *v)
 
     if (v->env_level < 0) v->env_level = 0;
     if (v->env_level > 0x7FFF) v->env_level = 0x7FFF;
+}
+
+/*---------------------------------------------------------------------------*/
+/* PSX Gaussian interpolation table (4-point, from SPU documentation)         */
+/*---------------------------------------------------------------------------*/
+static const short gauss_table[512] = {
+   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  3,  3,
+    3,  4,  4,  5,  5,  6,  7,  7,  8,  9,  9, 10, 11, 12, 13, 14,
+   15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 28, 29, 31, 33, 34, 36,
+   38, 40, 42, 44, 46, 48, 51, 53, 55, 58, 60, 63, 65, 68, 71, 74,
+   77, 80, 83, 86, 89, 93, 96, 99,103,106,110,114,117,121,125,129,
+  133,137,141,146,150,154,159,163,168,172,177,182,186,191,196,201,
+  206,211,217,222,227,233,238,244,249,255,260,266,272,278,284,290,
+  296,302,309,315,321,328,334,341,347,354,361,367,374,381,388,395,
+  402,410,417,424,431,439,446,454,461,469,477,484,492,500,508,516,
+  524,532,540,549,557,565,574,582,591,599,608,617,625,634,643,652,
+  661,670,679,688,697,706,716,725,734,744,753,763,772,782,791,801,
+  811,820,830,840,850,860,869,879,889,899,909,919,929,939,949,959,
+  969,979,989,999,1009,1020,1030,1040,1050,1060,1070,1080,1090,1101,1111,1121,
+ 1131,1141,1151,1162,1172,1182,1192,1202,1212,1222,1232,1242,1252,1262,1272,1282,
+ 1292,1302,1312,1322,1331,1341,1351,1361,1370,1380,1389,1399,1409,1418,1428,1437,
+ 1446,1456,1465,1474,1483,1492,1501,1510,1519,1528,1537,1546,1554,1563,1571,1580,
+ 1588,1596,1605,1613,1621,1629,1636,1644,1652,1660,1667,1675,1682,1689,1697,1704,
+ 1711,1718,1724,1731,1738,1744,1751,1757,1763,1769,1775,1781,1787,1793,1798,1804,
+ 1809,1814,1819,1824,1829,1834,1839,1843,1848,1852,1856,1860,1864,1868,1872,1875,
+ 1879,1882,1885,1888,1891,1894,1897,1899,1902,1904,1906,1908,1910,1912,1913,1915,
+ 1916,1918,1919,1920,1921,1922,1922,1923,1923,1924,1924,1924,1924,1924,1924,1923,
+ 1923,1922,1922,1921,1920,1919,1918,1916,1915,1913,1912,1910,1908,1906,1904,1902,
+ 1899,1897,1894,1891,1888,1885,1882,1879,1875,1872,1868,1864,1860,1856,1852,1848,
+ 1843,1839,1834,1829,1824,1819,1814,1809,1804,1798,1793,1787,1781,1775,1769,1763,
+ 1757,1751,1744,1738,1731,1724,1718,1711,1704,1697,1689,1682,1675,1667,1660,1652,
+ 1644,1636,1629,1621,1613,1605,1596,1588,1580,1571,1563,1554,1546,1537,1528,1519,
+ 1510,1501,1492,1483,1474,1465,1456,1446,1437,1428,1418,1409,1399,1389,1380,1370,
+ 1361,1351,1341,1331,1322,1312,1302,1292,1282,1272,1262,1252,1242,1232,1222,1212,
+ 1202,1192,1182,1172,1162,1151,1141,1131,1121,1111,1101,1090,1080,1070,1060,1050,
+ 1040,1030,1020,1009, 999, 989, 979, 969, 959, 949, 939, 929, 919, 909, 899, 889,
+  879, 869, 860, 850, 840, 830, 820, 811, 801, 791, 782, 772, 763, 753, 744, 734,
+};
+
+/* 4-point Gaussian interpolation (matches PSX SPU) */
+static short gauss_interpolate(short s0, short s1, short s2, short s3, int frac)
+{
+    /* frac is 0..0xFFFF, use top 8 bits as table index */
+    int i = (frac >> 8) & 0xFF;
+    int out = (gauss_table[0x0FF - i] * s0) >> 11;
+    out   += (gauss_table[0x1FF - i] * s1) >> 11;
+    out   += (gauss_table[0x100 + i] * s2) >> 11;
+    out   += (gauss_table[0x000 + i] * s3) >> 11;
+    if (out > 32767) out = 32767;
+    if (out < -32768) out = -32768;
+    return (short)out;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -202,33 +321,38 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
             if (!v->active || v->env_phase == ENV_OFF)
                 continue;
 
-            /* Get current sample via pitch interpolation */
+            /* 4-point Gaussian interpolation (matches PSX SPU).
+               Pitch 0x1000 = 44100Hz. frac_pos advances by pitch each sample.
+               Bits 16+ = sample index, bits 4-11 = Gaussian table index. */
             int idx = (v->frac_pos >> 16) % 28;
-            short sample = v->decoded[idx];
+            int gauss_idx = (v->frac_pos >> 8) & 0xFF;
+            short s0 = (idx >= 3) ? v->decoded[idx - 3] : v->prev_decoded[idx];
+            short s1 = (idx >= 2) ? v->decoded[idx - 2] : v->prev_decoded[idx + 1 > 2 ? 2 : idx + 1];
+            short s2 = (idx >= 1) ? v->decoded[idx - 1] : v->prev_decoded[2];
+            short s3 = v->decoded[idx];
+            short sample = gauss_interpolate(s0, s1, s2, s3, gauss_idx << 8);
 
-            /* Apply envelope */
-            int env = v->env_level;
-            int s16 = (sample * env) >> 15;
+            /* Apply envelope (0..0x7FFF) */
+            int s16 = (sample * v->env_level) >> 15;
 
-            /* Apply voice volume and accumulate */
-            mix_l += (s16 * v->vol_l) >> 14;
-            mix_r += (s16 * v->vol_r) >> 14;
+            /* Apply voice volume (signed 16-bit, represents N/0x8000) */
+            mix_l += (s16 * v->vol_l) >> 15;
+            mix_r += (s16 * v->vol_r) >> 15;
 
-            /* Advance fractional position by pitch */
+            /* Advance pitch counter */
             v->frac_pos += v->pitch;
 
-            /* When we cross a sample boundary, check if we need a new block */
-            unsigned int new_idx = (v->frac_pos >> 16);
-            if (new_idx >= 28) {
+            /* Decode next ADPCM block when crossing boundary */
+            if ((v->frac_pos >> 16) >= 28) {
                 v->frac_pos -= (28 << 16);
+                v->prev_decoded[0] = v->decoded[25];
+                v->prev_decoded[1] = v->decoded[26];
+                v->prev_decoded[2] = v->decoded[27];
                 decode_adpcm_block(v);
             }
 
-            /* Tick envelope (at reduced rate — roughly per-sample is too fast) */
-            /* Tick every 64 samples (~689 Hz at 44100) */
-            if ((s & 63) == 0) {
-                env_tick(v);
-            }
+            /* Tick envelope once per sample (44100Hz, matches PSX SPU) */
+            env_tick(v);
         }
 
         /* Apply master volume */
@@ -401,6 +525,10 @@ void SpuSetKey(long on_off, u_long voice_bit)
             v->prev2 = 0;
             v->env_phase = ENV_ATTACK;
             v->env_level = 0;
+            v->env_counter = 0;
+            v->prev_decoded[0] = 0;
+            v->prev_decoded[1] = 0;
+            v->prev_decoded[2] = 0;
             decode_adpcm_block(v);
         } else {
             /* Key off — enter release */
