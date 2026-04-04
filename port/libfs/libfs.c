@@ -572,11 +572,18 @@ void FS_StreamTaskStart(int sector)
     }
 
     /* On PSX, data streams continuously from CD into a 96KB circular buffer.
-       For the port, load the entire stream section from sector to end of file. */
+       For the port, load a bounded chunk. Cap at 4MB — enough for one cutscene
+       stream. Loading the entire rest of file (248MB) causes FS_StreamGetData
+       to find entries from OTHER cutscenes, breaking subtitle/timing dispatch. */
+    #define STREAM_MAX_SIZE (4 * 1024 * 1024)
     long byte_offset = (long)sector * 2048;
     fseek(f, 0, SEEK_END);
     long file_len = ftell(f);
     long stream_len = file_len - byte_offset;
+    if (stream_len > STREAM_MAX_SIZE) {
+        printf("[stream] capped %ld → %d bytes\n", stream_len, STREAM_MAX_SIZE);
+        stream_len = STREAM_MAX_SIZE;
+    }
     if (stream_len <= 0) {
         printf("[stream] no data at sector %d\n", sector);
         stream_active = 0;
