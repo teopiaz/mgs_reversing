@@ -656,6 +656,12 @@ int HZD_OnlineHazardCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int chk_flag
 
     current_group = HZD_CurrentGroup;
 
+#ifdef PORT_BUILD
+    if (!hzd || !hzd->header || !port_ptr_readable(hzd->header)) {
+        return 0;
+    }
+#endif
+
     CopySvectorToSpad(6, from);
 
     *((int *)(SCRPAD_ADDR + 0x064)) = (*((int *)(SCRPAD_ADDR + 0x06C)) = 0);

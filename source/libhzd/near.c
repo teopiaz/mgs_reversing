@@ -302,6 +302,9 @@ int HZD_NearHazardCheck(HZD_HDL *hzd, SVECTOR *from, int range, int chk_flag, in
     int       idx;
     int       queue_size;
 
+#ifdef PORT_BUILD
+    if (!hzd || !port_ptr_readable(hzd)) return 0;
+#endif
     pArea = hzd->grp;
 
     CopyVector(from, (HZD_VEC *)(SCRPAD_ADDR + 0x00C));
