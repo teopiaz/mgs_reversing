@@ -549,8 +549,10 @@ static inline void SpuSetIRQ(long mode) { (void)mode; }
 static inline void SpuSetIRQCallback(void (*func)(void)) { (void)func; }
 
 /* Additional GPU functions and macros used by game code */
-static inline void LoadImage2(RECT *rect, u_long *p) { (void)rect; (void)p; }
-static inline void StoreImage2(RECT *rect, u_long *p) { (void)rect; (void)p; }
+extern void port_LoadImage(RECT *rect, u_long *p);
+extern void port_StoreImage(RECT *rect, u_long *p);
+static inline void LoadImage2(RECT *rect, u_long *p) { port_LoadImage(rect, p); }
+static inline void StoreImage2(RECT *rect, u_long *p) { port_StoreImage(rect, p); }
 static inline void SetDrawMove(DR_MOVE *p, RECT *rect, int x, int y) { (void)p; (void)rect; (void)x; (void)y; setlen(p, 5); }
 
 #define setXYWH(p, _x, _y, _w, _h) \

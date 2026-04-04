@@ -338,6 +338,19 @@ void GM_ActControl(CONTROL *control)
 
     GM_CurrentMap = control->map->index;
 
+#ifdef PORT_BUILD
+    /* When step_size==0, neither collision branch runs, leaving nears[]
+       stale from a previous frame. On PSX this was harmless (memory stays
+       mapped), but on 64-bit macOS freed memory can be unmapped.
+       Only reset nears[] when step_size==0 — keep touch_flag intact so
+       the snake wall-collision state machine still works correctly. */
+    if (control->step_size == 0) {
+        control->touch_flag = 0;
+        control->nears[0] = NULL;
+        control->nears[1] = NULL;
+    }
+#endif
+
     if (control->step_size > 0)
     {
         control->touch_flag = 0;
