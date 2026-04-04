@@ -278,8 +278,13 @@ void game_tick(void)
         GV_ExecActorSystem();
         uint64_t ta1 = mach_absolute_time();
 
-        /* Direct 3D renderer — skip during codec/menu (DG_FrameRate==2)
-           so OT-rendered 2D UI is not covered by 3D geometry */
+        /* OT render pipeline — must run BEFORE 3D so the OT clear happens
+           before actors added prims. DG_SwapFrame draws the PREVIOUS frame's
+           OT (1-GV_Clock) and clears the CURRENT OT (GV_Clock). Then actors
+           already added prims to the cleared OT in GV_ExecActorSystem above. */
+        DG_RenderFrame();
+
+        /* Direct 3D renderer */
         {
             extern int DG_FrameRate;
             if (DG_FrameRate != 2)
@@ -287,8 +292,14 @@ void game_tick(void)
         }
         uint64_t ta2 = mach_absolute_time();
 
-        /* OT-based render pipeline — draws previous frame's OT on top of 3D */
-        DG_RenderFrame();
+        /* Draw the CURRENT frame's OT on top of 3D. This renders subtitles,
+           HUD, and other 2D prims that actors just added to OT[GV_Clock].
+           On PSX this happens at the NEXT VSync; on the port we do it now
+           so prims don't get cleared before being drawn. */
+        {
+            extern void DG_DrawOTag(int which);
+            DG_DrawOTag(GV_Clock);
+        }
         uint64_t ta3 = mach_absolute_time();
 
         t_swap += ts1 - ts0;
