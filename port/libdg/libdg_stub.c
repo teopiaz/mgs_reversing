@@ -316,7 +316,14 @@ void port_RenderObjects(int idx)
     {
         DG_OBJS *objs = *queue++;
         if (!objs) continue;
-        if (!objs->def) continue;
+        /* Validate pointers — queue may contain dangling entries after
+           actors are destroyed during cutscene transitions.
+           Check def pointer is in a plausible heap range (not low addresses,
+           not obvious poison values like 0x0101..., 0xDEAD..., etc.) */
+        {
+            uintptr_t dp = (uintptr_t)objs->def;
+            if (!dp || dp < 0x100000 || ((dp & 0xFFFF) == 0x1010) || ((dp >> 32) == 0x01010101)) continue;
+        }
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
         if (!objs->objs) continue;
         /* DG_FLAG_INVISIBLE is checked by DG_BoundChanl to set bound_mode=0,
