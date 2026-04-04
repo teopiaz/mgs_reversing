@@ -330,6 +330,12 @@ int sna_8004E808(SnaInitWork *work, int a2, int a3, int a4, int a5)
     SVECTOR SStack48;
     SVECTOR auStack40;
 
+#ifdef PORT_BUILD
+    if (!pCtrl->map || !pCtrl->map->hzd) {
+        printf("CRITICAL: sna_8004E808 map=%p\n", (void*)pCtrl->map);
+        return 0;
+    }
+#endif
     if (sna_8004E71C(a3, pCtrl->map->hzd, &SStack48, a5))
     {
         return 1;
