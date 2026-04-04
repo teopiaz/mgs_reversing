@@ -77,6 +77,7 @@ int StartStream(void)
 
     str_header = FS_StreamGetData(2);
 
+
     if (!str_header)
     {
         printf("Stream:File Pos Error\n");
@@ -84,34 +85,16 @@ int StartStream(void)
         return -1;
     }
 
-    // Consume big-endian int from str_header
-    str_wave_size = str_header[0] << 24;
-    str_wave_size |= str_header[1] << 16;
-    str_wave_size |= str_header[2] << 8;
-    str_wave_size |= str_header[3];
-
-    str_unplay_size = str_unload_size = str_wave_size;
-
-    // Consume big-endian short from str_header
-    str_volume = str_header[4] << 8;
-    str_volume |= str_header[5];
-
-    // Consume big-endian short from str_header
-    str_freq = str_header[6] << 8;
-    str_freq |= str_header[7];
-
-    // Consume byte from str_header
-    if (str_header[8] == 1)
+    // Consume big-endian int from str_header (cast to unsigned to prevent sign extension)
     {
-        str_mono_fg = str_header[8];
+        unsigned char *h = (unsigned char *)str_header;
+        str_wave_size = (h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3];
+        str_unplay_size = str_unload_size = str_wave_size;
+        str_volume = (h[4] << 8) | h[5];
+        str_freq = (h[6] << 8) | h[7];
+        str_mono_fg = (h[8] == 1) ? 1 : 0;
+        dword_800C0580 = h[9];
     }
-    else
-    {
-        str_mono_fg = 0;
-    }
-
-    // Consume byte from str_header
-    dword_800C0580 = str_header[9];
 
     printf("StartStream(%x:vol=%x)\n", str_load_code, str_volume);
     if (str_fadein_fg)
@@ -209,12 +192,12 @@ void UserSpuIRQProc(void)
 
 void sub_8008279C(void)
 {
-    /* do nothing */
+    StrSpuTransWithNoLoop();
 }
 
 void sub_800827A4(void)
 {
-    /* do nothing */
+    StrSpuTransWithNoLoop();
 }
 
 int StrSpuTransWithNoLoop(void)
