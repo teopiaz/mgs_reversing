@@ -436,6 +436,39 @@ void *FS_LoadStageRequest(const char *dirname)
                     }
                 }
             }
+            else if (tag->ext == 'e') {
+                /* .e SE header data — stage-specific sound effect definitions.
+                   PSX SETBL is 16 bytes (4 chars + 3 x 4-byte pointers).
+                   Port SETBL is larger (4 chars + 3 x 8-byte pointers).
+                   Parse and convert. */
+                extern unsigned char *SD_SeDataLoadInit(unsigned short id);
+                unsigned char *buf = SD_SeDataLoadInit(tag->id);
+                if (buf) {
+                    /* Copy raw data — SePlay accesses se_header as SETBL*
+                       but uses (unsigned int)addr as offset. We need to convert
+                       the PSX 16-byte entries to port SETBL size. */
+                    typedef struct { unsigned char pri, tracks, kind, character;
+                        unsigned int addr[3]; } SETBL_PSX; /* 16 bytes */
+                    typedef struct { unsigned char pri, tracks, kind, character;
+                        unsigned char *addr[3]; } SETBL_PORT;
+                    int n_entries = tag->size / 16;
+                    if (n_entries > 128) n_entries = 128;
+                    SETBL_PSX *src = (SETBL_PSX *)data_ptr;
+                    SETBL_PORT *dst = (SETBL_PORT *)buf;
+                    for (int ei = 0; ei < n_entries; ei++) {
+                        dst[ei].pri = src[ei].pri;
+                        dst[ei].tracks = src[ei].tracks;
+                        dst[ei].kind = src[ei].kind;
+                        dst[ei].character = src[ei].character;
+                        /* Store 32-bit offsets as pointer-sized values.
+                           SePlay casts these back to (unsigned int) for offset math. */
+                        dst[ei].addr[0] = (unsigned char *)(uintptr_t)src[ei].addr[0];
+                        dst[ei].addr[1] = (unsigned char *)(uintptr_t)src[ei].addr[1];
+                        dst[ei].addr[2] = (unsigned char *)(uintptr_t)src[ei].addr[2];
+                    }
+                    printf("  [fs]   Loaded .e SE data (%d entries from %d bytes)\n", n_entries, tag->size);
+                }
+            }
             else if (tag->ext == 'm') {
                 /* .mdx song data */
                 extern unsigned char *SD_SngDataLoadInit(unsigned short id);
