@@ -589,13 +589,25 @@ void port_DrawOTag(unsigned long *ot)
                 uint16_t clut = *(uint16_t *)(data + 10);
                 short w = *(short *)(data + 12);
                 short h = *(short *)(data + 14);
-                /* Render sprite from VRAM texture, clipped to draw area */
+                /* Render sprite from VRAM texture, clipped to draw area.
+                   Apply color modulation: PSX GPU multiplies texel by (r,g,b)/128. */
                 for (int sy = 0; sy < h && (y+sy) <= clip_y1; sy++) {
                     if ((y+sy) < clip_y0) continue;
                     for (int sx = 0; sx < w && (x+sx) <= clip_x1; sx++) {
                         if ((x+sx) < clip_x0) continue;
                         uint16_t c = sample_vram_texel(port_current_tpage, clut, u0+sx, v0+sy);
-                        if (c != 0) vram[y+sy][x+sx] = c;
+                        if (c == 0) continue; /* color 0 = transparent */
+                        /* Apply color modulation (r,g,b are 0-255, neutral=128) */
+                        if (r != 128 || g != 128 || b != 128) {
+                            int cr = (c & 0x1F);
+                            int cg = (c >> 5) & 0x1F;
+                            int cb = (c >> 10) & 0x1F;
+                            cr = (cr * r) >> 7; if (cr > 31) cr = 31;
+                            cg = (cg * g) >> 7; if (cg > 31) cg = 31;
+                            cb = (cb * b) >> 7; if (cb > 31) cb = 31;
+                            c = (uint16_t)(cr | (cg << 5) | (cb << 10));
+                        }
+                        vram[y+sy][x+sx] = c;
                     }
                 }
                 prim_count++;
@@ -783,7 +795,9 @@ void port_DrawPrim(void *prim)
     }
     case 0xE0: /* DR_TPAGE — update current texture page */
     {
-        port_current_tpage = *(uint16_t *)(data + 0);
+        /* DR_TPAGE stores an E1 GPU command word. Extract tpage from low 16 bits. */
+        uint32_t cmd = *(uint32_t *)(data);
+        port_current_tpage = (uint16_t)(cmd & 0xFFFF);
         break;
     }
     default:
