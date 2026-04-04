@@ -1,330 +1,402 @@
-# Sound System Architecture
+# Sound System: PSX SPU vs Port SPU Emulator
 
 This document describes the PSX SPU hardware, the original MGS sound driver
 architecture, and the software SPU emulator used in the macOS port.
 
----
-
 ## 1. PSX SPU Hardware
 
-The PlayStation Sound Processing Unit provides:
+### 1.1 Overview
 
-- **24 voice channels**: Each can play one sample simultaneously.
-- **512 KB Sound RAM**: Dedicated memory for sample data, separate from main RAM.
-- **ADPCM compression**: 4-bit adaptive differential pulse-code modulation.
-  16 bytes of ADPCM data decode to 28 PCM samples (~1.75:1 compression).
-- **Hardware ADSR envelopes**: Each voice has Attack, Decay, Sustain level, and
-  Release parameters, processed entirely in hardware.
-- **Hardware reverb**: 10 preset reverb modes (room, hall, space, etc.).
-  Configurable depth and work area in sound RAM.
-- **Pitch**: 16-bit pitch value per voice. 0x1000 = 44100 Hz base rate.
-  Higher values = higher pitch. Range covers ~1 Hz to ~176 kHz.
-- **DMA transfers**: Main RAM -> Sound RAM via DMA channel 4.
-- **IRQ**: Can trigger an interrupt when playback reaches a specific address
-  in sound RAM (used for streaming synchronization).
+The PSX Sound Processing Unit (SPU) is a dedicated audio chip with:
+- 512KB dedicated Sound RAM (separate from main RAM)
+- 24 hardware voices
+- ADPCM decompression (16 bytes -> 28 samples, 4:1 compression)
+- Per-voice ADSR envelope generator
+- Hardware reverb processor
+- 44100 Hz output (stereo)
 
-### ADPCM Block Format
-
-Each ADPCM block is 16 bytes and decodes to 28 PCM samples:
+### 1.2 SPU RAM Layout (MGS)
 
 ```
-Byte 0: [shift:4][filter:4]
-  shift  = right-shift amount for nibble data (0-12)
-  filter = prediction filter index (0-4)
+0x0000-0x100F: System reserved (CD audio buffer, capture buffers)
+0x1010:        Blank data (silence)
+0x1210:        Wave data start (sound effects, instruments)
+  |
+0x75010:       BGM right channel start
+0x77010:       BGM left channel start
+  |
+0x7FFFF:       End of SPU RAM (512KB)
+```
+
+### 1.3 ADPCM Block Format
+
+Each 16-byte ADPCM block decodes to 28 audio samples:
+
+```
+Byte 0: [shift:4][filter:3][0:1]
 Byte 1: [flags]
-  bit 0: loop end (stop or jump to loop start)
-  bit 1: loop repeat (if set with bit 0, jump to loop addr; else stop)
-  bit 2: loop start (mark this block as the loop point)
-Bytes 2-15: 28 4-bit nibbles (2 per byte, low nibble first)
+   bit 0: loop end
+   bit 1: loop (jump to loop_addr)
+   bit 2: loop start (set loop_addr here)
+Bytes 2-15: 28 nibbles (14 bytes, 2 nibbles each)
 ```
 
-Decoding formula for each sample:
+**Decoding algorithm**:
 ```
-nibble = sign_extend_4bit(raw_nibble)
-sample = nibble << (12 - shift)
-sample += (prev1 * filter_pos[filter] + prev2 * filter_neg[filter] + 32) >> 6
-prev2 = prev1
-prev1 = clamp16(sample)
+for each nibble in block:
+    sample = (nibble << 12) >> shift   // Sign-extend and shift
+    sample += (prev1 * f0 + prev2 * f1 + 32) >> 6  // IIR filter
+    prev2 = prev1
+    prev1 = clamp(sample, -32768, 32767)
 ```
 
-### Filter Coefficients
+**Filter coefficients** (5 filter modes):
 
-| Filter | Positive | Negative |
-|--------|----------|----------|
-| 0      | 0        | 0        |
-| 1      | 60       | 0        |
-| 2      | 115      | -52      |
-| 3      | 98       | -55      |
-| 4      | 122      | -60      |
+| Filter | f0 (positive) | f1 (negative) |
+|--------|---------------|---------------|
+| 0      | 0             | 0             |
+| 1      | 60            | 0             |
+| 2      | 115           | -52           |
+| 3      | 98            | -55           |
+| 4      | 122           | -60           |
 
----
+### 1.4 ADSR Envelope
+
+Each voice has a 4-phase envelope: Attack, Decay, Sustain, Release.
+
+```
+Level
+  ^
+  |     /\
+  |    /  \_______ Sustain Level
+  |   /    Decay  \
+  |  / Attack      \  Release
+  | /                \
+  +-------------------+----> Time
+```
+
+The envelope level (0-0x7FFF) modulates the sample amplitude.
+
+**PSX ADSR register encoding** (32-bit):
+```
+bits  0-4:  Sustain Level (SL)
+bits  5-8:  Decay Rate (DR) -- always exponential decrease
+bits  9-14: Attack Rate (AR)
+bit  15:    Attack Mode (0=linear, 1=exponential)
+bits 16-20: Release Rate (RR)
+bit  21:    Release Mode (0=linear, 1=exponential)
+bits 22-26: Sustain Rate (SR)
+bits 27-28: unused
+bit  29:    Sustain Direction (0=increase, 1=decrease)
+bit  30:    Sustain Mode (0=linear, 1=exponential)
+```
+
+**Rate tables**: The SPU uses a counter-based rate system. Each rate value (0-127)
+maps to a denominator and numerator pair. The counter increments each sample tick
+(44100 Hz). When the counter reaches the denominator, the envelope level changes by
+the numerator amount.
+
+### 1.5 Pitch and Sample Rate
+
+Voice pitch is a 16-bit value where 0x1000 = 44100 Hz (1:1 playback).
+
+```
+actual_rate = 44100 * pitch / 0x1000
+```
+
+Common values: 0x800 = 22050 Hz, 0x1000 = 44100 Hz, 0x2000 = 88200 Hz.
+
+The SPU uses Gaussian interpolation between samples for smooth pitch shifting.
+
+### 1.6 Gaussian Interpolation
+
+The PSX SPU interpolates between 4 neighboring samples using a 512-entry coefficient
+table. The fractional position (bits 4-11 of the sample counter) selects the table
+index:
+
+```
+idx = (frac_pos >> 4) & 0xFF   // 0-255
+out = gauss[0x0FF-idx] * s0    // oldest sample
+    + gauss[0x1FF-idx] * s1
+    + gauss[0x100+idx] * s2
+    + gauss[0x000+idx] * s3    // newest sample
+out >>= 15
+```
+
+This matches the hardware SPU exactly (the coefficient table is from pcsx-redux).
 
 ## 2. MGS Sound Driver Architecture
 
-The sound system is spread across several source files in `source/sound/`:
+### 2.1 Source Files
 
-### sd_main.c
-
-Entry points for the sound system:
-
-- **`SdMain` task**: Handles file loading, stream management, and high-level
-  sound commands. Runs as a cooperative task via MTS (the game's task system).
-- **`SdInt` task**: Real-time voice processing. Runs at a higher priority and
-  handles per-tick updates to voices (pitch slides, volume fades, sequencer
-  advancement).
-
-### sd_cli.c
-
-Command interface for the rest of the game:
-
-```c
-int sd_set_cli(int sound_code, int sync_mode);
+```
+source/sound/
+  sd_main.c   -- Init, memory allocation, main tick (IntSdMain)
+  sd_cli.c    -- Command interface (SdCommand)
+  sd_drv.c    -- Low-level SPU register writes
+  sd_sub1.c   -- Sequence engine (music/SFX playback)
+  sd_sub2.c   -- Additional sequence processing
+  sd_file.c   -- File loading (wave banks, SE, songs)
+  sd_str.c    -- Stream audio (VOX, cutscene audio)
+  sd_ioset.c  -- I/O parameter batching
+  sd_wk.c     -- Work area management
+  se_tbl.c    -- Sound effect table (mapping IDs to SPU params)
 ```
 
-The `sound_code` parameter encodes the command type in its high byte:
+### 2.2 Sound Driver Data Flow
 
-| High byte | Command type    | Description                           |
-|-----------|----------------|---------------------------------------|
-| 0x00      | SE (sound FX)  | Play a sound effect                   |
-| 0x01      | BGM (music)    | Play/stop/change background music     |
-| 0x02      | Load SE        | Load sound effect data from disc      |
-| 0xE0      | Stream         | Start/stop PCM audio streaming        |
-| 0xFE      | Load WAV       | Load WAV sample data to SPU RAM       |
+```
+Game Code
+  |
+  +-- GM_SeSet(position, se_id)         -- Play sound effect
+  +-- sd_command(SNG_PLAY, song_id)     -- Play music
+  +-- StartStream(header)               -- Start VOX/cutscene audio
+  |
+  v
+SdCommand Queue
+  |
+  v
+IntSdMain() [called every game tick]
+  |
+  +-- Process command queue
+  +-- sound_sub() -- Sequence engine tick
+  |    +-- For each track:
+  |    |    +-- Accumulate tempo
+  |    |    +-- Process sequence commands when gate expires
+  |    |    +-- Apply modulation (vibrato, portamento, sweep)
+  |    +-- Batch SPU writes via sd_ioset
+  |
+  +-- WaveSpuTrans() -- Transfer wave data to SPU RAM
+  +-- StrSpuTrans()  -- Transfer stream data to SPU voices
+  +-- StrFadeInt()   -- Stream volume fade
+```
 
-Other functions:
-- `sd_task_active()`: Returns whether the sound task is running.
-- `sd_str_play()`, `sd_sng_play()`, `sd_se_play()`: Playback status queries.
-- `SePlay(code)`: Convenience wrapper for playing a sound effect.
-- `get_sng_code()`: Returns current song ID.
-- `get_sd_buf(size)`: Allocate a sound data buffer.
+### 2.3 Sequence Command Format
 
-### sd_drv.c
+The sequence engine processes a bytecode stream. Commands 0x80-0xFF are control
+commands; values 0x00-0x7F are note data.
 
-Song/music sequencer:
+**Critical bug found**: The original decompilation had `(char)mdata1 >= 128` which is
+ALWAYS FALSE for signed char (wraps to negative). This was fixed with
+`(unsigned char)mdata1 >= 128`. This single bug made ALL sequence control commands
+(volume, tone, ADSR, pan, vibrato, etc.) unreachable -- explaining why sound effects
+played but had wrong volume/pitch.
 
-- Processes up to **13 tracks** per song.
-- Per-tick updates: note on/off, pitch bend, volume change, pan change.
-- Songs are stored in a custom binary format loaded from 'm' (music) data
-  entries in the stage archive.
+Key sequence commands:
+| Opcode | Name      | Description                        |
+|--------|-----------|------------------------------------|
+| 0x80   | vol_chg   | Set volume (pvod = mdata2 << 8)    |
+| 0x81   | ton_chg   | Set tone/pitch                     |
+| 0x82   | pan_chg   | Set stereo pan position            |
+| 0x83   | adsr_chg  | Set ADSR envelope parameters       |
+| 0x90   | vib_dpt   | Vibrato depth                      |
+| 0x91   | vib_spd   | Vibrato speed                      |
+| 0x92   | dtun_chg  | Detune                             |
+| 0xA0   | loop_s    | Loop start marker                  |
+| 0xA1   | loop_e    | Loop end (decrement counter)       |
+| 0xB0   | blk_end   | End of sequence block               |
+| 0xFE   | note_rest | Rest (silence for N ticks)         |
 
-### sd_str.c
+### 2.4 Sound File Loading
 
-PCM audio streaming:
+**Wave banks (.wvx)**:
+- Header: array of 16-byte `WAVE_W` entries (PSX format)
+- Body: raw ADPCM data uploaded to SPU RAM via `SpuWrite()`
+- Port converts 16-byte entries to port struct with 64-bit pointers
 
-- Double-buffered SPU transfer: While one buffer plays, the next is loaded
-  from disc and DMA'd to SPU RAM.
-- IRQ-driven: The SPU IRQ fires when playback reaches the boundary between
-  buffers, triggering the next DMA transfer.
-- Used for voice acting, FMV audio, and long ambient sounds.
+**Sound effects (.e)**:
+- `SETBL` struct: 16 bytes on PSX (contains SPU address, pitch, ADSR)
+- Port converts to larger struct (32+ bytes) with proper field sizes
 
-### sd_ioset.c
+**Song data (.mdx)**:
+- Sequence bytecode for the music engine
+- Loaded to `sng_data` buffer
 
-SPU voice parameter batching:
+### 2.5 Stream Audio (VOX/Demo)
 
-- `SPU_TRACK_REG[23]`: Array of per-voice parameter change records.
-- Accumulates volume, pitch, and ADSR changes throughout a tick.
-- Flushes all changes to the SPU hardware at the end of the tick via
-  `SpuSetVoiceAttr`, minimizing SPU bus contention.
+Cutscene voice and demo audio use the streaming system:
 
-### sd_file.c
+```
+StartStream(header)
+  |
+  +-- Parse stream header (unsigned char* to avoid sign extension!)
+  +-- Set str_status = 2 (loading)
+  |
+  v
+StrSpuTransWithNoLoop() [called each tick]
+  |
+  +-- Transfer ADPCM blocks to SPU voices 21/22 (L/R)
+  +-- Advance through stream buffer
+  +-- Set str_status progression: 2 -> 3 -> 4 -> 5 -> 6
+```
 
-Sound data file I/O:
+**Important**: The stream header must be cast to `unsigned char*` because values 0x80+
+sign-extend incorrectly when read through `char*` (signed on ARM64).
 
-- `PcmOpen(filename)`: Open a streaming audio file.
-- `PcmRead(buffer, size)`: Read PCM data.
-- `PcmClose()`: Close the stream.
-- `SD_SngDataLoadInit(id)`: Load song data by ID.
-- `SD_SeDataLoadInit(id)`: Load SE data by ID.
-- `SD_WavDataLoadInit(id)`: Load WAV samples by ID.
+## 3. Port SPU Emulator
 
-### se_tbl.c
+### 3.1 Architecture
 
-Sound effect definition table:
+```
+port/sound/spu_emu.c
+  |
+  +-- spu_emu_init()       -- Open SDL2 audio device (44100Hz, stereo, S16)
+  +-- SpuSetVoiceAttr()    -- Configure voice parameters
+  +-- SpuSetKey()          -- Key on/off voices
+  +-- SpuWrite()           -- Copy ADPCM data to emulated SPU RAM
+  +-- SpuRead()            -- Read back from SPU RAM
+  +-- spu_audio_callback() -- SDL2 callback: mix all 24 voices
+```
 
-- **128 SE entries**, each defining:
-  - Priority level
-  - Number of tracks (voices used)
-  - Character association (which game character triggers this sound)
-  - SPU voice parameters (pitch, volume, ADSR)
-
----
-
-## 3. SPU Emulator
-
-**File**: `port/sound/spu_emu.c`
-
-Replaces the PSX SPU hardware with a software implementation using SDL2 audio
-output.
-
-### Core Data Structures
+### 3.2 Voice Structure
 
 ```c
-static unsigned char spu_ram[512 * 1024];  /* Virtual SPU RAM */
-
 typedef struct {
-    /* Parameters (set by SpuSetVoiceAttr) */
-    unsigned long addr;           /* sample start in SPU RAM */
-    unsigned long loop_addr;      /* loop address */
-    unsigned short pitch;         /* 0x1000 = 44100 Hz */
-    short vol_l, vol_r;           /* -0x3FFF..0x3FFF */
-    unsigned short ar, dr, sr, rr, sl;  /* ADSR params */
+    // Configuration (set by SpuSetVoiceAttr)
+    uint32_t addr;           // Start address in SPU RAM
+    uint32_t loop_addr;      // Loop point address
+    uint16_t pitch;          // Playback rate (0x1000 = 44100Hz)
+    int16_t  vol_l, vol_r;   // Volume (-0x3FFF to 0x3FFF)
+    // ADSR parameters
+    uint16_t ar, dr, sr, rr; // Attack/Decay/Sustain/Release rates
+    uint16_t sl;             // Sustain level
+    uint8_t  ar_mode, sr_mode, sr_dir, rr_mode;
 
-    /* Playback state */
-    int active;                   /* key-on active */
-    unsigned long cur_addr;       /* current decode position */
-    unsigned long frac_pos;       /* fractional sample position (16.16) */
+    // Playback state
+    int      active;         // Voice is playing
+    int      key_off;        // Release phase triggered
+    uint32_t cur_addr;       // Current address in SPU RAM
+    int      sample_idx;     // Index within current ADPCM block (0-27)
+    uint32_t frac_pos;       // 16.16 fractional sample position
+    int16_t  prev1, prev2;   // ADPCM filter history
+    int16_t  decoded[28];    // Current decoded ADPCM block
+    int16_t  prev_decoded[3]; // Last 3 samples for Gaussian interpolation
 
-    /* ADPCM decoder */
-    int prev1, prev2;             /* filter history */
-    short decoded[28];            /* decoded sample ring buffer */
-
-    /* ADSR envelope */
-    EnvPhase env_phase;           /* OFF/ATTACK/DECAY/SUSTAIN/RELEASE */
-    int env_level;                /* 0..0x7FFF */
+    // Envelope state
+    int      env_phase;      // ATTACK/DECAY/SUSTAIN/RELEASE
+    int      env_level;      // Current level (0-0x7FFF)
+    int      env_counter;    // Rate counter
 } SPU_Voice;
-
-static SPU_Voice voices[24];
 ```
 
-### Audio Callback
+### 3.3 Audio Callback
 
-SDL2 audio callback runs at 44100 Hz stereo, 1024-sample buffer:
+The SDL2 audio callback runs on a separate thread at 44100 Hz:
 
 ```c
-static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
-{
-    short *out = (short *)stream;
-    int num_samples = len / 4;   /* stereo 16-bit = 4 bytes/sample */
+void spu_audio_callback(void *userdata, Uint8 *stream, int len) {
+    int16_t *out = (int16_t *)stream;
+    int n_samples = len / 4;  // stereo 16-bit = 4 bytes per sample
 
-    for (int s = 0; s < num_samples; s++) {
+    for (int s = 0; s < n_samples; s++) {
         int mix_l = 0, mix_r = 0;
 
-        for (int ch = 0; ch < 24; ch++) {
-            SPU_Voice *v = &voices[ch];
-            if (!v->active) continue;
+        for (int v = 0; v < 24; v++) {
+            SPU_Voice *voice = &spu_voices[v];
+            if (!voice->active) continue;
 
-            /* Get current sample from decoded buffer */
-            int idx = (v->frac_pos >> 16) % 28;
-            short sample = v->decoded[idx];
+            // Tick envelope (per-sample, 44100Hz)
+            env_tick(voice);
 
-            /* Apply envelope and voice volume */
-            int s16 = (sample * v->env_level) >> 15;
-            mix_l += (s16 * v->vol_l) >> 14;
-            mix_r += (s16 * v->vol_r) >> 14;
+            // Gaussian interpolation between 4 samples
+            int sample = gauss_interpolate(voice);
 
-            /* Advance by pitch */
-            v->frac_pos += v->pitch;
-            if ((v->frac_pos >> 16) >= 28) {
-                v->frac_pos -= (28 << 16);
-                decode_adpcm_block(v);
+            // Apply envelope
+            sample = (sample * voice->env_level) >> 15;
+
+            // Apply per-voice volume
+            mix_l += (sample * voice->vol_l) >> 15;
+            mix_r += (sample * voice->vol_r) >> 15;
+
+            // Advance playback position
+            voice->frac_pos += voice->pitch;
+            // Load next ADPCM block when position crosses block boundary
+            while ((voice->frac_pos >> 16) >= 28) {
+                voice->frac_pos -= (28 << 16);
+                advance_to_next_block(voice);
             }
-
-            /* Envelope tick (every 64 samples ~= 689 Hz) */
-            if ((s & 63) == 0) env_tick(v);
         }
 
-        /* Apply master volume and clamp */
-        out[s*2+0] = clamp16((mix_l * master_vol_l) >> 14);
-        out[s*2+1] = clamp16((mix_r * master_vol_r) >> 14);
+        // Apply master volume and clamp
+        out[s*2+0] = clamp(mix_l * master_vol_l / 0x3FFF, -32768, 32767);
+        out[s*2+1] = clamp(mix_r * master_vol_r / 0x3FFF, -32768, 32767);
     }
 }
 ```
 
-### ADPCM Decoder
+### 3.4 ADSR Envelope Implementation
 
-`decode_adpcm_block(v)` reads 16 bytes from `spu_ram[v->cur_addr]`:
+The port uses pcsx-redux rate tables for accurate envelope timing:
 
-1. Extract shift (bits 0-3) and filter (bits 4-7) from byte 0.
-2. Extract flags from byte 1 (loop start/end/repeat).
-3. For each of 28 nibbles (bytes 2-15):
-   - Sign-extend the 4-bit nibble.
-   - Apply shift: `sample = nibble << (12 - shift)`.
-   - Apply prediction filter: `sample += (prev1*f0 + prev2*f1 + 32) >> 6`.
-   - Clamp to [-32768, 32767].
-   - Update prev2/prev1 history.
-4. Handle loop flags:
-   - Flag 4 (loop start): save `cur_addr` as `loop_addr`.
-   - Flag 1 (loop end) + Flag 2 (repeat): jump to `loop_addr`.
-   - Flag 1 without Flag 2: deactivate voice.
-5. Advance `cur_addr` by 16 bytes.
+```c
+static void env_tick(SPU_Voice *v) {
+    int rate, step;
+    switch (v->env_phase) {
+    case ATTACK:
+        rate = v->ar;
+        if (v->ar_mode && v->env_level >= 0x6000)
+            rate += 8;  // Exponential slowdown near peak
+        step = adsr_num_inc(rate);
+        v->env_counter += step;
+        if (v->env_counter >= adsr_denom(rate)) {
+            v->env_counter = 0;
+            v->env_level += step;
+            if (v->env_level >= 0x7FFF) {
+                v->env_level = 0x7FFF;
+                v->env_phase = DECAY;
+            }
+        }
+        break;
+    case DECAY:
+        // Exponential decrease toward sustain level
+        ...
+    case SUSTAIN:
+        // Linear or exponential, increase or decrease
+        ...
+    case RELEASE:
+        // Linear or exponential decrease to 0
+        ...
+    }
+}
+```
 
-### ADSR Envelope
+### 3.5 Differences from PSX SPU
 
-Simplified linear envelope (the real PSX SPU uses exponential curves):
+| Feature           | PSX SPU              | Port Emulator           |
+|-------------------|----------------------|-------------------------|
+| Processing        | Hardware, parallel   | Software, sequential    |
+| Sample rate       | 44100 Hz fixed       | 44100 Hz (SDL2)         |
+| ADPCM decoding    | Hardware per-voice   | Software decode_block() |
+| ADSR envelope     | Hardware counter     | Software rate tables    |
+| Interpolation     | Gaussian 4-point     | Gaussian 4-point (same) |
+| Reverb            | Hardware processor   | Not implemented         |
+| Noise generator   | Hardware LFSR        | Not implemented         |
+| SPU RAM transfer  | DMA (async)          | Instant memcpy          |
+| IRQ callback      | Hardware interrupt   | Not implemented         |
+| Voice priority    | N/A (hardware)       | N/A (all 24 available)  |
+
+### 3.6 Sound Driver Integration
+
+The original sound driver (`sd_main.c` etc.) is compiled from source. The port provides:
+
+- `sd_mem_alloc()`: Replaces PSX hardcoded address `0x801E0000` with
+  `static unsigned char sd_mem_buf[0x40000]`
+- `PcmOpen/PcmRead/PcmClose`: Redirected to `port_PcmOpen` etc. for disc file access
+- `WaveSpuTrans()`: PORT_BUILD path transfers wave data from cdload_buf to SPU RAM
+- Sound file loading (.wvx, .e, .mdx): Port converts PSX structs to 64-bit equivalents
+
+### 3.7 Stream System
+
+Stream audio (VOX/DEMO.DAT) uses a state machine:
 
 ```
-ATTACK:   env_level += rate_attack    (ramp from 0 to 0x7FFF)
-DECAY:    env_level -= rate_decay     (ramp down to sustain level)
-SUSTAIN:  env_level holds             (slow decay based on sr parameter)
-RELEASE:  env_level -= rate_release   (ramp down to 0, then deactivate)
+State 1: Idle
+State 2: Loading header
+State 3: Parsing entries
+State 4: Ready (str_tick_count set to 0)
+State 5: Playing (transfers to SPU voices, subtitle timing)
+State 6: Ending
 ```
 
-Rates are computed as `0x7FFF / (param + 1)`, providing a simple linear
-approximation. This differs from the real SPU which supports linear and
-exponential modes for each phase.
-
-### Implemented SPU API Functions
-
-| Function                     | Implementation                              |
-|-----------------------------|---------------------------------------------|
-| `SpuInit()`                 | `spu_emu_init()` — open SDL audio device    |
-| `SpuQuit()`                 | Close SDL audio device                      |
-| `SpuReset()`                | Zero all voice state (with audio lock)      |
-| `SpuSetTransferStartAddr()` | Set `spu_transfer_addr`                     |
-| `SpuWrite(addr, size)`      | `memcpy` to `spu_ram[transfer_addr]`        |
-| `SpuRead(addr, size)`       | `memcpy` from `spu_ram[transfer_addr]`      |
-| `SpuIsTransferCompleted()`  | Always returns 1 (instant transfer)         |
-| `SpuSetVoiceAttr(attr)`     | Update voice params (with SDL audio lock)   |
-| `SpuGetVoiceAttr(attr)`     | Read back voice state                       |
-| `SpuSetKey(on_off, bits)`   | Key on: reset ADPCM, start attack. Key off: enter release. |
-| `SpuGetKeyStatus(bits)`     | Return ON/OFF/ENV status                    |
-| `SpuSetCommonAttr(attr)`    | Set master volume L/R                       |
-| `SpuInitMalloc()`           | Reset bump allocator to 0x1010              |
-| `SpuMalloc(size)`           | Bump-allocate from SPU RAM                  |
-| `SpuFree(addr)`             | No-op (bump allocator)                      |
-| `SpuSetReverb()`            | No-op stub                                  |
-| `SpuSetReverbModeParam()`   | No-op stub                                  |
-| `SpuSetReverbVoice()`       | No-op stub                                  |
-| `SpuSetIRQ()`               | Set `spu_irq_enabled`                       |
-| `SpuSetIRQAddr()`           | Set `spu_irq_addr`                          |
-| `SpuSetIRQCallback()`       | Store callback pointer                      |
-| `SpuGetAllKeysStatus()`     | Fill 24-byte status array                   |
-
-### Sound Driver Stubs
-
-**File**: `port/sound/sd_stubs.c`
-
-All sound driver functions are currently stubbed:
-- `sd_set_cli()` returns 0 (command accepted, no action).
-- `sd_task_active()` returns 1 (so `Main()` doesn't block waiting for sound).
-- `SdMain()` prints "sound:" and returns.
-- `SD_SngDataLoadInit()`, `SD_SeDataLoadInit()`, `SD_WavDataLoadInit()` return 0/NULL.
-- `PcmOpen`, `PcmRead`, `PcmClose` return -1 (file not found).
-
----
-
-## 4. Current Status
-
-| Component         | Status                                               |
-|------------------|------------------------------------------------------|
-| SPU emulator     | Functional: ADPCM decode, 24-voice mixing, ADSR      |
-| SDL audio output | Working: 44100Hz stereo S16                           |
-| Sound driver     | Compiles but stubbed: all commands are no-ops         |
-| File loading     | `PcmOpen` returns -1, so no sound data loads from disc|
-| Music sequencer  | Stubbed: sd_drv.c not connected                      |
-| Streaming        | Stubbed: sd_str.c not connected                      |
-| Reverb           | Not implemented (stubs only)                         |
-
-The SPU emulator is ready to produce audio as soon as sample data is loaded
-into `spu_ram` and voices are keyed on. The blocking issue is that
-`sd_file.c`'s `PcmOpen` (disc-based streaming) and `SD_WavDataLoadInit` (sample
-loading) are not yet connected to the port's file system.
-
-### Next Steps to Enable Sound
-
-1. Implement `SD_WavDataLoadInit` to load WAV samples from the extracted stage
-   data (the 'w' extension entries in DATACNF 's' mode).
-2. Connect `SD_SeDataLoadInit` to load SE definition data ('e' entries).
-3. Connect `SD_SngDataLoadInit` to load song/music data ('m' entries).
-4. Wire the sound driver stubs to call actual `sd_cli.c`/`sd_drv.c` functions.
-5. Implement IRQ callback for streaming audio synchronization.
+The port caps stream buffers to 4MB (PSX loads entire rest of file which can be 248MB).
+`FS_StreamGetSize` reads from the header tag (stream-4), not the data itself.
