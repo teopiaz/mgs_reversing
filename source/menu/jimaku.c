@@ -113,7 +113,9 @@ void menu_jimaku_act( MenuWork *work, u_long *ot )
         gUnkJimakuStruct_800BDA70.field_8_w = 256;
         gUnkJimakuStruct_800BDA70.field_38_str = NULL;
         gUnkJimakuStruct_800BDA70.field_0_active = 1;
-        gUnkJimakuStruct_800BDA70.field_4_x = (FRAME_WIDTH - pFont->max_width) / 2;
+        /* max_width is char (signed 8-bit) — wraps negative for text > 127px.
+           Use unsigned to get actual pixel width for centering. */
+        gUnkJimakuStruct_800BDA70.field_4_x = (FRAME_WIDTH - (unsigned char)pFont->max_width) / 2;
         gUnkJimakuStruct_800BDA70.field_A_h = pFont->max_height;
         gUnkJimakuStruct_800BDA70.field_6_y = y - (pFont->max_height / 2);
     }
