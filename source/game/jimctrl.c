@@ -251,7 +251,16 @@ static void Act(JimakuCtrlWork *work)
         {
             return;
         }
-
+#ifdef PORT_BUILD
+        /* On the port, str_tick_count stays -1 for a few frames after
+           StartStream because the SPU IRQ-driven state advance doesn't
+           run instantly. Don't destroy jimctrl if the stream is still
+           active (states 1-6) — just wait for str_counter to become valid. */
+        if (str_status >= 1 && str_status <= 6)
+        {
+            return;
+        }
+#endif
         GV_DestroyActor(&work->actor);
         return;
     }
