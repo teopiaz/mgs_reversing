@@ -101,11 +101,6 @@ void DG_FreeObjs( DG_OBJS *objs )
 
 void DG_SetObjsRots( DG_OBJS *objs, SVECTOR *rot )
 {
-#ifdef PORT_BUILD
-    if (rot && (uintptr_t)rot < 0x10000) {
-        printf("CRITICAL: DG_SetObjsRots BAD rot=%p objs=%p\n", (void*)rot, (void*)objs);
-    }
-#endif
     objs->rots = rot;
 }
 
