@@ -326,9 +326,7 @@ void port_RenderObjects(int idx)
         }
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
         if (!objs->objs) continue;
-        /* DG_FLAG_INVISIBLE is checked by DG_BoundChanl to set bound_mode=0,
-           not by the renderer directly. The renderer checks bound_mode instead.
-           Since bound_mode is broken on 64-bit, skip this check for now. */
+        if (objs->flag & DG_FLAG_INVISIBLE) continue;
         if (objs->group_id && !(objs->group_id & group_id)) continue;
 
         DG_OBJ *obj = objs->objs;

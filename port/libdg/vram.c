@@ -136,7 +136,7 @@ void port_ClearImage(RECT *rect, unsigned char r, unsigned char g, unsigned char
             vram[y][x] = color;
 }
 
-void port_LoadImage(RECT *rect, unsigned long *p)
+void port_LoadImage(RECT *rect, u_long *p)
 {
     if (!p || !rect) return;
     int x0 = rect->x, y0 = rect->y;
@@ -149,7 +149,7 @@ void port_LoadImage(RECT *rect, unsigned long *p)
             vram[y0 + y][x0 + x] = *src++;
 }
 
-void port_StoreImage(RECT *rect, unsigned long *p)
+void port_StoreImage(RECT *rect, u_long *p)
 {
     int x0 = rect->x, y0 = rect->y;
     int w = rect->w, h = rect->h;
@@ -193,6 +193,30 @@ DISPENV *port_SetDefDispEnv(DISPENV *env, int x, int y, int w, int h)
     env->disp.x = x; env->disp.y = y; env->disp.w = w; env->disp.h = h;
     disp_x = x; disp_y = y; disp_w = w; disp_h = h;
     return env;
+}
+
+/* Draw a semi-transparent filled rectangle (PSX blend mode 0: B/2 + F/2) */
+static void port_DrawTileSemiTrans(int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b)
+{
+    x += draw_x; y += draw_y;
+    int x0 = x, y0 = y, x1 = x + w, y1 = y + h;
+    if (x0 < clip_x0) x0 = clip_x0;
+    if (y0 < clip_y0) y0 = clip_y0;
+    if (x1 > clip_x1 + 1) x1 = clip_x1 + 1;
+    if (y1 > clip_y1 + 1) y1 = clip_y1 + 1;
+    if (x1 > 320) x1 = 320;
+    if (y1 > 224) y1 = 224;
+    int fr = r >> 3, fg = g >> 3, fb = b >> 3;
+    for (int vy = y0; vy < y1; vy++) {
+        for (int vx = x0; vx < x1; vx++) {
+            uint16_t bg = vram[vy][vx];
+            int br = (bg & 0x1F), bgr = (bg >> 5) & 0x1F, bb = (bg >> 10) & 0x1F;
+            int nr = (br + fr) >> 1;
+            int ng = (bgr + fg) >> 1;
+            int nb = (bb + fb) >> 1;
+            vram[vy][vx] = (uint16_t)(nr | (ng << 5) | (nb << 10));
+        }
+    }
 }
 
 /* Draw a filled rectangle in VRAM (for TILE primitives) */
@@ -461,11 +485,14 @@ void port_DrawOTag(unsigned long *ot)
                 short y = *(short *)(data + 6);
                 short w = *(short *)(data + 8);
                 short h = *(short *)(data + 10);
-                /* tile debug removed */
-                /* Skip full-screen background clears (ClearImage handles those).
-                   Draw everything else (menu panels, HUD bars, etc). */
-                if (!(w >= 320 && h >= 200))
-                    port_DrawTile(x, y, w, h, r, g, b);
+                if (!(w >= 320 && h >= 200)) {
+                    if (code & 0x02) {
+                        /* Semi-transparent: PSX blend mode 0 = B/2 + F/2 */
+                        port_DrawTileSemiTrans(x, y, w, h, r, g, b);
+                    } else {
+                        port_DrawTile(x, y, w, h, r, g, b);
+                    }
+                }
                 prim_count++;
                 break;
             }
