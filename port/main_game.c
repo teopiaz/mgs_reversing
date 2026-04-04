@@ -262,8 +262,16 @@ void game_tick(void)
                     }
                     break;
                 case 2: case 3: case 4: case 5: case 6:
-                    for (int _si = 0; _si < 16 && str_status >= 2 && str_status <= 6; _si++)
-                        sub_800827A4();
+                    /* On PSX, SdInt runs at 60Hz (once per vsync), each call
+                       does one StrSpuTransWithNoLoop. Port runs at 30fps,
+                       so call twice to match 60Hz PSX rate.
+                       But during initial setup (states 2-4), call more times
+                       to advance quickly to playback state 5. */
+                    {
+                        int iters = (str_status < 5) ? 16 : 2;
+                        for (int _si = 0; _si < iters && str_status >= 2 && str_status <= 6; _si++)
+                            sub_800827A4();
+                    }
                     break;
                 case 7:
                     KeyOffStr();
