@@ -269,6 +269,13 @@ void port_RenderObjects(int idx)
     int total_faces = 0;
     int drawn_faces = 0;
 
+    /* Skip rendering when object queue is voided (stage transition, codec).
+       On PSX, DG_RenderPipeline checks this flag. The port's direct renderer must too. */
+    {
+        extern int DG_ObjectQueueVoided;
+        if (DG_ObjectQueueVoided) return;
+    }
+
     /* Check for DG_PRIM objects in the channel queue */
     int n_prims = chanl->queue_size - chanl->prim_index;
     if (render_debug < 3 && n_prims > 0) {
@@ -307,23 +314,16 @@ void port_RenderObjects(int idx)
         for (int qi = 0; qi < chanl->objs_index; qi++) {
             DG_OBJS *o = dq[qi];
             if (!o) continue;
-            printf("[PORT] obj%d n=%d bm=%d fl=0x%x t=[%d,%d,%d]\n",
-                   qi, o->n_models, o->bound_mode, o->flag,
-                   o->world.t[0], o->world.t[1], o->world.t[2]);
+            // printf("[PORT] obj%d n=%d bm=%d fl=0x%x t=[%d,%d,%d]\n",
+            //        qi, o->n_models, o->bound_mode, o->flag,
+            //        o->world.t[0], o->world.t[1], o->world.t[2]);
         }
     }
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
         if (!objs) continue;
-        /* Validate pointers — queue may contain dangling entries after
-           actors are destroyed during cutscene transitions.
-           Check def pointer is in a plausible heap range (not low addresses,
-           not obvious poison values like 0x0101..., 0xDEAD..., etc.) */
-        {
-            uintptr_t dp = (uintptr_t)objs->def;
-            if (!dp || dp < 0x100000 || ((dp & 0xFFFF) == 0x1010) || ((dp >> 32) == 0x01010101)) continue;
-        }
+        if (!objs->def) continue;
         if (objs->def->n_models <= 0 || objs->def->n_models > 256) continue;
         if (!objs->objs) continue;
         /* DG_FLAG_INVISIBLE is checked by DG_BoundChanl to set bound_mode=0,
