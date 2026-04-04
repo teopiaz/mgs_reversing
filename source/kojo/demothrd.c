@@ -231,7 +231,7 @@ static void StreamAct(DemoWork *work)
             uint32_t chara_off; memcpy(&chara_off, &raw[28], 4);
             /* Copy chara/adjust data to aligned static buffers */
             static DMO_CHA port_charas[16];
-            static DMO_ADJ port_adjusts[16];
+            static DMO_ADJ port_adjusts[32];
             if (chara_off && port_dat.n_charas > 0 && port_dat.n_charas <= 16) {
                 memcpy(port_charas, raw + chara_off, sizeof(DMO_CHA) * port_dat.n_charas);
                 port_dat.chara = port_charas;
@@ -240,7 +240,7 @@ static void StreamAct(DemoWork *work)
             }
             memcpy(&port_dat.n_adjusts, &raw[32], 2);
             uint32_t adj_off;   memcpy(&adj_off,   &raw[36], 4);
-            if (adj_off && port_dat.n_adjusts > 0 && port_dat.n_adjusts <= 16) {
+            if (adj_off && port_dat.n_adjusts > 0 && port_dat.n_adjusts <= 32) {
                 /* PSX DMO_ADJ is 24 bytes (short* is 4), port is 32 (short* is 8).
                    Parse each entry from stream with PSX stride. */
                 unsigned char *adj_raw = raw + adj_off;
