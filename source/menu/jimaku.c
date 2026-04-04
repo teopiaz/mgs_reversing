@@ -130,7 +130,9 @@ void menu_jimaku_act( MenuWork *work, u_long *ot )
         JimState.field_8_w = 256;
         JimState.field_38_str = NULL;
         JimState.field_0_active = 1;
-        JimState.field_4_x = (FRAME_WIDTH - pFont->max_width) / 2;
+        /* max_width is char (signed 8-bit) - wraps negative for text > 127px.
+           Use unsigned to get actual pixel width for centering. */
+        JimState.field_4_x = (FRAME_WIDTH - (unsigned char)pFont->max_width) / 2;
         JimState.field_A_h = pFont->max_height;
         JimState.field_6_y = y - (pFont->max_height / 2);
     }
