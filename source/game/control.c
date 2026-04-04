@@ -345,6 +345,19 @@ void GM_ActControl(CONTROL *ctrl)
 
     GM_CurrentMap = ctrl->map->index;
 
+#ifdef PORT_BUILD
+    /* When r_sphere==0, neither collision branch runs, leaving segs[]
+       stale from a previous frame. On PSX this was harmless (memory stays
+       mapped), but on 64-bit macOS freed memory can be unmapped.
+       Only reset segs[] when r_sphere==0 — keep n_touches intact so
+       the snake wall-collision state machine still works correctly. */
+    if (ctrl->r_sphere == 0) {
+        ctrl->n_touches = 0;
+        ctrl->segs[0] = NULL;
+        ctrl->segs[1] = NULL;
+    }
+#endif
+
     if (ctrl->r_sphere > 0)
     {
         ctrl->n_touches = 0;

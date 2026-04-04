@@ -17,7 +17,7 @@ GTE_State gte_state;
    for large model counts (DG_ScreenModels writes per-model matrices at offset 0x40,
    160 models * 32 bytes = 5120 bytes). On PSX this spills safely into main RAM.
    Allocate enough for the largest map object (256 models max). */
-char port_scratchpad[256 * 32 + 1024];
+__attribute__((aligned(16))) char port_scratchpad[256 * 32 + 1024];
 
 /*---------------------------------------------------------------------------*/
 /* Trig tables (4096 entries, 4.12 fixed-point)                              */

@@ -295,8 +295,18 @@ int sub_8004E5E8(SnaInitWork *work, int flag)
 int sna_8004E71C(int a1, HZD_HDL *pHzd, SVECTOR *pVec, int a4)
 {
     int     levels[2];
-    SVECTOR vec, vec_saved;
+    SVECTOR vecs[2]; /* vec and vec_saved MUST be contiguous — sna_line_check
+                        accesses &vec[1] which must be vec_saved */
+#define vec      vecs[0]
+#define vec_saved vecs[1]
     MATRIX  mtx;
+
+#ifdef PORT_BUILD
+    if (!pHzd || !port_ptr_readable(pHzd) ||
+        !pHzd->header || !port_ptr_readable(pHzd->header)) {
+        return 0;
+    }
+#endif
 
     pVec->vz = a1;
     pVec->vy = 0;
@@ -317,7 +327,20 @@ int sna_8004E71C(int a1, HZD_HDL *pHzd, SVECTOR *pVec, int a4)
     }
 
     sub_8004E588(pHzd, pVec, levels);
+#ifdef PORT_BUILD
+    {
+        int result = (levels[1] - pVec->vy) < a4;
+        if (result) {
+            printf("[ceiling] BLOCKED: ceiling=%d floor_vy=%d gap=%d need=%d\n",
+                   levels[1], pVec->vy, levels[1] - pVec->vy, a4);
+        }
+        return result;
+    }
+#else
     return (levels[1] - pVec->vy) < a4;
+#endif
+#undef vec
+#undef vec_saved
 }
 
 int sna_8004E808(SnaInitWork *work, int a2, int a3, int a4, int a5)
@@ -331,6 +354,9 @@ int sna_8004E808(SnaInitWork *work, int a2, int a3, int a4, int a5)
     if (!pCtrl->map || !pCtrl->map->hzd) {
         printf("CRITICAL: sna_8004E808 map=%p\n", (void*)pCtrl->map);
         return 0;
+    }
+    if (a5 != 1100 && a5 != 1500) {
+        printf("CRITICAL: sna_8004E808 a5=%d (expected 1100 or 1500) a2=%d a3=%d a4=%d\n", a5, a2, a3, a4);
     }
 #endif
     if (sna_8004E71C(a3, pCtrl->map->hzd, &SStack48, a5))

@@ -2991,7 +2991,15 @@ void sna_anim_crouch_helper_80053014(SnaInitWork *work, int time)
 
     if ((work->field_9B0_pad_ptr->press & PAD_CROSS) != 0)
     {
+#ifdef PORT_BUILD
+        int ceiling_check = sna_8004E808(work, 0, 0, 0, 1100);
+        if (ceiling_check != 0) {
+            printf("[snake] X pressed while crouching but ceiling check BLOCKED (result=%d)\n", ceiling_check);
+        }
+        if (ceiling_check == 0)
+#else
         if (sna_8004E808(work, 0, 0, 0, 1100) == 0)
+#endif
         {
             work->control.turn.vy = work->control.rot.vy;
 
@@ -6988,6 +6996,9 @@ static inline int sna_init_main_logic_helper_helper_800596FC(SnaInitWork *work)
         {
             seg = pCtrl->segs[0];
 
+#ifdef PORT_BUILD
+            if (!seg || !port_ptr_readable(seg)) return result;
+#endif
             rect[1].x = pPosition->vx - seg->p1.x;
             rect[1].y = pPosition->vz - seg->p1.z;
             rect[0].x = seg->p2.x - seg->p1.x;
@@ -7015,6 +7026,9 @@ static inline int sna_init_main_logic_helper_helper_800596FC(SnaInitWork *work)
                 continue;
             }
 
+#ifdef PORT_BUILD
+            if (!seg || !port_ptr_readable(seg)) continue;
+#endif
             rect[1].x = pPosition->vx - seg->p1.x;
             rect[1].y = pPosition->vz - seg->p1.z;
             rect[0].x = seg->p2.x - seg->p1.x;
@@ -7059,6 +7073,9 @@ static inline void sna_init_main_logic_helper_800596FC(SnaInitWork *work)
     int         result;
     int         diff;
 
+#ifdef PORT_BUILD
+    if (!work->field_9B0_pad_ptr) return;
+#endif
     gSnaMoveDir_800ABBA4 = work->field_9B0_pad_ptr->dir;
     pVec_800ABBC8 = pVec_800ABBCC;
     dword_800ABBAC = 0;

@@ -814,6 +814,12 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
 
     current_group = HZD_CurrentGroup;
 
+#ifdef PORT_BUILD
+    if (!hzd || !hzd->header || !port_ptr_readable(hzd->header)) {
+        return 0;
+    }
+#endif
+
     CopySvectorToSpad(6, from);
 
     *((int *)(SCRPAD_ADDR + 0x064)) = (*((int *)(SCRPAD_ADDR + 0x06C)) = 0);
@@ -1310,6 +1316,9 @@ int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclud
     int       idx;
     int       queue_size;
 
+#ifdef PORT_BUILD
+    if (!hzd || !port_ptr_readable(hzd)) return 0;
+#endif
     pArea = hzd->group;
 
     HZD_CopyVector(point, (SVECTOR *)(SCRPAD_ADDR + 0x00C));
