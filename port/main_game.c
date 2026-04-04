@@ -255,7 +255,11 @@ void game_tick(void)
                     else { str_status = 2; dword_800BF1A4 = 0; }
                     break;
                 case 2: case 3: case 4: case 5: case 6:
-                    sub_800827A4();
+                    /* Call multiple times per frame — on PSX, the SPU IRQ
+                       triggers StrSpuTransWithNoLoop many times per frame
+                       to keep feeding audio blocks to voices 21/22 */
+                    for (int _si = 0; _si < 16 && str_status >= 2 && str_status <= 6; _si++)
+                        sub_800827A4();
                     break;
                 case 7:
                     KeyOffStr();
