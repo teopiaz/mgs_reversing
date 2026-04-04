@@ -302,6 +302,9 @@ int HZD_PointCheck(HZD_HDL *hzd, SVECTOR *point, int range, int flag, int exclud
     int       idx;
     int       queue_size;
 
+#ifdef PORT_BUILD
+    if (!hzd || !port_ptr_readable(hzd)) return 0;
+#endif
     pArea = hzd->group;
 
     CopyVector(point, (HZD_VEC *)(SCRPAD_ADDR + 0x00C));
