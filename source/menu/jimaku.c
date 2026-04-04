@@ -140,6 +140,9 @@ void menu_jimaku_init(MenuWork *work)
 
 void MENU_JimakuWrite(char *str, int frames)
 {
+#ifdef PORT_BUILD
+    if (str) printf("[SUBTITLE] frames=%d\n", frames);
+#endif
     gUnkJimakuStruct_800BDA70.field_0_active = 0;
     gUnkJimakuStruct_800BDA70.field_2_timer = frames;
     gUnkJimakuStruct_800BDA70.field_38_str = str;
