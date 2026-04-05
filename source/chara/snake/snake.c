@@ -327,18 +327,7 @@ int sna_8004E71C(int a1, HZD_HDL *pHzd, SVECTOR *pVec, int a4)
     }
 
     sub_8004E588(pHzd, pVec, levels);
-#ifdef PORT_BUILD
-    {
-        int result = (levels[1] - pVec->vy) < a4;
-        if (result) {
-            printf("[ceiling] BLOCKED: ceiling=%d floor_vy=%d gap=%d need=%d\n",
-                   levels[1], pVec->vy, levels[1] - pVec->vy, a4);
-        }
-        return result;
-    }
-#else
     return (levels[1] - pVec->vy) < a4;
-#endif
 #undef vec
 #undef vec_saved
 }

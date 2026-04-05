@@ -148,8 +148,8 @@ HZD_HDL *HZD_MakeHandler(HZD_MAP *hzd, int areaIndex, int dynamic_segments, int 
         trig = hzdMap->group->triggers;
         for (i = hzdMap->group->n_triggers; i > 0; i--)
         {
-            // stop when we find a camera (traps are stored after cameras)
-            if (trig->trap.id2 == (char)-1)
+            // stop when we find a camera (cameras are stored after traps, id2==0xFF marks them)
+            if ((signed char)trig->trap.id2 == -1)
             {
                 break;
             }
