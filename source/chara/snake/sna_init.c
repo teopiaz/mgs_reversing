@@ -2992,15 +2992,7 @@ void sna_anim_crouch_helper_80053014(SnaInitWork *work, int time)
 
     if ((work->field_9B0_pad_ptr->press & PAD_CROSS) != 0)
     {
-#ifdef PORT_BUILD
-        int ceiling_check = sna_8004E808(work, 0, 0, 0, 1100);
-        if (ceiling_check != 0) {
-            printf("[snake] X pressed while crouching but ceiling check BLOCKED (result=%d)\n", ceiling_check);
-        }
-        if (ceiling_check == 0)
-#else
         if (sna_8004E808(work, 0, 0, 0, 1100) == 0)
-#endif
         {
             work->control.turn.vy = work->control.rot.vy;
 

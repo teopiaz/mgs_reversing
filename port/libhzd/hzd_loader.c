@@ -101,10 +101,28 @@ int HZD_LoadInitHzd(void *buf, int id)
         groups[i].wallsFlags = raw_groups[i].wallsFlags_off ? (char *)(base + raw_groups[i].wallsFlags_off) : NULL;
     }
 
+    /* Compute name_id hashes for all non-camera traps in each group.
+     * The PSX HZD_LoadInitHzd called HZD_ProcessTraps() here; since that function
+     * is static in hzdd.c we inline the same logic. Without this, all trigger
+     * name_id fields hold raw binary garbage and duct/trap zone detection fails. */
+    for (int gi = 0; gi < n_groups; gi++) {
+        HZD_TRG *trap = groups[gi].triggers;
+        int n = groups[gi].n_triggers;
+        for (int ti = n - 1; ti >= 0; ti--, trap++) {
+            /* Camera traps have id2 == 0xFF; stop when we hit one */
+            if ((signed char)trap->trap.id2 == -1)
+                break;
+            /* Trim name at first space (same as HZD_ProcessTraps) */
+            char *s = trap->trap.name;
+            for (int j = (int)sizeof(trap->trap.name) + 1; j > 0 && *s != ' '; j--)
+                s++;
+            *s = '\0';
+            trap->trap.name_id = (u_short)GV_StrCode(trap->trap.name);
+        }
+    }
+
     /* Store in cache */
     GV_SetCache(id, hzm);
-
-    /* hzd print silenced */
 
     return 1;
 }
