@@ -85,7 +85,8 @@ int DG_LoadInitOar(unsigned char *buf, int id)
     unsigned char *data = buf + 16;
 
     /* Allocate persistent DG_OAR — NOT per-frame memory (GV_NORMAL_MEMORY is cleared every frame) */
-    DG_OAR *oar = (DG_OAR *)malloc(sizeof(DG_OAR));
+    extern void *port_malloc(size_t size);
+    DG_OAR *oar = (DG_OAR *)port_malloc(sizeof(DG_OAR));
     if (!oar) return 0;
 
     oar->n_joint = n_joint;
@@ -126,7 +127,8 @@ int DG_LoadInitImg(unsigned char *buf, int id)
     /* PSX DG_IMG binary layout (matches original loader.c:140):
        On PSX, DG_IMG is {u16, u16, u16, u16, u32, u32, u32} = 20 bytes.
        The three u32 fields are offsets from buf start (patched to pointers on PSX). */
-    DG_IMG *img = (DG_IMG *)malloc(sizeof(DG_IMG));
+    extern void *port_malloc(size_t size);
+    DG_IMG *img = (DG_IMG *)port_malloc(sizeof(DG_IMG));
     if (!img) return 0;
 
     img->image_width  = *(unsigned short *)(buf + 0);

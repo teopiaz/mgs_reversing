@@ -62,7 +62,8 @@ DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
                 /* model->extend stores an index (as intptr_t cast to pointer).
                    On PSX it was int; on 64-bit the sign extension is lost. */
                 int extend_idx = (int)(intptr_t)model->extend;
-                if (extend_idx < 0)
+                int cur_idx = (int)(obj - &objs_buf->objs[0]);
+                if (extend_idx < 0 || extend_idx >= def->n_models || extend_idx == cur_idx)
                 {
                     obj->extend = 0;
                 }

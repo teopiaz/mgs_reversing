@@ -22,9 +22,9 @@
                         ((unsigned int)x[2] <<  8) | \
                         ((unsigned int)x[3])
 
-#define load_big_endian_int(addr) ((int)((addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3]))
-#define load_big_endian_short_1(addr) ((short)((addr[0] << 8) | addr[1]))
-#define load_big_endian_short_2(addr) (((addr)[1] | ((addr)[0] << 8)))
+#define load_big_endian_int(addr) ((int)(((unsigned char)(addr)[0] << 24) | ((unsigned char)(addr)[1] << 16) | ((unsigned char)(addr)[2] << 8) | (unsigned char)(addr)[3]))
+#define load_big_endian_short_1(addr) ((short)(((unsigned char)(addr)[0] << 8) | (unsigned char)(addr)[1]))
+#define load_big_endian_short_2(addr) (((unsigned char)(addr)[1] | ((unsigned char)(addr)[0] << 8)))
 
 #define CODEC_TASK_STACK_SIZE 0x800
 

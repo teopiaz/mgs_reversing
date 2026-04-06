@@ -294,7 +294,8 @@ unsigned char *GCL_SetVar(unsigned char *top, unsigned int value)
 
 unsigned char *GCL_VarSaveBuffer(unsigned char *top)
 {
-    int   gcl_var, gcl_code, value;
+    int      gcl_var, gcl_code;
+    intptr_t value;
     char *ptr;
     char  bitFlag;
 

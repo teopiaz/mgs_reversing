@@ -3,12 +3,13 @@ CXX = clang++
 SRCDIR = ../source
 
 INCLUDES = -I psx -I include -I . -I $(SRCDIR)/include -I $(SRCDIR)
+SANITIZE =
 CFLAGS = -Wno-everything -Wno-error -O0 -g -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
          -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-         -Wno-incompatible-pointer-types
-CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends
+         -Wno-incompatible-pointer-types $(SANITIZE)
+CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
 SDL_CFLAGS = $(shell sdl2-config --cflags)
-LDFLAGS = $(shell sdl2-config --libs) -lm -lc++
+LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ $(SANITIZE)
 
 OBJDIR = obj
 TARGET = mgs

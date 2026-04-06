@@ -1,13 +1,24 @@
 /**
- * Port MTS implementation — single-threaded replacement.
- * All task scheduling is replaced with direct function calls.
+ * Port MTS implementation — cooperative multitasking via ucontext.
+ *
+ * The PSX MTS is a single-core cooperative scheduler: tasks yield explicitly
+ * at mts_slp_tsk, mts_wait_vbl, mts_lock_sem, mts_send, mts_receive.
+ * We replicate this exactly with ucontext (one coroutine per task).
  */
 
 #define __IN_MTS_NEW__
 
+/* Suppress macOS deprecation warning for ucontext — it works fine,
+   Apple just wants you to use pthreads/GCD instead. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+#define _XOPEN_SOURCE  /* required for ucontext.h on macOS */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ucontext.h>
 #include <SDL.h>
 #include <unistd.h>
 #include "mts.h"
@@ -15,22 +26,143 @@
 #include "mts_pad.h"
 
 /*---------------------------------------------------------------------------*/
-/* State                                                                     */
+/* Task state                                                                */
 /*---------------------------------------------------------------------------*/
+
+#define TASK_STACK_SIZE (256 * 1024)  /* generous stack per task */
+
+typedef struct {
+    ucontext_t   ctx;
+    char        *stack;          /* allocated stack memory */
+    int          state;          /* MTS_TASK_DEAD, _READY, _SLEEPING, _WAIT_VBL, _PENDING */
+    int          wake_count;     /* pre-wake counter for mts_slp_tsk */
+    int          vbl_target;     /* target tick for mts_wait_vbl */
+    void       (*procedure)(void);
+} PortTask;
+
+static PortTask tasks[MTS_NR_TASK];
+static int      active_task = -1;
+static ucontext_t main_ctx;             /* the main loop's context */
+static unsigned int vbl_tick = 0;       /* advanced by main loop */
+
+/* Semaphores: who holds each, and a simple wait queue */
+#define MAX_SEM_WAITERS 16
+static int sem_holder[MTS_MAX_SEMAPHORE];
+static int sem_queue[MTS_MAX_SEMAPHORE][MAX_SEM_WAITERS];
+static int sem_queue_len[MTS_MAX_SEMAPHORE];
+
+/* Messaging: simple single-slot mailbox per task */
+typedef struct {
+    int    has_data;
+    int    from;
+    unsigned char data[MTS_SZ_MESSAGE];
+} Mailbox;
+static Mailbox mailboxes[MTS_NR_TASK];
 
 static int current_task_id = 0;
-static unsigned int tick_count = 0;
+
+/* Exception / vsync callbacks (kept for compatibility) */
 static void (*exception_func)(void) = NULL;
 static void (*vsync_control_func)(void) = NULL;
-static int (*vsync_callback_func)(void) = NULL;
+static int  (*vsync_callback_func)(void) = NULL;
 
 /*---------------------------------------------------------------------------*/
-/* Task management — simplified single-threaded stubs                        */
+/* Context switching                                                         */
+/*---------------------------------------------------------------------------*/
+
+/* Yield from the current task back to the main loop (scheduler). */
+static void yield_to_main(void)
+{
+    int me = active_task;
+    active_task = -1;
+    swapcontext(&tasks[me].ctx, &main_ctx);
+}
+
+/* Resume a specific task from the main loop. */
+static void resume_task(int id)
+{
+    active_task = id;
+    swapcontext(&main_ctx, &tasks[id].ctx);
+}
+
+/* Find the lowest-numbered ready task (PSX priority = lower ID = higher priority). */
+static int find_ready_task(void)
+{
+    for (int i = 0; i < MTS_NR_TASK; i++) {
+        if (tasks[i].state == MTS_TASK_READY)
+            return i;
+    }
+    return -1;
+}
+
+/*---------------------------------------------------------------------------*/
+/* Scheduler tick — called once per frame from the main loop                 */
+/*---------------------------------------------------------------------------*/
+
+void mts_scheduler_tick(void)
+{
+    vbl_tick++;
+
+    /* Wake tasks whose vbl wait has elapsed */
+    for (int i = 0; i < MTS_NR_TASK; i++) {
+        if (tasks[i].state == MTS_TASK_WAIT_VBL && (int)(vbl_tick - tasks[i].vbl_target) >= 0) {
+            tasks[i].state = MTS_TASK_READY;
+        }
+    }
+
+    /* Run all ready tasks in priority order until they all yield */
+    for (;;) {
+        int id = find_ready_task();
+        if (id < 0) break;
+        resume_task(id);
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+/* Task entry trampoline                                                     */
+/*---------------------------------------------------------------------------*/
+
+static void task_trampoline(void)
+{
+    int me = active_task;
+    if (me < 0 || me >= MTS_NR_TASK || !tasks[me].procedure) {
+        printf("[mts] trampoline: BAD task %d\n", me);
+        if (me >= 0 && me < MTS_NR_TASK) tasks[me].state = MTS_TASK_DEAD;
+        yield_to_main();
+        return;
+    }
+    tasks[me].procedure();
+    /* If procedure returns (mts_ext_tsk not called), mark dead and yield */
+    tasks[me].state = MTS_TASK_DEAD;
+    yield_to_main();
+}
+
+/*---------------------------------------------------------------------------*/
+/* Public API: Task management                                               */
 /*---------------------------------------------------------------------------*/
 
 void mts_boot(int tasknr, void (*procedure)(void), void *stack_pointer)
 {
     (void)stack_pointer;
+
+    /* Initialize all tasks as dead */
+    for (int i = 0; i < MTS_NR_TASK; i++) {
+        tasks[i].state = MTS_TASK_DEAD;
+        tasks[i].wake_count = 0;
+    }
+
+    /* Initialize semaphores */
+    for (int i = 0; i < MTS_MAX_SEMAPHORE; i++) {
+        sem_holder[i] = SEMAPHORE_NOT_WAITING;
+        sem_queue_len[i] = 0;
+    }
+
+    /* Initialize mailboxes */
+    memset(mailboxes, 0, sizeof(mailboxes));
+
+    /* The boot task (MTSID_GAME) runs as the main context — just call it directly.
+       On PSX, mts_boot never returns. For the port, it does, and the main loop
+       takes over scheduling. We store the procedure for deferred execution. */
     current_task_id = tasknr;
     procedure();
 }
@@ -43,21 +175,61 @@ void mts_boot_task(int tasknr, void (*procedure)(void), void *stack_pointer, lon
 
 int mts_sta_tsk(int tasknr, void (*procedure)(void), void *stack_pointer)
 {
-    (void)tasknr;
-    (void)procedure;
     (void)stack_pointer;
-    /* In the real MTS this starts a concurrent task.
-       For the port, tasks that need to run (like sound) are stubbed. */
+
+    if (tasknr < 0 || tasknr >= MTS_NR_TASK) {
+        printf("[mts] sta_tsk: bad task id %d\n", tasknr);
+        return -1;
+    }
+
+    PortTask *t = &tasks[tasknr];
+
+    /* Allocate stack if needed */
+    if (!t->stack) {
+        t->stack = (char *)malloc(TASK_STACK_SIZE);
+        if (!t->stack) {
+            printf("[mts] sta_tsk: malloc failed for task %d\n", tasknr);
+            return -1;
+        }
+    }
+
+    t->state = MTS_TASK_READY;
+    t->wake_count = 0;
+
+    /* Set up ucontext — getcontext must be called BEFORE setting procedure,
+       because on some platforms getcontext may clobber nearby memory. */
+    getcontext(&t->ctx);
+    t->ctx.uc_stack.ss_sp = t->stack;
+    t->ctx.uc_stack.ss_size = TASK_STACK_SIZE;
+    t->ctx.uc_link = &main_ctx;  /* return to main on completion */
+    makecontext(&t->ctx, task_trampoline, 0);
+    t->procedure = procedure;  /* must be after getcontext/makecontext */
+
+    printf("[mts] sta_tsk(%d) → coroutine %p\n", tasknr, (void *)procedure);
+
+    /* If we're inside a task, yield so the scheduler can decide who runs next.
+       If we're in the main context (active_task == -1), the new task will run
+       on the next scheduler tick. */
     return 0;
 }
 
 void mts_ext_tsk(void)
 {
-    /* Exit current task — no-op in single-threaded mode */
+    if (active_task >= 0) {
+        tasks[active_task].state = MTS_TASK_DEAD;
+        yield_to_main();
+    }
 }
 
 void mts_shutdown(void)
 {
+    for (int i = 0; i < MTS_NR_TASK; i++) {
+        if (tasks[i].stack) {
+            free(tasks[i].stack);
+            tasks[i].stack = NULL;
+        }
+        tasks[i].state = MTS_TASK_DEAD;
+    }
 }
 
 void mts_task_start(void)
@@ -66,74 +238,54 @@ void mts_task_start(void)
 
 int mts_get_current_task_id(void)
 {
-    return current_task_id;
+    return active_task >= 0 ? active_task : current_task_id;
 }
 
 int mts_get_task_status(long id)
 {
-    (void)id;
-    return MTS_TASK_READY;
+    if (id < 0 || id >= MTS_NR_TASK) return MTS_TASK_DEAD;
+    return tasks[id].state;
 }
 
 /*---------------------------------------------------------------------------*/
-/* Messaging — stubs                                                         */
+/* Sleep / Wake                                                              */
 /*---------------------------------------------------------------------------*/
 
-void mts_send(int dst, unsigned char *message)
+void mts_slp_tsk(void)
 {
-    (void)dst;
-    (void)message;
+    if (active_task < 0) return; /* not in a task context */
+
+    PortTask *t = &tasks[active_task];
+    if (t->wake_count > 0) {
+        /* Already woken before we slept — stay ready */
+        t->wake_count = 0;
+        t->state = MTS_TASK_READY;
+    } else {
+        t->wake_count = 0;
+        t->state = MTS_TASK_SLEEPING;
+    }
+    yield_to_main();
 }
 
-int mts_isend(int dst)
+void mts_wup_tsk(int dst)
 {
-    (void)dst;
-    return 0;
-}
+    if (dst < 0 || dst >= MTS_NR_TASK) return;
 
-int mts_receive(int src, unsigned char *message)
-{
-    (void)src;
-    (void)message;
-    return -1;
-}
-
-void mts_send_msg(int dst, int data0, int data1)
-{
-    (void)dst;
-    (void)data0;
-    (void)data1;
-}
-
-int mts_recv_msg(int src, int *data0, int *data1)
-{
-    (void)src;
-    (void)data0;
-    (void)data1;
-    return -1;
+    PortTask *t = &tasks[dst];
+    if (t->state == MTS_TASK_SLEEPING) {
+        t->state = MTS_TASK_READY;
+    } else if (t->state == MTS_TASK_READY) {
+        t->wake_count++;
+    }
 }
 
 /*---------------------------------------------------------------------------*/
-/* Sleep / Wake — stubs                                                      */
-/*---------------------------------------------------------------------------*/
-
-void mts_slp_tsk(void) {}
-void mts_wup_tsk(int dst) { (void)dst; }
-
-/*---------------------------------------------------------------------------*/
-/* Semaphores — stubs (single-threaded, no contention)                       */
-/*---------------------------------------------------------------------------*/
-
-void mts_lock_sem(int no) { (void)no; }
-void mts_unlock_sem(int no) { (void)no; }
-
-/*---------------------------------------------------------------------------*/
-/* V-Sync / Timing                                                           */
+/* V-Sync wait                                                               */
 /*---------------------------------------------------------------------------*/
 
 void mts_init_vsync(void)
 {
-    tick_count = 0;
+    vbl_tick = 0;
 }
 
 void mts_set_vsync_task(void)
@@ -152,15 +304,139 @@ void mts_set_vsync_control_func(void (*func)(void))
 
 int mts_wait_vbl(long count)
 {
-    /* Advance tick count. On PSX this yields to the scheduler.
-       On the port, just advance time so timeout loops terminate. */
-    tick_count += (unsigned int)count;
+    if (active_task < 0) {
+        /* Not in a task context (main loop) — just advance tick */
+        vbl_tick += (unsigned int)count;
+        return 0;
+    }
+
+    PortTask *t = &tasks[active_task];
+    t->vbl_target = vbl_tick + (unsigned int)count;
+    t->state = MTS_TASK_WAIT_VBL;
+    yield_to_main();
+
     return 0;
 }
 
 int mts_get_tick_count(void)
 {
-    return (int)tick_count;
+    return (int)vbl_tick;
+}
+
+/*---------------------------------------------------------------------------*/
+/* Semaphores                                                                */
+/*---------------------------------------------------------------------------*/
+
+void mts_lock_sem(int no)
+{
+    if (no < 0 || no >= MTS_MAX_SEMAPHORE) return;
+    if (active_task < 0) return; /* main context — no contention */
+
+    if (sem_holder[no] == SEMAPHORE_NOT_WAITING) {
+        /* Free — take it */
+        sem_holder[no] = active_task;
+        return;
+    }
+
+    /* Already held — enqueue and wait */
+    if (sem_queue_len[no] < MAX_SEM_WAITERS) {
+        sem_queue[no][sem_queue_len[no]++] = active_task;
+    }
+    tasks[active_task].state = MTS_PENDING;
+    yield_to_main();
+}
+
+void mts_unlock_sem(int no)
+{
+    if (no < 0 || no >= MTS_MAX_SEMAPHORE) return;
+
+    if (sem_queue_len[no] > 0) {
+        /* Hand off to next waiter */
+        int next = sem_queue[no][0];
+        /* Shift queue */
+        for (int i = 1; i < sem_queue_len[no]; i++)
+            sem_queue[no][i - 1] = sem_queue[no][i];
+        sem_queue_len[no]--;
+
+        sem_holder[no] = next;
+        tasks[next].state = MTS_TASK_READY;
+    } else {
+        sem_holder[no] = SEMAPHORE_NOT_WAITING;
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+/* Messaging                                                                 */
+/*---------------------------------------------------------------------------*/
+
+void mts_send(int dst, unsigned char *message)
+{
+    if (dst < 0 || dst >= MTS_NR_TASK) return;
+
+    Mailbox *mb = &mailboxes[dst];
+    memcpy(mb->data, message, MTS_SZ_MESSAGE);
+    mb->from = active_task >= 0 ? active_task : current_task_id;
+    mb->has_data = 1;
+
+    /* If dst is blocked in receive, wake it */
+    if (tasks[dst].state == MTS_TASK_RECEIVING) {
+        tasks[dst].state = MTS_TASK_READY;
+    }
+
+    /* Yield to let receiver run */
+    if (active_task >= 0) {
+        tasks[active_task].state = MTS_TASK_SENDING;
+        yield_to_main();
+    }
+}
+
+int mts_isend(int dst)
+{
+    (void)dst;
+    return 0;
+}
+
+int mts_receive(int src, unsigned char *message)
+{
+    int me = active_task >= 0 ? active_task : current_task_id;
+    Mailbox *mb = &mailboxes[me];
+
+    /* Check if we already have a message */
+    if (mb->has_data && (src < 0 || src == mb->from || src == MTS_TASK_ANY)) {
+        memcpy(message, mb->data, MTS_SZ_MESSAGE);
+        mb->has_data = 0;
+        return mb->from;
+    }
+
+    /* Block until message arrives */
+    if (active_task >= 0) {
+        tasks[active_task].state = MTS_TASK_RECEIVING;
+        yield_to_main();
+
+        /* Resumed — check mailbox again */
+        if (mb->has_data) {
+            memcpy(message, mb->data, MTS_SZ_MESSAGE);
+            mb->has_data = 0;
+            return mb->from;
+        }
+    }
+
+    return -1;
+}
+
+void mts_send_msg(int dst, int data0, int data1)
+{
+    int msg[4] = {data0, data1, 0, 0};
+    mts_send(dst, (unsigned char *)msg);
+}
+
+int mts_recv_msg(int src, int *data0, int *data1)
+{
+    int msg[4];
+    int result = mts_receive(src, (unsigned char *)msg);
+    *data0 = msg[0];
+    *data1 = msg[1];
+    return result;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -183,7 +459,12 @@ void mts_set_stack_check(long tasknr, void *stack_top, long stack_size)
 
 void mts_print_process_status(void)
 {
-    printf("[port] mts_print_process_status: single-threaded mode\n");
+    printf("[mts] tasks:");
+    for (int i = 0; i < MTS_NR_TASK; i++) {
+        if (tasks[i].state != MTS_TASK_DEAD)
+            printf(" %d=%d", i, tasks[i].state);
+    }
+    printf("\n");
 }
 
 void mts_set_exception_func(void (*func)(void))
@@ -656,3 +937,5 @@ int cprintf(const char *format, ...)
     va_end(ap);
     return ret;
 }
+
+#pragma clang diagnostic pop
