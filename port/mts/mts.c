@@ -223,6 +223,76 @@ void mts_get_use_stack_size(int *max, int *now, int *limit)
 static unsigned short port_pad_buttons = 0;
 static unsigned char port_pad_lx = 128, port_pad_ly = 128;
 
+/* Replay / record state — file-scope so port_replay_start() / port_record_start() can reset */
+static FILE *play_file = NULL;
+static FILE *rec_file  = NULL;
+static char  play_path_buf[256] = {0};
+static char  rec_path_buf[256]  = {0};
+static int   play_restart_pending = 0;
+static int   rec_restart_pending  = 0;
+static int   rec_stop_pending     = 0;
+/* Counts for replay_status in get_state */
+int TEST_HARNESS_processed_inputs = 0;   /* last frame number processed in replay */
+int TEST_HARNESS_total_inputs     = 0;   /* total entries in the log file */
+
+/* Count entries in a log file (frame/button pairs). Returned so get_state can
+   report total_inputs. Does not affect the caller's file position. */
+static int count_log_entries(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+    int count = 0;
+    unsigned int fr; unsigned int btn;
+    while (fscanf(f, "%u 0x%X", &fr, &btn) == 2)
+        count++;
+    fclose(f);
+    return count;
+}
+
+void TEST_HARNESS_replay_start(const char *path)
+{
+    if (!path || !path[0]) return;
+    strncpy(play_path_buf, path, sizeof(play_path_buf) - 1);
+    play_path_buf[sizeof(play_path_buf) - 1] = '\0';
+    /* If rec is active, stop it */
+    if (rec_file) rec_stop_pending = 1;
+    play_restart_pending = 1;
+    TEST_HARNESS_processed_inputs = 0;
+    TEST_HARNESS_total_inputs     = count_log_entries(path);
+    printf("[input] replay_start scheduled: %s (%d entries)\n", path, TEST_HARNESS_total_inputs);
+}
+
+void TEST_HARNESS_record_start(const char *path)
+{
+    if (!path || !path[0]) return;
+    strncpy(rec_path_buf, path, sizeof(rec_path_buf) - 1);
+    rec_path_buf[sizeof(rec_path_buf) - 1] = '\0';
+    /* Stop replay if active */
+    if (play_file) { fclose(play_file); play_file = NULL; }
+    rec_restart_pending = 1;
+    printf("[input] record_start scheduled: %s\n", path);
+}
+
+void TEST_HARNESS_record_stop(void)
+{
+    rec_stop_pending = 1;
+}
+
+/* Returns 0=idle, 1=replaying, 2=recording */
+int TEST_HARNESS_get_input_status(void)
+{
+    if (play_file) return 1;
+    if (rec_file)  return 2;
+    return 0;
+}
+
+const char *TEST_HARNESS_get_input_path(void)
+{
+    if (play_file) return play_path_buf;
+    if (rec_file)  return rec_path_buf;
+    return "";
+}
+
 /* Exported raw keyboard state for camera controls etc. */
 unsigned char port_keys[512] = {0};
 
@@ -344,84 +414,140 @@ void port_update_pad(void)
         }
     }
 
+    /* Test harness: override buttons if inject_input was called */
+    {
+        extern int TEST_HARNESS_override_buttons;
+        extern int TEST_HARNESS_override_frames;
+        if (TEST_HARNESS_override_frames > 0) {
+            b = (unsigned short)TEST_HARNESS_override_buttons;
+            TEST_HARNESS_override_frames--;
+        }
+    }
+
     port_pad_buttons = b;
 
-    /* Input recording/replay for crash reproduction.
-       MGS_INPUT_RECORD=<file>  — record input to file
-       MGS_INPUT_REPLAY=<file>  — replay input from file (overrides pad) */
+    /* Input recording/replay — supports mid-session switching via port_replay_start() */
     {
-        static FILE *rec_file = NULL;
-        static FILE *play_file = NULL;
         static int io_init = 0;
         static unsigned int frame = 0;
+        static unsigned short rec_prev_b = 0xFFFF;
+
+        /* Replay state */
+        static unsigned int  play_next_frame   = 0;
+        static unsigned short play_cur_buttons  = 0;
+        static unsigned short play_next_buttons = 0;
+        static int           play_need_read    = 1;
+        static int           play_eof          = 0;
 
         if (!io_init) {
             io_init = 1;
-            const char *rec_path = getenv("MGS_INPUT_RECORD");
+            const char *rec_path  = getenv("MGS_INPUT_RECORD");
             const char *play_path = getenv("MGS_INPUT_REPLAY");
             printf("[input] env: RECORD=%s REPLAY=%s\n",
                    rec_path ? rec_path : "(null)", play_path ? play_path : "(null)");
             if (play_path && play_path[0]) {
+                if (play_file) fclose(play_file);
                 play_file = fopen(play_path, "r");
-                if (play_file) printf("[input] replaying from %s\n", play_path);
-                else printf("[input] FAILED to open replay: %s\n", play_path);
+                if (play_file) {
+                    strncpy(play_path_buf, play_path, sizeof(play_path_buf) - 1);
+                    play_need_read = 1; play_eof = 0;
+                    play_cur_buttons = 0; play_next_frame = 0;
+                    printf("[input] replaying from %s\n", play_path);
+                } else {
+                    printf("[input] FAILED to open replay: %s\n", play_path);
+                }
             } else if (rec_path && rec_path[0]) {
+                if (rec_file) fclose(rec_file);
                 rec_file = fopen(rec_path, "w");
-                if (rec_file) printf("[input] recording to %s\n", rec_path);
-                else printf("[input] FAILED to open record: %s\n", rec_path);
+                if (rec_file) {
+                    strncpy(rec_path_buf, rec_path, sizeof(rec_path_buf) - 1);
+                    printf("[input] recording to %s\n", rec_path);
+                } else {
+                    printf("[input] FAILED to open record: %s\n", rec_path);
+                }
             }
         }
 
+        /* Handle mid-session replay switch (from port_replay_start) */
+        if (play_restart_pending) {
+            play_restart_pending = 0;
+            if (play_file) { fclose(play_file); play_file = NULL; }
+            play_file = fopen(play_path_buf, "r");
+            if (play_file) {
+                play_need_read = 1; play_eof = 0;
+                play_cur_buttons = 0; play_next_frame = 0;
+                frame = 0;  /* Reset frame counter to match log */
+                printf("[input] replay restarted: %s\n", play_path_buf);
+            } else {
+                printf("[input] FAILED to reopen replay: %s\n", play_path_buf);
+            }
+        }
+
+        /* Handle mid-session record switch (from port_record_start) */
+        if (rec_restart_pending) {
+            rec_restart_pending = 0;
+            if (rec_file) { fclose(rec_file); rec_file = NULL; }
+            rec_file = fopen(rec_path_buf, "w");
+            if (rec_file) {
+                rec_prev_b = 0xFFFF;
+                printf("[input] recording started: %s\n", rec_path_buf);
+            } else {
+                printf("[input] FAILED to open record: %s\n", rec_path_buf);
+            }
+        }
+
+        /* Handle record stop */
+        if (rec_stop_pending) {
+            rec_stop_pending = 0;
+            if (rec_file) { fclose(rec_file); rec_file = NULL; }
+            printf("[input] recording stopped\n");
+        }
+
         if (rec_file) {
-            /* Record every frame with non-zero buttons, plus all transitions.
-               This captures exact timing of simultaneous presses.
-               Uses unbuffered write() to survive crashes. */
-            static unsigned short prev_b = 0xFFFF;
-            if (port_pad_buttons != prev_b || port_pad_buttons != 0) {
-                if (port_pad_buttons != prev_b) {
-                    char line[32];
-                    int len = snprintf(line, sizeof(line), "%u 0x%04X\n", frame, port_pad_buttons);
-                    write(fileno(rec_file), line, len);
-                }
-                prev_b = port_pad_buttons;
+            if (port_pad_buttons != rec_prev_b) {
+                char line[32];
+                int len = snprintf(line, sizeof(line), "%u 0x%04X\n", frame, port_pad_buttons);
+                write(fileno(rec_file), line, len);
+                rec_prev_b = port_pad_buttons;
             }
         }
 
         if (play_file) {
-            /* Replay: apply recorded button state at the correct frame.
-               Between events, hold the last button state (not zero). */
-            static unsigned int next_frame = 0;
-            static unsigned short cur_buttons = 0;
-            static unsigned short next_buttons = 0;
-            static int need_read = 1;
-            static int eof = 0;
-
-            /* Read first entry */
-            if (need_read && !eof) {
+            /* Replay: apply recorded button state at the correct frame */
+            if (play_need_read && !play_eof) {
                 unsigned int f; unsigned int btn;
                 if (fscanf(play_file, "%u 0x%X", &f, &btn) == 2) {
-                    next_frame = f;
-                    next_buttons = (unsigned short)btn;
+                    play_next_frame   = f;
+                    play_next_buttons = (unsigned short)btn;
                 } else {
-                    eof = 1;
+                    play_eof = 1;
                 }
-                need_read = 0;
+                play_need_read = 0;
             }
 
-            /* Apply events that have arrived */
-            while (!eof && frame >= next_frame) {
-                cur_buttons = next_buttons;
+            while (!play_eof && frame >= play_next_frame) {
+                play_cur_buttons = play_next_buttons;
                 unsigned int f; unsigned int btn;
                 if (fscanf(play_file, "%u 0x%X", &f, &btn) == 2) {
-                    next_frame = f;
-                    next_buttons = (unsigned short)btn;
+                    play_next_frame   = f;
+                    play_next_buttons = (unsigned short)btn;
                 } else {
-                    eof = 1;
+                    play_eof = 1;
+                    TEST_HARNESS_processed_inputs = frame;
                     printf("[input] replay ended at frame %u\n", frame);
                 }
             }
 
-            port_pad_buttons = cur_buttons;
+            if (play_eof) {
+                /* Replay finished — stop overriding input so inject_input
+                   and keyboard/gamepad work again. */
+                fclose(play_file);
+                play_file = NULL;
+                play_cur_buttons = 0;
+            } else {
+                port_pad_buttons = play_cur_buttons;
+                TEST_HARNESS_processed_inputs = frame;
+            }
         }
 
         frame++;
@@ -460,10 +586,11 @@ void *mts_get_controller_data(int channel)
 
 int mts_read_pad(int channel)
 {
-    /* Only return buttons for port 0 (player 1).
-       Port 2 is the PSX debug controller — returning player 1 data
-       for it triggers debug prints every frame. */
-    if (channel != 0) return 0;
+    /* Channel 0 = player 1 (main gameplay input).
+       Channel 1 = player 2 / debug controller.  cancel.c reads channel 1 to
+       allow skipping cinemas.  We map channel 1 → player 1 buttons so that
+       inject_input / keyboard / gamepad can skip opening sequences. */
+    (void)channel;
     return port_pad_buttons;
 }
 
