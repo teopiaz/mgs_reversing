@@ -59,7 +59,8 @@ int GCL_Expr(unsigned char *pScript, int *retValue)
 {
     EXPR_STACK *sp;
     char       *ptr;
-    int code, value, operator;
+    int code, operator;
+    intptr_t value;
 
     sp = (EXPR_STACK *)(port_scratchpad + 0x200);
     ptr = pScript;
