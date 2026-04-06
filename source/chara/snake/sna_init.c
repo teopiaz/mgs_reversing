@@ -199,7 +199,8 @@ ACTPACK weapon_actions_8009ED8C[10] =
 void *dword_8009EEA4[] = {
     sna_anim_idle_8005275C,
     sna_anim_crouch_800527DC,
-    sna_anim_prone_idle_800528BC
+    sna_anim_prone_idle_800528BC,
+    sna_anim_wall_idle_and_c4_80052A5C  /* PSX: read from adjacent dword_8009EEB0[0] when stance=3 */
 };
 
 void *SECTION(".data") dword_8009EEB0[] = {

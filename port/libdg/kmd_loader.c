@@ -60,9 +60,11 @@ int DG_LoadInitKmd(unsigned char *buf, int id)
         return 0;
     }
 
-    /* Allocate a proper 64-bit DG_DEF with DG_MDL array — must be persistent */
+    /* Allocate a proper 64-bit DG_DEF with DG_MDL array.
+       Must use port_malloc so pointer fits in 32 bits for GCL compatibility. */
+    extern void *port_malloc(size_t size);
     int alloc_size = sizeof(DG_DEF) + sizeof(DG_MDL) * n_models;
-    DG_DEF *def = (DG_DEF *)malloc(alloc_size);
+    DG_DEF *def = (DG_DEF *)port_malloc(alloc_size);
     if (!def)
     {
         printf("    [kmd] Failed to allocate %d bytes\n", alloc_size);

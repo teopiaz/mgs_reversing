@@ -129,7 +129,7 @@ void font_free(void)
 
 int font_init_kcb(KCB *kcb, RECT *rect, int x, int y)
 {
-    memset(kcb, 0, 44);
+    memset(kcb, 0, sizeof(KCB));
     kcb->rect_ptr = rect;
     kcb->rect = *rect;
     kcb->crect.w = 16;
@@ -270,7 +270,7 @@ int font_get_buffer_size(KCB *kcb)
 void font_set_buffer(KCB *kcb, void *buffer)
 {
     kcb->cbuffer = buffer;
-    kcb->buffer = buffer + 0x20;
+    kcb->buffer = (char *)buffer + 0x20;
 }
 
 void *font_get_buffer_ptr(KCB *kcb)
@@ -1268,7 +1268,7 @@ long font_draw_string(KCB *kcb, long xtop, long ytop, const char *string, long c
         else
         {
             idx1 = get_zen_font_data(next_mdata);
-            if (idx1 > 0)
+            if (idx1 > 0 && zendata[idx1 >> 12] != NULL)
             {
                 ptr = zendata[idx1 >> 12] + ((idx1 & 0xFFF) - 1) * 36;
             }
@@ -1321,7 +1321,7 @@ long font_draw_string(KCB *kcb, long xtop, long ytop, const char *string, long c
                             else
                             {
                                 idx1 = get_zen_font_data(next_mdata);
-                                if (idx1 > 0)
+                                if (idx1 > 0 && zendata[idx1 >> 12] != NULL)
                                 {
                                     ptr = zendata[idx1 >> 12] + ((idx1 & 0xFFF) - 1) * 36;
                                 }

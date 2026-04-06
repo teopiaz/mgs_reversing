@@ -44,7 +44,14 @@ DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
     {
         obj->model = mdl;
 
+#ifdef PORT_BUILD
+        /* Guard against out-of-range / self-referential extend indices, which
+           chain DG_OBJ lists into loops or freed memory on the port. */
+        if ( mdl->extend < 0 || mdl->extend >= def->n_models ||
+             mdl->extend == (int)( obj - &objs->objs[ 0 ] ) )
+#else
         if ( mdl->extend < 0 )
+#endif
         {
             obj->extend = 0;
         }

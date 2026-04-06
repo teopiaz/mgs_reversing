@@ -1,18 +1,8 @@
-#include "gcl_ptr_table.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 
 #include "common.h"
-
-/* Persistent pointer storage for HZD_BIND.field_14_proc_and_block.
-   The gcl_ptr_table is a circular buffer that gets overwritten; binds need
-   pointers that persist for the lifetime of the stage. */
-void *bind_ptr_table[128];
-void *bind_ptr_resolve(int idx) {
-    if (idx >= 0 && idx < 128) return bind_ptr_table[idx];
-    return NULL;
-}
 #include "charadef.h"
 #include "libgv/libgv.h"
 #include "libdg/libdg.h"
@@ -301,8 +291,7 @@ static int GM_Command_trap(unsigned char *top)
     gBindsArray_800b58e0[i].field_8_param_i_c_flags = 0;
 
     GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-    gBindsArray_800b58e0[i].field_14_proc_and_block = i;
-    bind_ptr_table[i] = (void *)value;
+    gBindsArray_800b58e0[i].field_14_proc_and_block = value;
     gBindsCount_800ABA64++;
 
     tmp = gBinds_800ABA60;
@@ -415,12 +404,7 @@ static int GM_Command_ntrap(unsigned char *top)
             printf("ntrap:can't set proc and block\n");
         }
         GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-        {
-            int idx = (int)(pBind - gBindsArray_800b58e0);
-            pBind->field_14_proc_and_block = idx;
-            if (idx >= 0 && idx < 128)
-                bind_ptr_table[idx] = (void *)value;
-        }
+        pBind->field_14_proc_and_block = value;
     }
     pBind->field_B_param_e = flags;
     gBindsCount_800ABA64++;
@@ -435,8 +419,8 @@ static int GM_Command_ntrap(unsigned char *top)
 
 static int GM_Command_delay(unsigned char *top)
 {
-    int time = 0;
-    int proc = 0;
+    int      time = 0;
+    intptr_t proc = 0;
 
     if (GCL_GetOption('t')) // time
     {
@@ -451,7 +435,7 @@ static int GM_Command_delay(unsigned char *top)
         int code;
         intptr_t value;
         GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-        proc = value;
+        proc = -(intptr_t)value;
     }
     if (GCL_GetOption('g'))
     {
@@ -1147,7 +1131,7 @@ static int GM_Command_print(unsigned char *top)
         if (code == GCLCODE_NULL)
             break;
         if (code == GCLCODE_STRING)
-            printf("%s ", (char *)value);
+            printf("%s ", (char *)(void *)value);
         else
             printf("%d ", value);
     }
