@@ -15,7 +15,9 @@ exec_if:
 
     if (res)
     {
-        GCL_ExecBlock((unsigned char *)gcl_resolve_ptr(block), 0);
+        void *block_ptr = gcl_resolve_ptr(block);
+        if ((uintptr_t)block_ptr > 0x100000)
+            GCL_ExecBlock((unsigned char *)block_ptr, 0);
     }
     else
     {
@@ -23,7 +25,9 @@ exec_if:
 
         if (p)
         {
-            p = (char *)gcl_resolve_ptr(res);
+            void *rp = gcl_resolve_ptr(res);
+            if ((uintptr_t)rp < 0x100000) return 0;
+            p = (char *)rp;
 
             switch (type >>= 16)
             {
