@@ -10,9 +10,8 @@ int gcl_ptr_next = 0;
 /* 64-bit: preserve full pointer from GCL_GetNextValue for callers that need it */
 intptr_t GCL_LastPointerValue = 0;
 
-/* Non-inline wrappers for files that don't include gcl_ptr_table.h */
+/* Non-inline wrapper for files that don't include gcl_ptr_table.h */
 void *gcl_resolve_ptr_fn(int value) { return gcl_resolve_ptr(value); }
-void gcl_ptr_table_reset(void) { gcl_ptr_next = 0; }
 
 /*** $gp ***/
 int            *SECTION(".sbss") argstack_p;

@@ -203,6 +203,8 @@ int GCL_ExecBlock(unsigned char *top, GCL_ARGS *args)
 
         default:
             printf("SCRIPT COMMAND ERROR %x\n", (unsigned int)*top);
+            GCL_UnsetArgStack(old_stack);
+            return 1;
         }
     }
     printf("ERROR in script\n");
