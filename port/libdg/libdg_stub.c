@@ -234,6 +234,7 @@ uint16_t sample_vram_texel(uint16_t tpage, uint16_t clut, int u, int v)
 /* Multiply two MATRIX: out = a * b (fixed-point 4.12) */
 static void mat_mul(MATRIX *a, MATRIX *b, MATRIX *out)
 {
+    /* Rotation: matches GTE MulMatrix0 (32-bit intermediate) */
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++) {
             out->m[r][c] = (short)((
@@ -257,6 +258,9 @@ int port_get_objs_count(void)
     return DG_Chanls[1].objs_index;
 }
 
+/* Last-frame draw count — read by test_server.c for get_state */
+int port_last_drawn_faces = 0;
+
 /* Render all queued DG_OBJS directly to VRAM */
 static int render_debug = 0;
 void port_RenderObjects(int idx)
@@ -265,6 +269,22 @@ void port_RenderObjects(int idx)
     int group_id = DG_CurrentGroupID;
     int dist = chanl->clip_distance;
     if (dist <= 0) dist = 256;
+
+    /* Camera override from imgui debug panel */
+    extern int imgui_cam_override;
+    extern int imgui_cam_eye_inv_t[3];
+    extern int imgui_cam_clip_dist;
+    extern short imgui_cam_eye_inv_m[3][3];
+    MATRIX cam_override;
+    if (imgui_cam_override) {
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                cam_override.m[r][c] = imgui_cam_eye_inv_m[r][c];
+        cam_override.t[0] = imgui_cam_eye_inv_t[0];
+        cam_override.t[1] = imgui_cam_eye_inv_t[1];
+        cam_override.t[2] = imgui_cam_eye_inv_t[2];
+        dist = imgui_cam_clip_dist;
+    }
 
     int total_faces = 0;
     int drawn_faces = 0;
@@ -307,9 +327,9 @@ void port_RenderObjects(int idx)
         for (int qi = 0; qi < chanl->objs_index; qi++) {
             DG_OBJS *o = dq[qi];
             if (!o) continue;
-            printf("[PORT] obj%d n=%d bm=%d fl=0x%x t=[%d,%d,%d]\n",
-                   qi, o->n_models, o->bound_mode, o->flag,
-                   o->world.t[0], o->world.t[1], o->world.t[2]);
+            // printf("[PORT] obj%d n=%d bm=%d fl=0x%x t=[%d,%d,%d]\n",
+            //        qi, o->n_models, o->bound_mode, o->flag,
+            //        o->world.t[0], o->world.t[1], o->world.t[2]);
         }
     }
     for (int n = chanl->objs_index; n > 0; n--)
@@ -332,32 +352,11 @@ void port_RenderObjects(int idx)
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
 
-        /* Debug removed */
-
         for (int mi = 0; mi < n_models; mi++, obj++)
         {
             if (!obj->model) continue;
             DG_MDL *mdl = obj->model;
             if (!mdl->vertices || !mdl->vindices) continue;
-
-#ifdef PORT_BUILD
-            /* Debug: print Snake's screen matrix (obj with 16 models, n_obj > 20) */
-            {
-                static int _snk = 0;
-                if (_snk < 3 && n_models == 16 && mi == 0 && n > 5) {
-                    printf("[SNAKE] screen m=[%d,%d,%d/%d,%d,%d/%d,%d,%d] t=[%d,%d,%d]\n",
-                           obj->screen.m[0][0],obj->screen.m[0][1],obj->screen.m[0][2],
-                           obj->screen.m[1][0],obj->screen.m[1][1],obj->screen.m[1][2],
-                           obj->screen.m[2][0],obj->screen.m[2][1],obj->screen.m[2][2],
-                           obj->screen.t[0],obj->screen.t[1],obj->screen.t[2]);
-                    printf("[SNAKE] world m=[%d,%d,%d] t=[%d,%d,%d] fl=0x%x\n",
-                           obj->world.m[0][0],obj->world.m[1][1],obj->world.m[2][2],
-                           objs->world.t[0],objs->world.t[1],objs->world.t[2],
-                           objs->flag);
-                    _snk++;
-                }
-            }
-#endif
 
             /* Compute screen matrix from eye_inv * world.
                Use per-model obj->world if rotation is set (non-zero m[]),
@@ -369,7 +368,7 @@ void port_RenderObjects(int idx)
                 int is_zero = 1;
                 for (int k = 0; k < 9; k++) { if (m[k]) { is_zero = 0; break; } }
                 world = is_zero ? &objs->world : &obj->world;
-                mat_mul(&chanl->eye_inv, world, &screen_mat);
+                mat_mul(imgui_cam_override ? &cam_override : &chanl->eye_inv, world, &screen_mat);
                 /* Apply DG_AdjustOverscan Y scaling AFTER multiply (matches PSX) */
                 screen_mat.m[1][0] = (screen_mat.m[1][0] * 58) / 64;
                 screen_mat.m[1][1] = (screen_mat.m[1][1] * 58) / 64;
@@ -398,7 +397,10 @@ void port_RenderObjects(int idx)
                 project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2);
                 project(&screen_mat, &verts[i3], dist, &sx3, &sy3, &sz3);
 
-                /* Skip faces entirely off-screen (screen is 320x224 centered at 0,0) */
+                /* Skip faces entirely off-screen.
+                   Use wider bounds (±320/±224) to avoid clipping faces that
+                   partially overlap the screen edge. The rasterizer clips to
+                   the actual 320x224 framebuffer. */
                 {
                     int minx = sx0, maxx = sx0;
                     int miny = sy0, maxy = sy0;
@@ -408,7 +410,7 @@ void port_RenderObjects(int idx)
                     if (sy1 < miny) miny = sy1; if (sy1 > maxy) maxy = sy1;
                     if (sy2 < miny) miny = sy2; if (sy2 > maxy) maxy = sy2;
                     if (sy3 < miny) miny = sy3; if (sy3 > maxy) maxy = sy3;
-                    if (maxx < -160 || minx > 160 || maxy < -112 || miny > 112) continue;
+                    if (maxx < -320 || minx > 320 || maxy < -224 || miny > 224) continue;
                 }
 
                 total_faces++;
@@ -494,6 +496,8 @@ void port_RenderObjects(int idx)
             }
         }
     }
+
+    port_last_drawn_faces = drawn_faces;
 
     if ((render_debug % 60) == 0 && chanl->objs_index > 0) {
         printf("[PORT] faces=%d visible=%d objs=%d\n",
