@@ -199,7 +199,9 @@ int GCL_ExecBlock( char *top, GCL_ARGS *arg )
             GCL_UnsetArgStack( org_stack );
             return 0;
         default:
-            printf( "SCRIPT COMMAND ERROR %x\n", *top );
+            printf( "SCRIPT COMMAND ERROR %x\n", (unsigned int)*top );
+            GCL_UnsetArgStack( org_stack );
+            return 1;
         }
     }
 
