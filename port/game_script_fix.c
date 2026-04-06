@@ -1,8 +1,18 @@
 #include "gcl_ptr_table.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "common.h"
+
+/* Persistent pointer storage for HZD_BIND.field_14_proc_and_block.
+   The gcl_ptr_table is a circular buffer that gets overwritten; binds need
+   pointers that persist for the lifetime of the stage. */
+void *bind_ptr_table[128];
+void *bind_ptr_resolve(int idx) {
+    if (idx >= 0 && idx < 128) return bind_ptr_table[idx];
+    return NULL;
+}
 #include "charadef.h"
 #include "libgv/libgv.h"
 #include "libdg/libdg.h"
@@ -289,8 +299,13 @@ static int GM_Command_trap(unsigned char *top)
     gBindsArray_800b58e0[i].field_B_param_e = 0; // exec
     gBindsArray_800b58e0[i].field_8_param_i_c_flags = 0;
 
-    GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-    gBindsArray_800b58e0[i].field_14_proc_and_block = value;
+    {
+        /* Store full 64-bit pointer in persistent bind table */
+        extern intptr_t GCL_LastPointerValue;
+        GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
+        gBindsArray_800b58e0[i].field_14_proc_and_block = i; /* index into bind_ptr_table */
+        bind_ptr_table[i] = (void *)GCL_LastPointerValue;
+    }
     gBindsCount_800ABA64++;
 
     tmp = gBinds_800ABA60;
@@ -329,6 +344,8 @@ static int GM_Command_ntrap(unsigned char *top)
     }
     pBind->field_0 = arg;
     pBind->field_8_param_i_c_flags = 0; // v0
+    pBind->field_10_every = 0;
+    pBind->field_14_proc_and_block = 0;
     flags = 0;                          // still s1
     if (GCL_GetOption('m'))             // mask
     {
@@ -396,12 +413,18 @@ static int GM_Command_ntrap(unsigned char *top)
     {
         int code;
         int value;
+        extern intptr_t GCL_LastPointerValue;
         if ((flags & 0x80) != 0)
         {
             printf("ntrap:can't set proc and block\n");
         }
         GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-        pBind->field_14_proc_and_block = value;
+        {
+            int idx = (int)(pBind - gBindsArray_800b58e0);
+            pBind->field_14_proc_and_block = idx;
+            if (idx >= 0 && idx < 128)
+                bind_ptr_table[idx] = (void *)GCL_LastPointerValue;
+        }
     }
     pBind->field_B_param_e = flags;
     gBindsCount_800ABA64++;
