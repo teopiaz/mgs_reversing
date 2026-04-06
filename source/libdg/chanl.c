@@ -121,13 +121,14 @@ void DG_InitChanlSystem( int shift )
     cp++;
     SetParam( cp, ot_primitive, 8, obj_queue_primitive, 256, 16, 1 );
     DG_SetDefDrawEnv( &env, 0, 0, FRAME_WIDTH, FRAME_HEIGHT );
-#ifndef PORT_BUILD
-    /* PSX GTE projection center — needed for hardware GPU geometry transform.
-       In the port, port_RenderObjects already adds +160,+112 to screen coords.
-       Setting this in the port would shift all 2D OT prims (menus, radar). */
+    /* Draw environment offset: screen center at (160,112).
+       On PSX, the GPU adds this to all polygon vertex coordinates.
+       The GTE projects with OFX=0 (centered at 0), so the draw offset
+       shifts everything to the correct framebuffer position.
+       On the port, the OT walker (vram.c) applies draw_x/draw_y from the
+       E5 command to all OT polygons, matching the PSX GPU behavior. */
     env.ofs[ 0 ] = 160;
     env.ofs[ 1 ] = 112;
-#endif
     CopyDrawEnv( cp, &env, 0 );
     FlushDrawEnv( cp, 0 );
     FlushDrawEnv( cp, 1 );
