@@ -5,8 +5,9 @@
 
 static int GCL_Command_if(unsigned char *top)
 {
-    int   type, res;
-    int   block;
+    int   type;
+    intptr_t res;
+    intptr_t block;
     char *p = top;
 exec_else:
     p = GCL_GetNextValue(p, &type, &res);
@@ -15,9 +16,7 @@ exec_if:
 
     if (res)
     {
-        void *block_ptr = gcl_resolve_ptr(block);
-        if ((uintptr_t)block_ptr > 0x100000)
-            GCL_ExecBlock((unsigned char *)block_ptr, 0);
+        GCL_ExecBlock((unsigned char *)block, 0);
     }
     else
     {
@@ -25,9 +24,7 @@ exec_if:
 
         if (p)
         {
-            void *rp = gcl_resolve_ptr(res);
-            if ((uintptr_t)rp < 0x100000) return 0;
-            p = (char *)rp;
+            p = (char *)res;
 
             switch (type >>= 16)
             {
@@ -46,7 +43,7 @@ exec_if:
 static int GCL_Command_eval(unsigned char *top)
 {
     int code;
-    int value;
+    intptr_t value;
 
     GCL_GetNextValue(top, &code, &value);
     return 0;
@@ -57,7 +54,8 @@ static int GCL_Command_foreach(unsigned char *top)
     long     argbuf[16];
     long    *argbuf_p;
     GCL_ARGS arg;
-    int      i, code, value;
+    int      i, code;
+    intptr_t value;
     char    *exec_param;
 
     // Parse args
@@ -72,8 +70,8 @@ static int GCL_Command_foreach(unsigned char *top)
         *argbuf_p++ = value;
     }
     // Loop on args
-    top = GCL_GetNextValue((char *)gcl_resolve_ptr(value), &code, &value);
-    exec_param = (char *)gcl_resolve_ptr(value); // "-do" parameter
+    top = GCL_GetNextValue((char *)value, &code, &value);
+    exec_param = (char *)value; // "-do" parameter
     arg.argc = 1;
     arg.argv = argbuf;
     for (i = ((int)argbuf_p - (int)&argbuf) >> 2; i > 0; i--)

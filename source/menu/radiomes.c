@@ -137,7 +137,7 @@ void radio_sound_80047414(menu_chara_struct *unk, unsigned char *pScript)
     }
 }
 
-unsigned char *radio_getNextValue_800474EC(int *retValue, unsigned char *pScript)
+unsigned char *radio_getNextValue_800474EC(intptr_t *retValue, unsigned char *pScript)
 {
     int code;
 
@@ -146,7 +146,7 @@ unsigned char *radio_getNextValue_800474EC(int *retValue, unsigned char *pScript
 
 void radio_if_80047514(menu_chara_struct *unk, unsigned char *pScript)
 {
-    int expr_result;
+    intptr_t expr_result;
     int code;
 
     for (;;)
@@ -188,7 +188,7 @@ void radio_if_80047514(menu_chara_struct *unk, unsigned char *pScript)
 
 void radio_switch_800475B8(menu_chara_struct *unk, unsigned char *pScript)
 {
-    int switchValue;
+    intptr_t switchValue;
     int caseValue;
     int code;
 
@@ -262,7 +262,7 @@ void radio_randSwitch_80047660(menu_chara_struct *unk, unsigned char *pScript)
 
 void radio_eval_80047748(menu_chara_struct *unk, unsigned char *pScript)
 {
-    int value;
+    intptr_t value;
 
     radio_getNextValue_800474EC(&value, pScript);
 }

@@ -3,6 +3,6 @@
 
 #include "libgcl/libgcl.h"
 
-void *GM_DelayedExecCommand(int proc, GCL_ARGS *args, int time);
+void *GM_DelayedExecCommand(intptr_t proc, GCL_ARGS *args, int time);
 
 #endif // __MGS_GAME_DELAY_H__

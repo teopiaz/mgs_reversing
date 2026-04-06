@@ -531,7 +531,7 @@ void radio_anim_with_subtitles_800471AC(menu_chara_struct *unk, unsigned char *p
 void radio_anim_face_80047280(menu_chara_struct *unk, unsigned char *pScript);
 void radio_voice_80047330(menu_chara_struct *unk, unsigned char *pScript);
 void radio_sound_80047414(menu_chara_struct *unk, unsigned char *pScript);
-unsigned char *radio_getNextValue_800474EC(int *retValue, unsigned char *pScript);
+unsigned char *radio_getNextValue_800474EC(intptr_t *retValue, unsigned char *pScript);
 void radio_if_80047514(menu_chara_struct *unk, unsigned char *pScript);
 void radio_switch_800475B8(menu_chara_struct *unk, unsigned char *pScript);
 void radio_randSwitch_80047660(menu_chara_struct *unk, unsigned char *pScript);
