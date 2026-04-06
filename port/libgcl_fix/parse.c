@@ -4,7 +4,14 @@ int gcl_ptr_next = 0;
 #include "libgcl.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include "common.h"
+
+/* 64-bit: preserve full pointer from GCL_GetNextValue for callers that need it */
+intptr_t GCL_LastPointerValue = 0;
+
+/* Non-inline wrapper so event.c can resolve ptr table entries */
+void *gcl_resolve_ptr_fn(int value) { return gcl_resolve_ptr(value); }
 
 /*** $gp ***/
 int            *SECTION(".sbss") argstack_p;

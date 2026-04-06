@@ -161,15 +161,15 @@ void HZD_ExecBindX( HZD_BIND *pBind, HZD_EVT *event, int a3, int a4 )
     else
     {
 #ifdef PORT_BUILD
-        /* field_14_proc_and_block is an int storing a GCL block pointer.
-         * On 64-bit, the pointer was truncated in GCL_GetNextValue: (int)(ptr+N).
-         * Guard against the invalid address to prevent a crash. */
-        if (port_ptr_readable((unsigned char *)pBind->field_14_proc_and_block))
         {
-            GCL_ExecBlock( ( unsigned char * )pBind->field_14_proc_and_block, &gclArgs );
+            extern void *bind_ptr_resolve(int idx);
+            void *ptr = bind_ptr_resolve( pBind->field_14_proc_and_block );
+            if (ptr)
+                GCL_ExecBlock( ( unsigned char * )ptr, &gclArgs );
         }
 #else
-        GCL_ExecBlock( ( unsigned char * )pBind->field_14_proc_and_block, &gclArgs );
+        if ( pBind->field_14_proc_and_block )
+            GCL_ExecBlock( ( unsigned char * )pBind->field_14_proc_and_block, &gclArgs );
 #endif
     }
 }
