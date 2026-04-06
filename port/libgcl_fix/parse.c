@@ -27,13 +27,11 @@ void GCL_SetArgTop(unsigned char *top)
     next_str_ptr = top;
 }
 
-unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
+unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, intptr_t *value_p)
 {
     unsigned char *ptr;
     int            gcl_code;
     int            size;
-
-    GCL_LastPointerValue = 0;
 
     if (!top) {
         *type_p = 0; *value_p = 0; return NULL;
@@ -78,8 +76,7 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
         break;
 
     case GCLCODE_STRING:
-        *value_p = gcl_store_ptr(ptr + 1);
-        GCL_LastPointerValue = (intptr_t)(ptr + 1);
+        *value_p = (intptr_t)(ptr + 1);
         size = *ptr;
         goto ADD_SIZE_80020834;
 
@@ -90,22 +87,20 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
         break;
 
     case GCLCODE_SCRIPT_DATA:
-        *value_p = gcl_store_ptr(ptr + 2);
-        GCL_LastPointerValue = (intptr_t)(ptr + 2);
+        *value_p = (intptr_t)(ptr + 2);
         size = GCL_GetShort(ptr);
         ptr += size;
         break;
 
     case GCLCODE_EXPRESSION:
-        *value_p = GCL_Expr(ptr + 1, value_p);
+        *value_p = GCL_Expr(ptr + 1, (int *)value_p);
         size = *ptr;
         ptr += size;
         break;
 
     case GCLCODE_PARAMETER:
         *type_p |= *ptr << 16;
-        *value_p = gcl_store_ptr(ptr + 2);
-        GCL_LastPointerValue = (intptr_t)(ptr + 2);
+        *value_p = (intptr_t)(ptr + 2);
         size = ptr[1];
     ADD_SIZE_80020834:
         ptr += size + 1;
@@ -195,7 +190,7 @@ char *GCL_GetOption(char c)
 {
     unsigned char *pScript;
     int            code;
-    int            value = 0;  /* must be int to match GCL_GetNextValue's int* param */
+    intptr_t       value = 0;
 
     if (!commandline_p) {
         printf("[gcl] WARNING: GCL_GetOption('%c') called with NULL commandline_p\n", c);
@@ -215,15 +210,15 @@ char *GCL_GetOption(char c)
         }
     } while (!GCL_IsParam(code) || (code >> 16 != (c & 0xff)));
 
-    next_str_ptr = (unsigned char *)gcl_resolve_ptr(value);
-    return (char *)gcl_resolve_ptr(value);
+    next_str_ptr = (unsigned char *)(void *)value;
+    return (char *)(void *)value;
 }
 
 // might be GCL_NextStr
 int GCL_StrToInt(unsigned char *pScript)
 {
     int code;
-    int value;
+    intptr_t value;
     next_str_ptr = GCL_GetNextValue(pScript, &code, &value);
     return value;
 }
@@ -240,7 +235,7 @@ int GCL_StrToSV(unsigned char *pInScript, SVECTOR *pOut3Words)
     do
     {
         int code;
-        int value;
+        intptr_t value;
         pScript = GCL_GetNextValue(pScript, &code, &value);
         counter++;
         *pOutIter = value;
@@ -254,14 +249,14 @@ int GCL_StrToSV(unsigned char *pInScript, SVECTOR *pOut3Words)
 char *GCL_ReadString(char *ptr)
 {
     int type;
-    int value;
+    intptr_t value;
 
     ptr = GCL_GetNextValue(ptr, &type, &value);
     next_str_ptr = ptr;
 
     if (ptr)
     {
-        return (char *)gcl_resolve_ptr(value);
+        return (char *)(void *)value;
     }
     else
     {
@@ -296,7 +291,7 @@ void GCL_ReadParamVector(SVECTOR *pOut3Words)
 void GCL_DiscardValues(unsigned char *top)
 {
     int code;
-    int value;
+    intptr_t value;
 
     do
     {

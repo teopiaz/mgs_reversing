@@ -7,7 +7,7 @@
 #include "game/jimctrl.h"
 
 typedef union GCL_EXEC_UNION {
-    int            proc_id;
+    intptr_t       proc_id;
     unsigned char *block_top;
 } GCL_EXEC_UNION;
 
@@ -128,7 +128,7 @@ static void Act(Work *work)
     GV_DestroyActor(&work->actor);
 }
 
-void *GM_DelayedExecCommand(int proc, GCL_ARGS *args, int time)
+void *GM_DelayedExecCommand(intptr_t proc, GCL_ARGS *args, int time)
 {
     unsigned short argc;
     Work          *work;

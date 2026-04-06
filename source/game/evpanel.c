@@ -212,7 +212,7 @@ static void s03e_evpanel_800C36B0(EvPanelWork *work)
 {
     GCL_ARGS args;
     int      code;
-    int      proc;
+    intptr_t proc;
     long     data[1];
     char    *script;
     int      i;
