@@ -1,4 +1,3 @@
-#include "gcl_ptr_table.h"
 #include "libgcl.h"
 #include "common.h"
 #include "strcode.h"

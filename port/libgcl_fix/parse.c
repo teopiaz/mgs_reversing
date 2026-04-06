@@ -1,6 +1,3 @@
-#include "gcl_ptr_table.h"
-void *gcl_ptr_table[GCL_PTR_TABLE_SIZE];
-int gcl_ptr_next = 0;
 #include "libgcl.h"
 
 #include <stdio.h>
@@ -9,9 +6,6 @@ int gcl_ptr_next = 0;
 
 /* 64-bit: preserve full pointer from GCL_GetNextValue for callers that need it */
 intptr_t GCL_LastPointerValue = 0;
-
-/* Non-inline wrapper for files that don't include gcl_ptr_table.h */
-void *gcl_resolve_ptr_fn(int value) { return gcl_resolve_ptr(value); }
 
 /*** $gp ***/
 int            *SECTION(".sbss") argstack_p;
@@ -210,7 +204,7 @@ char *GCL_GetOption(char c)
         }
     } while (!GCL_IsParam(code) || (code >> 16 != (c & 0xff)));
 
-    next_str_ptr = (unsigned char *)(void *)value;
+    next_str_ptr = (char *)(void *)value;
     return (char *)(void *)value;
 }
 

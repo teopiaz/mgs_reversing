@@ -200,7 +200,10 @@ void gte_op_lc(void);
     gte_state.MAC1 = _v->vx; gte_state.MAC2 = _v->vy; gte_state.MAC3 = _v->vz; \
 } while(0)
 
-#define gte_ldsv(r0)    gte_ldlv0(r0)  /* alias */
+#define gte_ldsv(r0)    do { \
+    const SVECTOR *_sv = (const SVECTOR *)(r0); \
+    gte_state.IR1 = _sv->vx; gte_state.IR2 = _sv->vy; gte_state.IR3 = _sv->vz; \
+} while(0)
 
 #define gte_ldbv(r0)    do { \
     const CVECTOR *_c = (const CVECTOR *)(r0); \

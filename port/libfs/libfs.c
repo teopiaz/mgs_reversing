@@ -256,9 +256,10 @@ void *FS_LoadStageRequest(const char *dirname)
 
                 if (region == GV_REGION_RESIDENT)
                 {
-                    /* Copy to permanent memory — original uses GV_AllocResidentMemory
-                       but we use malloc since resident data must survive stage reloads */
-                    void *perm = malloc(dar->size);
+                    /* Allocate from port_malloc (in the mmap'd pool) so pointers
+                       survive GCL int truncation. Never freed — lifetime = session. */
+                    extern void *port_malloc(size_t size);
+                    void *perm = port_malloc(dar->size);
                     if (perm) {
                         memcpy(perm, file_data, dar->size);
                         file_data = perm;

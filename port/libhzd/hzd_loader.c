@@ -73,7 +73,8 @@ int HZD_LoadInitHzd(void *buf, int id)
     if (raw->routes_off && hzm->n_routes > 0) {
         typedef struct { int16_t n_points; int16_t init_point; uint32_t points_off; } HZD_PAT_RAW;
         HZD_PAT_RAW *raw_routes = (HZD_PAT_RAW *)(base + raw->routes_off);
-        HZD_PAT *routes = (HZD_PAT *)malloc(hzm->n_routes * sizeof(HZD_PAT));
+        extern void *port_malloc(size_t size);
+        HZD_PAT *routes = (HZD_PAT *)port_malloc(hzm->n_routes * sizeof(HZD_PAT));
         for (int i = 0; i < hzm->n_routes; i++) {
             routes[i].n_points = raw_routes[i].n_points;
             routes[i].init_point = raw_routes[i].init_point;

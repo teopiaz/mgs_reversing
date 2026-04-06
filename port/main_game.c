@@ -285,6 +285,14 @@ void game_tick(void)
         /* Actor system: game logic, collision, movement */
         uint64_t ta0 = mach_absolute_time();
         GV_ExecActorSystem();
+
+        /* Tick MTS cooperative scheduler — runs one frame of any active tasks
+           (codec, save, sound). Tasks yield at mts_slp_tsk/mts_wait_vbl. */
+        {
+            extern void mts_scheduler_tick(void);
+            mts_scheduler_tick();
+        }
+
         uint64_t ta1 = mach_absolute_time();
 
         /* OT render pipeline — must run BEFORE 3D so the OT clear happens
