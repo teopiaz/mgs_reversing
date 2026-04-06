@@ -165,7 +165,17 @@ void game_tick(void)
            decrements it naturally. Forcing it to 0 breaks cutscene flow. */
         DG_HikituriFlagOld = DG_HikituriFlag;
         DG_HikituriFlag = 0;
+    }
 
+    /* Reset GCL pointer table on stage load to reclaim slots */
+    {
+        extern int GM_LoadComplete;
+        static int prev_load = 0;
+        if (GM_LoadComplete <= 0 && prev_load > 0) {
+            extern void gcl_ptr_table_reset(void);
+            gcl_ptr_table_reset();
+        }
+        prev_load = GM_LoadComplete;
     }
 
     /* Clear STATE_PADRELEASE each frame before pad reading.
