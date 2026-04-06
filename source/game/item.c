@@ -631,7 +631,7 @@ static int GetResources(Work *work, int name, int where)
     char           *opt;
     int             height;
     int             code;
-    int             value;
+    intptr_t        value;
     OBJECT_NO_ROTS *body;
     int             i;
     SVECTOR        *verts;

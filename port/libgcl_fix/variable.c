@@ -196,7 +196,7 @@ void GCL_RestoreVar(void)
 //    80 = linkvarbuf
 //  0002 = offset (not index) into linkvarbuf
 
-unsigned char *GCL_GetVar(unsigned char *top, int *type_p, int *value_p)
+unsigned char *GCL_GetVar(unsigned char *top, int *type_p, intptr_t *value_p)
 {
     int   gcl_var;
     int   gcl_code;

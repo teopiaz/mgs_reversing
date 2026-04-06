@@ -261,7 +261,8 @@ static int GM_Command_mapdef(unsigned char *top)
 static int GM_Command_trap(unsigned char *top)
 {
     HZD_BIND *pBind;
-    int         i, arg, code, value;
+    int         i, arg, code;
+    intptr_t    value;
     int         tmp;
 
     if (0x7f < gBindsCount_800ABA64)
@@ -299,13 +300,9 @@ static int GM_Command_trap(unsigned char *top)
     gBindsArray_800b58e0[i].field_B_param_e = 0; // exec
     gBindsArray_800b58e0[i].field_8_param_i_c_flags = 0;
 
-    {
-        /* Store full 64-bit pointer in persistent bind table */
-        extern intptr_t GCL_LastPointerValue;
-        GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-        gBindsArray_800b58e0[i].field_14_proc_and_block = i; /* index into bind_ptr_table */
-        bind_ptr_table[i] = (void *)GCL_LastPointerValue;
-    }
+    GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
+    gBindsArray_800b58e0[i].field_14_proc_and_block = i;
+    bind_ptr_table[i] = (void *)value;
     gBindsCount_800ABA64++;
 
     tmp = gBinds_800ABA60;
@@ -412,8 +409,7 @@ static int GM_Command_ntrap(unsigned char *top)
     if (GCL_GetOption('e')) // exec
     {
         int code;
-        int value;
-        extern intptr_t GCL_LastPointerValue;
+        intptr_t value;
         if ((flags & 0x80) != 0)
         {
             printf("ntrap:can't set proc and block\n");
@@ -423,7 +419,7 @@ static int GM_Command_ntrap(unsigned char *top)
             int idx = (int)(pBind - gBindsArray_800b58e0);
             pBind->field_14_proc_and_block = idx;
             if (idx >= 0 && idx < 128)
-                bind_ptr_table[idx] = (void *)GCL_LastPointerValue;
+                bind_ptr_table[idx] = (void *)value;
         }
     }
     pBind->field_B_param_e = flags;
@@ -453,7 +449,7 @@ static int GM_Command_delay(unsigned char *top)
     if (GCL_GetOption('e')) // exec
     {
         int code;
-        int value;
+        intptr_t value;
         GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
         proc = value;
     }
@@ -1141,7 +1137,7 @@ static int GM_Command_demodebug(unsigned char *top)
 static int GM_Command_print(unsigned char *top)
 {
     int code;
-    int value;
+    intptr_t value;
 
     printf("print: ");
 
@@ -1151,7 +1147,7 @@ static int GM_Command_print(unsigned char *top)
         if (code == GCLCODE_NULL)
             break;
         if (code == GCLCODE_STRING)
-            printf("%s ", (char *)gcl_resolve_ptr(value));
+            printf("%s ", (char *)value);
         else
             printf("%d ", value);
     }

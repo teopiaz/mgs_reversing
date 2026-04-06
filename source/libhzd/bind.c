@@ -142,7 +142,15 @@ void HZD_ExecBind( HZD_BND *bnd, HZD_EVT *ev, int event, int type )
 
     if ( bnd->time != 0 )
     {
+#ifdef PORT_BUILD
+        {
+            extern void *bind_ptr_resolve(int idx);
+            void *ptr = bind_ptr_resolve( (int)(intptr_t)bnd->command );
+            GM_DelayedExecCommand( ptr ? (char *)ptr : (char *)bnd->command, &args, bnd->time );
+        }
+#else
         GM_DelayedExecCommand( bnd->command, &args, bnd->time );
+#endif
     }
     else if ( bnd->field_B_param_e & 0x80 )
     {

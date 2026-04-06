@@ -174,7 +174,7 @@ int GCL_Expr(unsigned char *pScript, int *retValue);
 
 /* parse.c */
 void            GCL_SetArgTop(unsigned char *);
-unsigned char  *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p);
+unsigned char  *GCL_GetNextValue(unsigned char *top, int *type_p, intptr_t *value_p);
 int            *GCL_SetArgStack(GCL_ARGS *args);
 void            GCL_UnsetArgStack(void *stack);
 int             GCL_GetArgs(int argno);
@@ -197,7 +197,7 @@ void            GCL_InitVar(void);
 void            GCL_InitClearVar(void);
 void            GCL_SaveVar(void);
 void            GCL_RestoreVar(void);
-unsigned char  *GCL_GetVar(unsigned char *top, int *type_p, int *value_p);
+unsigned char  *GCL_GetVar(unsigned char *top, int *type_p, intptr_t *value_p);
 unsigned char  *GCL_SetVar(unsigned char *top, unsigned int value);
 unsigned char  *GCL_VarSaveBuffer(unsigned char *top);
 

@@ -113,7 +113,7 @@ static int GCL_Proc(unsigned char *ptr)
     long     argbuf[8];
     GCL_ARGS args;
     int      code;
-    int      value;
+    intptr_t value;
     int      arg_idx;
 
     int b1 = ptr[0];
