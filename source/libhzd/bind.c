@@ -151,14 +151,15 @@ void HZD_ExecBind( HZD_BND *bnd, HZD_EVT *ev, int event, int type )
     else
     {
 #ifdef PORT_BUILD
-        /* command is a pointer that can be invalid after GCL pointer truncation.
-         * Guard against the invalid address to prevent a crash. */
-        if (port_ptr_readable((u_char *)bnd->command))
         {
-            GCL_ExecBlock( (u_char *)bnd->command, &args );
+            extern void *bind_ptr_resolve(int idx);
+            void *ptr = bind_ptr_resolve( (int)(intptr_t)bnd->command );
+            if (ptr)
+                GCL_ExecBlock( (u_char *)ptr, &args );
         }
 #else
-        GCL_ExecBlock( (u_char *)bnd->command, &args );
+        if ( bnd->command )
+            GCL_ExecBlock( (u_char *)bnd->command, &args );
 #endif
     }
 }
