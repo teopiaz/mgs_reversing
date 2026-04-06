@@ -58,6 +58,7 @@ typedef struct MTS_TASK
 void mts_lock_sio( void );
 void mts_unlock_sio( void );
 void mts_task_start(void);
+void mts_scheduler_tick(void);
 
 /* mask.c */
 extern void SetExMask(void);

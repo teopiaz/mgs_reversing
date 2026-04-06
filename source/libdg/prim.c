@@ -120,6 +120,12 @@ STATIC void DG_AdjustLaserPrims( DG_PRIM *prim, int type )
 }
 
 // process vecs in spad
+/* PSX GTE always loads 3 vectors at once (gte_ldv3c). When the vertex count
+   isn't a multiple of 3, it harmlessly reads adjacent memory. Suppress ASAN
+   for this function since it faithfully replicates PSX GTE behavior. */
+#ifdef __clang__
+__attribute__((no_sanitize("address")))
+#endif
 STATIC SVECTOR *DG_TransformVertices( SVECTOR *in, int n_verts )
 {
     SVECTOR *out;

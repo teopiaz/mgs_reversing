@@ -580,6 +580,37 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
+            case 0x4C: /* LINE_F4 — flat-colored polyline, 4 vertices (codec 7-segment) */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+                if (!color) color = 0x0421;
+                short pts[4][2];
+                pts[0][0] = *(short *)(data + 4);  pts[0][1] = *(short *)(data + 6);
+                pts[1][0] = *(short *)(data + 8);  pts[1][1] = *(short *)(data + 10);
+                pts[2][0] = *(short *)(data + 12); pts[2][1] = *(short *)(data + 14);
+                pts[3][0] = *(short *)(data + 16); pts[3][1] = *(short *)(data + 18);
+                /* Draw as filled quad: scan the bounding box and test point-in-quad.
+                   For the codec 7-segment bars these are axis-aligned rectangles. */
+                int minx = pts[0][0], maxx = pts[0][0];
+                int miny = pts[0][1], maxy = pts[0][1];
+                for (int p = 1; p < 4; p++) {
+                    if (pts[p][0] < minx) minx = pts[p][0];
+                    if (pts[p][0] > maxx) maxx = pts[p][0];
+                    if (pts[p][1] < miny) miny = pts[p][1];
+                    if (pts[p][1] > maxy) maxy = pts[p][1];
+                }
+                /* Fill the bounding box — works for axis-aligned quads */
+                for (int fy = miny; fy <= maxy; fy++) {
+                    for (int fx = minx; fx <= maxx; fx++) {
+                        int vx = fx + draw_x, vy = fy + draw_y;
+                        if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1)
+                            vram[vy][vx] = color;
+                    }
+                }
+                prim_count++;
+                break;
+            }
             case 0x48: /* LINE_G2 — gouraud-colored line */
             {
                 unsigned char r = data[0], g = data[1], b = data[2];

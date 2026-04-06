@@ -78,7 +78,7 @@ void font_free(void)
 
 int font_init_kcb(KCB *kcb, RECT *rect_data, int x, int y)
 {
-    memset(kcb, 0, 44);
+    memset(kcb, 0, sizeof(KCB));
     kcb->rect_data = rect_data;
     kcb->font_rect = *rect_data;
     kcb->font_clut_rect.w = 16;
@@ -226,7 +226,7 @@ int font_get_buffer_size(KCB *kcb)
 void font_set_buffer(KCB *kcb, void *buffer)
 {
     kcb->font_clut_buffer = buffer;
-    kcb->font_buffer = buffer + 0x20;
+    kcb->font_buffer = (char *)buffer + 0x20;
 }
 
 void *font_get_buffer_ptr(KCB *kcb)
@@ -1263,7 +1263,7 @@ long font_draw_string(KCB *kcb, long xtop, long ytop, const char *string, long c
         else
         {
             idx1 = font_get_glyph_index(current_code);
-            if (idx1 > 0)
+            if (idx1 > 0 && dword_8009E75C[idx1 >> 12] != NULL)
             {
                 ptr = dword_8009E75C[idx1 >> 12] + ((idx1 & 0xFFF) - 1) * 36;
             }
@@ -1320,7 +1320,7 @@ long font_draw_string(KCB *kcb, long xtop, long ytop, const char *string, long c
                                 else
                                 {
                                     idx1 = font_get_glyph_index(current_code);
-                                    if (idx1 > 0)
+                                    if (idx1 > 0 && dword_8009E75C[idx1 >> 12] != NULL)
                                     {
                                         ptr = dword_8009E75C[idx1 >> 12] + ((idx1 & 0xFFF) - 1) * 36;
                                     }

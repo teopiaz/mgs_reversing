@@ -145,6 +145,116 @@ void menu_radio_draw_face_helper_helper_80046DF4(int idx, menu_chara_struct *pCh
     }
 }
 
+#ifdef PORT_BUILD
+/* Port: FACE.DAT uses PSX 32-bit struct layout. Parse with PSX field sizes
+   and convert offsets to native pointers.
+   PSX face_header = 12 bytes: {u16 type, u16 code, i32 field4, u32 anim_off}
+   PSX face_simple_anim = 32 bytes: 8 x u32 offsets
+   PSX face_full_anim_frame = 12 bytes: {u32 palette_off, u32 image_off, i16, i16} */
+#include <string.h>
+#define PSX_FACE_HEADER_SIZE 12
+#define PSX_SIMPLE_ANIM_PTRS 8
+#define PSX_FULL_FRAME_SIZE  12
+
+static uint32_t read_u32(const void *p) { uint32_t v; memcpy(&v, p, 4); return v; }
+static uint16_t read_u16(const void *p) { uint16_t v; memcpy(&v, p, 2); return v; }
+static int32_t  read_i32(const void *p) { int32_t v;  memcpy(&v, p, 4); return v; }
+
+void menu_radio_codec_task_proc_helper_80046F3C(menu_chara_struct *pStru, faces_group *pFacesGroup)
+{
+    unsigned char *raw = (unsigned char *)pFacesGroup;
+    int face_count = read_i32(raw);
+    unsigned char *faces_raw = raw + 4;
+
+    /* We need to store native face_header array. Allocate over the raw data
+       since we won't need the PSX layout after conversion.
+       But the raw data also contains the animation data that pointers reference,
+       so we can't overwrite it. Instead, build native face_header array in-place
+       at the start (expanding from 12 to 16 bytes each), working backwards. */
+
+    /* Actually, we can't expand in-place safely. Instead, just store the raw
+       pointer and use PSX-stride iteration everywhere. The simplest fix is
+       to make face_header and related structs use 32-bit fields for the port. */
+
+    /* Simpler approach: just iterate using PSX stride and convert offsets to
+       native pointers directly in the raw data. The code that uses face_header
+       later accesses field_0_anim_type (at +0), field_2_code (at +2), field_4
+       (at +4), and field_8_anim_data (at +8). On PSX this is a 4-byte offset.
+       We can store a truncated pointer index there.
+       But the cleanest approach: build a native face_header array. */
+
+    int i, j;
+    static face_header native_faces[64]; /* max faces per codec call */
+    if (face_count > 64) face_count = 64;
+
+    pStru->field_30_face_count = face_count;
+    pStru->field_34_faces = native_faces;
+
+    for (i = 0; i < face_count; i++)
+    {
+        unsigned char *fh = faces_raw + i * PSX_FACE_HEADER_SIZE;
+        native_faces[i].field_0_anim_type = read_u16(fh + 0);
+        native_faces[i].field_2_code      = read_u16(fh + 2);
+        native_faces[i].field_4           = read_i32(fh + 4);
+
+        /* field_8 is a relative offset from faces_raw to the anim data */
+        uint32_t anim_off = read_u32(fh + 8);
+        unsigned char *anim_base = faces_raw + anim_off;
+        native_faces[i].field_8_anim_data.raw_ptr = anim_base;
+
+        switch (native_faces[i].field_0_anim_type)
+        {
+        case FACE_ANIM_SIMPLE:
+        {
+            /* simple_anim has 8 x u32 offsets from anim_base.
+               Convert each non-zero offset to a real pointer.
+               The native face_simple_anim has 8 native pointers. */
+            static face_simple_anim native_simple[64];
+            unsigned char *sa = anim_base;
+            face_simple_anim *ns = &native_simple[i];
+            unsigned char **dst = (unsigned char **)ns;
+            for (j = 0; j < PSX_SIMPLE_ANIM_PTRS; j++)
+            {
+                uint32_t off = read_u32(sa + j * 4);
+                dst[j] = off ? (anim_base + off) : NULL;
+            }
+            native_faces[i].field_8_anim_data.simple_anim = ns;
+            break;
+        }
+        case FACE_ANIM_FULL:
+        {
+            /* full_anim starts with frame_count (i32), then frames.
+               Each PSX frame = 12 bytes: {u32 pal_off, u32 img_off, i16, i16} */
+            static face_full_anim native_full;
+            static face_full_anim_frame native_frames[256];
+            int fc = read_i32(anim_base);
+            native_full.field_0_frame_count = fc;
+            native_full.field_4_frames[0] = native_frames[0]; /* dummy for flex array */
+            printf("frame num %d\n", fc);
+            if (fc > 256) fc = 256;
+            unsigned char *fr = anim_base + 4;
+            for (j = 0; j < fc; j++)
+            {
+                unsigned char *fp = fr + j * PSX_FULL_FRAME_SIZE;
+                uint32_t pal_off = read_u32(fp + 0);
+                uint32_t img_off = read_u32(fp + 4);
+                native_frames[j].field_0_palette = pal_off ? (unsigned char *)(anim_base + pal_off) : NULL;
+                native_frames[j].field_4_image   = img_off ? (face_anim_image *)(anim_base + img_off) : NULL;
+                memcpy(&native_frames[j].field_8, fp + 8, 2);
+                memcpy(&native_frames[j].field_10, fp + 10, 2);
+            }
+            /* Point face_header to our native full_anim.
+               Hack: store pointer to native_full, but its field_4_frames is flex array.
+               Instead, just store a pointer to native_frames-4 so that
+               ((face_full_anim*)ptr)->field_4_frames == native_frames. */
+            native_faces[i].field_8_anim_data.full_anim = (face_full_anim *)(void *)((char *)native_frames - offsetof(face_full_anim, field_4_frames));
+            native_faces[i].field_8_anim_data.full_anim->field_0_frame_count = fc;
+            break;
+        }
+        }
+    }
+}
+#else
 void menu_radio_codec_task_proc_helper_80046F3C(menu_chara_struct *pStru, faces_group *pFacesGroup)
 {
     int                   i, j;
@@ -166,9 +276,6 @@ void menu_radio_codec_task_proc_helper_80046F3C(menu_chara_struct *pStru, faces_
         switch (facesIter->field_0_anim_type)
         {
         case FACE_ANIM_SIMPLE:
-            // This loops translates relative offsets to real pointers
-            // for all 8 pointers stored in simple_anim so that
-            // they can be used directly.
             simpleAnimIter = (void *) anim.simple_anim;
             for (j = 8; j > 0; j--, simpleAnimIter++)
             {
@@ -198,6 +305,7 @@ void menu_radio_codec_task_proc_helper_80046F3C(menu_chara_struct *pStru, faces_
         }
     }
 }
+#endif
 
 unsigned char *menu_gcl_read_word_80047098(int *pOut, unsigned char *pScript)
 {

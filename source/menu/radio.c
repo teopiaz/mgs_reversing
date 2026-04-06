@@ -63,7 +63,7 @@ RadioUnknown dword_8009E63C =
     0x3D472E
 };
 
-char dword_8009E660[] = {10, 10, 15, 12};
+char dword_8009E660[] = {10, 10, 15, 12, 0}; /* 5th byte: loop reads [4] but value is unused */
 
 Radio_8009E664 dword_8009E664[] = {
 //    x0   y0   w   h    r0    g0    b0  code (code = TILE)
@@ -770,6 +770,7 @@ void init_radio_message_board_80040F74(MenuWork *work)
 void menu_radio_codec_helper__helper13_800410E4(MenuWork *work, char *string)
 {
     KCB *kcb = work->field_214_font;
+    if (!kcb || !string) return;
     dword_800ABB04 = string;
     font_print_string(kcb, string);
     font_update(kcb);
