@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <SDL.h>
 #include "imgui_debug.h"
+#include "test_server.h"
 
 static void crash_handler(int sig)
 {
@@ -28,7 +29,7 @@ static void port_install_crash_handler(void)
 
 static SDL_Window   *g_window;
 static SDL_Renderer *g_renderer;
-static bool          g_running;
+bool                 g_running;  /* non-static: test_server.c may set it false to quit */
 
 static int port_init(void)
 {
@@ -56,6 +57,12 @@ static int port_init(void)
 
     g_renderer = SDL_CreateRenderer(g_window, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    if (!g_renderer)
+    {
+        /* Fallback to software renderer (for headless/offscreen environments) */
+        g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_SOFTWARE);
+    }
 
     if (!g_renderer)
     {
@@ -108,6 +115,8 @@ static void port_poll_events(void)
             }
             if (event.key.keysym.sym == SDLK_p)
                 imgui_toggle_actors();
+            if (event.key.keysym.sym == SDLK_F2)
+                imgui_toggle_camera();
             if (event.key.keysym.sym == SDLK_F11 ||
                 (event.key.keysym.sym == SDLK_RETURN &&
                  (event.key.keysym.mod & KMOD_ALT)))
@@ -175,6 +184,7 @@ int main(int argc, char *argv[])
 
     port_vram_init(g_renderer);
     imgui_init(g_window, g_renderer);
+    TEST_HARNESS_init();
     game_init();
 
     printf("port: entering main loop\n");
@@ -185,8 +195,8 @@ int main(int argc, char *argv[])
 
     g_running = true;
     {
-        /* Frame timing: 60fps cap for both logic and display */
-        const double FRAME_TIME_MS = 1000.0 / 60.0;  /* 16.67ms per frame */
+        /* Frame timing: 30fps cap for both logic and display */
+        const double FRAME_TIME_MS = 1000.0 / 60.0;  /* 33.33ms per frame */
         Uint64 freq = SDL_GetPerformanceFrequency();
         Uint64 frame_start = SDL_GetPerformanceCounter();
 
@@ -196,6 +206,7 @@ int main(int argc, char *argv[])
             port_update_pad();
             game_tick();
             port_render();
+            TEST_HARNESS_tick();
 
             /* Frame limiter: sleep until next 60fps boundary */
             {

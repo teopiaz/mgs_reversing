@@ -115,7 +115,8 @@ PORT_OBJ = \
 	$(OBJDIR)/memcard_stub.o \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/game_script_fix.o \
-	$(OBJDIR)/link_stubs.o
+	$(OBJDIR)/link_stubs.o \
+	$(OBJDIR)/test_server.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
 
@@ -216,6 +217,9 @@ $(OBJDIR)/game_script_fix.o: game_script_fix.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -I libgcl_fix -c -o $@ $<
 
 $(OBJDIR)/link_stubs.o: link_stubs.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/test_server.o: test_server.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # --- Original source rules ---
