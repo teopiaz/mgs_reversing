@@ -34,10 +34,9 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
     int            gcl_code;
     int            size;
 
+    GCL_LastPointerValue = 0;
+
     if (!top) {
-        /* 64-bit port: GCL script pointer is NULL — likely a parameter
-           was not resolved correctly or the script ran past its end */
-        printf("[gcl] WARNING: GCL_GetNextValue called with NULL top\n");
         *type_p = 0; *value_p = 0; return NULL;
     }
 
@@ -81,6 +80,7 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
 
     case GCLCODE_STRING:
         *value_p = gcl_store_ptr(ptr + 1);
+        GCL_LastPointerValue = (intptr_t)(ptr + 1);
         size = *ptr;
         goto ADD_SIZE_80020834;
 
@@ -92,6 +92,7 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
 
     case GCLCODE_SCRIPT_DATA:
         *value_p = gcl_store_ptr(ptr + 2);
+        GCL_LastPointerValue = (intptr_t)(ptr + 2);
         size = GCL_GetShort(ptr);
         ptr += size;
         break;
@@ -105,6 +106,7 @@ unsigned char *GCL_GetNextValue(unsigned char *top, int *type_p, int *value_p)
     case GCLCODE_PARAMETER:
         *type_p |= *ptr << 16;
         *value_p = gcl_store_ptr(ptr + 2);
+        GCL_LastPointerValue = (intptr_t)(ptr + 2);
         size = ptr[1];
     ADD_SIZE_80020834:
         ptr += size + 1;
