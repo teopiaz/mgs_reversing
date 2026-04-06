@@ -165,6 +165,7 @@ void game_tick(void)
            decrements it naturally. Forcing it to 0 breaks cutscene flow. */
         DG_HikituriFlagOld = DG_HikituriFlag;
         DG_HikituriFlag = 0;
+
     }
 
     /* Clear STATE_PADRELEASE each frame before pad reading.
@@ -292,10 +293,29 @@ void game_tick(void)
            already added prims to the cleared OT in GV_ExecActorSystem above. */
         DG_RenderFrame();
 
-        /* Direct 3D renderer */
+        /* Direct 3D renderer — skip when DG_UnDrawFrameCount > 0,
+           and also skip when camera hasn't been initialized yet (port fix:
+           cam eye == snake pos means zone camera hasn't set proper offset). */
         {
             extern int DG_FrameRate;
-            if (DG_FrameRate != 2)
+            extern int DG_UnDrawFrameCount;
+            int skip_render = (DG_FrameRate == 2) || (DG_UnDrawFrameCount > 0);
+
+            if (!skip_render) {
+                extern int GM_LoadComplete;
+                extern SVECTOR GM_PlayerPosition;
+                extern DG_CHANL DG_Chanls[];
+                if (GM_LoadComplete == 1) {
+                    int cam_x = DG_Chanls[1].eye.t[0];
+                    int cam_z = DG_Chanls[1].eye.t[2];
+                    if (cam_x == GM_PlayerPosition.vx &&
+                        cam_z == GM_PlayerPosition.vz) {
+                        skip_render = 1;  /* camera not initialized yet */
+                    }
+                }
+            }
+
+            if (!skip_render)
                 port_RenderObjects(GV_Clock);
         }
         uint64_t ta2 = mach_absolute_time();
