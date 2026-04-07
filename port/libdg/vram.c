@@ -263,6 +263,10 @@ int port_tex_semi_trans = 0; /* 1 = semi-transparent model */
 int port_tex_abr = 0;       /* ABR blend mode (0-3) */
 /* Per-triangle UV coords */
 int port_tri_u[3], port_tri_v[3];
+/* Per-vertex RGB colors (0-255, 128=neutral for PSX modulation) */
+int port_tri_r[3] = {128, 128, 128};
+int port_tri_g[3] = {128, 128, 128};
+int port_tri_b[3] = {128, 128, 128};
 
 extern uint16_t sample_vram_texel(uint16_t tpage, uint16_t clut, int u, int v);
 
@@ -273,7 +277,7 @@ int port_tri_z[3] = {1, 1, 1};
 
 void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color)
 {
-    /* Sort vertices by y, keeping UV indices in sync */
+    /* Sort vertices by y, keeping UV/color indices in sync */
     int ui[3] = {0, 1, 2};
     if (y0 > y1) { int t; t=x0;x0=x1;x1=t; t=y0;y0=y1;y1=t; t=ui[0];ui[0]=ui[1];ui[1]=t; }
     if (y0 > y2) { int t; t=x0;x0=x2;x2=t; t=y0;y0=y2;y2=t; t=ui[0];ui[0]=ui[2];ui[2]=t; }
@@ -289,6 +293,12 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
         tu[1] = port_tri_u[ui[1]]; tv[1] = port_tri_v[ui[1]];
         tu[2] = port_tri_u[ui[2]]; tv[2] = port_tri_v[ui[2]];
     }
+
+    /* Sorted per-vertex colors for Gouraud interpolation (8.8 fixed-point) */
+    int cr[3], cg[3], cb[3];
+    cr[0] = port_tri_r[ui[0]]; cg[0] = port_tri_g[ui[0]]; cb[0] = port_tri_b[ui[0]];
+    cr[1] = port_tri_r[ui[1]]; cg[1] = port_tri_g[ui[1]]; cb[1] = port_tri_b[ui[1]];
+    cr[2] = port_tri_r[ui[2]]; cg[2] = port_tri_g[ui[2]]; cb[2] = port_tri_b[ui[2]];
 
     /* Precompute texture constants outside pixel loop */
     int tp = 0, tex_base_x = 0, tex_base_y = 0, clut_x = 0, clut_y = 0;
@@ -311,9 +321,13 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
 
         int dy0 = y - y0;
         int xa, xb, ua, va, ub, vb;
+        int ra, ga, ba, rb2, gb, bb;
 
         /* Edge a: v0 → v2 (long edge) */
         xa = x0 + (x2 - x0) * dy0 / dy_total;
+        ra = cr[0] + (cr[2] - cr[0]) * dy0 / dy_total;
+        ga = cg[0] + (cg[2] - cg[0]) * dy0 / dy_total;
+        ba = cb[0] + (cb[2] - cb[0]) * dy0 / dy_total;
         if (textured) {
             ua = tu[0] + (tu[2] - tu[0]) * dy0 / dy_total;
             va = tv[0] + (tv[2] - tv[0]) * dy0 / dy_total;
@@ -323,6 +337,9 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
         if (y < y1) {
             int dy01 = y1 - y0; if (dy01 == 0) dy01 = 1;
             xb = x0 + (x1 - x0) * dy0 / dy01;
+            rb2 = cr[0] + (cr[1] - cr[0]) * dy0 / dy01;
+            gb = cg[0] + (cg[1] - cg[0]) * dy0 / dy01;
+            bb = cb[0] + (cb[1] - cb[0]) * dy0 / dy01;
             if (textured) {
                 ub = tu[0] + (tu[1] - tu[0]) * dy0 / dy01;
                 vb = tv[0] + (tv[1] - tv[0]) * dy0 / dy01;
@@ -331,6 +348,9 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
             int dy12 = y2 - y1; if (dy12 == 0) dy12 = 1;
             int dy1 = y - y1;
             xb = x1 + (x2 - x1) * dy1 / dy12;
+            rb2 = cr[1] + (cr[2] - cr[1]) * dy1 / dy12;
+            gb = cg[1] + (cg[2] - cg[1]) * dy1 / dy12;
+            bb = cb[1] + (cb[2] - cb[1]) * dy1 / dy12;
             if (textured) {
                 ub = tu[1] + (tu[2] - tu[1]) * dy1 / dy12;
                 vb = tv[1] + (tv[2] - tv[1]) * dy1 / dy12;
@@ -340,6 +360,7 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
         /* Ensure xa <= xb */
         if (xa > xb) {
             int t; t=xa;xa=xb;xb=t;
+            t=ra;ra=rb2;rb2=t; t=ga;ga=gb;gb=t; t=ba;ba=bb;bb=t;
             if (textured) { int ti; ti=ua;ua=ub;ub=ti; ti=va;va=vb;vb=ti; }
         }
 
@@ -353,6 +374,14 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
         if (x_start < clip_x0) { x_skip = clip_x0 - x_start; x_start = clip_x0; }
         if (x_end > clip_x1) x_end = clip_x1;
         if (x_start > x_end) continue;
+
+        /* Fixed-point 16.16 color interpolation across scanline */
+        int r16 = ra << 16, dr16 = ((rb2 - ra) << 16) / dx;
+        int g16 = ga << 16, dg16 = ((gb - ga) << 16) / dx;
+        int b16 = ba << 16, db16 = ((bb - ba) << 16) / dx;
+        r16 += dr16 * x_skip;
+        g16 += dg16 * x_skip;
+        b16 += db16 * x_skip;
 
         if (textured) {
             /* Fixed-point 16.16 affine interpolation */
@@ -383,22 +412,33 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                 }
 
                 if (c != 0 && z <= port_zbuf[vy][x]) {
+                    /* PSX texture modulation: texel_component * vertex_color / 128
+                       Vertex color 128 = neutral (1.0), 0 = black, 255 = ~2x bright */
+                    int ir = r16 >> 16, ig = g16 >> 16, ib = b16 >> 16;
+                    if (ir < 0) ir = 0; if (ig < 0) ig = 0; if (ib < 0) ib = 0;
+                    uint16_t stp = c & 0x8000; /* preserve semi-transparency bit */
+                    int tr = c & 0x1F, tg = (c >> 5) & 0x1F, tb = (c >> 10) & 0x1F;
+                    tr = (tr * ir) >> 7; if (tr > 31) tr = 31;
+                    tg = (tg * ig) >> 7; if (tg > 31) tg = 31;
+                    tb = (tb * ib) >> 7; if (tb > 31) tb = 31;
+                    c = stp | (tb << 10) | (tg << 5) | tr;
+
                     if (port_tex_semi_trans && (c & 0x8000)) {
                         uint16_t bg = *row;
-                        int br = bg & 0x1F, bg2 = (bg>>5)&0x1F, bb = (bg>>10)&0x1F;
+                        int br = bg & 0x1F, bg2 = (bg>>5)&0x1F, bbb = (bg>>10)&0x1F;
                         int fr = c & 0x1F,  fg = (c>>5)&0x1F,   fb = (c>>10)&0x1F;
-                        int rr, rg, rb;
+                        int rr, rg, rrb;
                         switch (port_tex_abr) {
-                        case 0: rr=(br+fr)/2; rg=(bg2+fg)/2; rb=(bb+fb)/2; break;
-                        case 1: rr=br+fr; rg=bg2+fg; rb=bb+fb; break;
-                        case 2: rr=br-fr; rg=bg2-fg; rb=bb-fb; break;
-                        case 3: rr=br+fr/4; rg=bg2+fg/4; rb=bb+fb/4; break;
-                        default: rr=fr; rg=fg; rb=fb; break;
+                        case 0: rr=(br+fr)/2; rg=(bg2+fg)/2; rrb=(bbb+fb)/2; break;
+                        case 1: rr=br+fr; rg=bg2+fg; rrb=bbb+fb; break;
+                        case 2: rr=br-fr; rg=bg2-fg; rrb=bbb-fb; break;
+                        case 3: rr=br+fr/4; rg=bg2+fg/4; rrb=bbb+fb/4; break;
+                        default: rr=fr; rg=fg; rrb=fb; break;
                         }
                         if(rr<0)rr=0; if(rr>31)rr=31;
                         if(rg<0)rg=0; if(rg>31)rg=31;
-                        if(rb<0)rb=0; if(rb>31)rb=31;
-                        c = (rb<<10)|(rg<<5)|rr;
+                        if(rrb<0)rrb=0; if(rrb>31)rrb=31;
+                        c = (rrb<<10)|(rg<<5)|rr;
                     }
                     *row = c;
                     port_zbuf[vy][x] = z;
@@ -406,14 +446,29 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                 row++;
                 u16 += du16;
                 v16 += dv16;
+                r16 += dr16;
+                g16 += dg16;
+                b16 += db16;
             }
         } else {
-            /* Flat shaded — just fill the scanline */
+            /* Flat/Gouraud shaded — modulate color by vertex lighting */
             uint16_t *row = &vram[vy][x_start];
             uint16_t *zrow = &port_zbuf[vy][x_start];
             for (int x = x_start; x <= x_end; x++) {
-                if (z <= *zrow) { *row = color; *zrow = z; }
+                if (z <= *zrow) {
+                    int ir = r16 >> 16, ig = g16 >> 16, ib = b16 >> 16;
+                    if (ir < 0) ir = 0; if (ig < 0) ig = 0; if (ib < 0) ib = 0;
+                    int fr = color & 0x1F, fg = (color >> 5) & 0x1F, fb = (color >> 10) & 0x1F;
+                    fr = (fr * ir) >> 7; if (fr > 31) fr = 31;
+                    fg = (fg * ig) >> 7; if (fg > 31) fg = 31;
+                    fb = (fb * ib) >> 7; if (fb > 31) fb = 31;
+                    *row = (fb << 10) | (fg << 5) | fr;
+                    *zrow = z;
+                }
                 row++; zrow++;
+                r16 += dr16;
+                g16 += dg16;
+                b16 += db16;
             }
         }
     }

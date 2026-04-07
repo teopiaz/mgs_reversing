@@ -33,9 +33,11 @@ STATIC unsigned int DG_WriteObjVerticesIndirect( unsigned int vidx, POLY_GT4 *pa
     uintptr_t scrpd_idx = SCRPAD_ADDR;
     uintptr_t scrpd_idx2 = SCRPAD_ADDR;
     uintptr_t a2;
-    uintptr_t t3 = *(int *)(scrpd_idx + 0x3F8);
+    /* Use struct access — raw offsets 0x3F8/0x3FC are wrong on 64-bit
+       because pointers are 8 bytes, not 4 */
+    uintptr_t t3 = (uintptr_t)SPAD->parent_packs;
     if (!t3) return 0;
-    uintptr_t t5 = *(int *)(scrpd_idx + 0x3FC);
+    uintptr_t t5 = (uintptr_t)SPAD->vertices;
 #else
     unsigned int scrpd_idx = SCRPAD_ADDR;
     unsigned int scrpd_idx2 = SCRPAD_ADDR;

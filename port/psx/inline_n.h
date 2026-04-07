@@ -543,20 +543,35 @@ void gte_op_lc(void);
     _d[0] = gte_state.SXY0; _d[1] = gte_state.SXY1; \
 } while(0)
 
-/* Store SXY3 into specific primitive types (write at known offsets) */
+/* Store SXY3 into specific primitive types (write at known offsets).
+   Each primitive type has different field layout between vertex XY pairs.
+   Offsets match the PSX swc2 instructions in source/include/inline_n.h:
+   F3/F4: consecutive xy (offsets 8, 12, 16)
+   G3/G4/FT3/FT4: xy interleaved with 1 field (offsets 8, 16, 24)
+   GT3/GT4: xy interleaved with 2 fields (offsets 8, 20, 32) */
 #define gte_stsxy3_f3(r0) do { \
-    short *_p = (short *)((char *)(r0) + 8); \
-    _p[0] = gte_state.SXY0.vx; _p[1] = gte_state.SXY0.vy; \
-    _p[2] = gte_state.SXY1.vx; _p[3] = gte_state.SXY1.vy; \
-    _p[4] = gte_state.SXY2.vx; _p[5] = gte_state.SXY2.vy; \
+    char *_base = (char *)(r0); \
+    *(int *)(_base + 8)  = *(int *)&gte_state.SXY0; \
+    *(int *)(_base + 12) = *(int *)&gte_state.SXY1; \
+    *(int *)(_base + 16) = *(int *)&gte_state.SXY2; \
 } while(0)
-#define gte_stsxy3_g3(r0)   gte_stsxy3_f3(r0)
-#define gte_stsxy3_ft3(r0)  gte_stsxy3_f3(r0)
-#define gte_stsxy3_gt3(r0)  gte_stsxy3_f3(r0)
-#define gte_stsxy3_f4(r0)   gte_stsxy3_f3(r0)
-#define gte_stsxy3_g4(r0)   gte_stsxy3_f3(r0)
-#define gte_stsxy3_ft4(r0)  gte_stsxy3_f3(r0)
-#define gte_stsxy3_gt4(r0)  gte_stsxy3_f3(r0)
+#define gte_stsxy3_g3(r0) do { \
+    char *_base = (char *)(r0); \
+    *(int *)(_base + 8)  = *(int *)&gte_state.SXY0; \
+    *(int *)(_base + 16) = *(int *)&gte_state.SXY1; \
+    *(int *)(_base + 24) = *(int *)&gte_state.SXY2; \
+} while(0)
+#define gte_stsxy3_gt3(r0) do { \
+    char *_base = (char *)(r0); \
+    *(int *)(_base + 8)  = *(int *)&gte_state.SXY0; \
+    *(int *)(_base + 20) = *(int *)&gte_state.SXY1; \
+    *(int *)(_base + 32) = *(int *)&gte_state.SXY2; \
+} while(0)
+#define gte_stsxy3_ft3(r0) gte_stsxy3_g3(r0)
+#define gte_stsxy3_f4(r0)  gte_stsxy3_f3(r0)
+#define gte_stsxy3_g4(r0)  gte_stsxy3_g3(r0)
+#define gte_stsxy3_ft4(r0) gte_stsxy3_g3(r0)
+#define gte_stsxy3_gt4(r0) gte_stsxy3_gt3(r0)
 
 /* Store depth / Z values */
 #define gte_stdp(r0)    do { *(int *)(r0) = (int)gte_state.IR0; } while(0)
