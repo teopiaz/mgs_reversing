@@ -14,6 +14,12 @@
 
 #include <stdio.h>
 #include <libsn.h>
+#ifdef PORT_BUILD
+#include <signal.h>
+#include <setjmp.h>
+static sigjmp_buf demo_sigbus_jmp;
+static void demo_sigbus_handler(int sig) { siglongjmp(demo_sigbus_jmp, 1); }
+#endif
 
 #include "common.h"
 #include "libgv/libgv.h"
@@ -145,14 +151,15 @@ static void ActStream(LPMGSDEMOACT lpAct)
             {
                 unsigned char *raw = (unsigned char *)(data - 4);
                 static DMO_DEF port_def;
-                port_def.tag      = *(unsigned int *)&raw[0];
-                port_def.frame    = *(int *)&raw[4];
-                port_def.n_frames = *(int *)&raw[8];
-                port_def.n_maps   = *(int *)&raw[12];
-                port_def.n_models = *(int *)&raw[16];
+                memcpy(&port_def.tag,      &raw[0],  4);
+                memcpy(&port_def.frame,    &raw[4],  4);
+                memcpy(&port_def.n_frames, &raw[8],  4);
+                memcpy(&port_def.n_maps,   &raw[12], 4);
+                memcpy(&port_def.n_models, &raw[16], 4);
                 /* 32-bit offsets at raw[20] and raw[24] are relative to raw */
-                uint32_t maps_off   = *(uint32_t *)&raw[20];
-                uint32_t models_off = *(uint32_t *)&raw[24];
+                uint32_t maps_off, models_off;
+                memcpy(&maps_off,   &raw[20], 4);
+                memcpy(&models_off, &raw[24], 4);
                 port_def.maps   = (DMO_MAP *)(raw + maps_off);
                 port_def.models = (DMO_MDL *)(raw + models_off);
                 def = &port_def;
@@ -210,9 +217,14 @@ static void ActStream(LPMGSDEMOACT lpAct)
             }
 
             def = (DMO_DEF *)(data - 4);
-            if (def->frame >= lpAct->frame)
             {
-                break;
+#ifdef PORT_BUILD
+                int frame_val;
+                memcpy(&frame_val, (unsigned char *)def + 4, 4);
+                if (frame_val >= lpAct->frame) break;
+#else
+                if (def->frame >= lpAct->frame) break;
+#endif
             }
 
             FS_StreamClear(data);
@@ -272,13 +284,33 @@ static void ActStream(LPMGSDEMOACT lpAct)
                     memcpy(&port_adjusts[ai].pos_z,   &a[16], 2);
                     memcpy(&port_adjusts[ai].n_rots,  &a[18], 2);
                     uint32_t rots_off; memcpy(&rots_off, &a[20], 4);
-                    port_adjusts[ai].rots = rots_off ? (short *)(a + rots_off) : NULL;
+                    if (rots_off && port_adjusts[ai].n_rots > 0) {
+                        /* Copy rots to aligned buffer — raw stream data may be
+                           misaligned causing SIGBUS on ARM64. */
+                        static short rots_buf[32][64 * 3]; /* [adj_idx][rot*3] */
+                        int n = port_adjusts[ai].n_rots;
+                        if (n > 64) n = 64;
+                        memcpy(rots_buf[ai], a + rots_off, n * 3 * sizeof(short));
+                        port_adjusts[ai].rots = rots_buf[ai];
+                    } else {
+                        port_adjusts[ai].rots = NULL;
+                    }
                 }
                 port_dat.adjust = port_adjusts;
             } else {
                 port_dat.adjust = NULL;
             }
-            status = FrameRunDemo(lpAct, &port_dat);
+            {
+                struct sigaction sa = { .sa_handler = demo_sigbus_handler }, old_sa;
+                sigaction(SIGBUS, &sa, &old_sa);
+                if (sigsetjmp(demo_sigbus_jmp, 1) == 0) {
+                    status = FrameRunDemo(lpAct, &port_dat);
+                } else {
+                    printf("[DEMO] FrameRunDemo SIGBUS caught, skipping frame\n");
+                    status = 1;
+                }
+                sigaction(SIGBUS, &old_sa, NULL);
+            }
         }
 #else
         status = FrameRunDemo(lpAct, (DMO_DAT *)def);
