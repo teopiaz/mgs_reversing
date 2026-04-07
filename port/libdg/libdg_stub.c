@@ -272,10 +272,13 @@ void port_RenderObjects(int idx)
     int dist = chanl->clip_distance;
     if (dist <= 0) dist = 256;
 
-    /* Reset draw area clip to full screen for 3D rendering */
+    /* Reset draw area and offset for 3D rendering — the OT walker may have
+       set draw_x/draw_y to a non-zero offset via GPU E5 command. */
     {
         extern int clip_x0, clip_y0, clip_x1, clip_y1;
+        extern void port_set_draw_offset(int x, int y);
         clip_x0 = 0; clip_y0 = 0; clip_x1 = 319; clip_y1 = 223;
+        port_set_draw_offset(0, 0);
     }
 
     /* Clear Z-buffer each frame */
