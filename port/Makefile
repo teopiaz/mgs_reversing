@@ -1,12 +1,20 @@
+
 CC = clang
 CXX = clang++
 SRCDIR = ../source
 
 INCLUDES = -I psx -I include -I . -I $(SRCDIR)/include -I $(SRCDIR)
+
+# AddressSanitizer support: enable with 'make ASAN=1'
+ifeq ($(ASAN),1)
+SANITIZE = -fsanitize=address -fno-omit-frame-pointer
+else
 SANITIZE =
+endif
+
 CFLAGS = -Wno-everything -Wno-error -O0 -g -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
-         -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-         -Wno-incompatible-pointer-types $(SANITIZE)
+		 -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
+		 -Wno-incompatible-pointer-types $(SANITIZE)
 CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
 SDL_CFLAGS = $(shell sdl2-config --cflags)
 LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ $(SANITIZE)
