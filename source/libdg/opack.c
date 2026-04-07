@@ -6,11 +6,25 @@ static int AllocPacks( DG_OBJ *obj, int index )
     int size;
     DG_OBJ *iter;
 
+#ifdef PORT_BUILD
+    int safety = 0;
+
+    if ( obj == NULL ) return -1;
+#endif
+
     size = 0;
     for ( iter = obj; iter != NULL; iter = iter->extend )
     {
         size += iter->n_packs;
+#ifdef PORT_BUILD
+        /* Bound the extend chain: a corrupt DG_OBJ can loop forever. */
+        if ( ++safety >= 256 ) break;
+#endif
     }
+
+#ifdef PORT_BUILD
+    if ( size <= 0 ) return -1;
+#endif
 
     size *= sizeof( POLY_GT4 );
     if ( GV_AllocMemory2( index, size, (void **)&obj->packs[ index ] ) == NULL ) return -1;
@@ -21,6 +35,10 @@ static void InitPacks( DG_OBJ *obj, int index )
 {
     POLY_GT4 *packs;
     int color, i;
+
+#ifdef PORT_BUILD
+    if ( obj->model == NULL ) return;
+#endif
 
     color = 0x3E808080;
     if ( !( obj->model->flag & DG_MODEL_TRANS ) ) color &= ~0x2000000;
@@ -113,6 +131,10 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int index )
 
 int DG_MakeObjPacket( DG_OBJ *obj, int index, int flags )
 {
+#ifdef PORT_BUILD
+    if ( obj == NULL || obj->model == NULL || obj->n_packs == 0 ) return -1;
+#endif
+
     if ( AllocPacks( obj, index ) < 0 ) return -1;
     InitPacks( obj, index );
     if ( flags & DG_FLAG_TEXT ) DG_WriteObjPacketUV( obj, index );
