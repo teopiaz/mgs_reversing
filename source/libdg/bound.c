@@ -167,10 +167,13 @@ static int ValidExtendChain( DG_OBJ *obj )
     while ( chk && cnt++ < 256 )
     {
         uintptr_t p = (uintptr_t)chk;
-        uintptr_t m = (uintptr_t)chk->model;
+        uintptr_t m;
 
-        if ( p < 0x1000 || ( p >> 48 ) != 0 || !chk->model ||
-             m < 0x1000 || ( m >> 48 ) != 0 ||
+        /* Range-check chk itself before dereferencing it. */
+        if ( p < 0x1000 || ( p >> 48 ) != 0 ) return 0;
+
+        m = (uintptr_t)chk->model;
+        if ( !chk->model || m < 0x1000 || ( m >> 48 ) != 0 ||
              chk->n_packs <= 0 || chk->n_packs > 4096 )
         {
             return 0;
