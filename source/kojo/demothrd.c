@@ -145,8 +145,8 @@ static void StreamAct(DemoWork *work)
                 uint32_t maps_off, models_off;
                 memcpy(&maps_off,   &raw[20], 4);
                 memcpy(&models_off, &raw[24], 4);
-                printf("[DEMO] DMO_DEF: n_frames=%d n_maps=%d n_models=%d maps_off=0x%x models_off=0x%x\n",
-                       port_def.n_frames, port_def.n_maps, port_def.n_models, maps_off, models_off);
+                printf("[DEMO] DMO_DEF: n_frames=%d n_maps=%d n_models=%d\n",
+                       port_def.n_frames, port_def.n_maps, port_def.n_models);
                 /* Validate offsets — must be reasonable (within ~64KB of struct start) */
                 if (maps_off > 0 && maps_off < 0x10000)
                     port_def.maps = (DMO_MAP *)(raw + maps_off);
@@ -194,6 +194,9 @@ static void StreamAct(DemoWork *work)
     }
 #endif
 
+#ifdef PORT_BUILD
+    if (!work->header) return;
+#endif
     if (work->frame <= work->header->n_frames)
     {
         while (1)
