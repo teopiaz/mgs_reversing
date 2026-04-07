@@ -298,14 +298,33 @@ void game_tick(void)
         uint64_t ta0 = mach_absolute_time();
         GV_ExecActorSystem();
 
-        /* Sound driver tick — on PSX, the SPU IRQ fires at ~88Hz
-           (blank_data loop at pitch 0x1000 = 44100Hz, 504 samples per loop).
-           At 30fps, that's ~3 ticks per frame. Call IntSdMain directly
-           to match the PSX tick rate. */
+        /* Sound driver tick — mirrors SdInt's main loop on PSX.
+           SPU IRQ fires at ~88Hz (~3 ticks per 30fps frame).
+           Must call IntSdMain (sequence processing), StrFadeInt (stream fade),
+           WaveSpuTrans (wave data transfer), and StrSpuTrans (stream audio
+           transfer to SPU voices 21-22 for codec/cutscene voice). */
         {
             extern void IntSdMain(void);
-            for (int _st = 0; _st < 3; _st++)
+            extern void StrFadeInt(void);
+            extern void WaveSpuTrans(void);
+            extern void StrSpuTrans(void);
+            extern long SpuIsTransferCompleted(long flag);
+            for (int _st = 0; _st < 3; _st++) {
                 IntSdMain();
+                if (SpuIsTransferCompleted(0) == 1)
+                    WaveSpuTrans();
+                StrFadeInt();
+                if (SpuIsTransferCompleted(0) == 1)
+                    StrSpuTrans();
+                /* Simulate SPU IRQ — UserSpuIRQProc increments the stream
+                   buffer counter (dword_800BF270) that StrSpuTrans uses to
+                   know when to load the next audio chunk. Without this, the
+                   stream system never advances its ping-pong buffers. */
+                {
+                    extern void UserSpuIRQProc(void);
+                    UserSpuIRQProc();
+                }
+            }
         }
 
         /* SdMain loop body — deferred sound loading (replaces SdMain task).
