@@ -55,12 +55,24 @@ void game_init(void)
         extern void sd_init(void);
         extern int sd_mem_alloc(void);
         extern volatile int sd_task_status;
+        extern void SdInt(void);
+        extern void SdMain(void);
+
         spu_emu_init();
-        sd_mem_alloc();
-        sd_init();
-        sd_task_status = 128; /* mark sound as active */
-        /* { extern int sd_print_fg; sd_print_fg = 1; } */
-        /* sd_init sets master volume to 0; set a default so we hear something */
+        sd_mem_alloc();  /* Must run before stage loading (allocates wave_header etc.) */
+        sd_init();       /* Initialize SPU state */
+        sd_task_status = 128;
+
+        /* Start sound tasks. SdInt processes BGM/SE each frame.
+           SdMain handles deferred loading (LoadSngData, LoadSeFile).
+           Both skip redundant init via port_sd_init_done flag. */
+        { extern int port_sd_init_done; port_sd_init_done = 1; }
+        mts_sta_tsk(1 /* MTSID_SOUND_INT */, SdInt, NULL);
+        /* SdMain not started as task — its ucontext crashes on ARM64 macOS
+           (PAC pointer auth issue). Instead, we call its loop body directly
+           from the main tick below. */
+
+        /* Set master volume (sd_init sets it to 0) */
         {
             SpuCommonAttr c_attr;
             c_attr.mask = SPU_COMMON_MVOLL | SPU_COMMON_MVOLR;
@@ -286,6 +298,36 @@ void game_tick(void)
         uint64_t ta0 = mach_absolute_time();
         GV_ExecActorSystem();
 
+        /* Sound driver tick — on PSX, the SPU IRQ fires at ~88Hz
+           (blank_data loop at pitch 0x1000 = 44100Hz, 504 samples per loop).
+           At 30fps, that's ~3 ticks per frame. Call IntSdMain directly
+           to match the PSX tick rate. */
+        {
+            extern void IntSdMain(void);
+            for (int _st = 0; _st < 3; _st++)
+                IntSdMain();
+        }
+
+        /* SdMain loop body — deferred sound loading (replaces SdMain task).
+           On PSX this runs as a MTS task; on port we call it inline to avoid
+           ucontext crash on ARM64 macOS. */
+        {
+            extern volatile int sng_status;
+            extern volatile int se_load_code;
+            extern int LoadSngData(void);
+            extern int LoadSeFile(void);
+
+            if (sng_status == 1) {
+                if (LoadSngData())
+                    sng_status = 0;
+                else
+                    sng_status = 2;
+            }
+            if (se_load_code) {
+                LoadSeFile();
+            }
+        }
+
         /* Tick MTS cooperative scheduler — runs one frame of any active tasks
            (codec, save, sound). Tasks yield at mts_slp_tsk/mts_wait_vbl. */
         {
@@ -343,6 +385,7 @@ void game_tick(void)
         t_dgrender += ta2 - ta1;
         t_portrender += ta3 - ta2;
         perf_frames++;
+#ifdef PORT_BUILD_VERBOSE
         if (perf_frames == 60) {
             double ns = (double)tb.numer / (double)tb.denom;
             printf("[tick-perf] swap=%.2fms actors=%.2fms DG_Render=%.2fms port_Render=%.2fms\n",
@@ -353,6 +396,7 @@ void game_tick(void)
             t_swap = t_actors = t_dgrender = t_portrender = 0;
             perf_frames = 0;
         }
+#endif
     }
 
     /* Debug: print pad state every second */

@@ -40,12 +40,25 @@ void sub_80081A10(int *arg0, int arg1, int arg2)
 
 void SdMain(void)
 {
-    sd_task_status = 0;
     printf("Start Task:SdMain\n");
+#ifdef PORT_BUILD
+    /* Port: sd_mem_alloc/sd_init already called from game_init before stage
+       loading. SdInt also already started. Skip redundant init. */
+    {
+        extern int port_sd_init_done;
+        if (!port_sd_init_done) {
+            sd_task_status = 0;
+            sd_mem_alloc();
+            mts_start_task(MTSID_SOUND_INT, SdInt, STACK_BOTTOM(sd_int_stack), SD_INT_STACK_SIZE);
+            mts_slp_tsk();
+        }
+    }
+#else
+    sd_task_status = 0;
     sd_mem_alloc();
-
     mts_start_task(MTSID_SOUND_INT, SdInt, STACK_BOTTOM(sd_int_stack), SD_INT_STACK_SIZE);
     mts_slp_tsk();
+#endif
 
     sd_task_status = 128;
     while (1)
@@ -118,7 +131,13 @@ void SdInt(void)
     (void)buf; // not enough stack used without this
 
     printf("Start Task:SdInt\n");
+#ifdef PORT_BUILD
+    /* Port: sd_init() and sd_mem_alloc() already called from game_init
+       before stage loading. Skip redundant init to preserve loaded data. */
+    { extern int port_sd_init_done; if (!port_sd_init_done) sd_init(); }
+#else
     sd_init();
+#endif
     mts_wup_tsk(MTSID_SOUND_MAIN);
     while (1)
     {

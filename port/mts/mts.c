@@ -392,8 +392,19 @@ void mts_send(int dst, unsigned char *message)
 
 int mts_isend(int dst)
 {
-    (void)dst;
-    return 0;
+    /* Interrupt-safe send: wake a task waiting on mts_receive(MTS_TASK_INTR).
+       Unlike mts_send, does NOT yield — called from interrupt/main context.
+       On PSX, this is triggered by SPU IRQ to wake the sound driver task. */
+    if (dst < 0 || dst >= MTS_NR_TASK) return 0;
+    if (tasks[dst].state != MTS_TASK_RECEIVING) return 0;
+
+    /* Mark mailbox as having interrupt data (from = MTS_TASK_INTR = -1) */
+    Mailbox *mb = &mailboxes[dst];
+    mb->has_data = 1;
+    mb->from = -1; /* MTS_TASK_INTR */
+
+    tasks[dst].state = MTS_TASK_READY;
+    return 1;
 }
 
 int mts_receive(int src, unsigned char *message)
@@ -403,7 +414,7 @@ int mts_receive(int src, unsigned char *message)
 
     /* Check if we already have a message */
     if (mb->has_data && (src < 0 || src == mb->from || src == MTS_TASK_ANY)) {
-        memcpy(message, mb->data, MTS_SZ_MESSAGE);
+        if (message) memcpy(message, mb->data, MTS_SZ_MESSAGE);
         mb->has_data = 0;
         return mb->from;
     }
@@ -415,7 +426,7 @@ int mts_receive(int src, unsigned char *message)
 
         /* Resumed — check mailbox again */
         if (mb->has_data) {
-            memcpy(message, mb->data, MTS_SZ_MESSAGE);
+            if (message) memcpy(message, mb->data, MTS_SZ_MESSAGE);
             mb->has_data = 0;
             return mb->from;
         }
