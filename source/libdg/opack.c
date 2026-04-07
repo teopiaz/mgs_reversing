@@ -16,7 +16,14 @@ STATIC int DG_AllocPacks( DG_OBJ *obj, int idx )
         int safety = 0;
         while (object && safety++ < 256)
         {
+            /* Validate pointer: must be in userspace range (not freed/scribbled) */
+            uintptr_t p = (uintptr_t)object;
+            if (p < 0x1000 || (p >> 48) != 0) break;
+            if (object->n_packs <= 0 || object->n_packs > 4096) break;
             total_packs += object->n_packs;
+            /* Validate extend pointer before following */
+            uintptr_t ep = (uintptr_t)object->extend;
+            if (ep != 0 && (ep < 0x1000 || (ep >> 48) != 0)) break;
             object = object->extend;
         }
     }
@@ -49,6 +56,10 @@ STATIC void DG_InitPolyGT4Pack( DG_OBJ *obj, int idx )
     while (obj)
     {
         int n_packs;
+#ifdef PORT_BUILD
+        uintptr_t _p = (uintptr_t)obj;
+        if (_p < 0x1000 || (_p >> 48) != 0) break;
+#endif
         for (n_packs = obj->n_packs; n_packs > 0; n_packs--)
         {
             setPolyGT4(pack);
@@ -101,6 +112,14 @@ void DG_WriteObjPacketUV( DG_OBJ* obj, int idx )
 
         while ( obj )
         {
+#ifdef PORT_BUILD
+            {
+                uintptr_t _p = (uintptr_t)obj;
+                uintptr_t _m = (uintptr_t)obj->model;
+                if (_p < 0x1000 || (_p >> 48) != 0) break;
+                if (_m < 0x1000 || (_m >> 48) != 0) break;
+            }
+#endif
             tex_ids = obj->model->materials;
             texcoords = obj->model->texcoords;
             for (n_packs = obj->n_packs; n_packs > 0 ; --n_packs )
@@ -129,6 +148,10 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int idx )
     if (pack && obj)
     {
         do {
+#ifdef PORT_BUILD
+            uintptr_t _p = (uintptr_t)obj;
+            if (_p < 0x1000 || (_p >> 48) != 0) break;
+#endif
             CVECTOR *pack_rgbs = obj->rgbs;
             if (pack_rgbs)
             {
@@ -157,6 +180,10 @@ int DG_MakeObjPacket( DG_OBJ *obj, int idx, int flags )
     {
         return -1;
     }
+
+#ifdef PORT_BUILD
+    if (!obj->packs[idx]) return -1;
+#endif
 
     DG_InitPolyGT4Pack(obj, idx);
 
