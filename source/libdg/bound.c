@@ -70,6 +70,11 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
         if (in_bound_mode)
         {
             bound_mode = 2;
+#ifdef PORT_BUILD
+            /* Skip GTE frustum culling — the port's projection differs from
+               PSX GTE, causing incorrect object culling. Always mark visible. */
+            (void)flag;
+#else
             if (flag & DG_FLAG_BOUND)
             {
                 gte_SetRotMatrix(&obj->screen);
@@ -167,6 +172,7 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
                 ret = extra;
                 bound_mode = ret;
             }
+#endif
         }
 
         // loc_800188E4
