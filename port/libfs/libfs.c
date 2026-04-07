@@ -473,10 +473,15 @@ void *FS_LoadStageRequest(const char *dirname)
             else if (tag->ext == 'm') {
                 /* .mdx song data */
                 extern unsigned char *SD_SngDataLoadInit(unsigned short id);
+                extern volatile int sng_status;
                 unsigned char *buf = SD_SngDataLoadInit(tag->id);
                 if (buf) {
                     memcpy(buf, data_ptr, tag->size);
-                    printf("  [fs]   Loaded .mdx song data (%d bytes)\n", tag->size);
+                    /* Mark song data as ready so IntSdMain can activate it.
+                       On PSX, SdMain task sets sng_status=2 after LoadSngData.
+                       The port loads .mdx directly during stage loading. */
+                    sng_status = 2;
+                    printf("  [fs]   Loaded .mdx song data (%d bytes) → sng_status=2\n", tag->size);
                 }
             }
             data_ptr += (tag->size + (FS_SECTOR_SIZE - 1)) & ~(FS_SECTOR_SIZE - 1);
@@ -754,7 +759,8 @@ static PcmHandle pcm_handles[PCM_MAX_HANDLES];
 /* Find a sound file ('s' tag with matching ext and id) in the current stage
    and return its data. On PSX, path_idx selects: 2=wave, 4=SE, etc.
    ext is 'w' for wave, 'm' for song, 'e' for SE. */
-static char pcm_ext_for_path[] = { 0, 0, 'w', 0, 'e', 'm' };
+/* path_idx: 2=wave('w'), 3=song('m'), 4=SE('e'), 5=song('m') */
+static char pcm_ext_for_path[] = { 0, 0, 'w', 'm', 'e', 'm' };
 
 int port_PcmOpen(int code, int path_idx)
 {

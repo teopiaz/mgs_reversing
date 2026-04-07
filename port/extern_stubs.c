@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <string.h>
 
+/* sound init flag — set by game_init before starting SdInt task
+   to prevent SdInt from calling sd_init() again */
+int port_sd_init_done = 0;
+
 /* game globals */
 int GM_CurrentMap = 0;
 int gTotalFrameTime = 0;
