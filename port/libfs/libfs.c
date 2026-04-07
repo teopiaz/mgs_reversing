@@ -692,10 +692,11 @@ void *FS_StreamGetData(int target_type)
             continue;
         }
 
-        /* End of bank marker */
+        /* End of bank marker — stop scanning this bank.
+           On PSX the stream only contains one bank at a time.
+           Don't scan into the next bank which may have different data. */
         if (type == 0xF0) {
-            pos += size > 0 ? size : 8;
-            continue;
+            return NULL;
         }
 
         if (size <= 0 || size > 0x100000 || pos + size > stream_buf_len) {
@@ -727,10 +728,25 @@ void FS_StreamUngetData(void *stream) { (void)stream; }
 void FS_StreamClear(void *stream)
 {
     /* Mark entry as consumed by clearing the header's type byte.
-       stream points to data (header is at stream - 4). */
+       stream points to data (header is at stream - 4).
+       Then advance stream_read_pos past all consumed (type=0) blocks,
+       matching PSX behavior where fs_stream_top advances past cleared entries. */
     if (!stream) return;
     unsigned char *hdr = (unsigned char *)stream - 4;
-    *hdr = 0; /* clear type to 0 (consumed) */
+    *hdr = 0; /* clear type to 0 (consumed) — matches PSX *tag &= ~0xff */
+
+    /* Advance read position past consecutive consumed blocks */
+    while (stream_read_pos + 4 <= stream_buf_len) {
+        int tag;
+        memcpy(&tag, stream_buf + stream_read_pos, 4);
+        int type = tag & 0xFF;
+        int size = (tag >> 8) & 0xFFFFFF;
+        if (type == 0 && size > 0) {
+            stream_read_pos += size; /* skip consumed block */
+        } else {
+            break; /* stop at first non-consumed block */
+        }
+    }
 }
 
 void FS_StreamClearType(void *stream, int target_type)
