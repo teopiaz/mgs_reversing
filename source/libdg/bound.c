@@ -190,9 +190,9 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
                     int ok = 1, cnt = 0;
                     while (chk && cnt++ < 256) {
                         uintptr_t p = (uintptr_t)chk;
+                        if (p < 0x1000 || (p >> 48) != 0) { ok = 0; break; }
                         uintptr_t m = (uintptr_t)chk->model;
-                        if (p < 0x1000 || (p >> 48) != 0 || !chk->model ||
-                            m < 0x1000 || (m >> 48) != 0 ||
+                        if (!chk->model || m < 0x1000 || (m >> 48) != 0 ||
                             chk->n_packs <= 0 || chk->n_packs > 4096) {
                             ok = 0; break;
                         }
