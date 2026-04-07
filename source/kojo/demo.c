@@ -95,6 +95,13 @@ int CreateDemo(DemoWork *work, DMO_DEF *header)
         return 0;
     }
 
+#ifdef PORT_BUILD
+    if (!header->maps || !header->models || header->n_maps <= 0 || header->n_models <= 0) {
+        printf("[DEMO] CreateDemo: invalid header (maps=%p models=%p n_maps=%d n_models=%d)\n",
+               (void*)header->maps, (void*)header->models, header->n_maps, header->n_models);
+        return 0;
+    }
+#endif
     memcpy(work->header->maps, header->maps, sizeof(DMO_MAP) * work->header->n_maps);
     memcpy(work->header->models, header->models, sizeof(DMO_MDL) * work->header->n_models);
 
