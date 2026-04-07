@@ -264,7 +264,6 @@ void game_tick(void)
                 if (str_fout_fg == 1) str_fout_fg = 2;
                 if (dword_800BEFCC) { KeyOffStr(); dword_800BEFCC = 0; }
 
-                { static int last_ss = -1; if (str_status != last_ss) { printf("[str] status %d→%d (before switch)\n", last_ss, str_status); last_ss = str_status; } }
                 switch (str_status) {
                 case 1:
                     if (StartStream()) { str_status = 0; }
@@ -329,9 +328,6 @@ void game_tick(void)
                 }
             }
         }
-
-        { extern volatile int str_status; static int lst2=-1;
-          if (str_status!=lst2) { printf("[str] after_tick: %d→%d\n",lst2,str_status); lst2=str_status; } }
 
         /* SdMain loop body — deferred sound loading (replaces SdMain task).
            On PSX this runs as a MTS task; on port we call it inline to avoid
