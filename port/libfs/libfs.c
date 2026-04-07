@@ -602,15 +602,23 @@ void FS_StreamTaskStart(int sector)
         stream_buf_cap = (int)stream_len;
     }
 
+    /* Read raw sectors from file */
     fseek(f, byte_offset, SEEK_SET);
-    stream_buf_len = (int)fread(stream_buf, 1, stream_len, f);
+    int raw_len = (int)fread(stream_buf, 1, stream_len, f);
+
+    /* VOX/DEMO data uses {code:8, size:16LE} block headers. When read as
+       4 bytes LE (like FS_StreamGetData does), the 4th byte extends to 24-bit
+       size. Blocks are packed sequentially — no repacking needed.
+       Banks end with 0xF0 End block followed by zero-padding to 2048 boundary. */
+    stream_buf_len = raw_len;
+
+    printf("[stream] loaded %d bytes from sector %d (offset 0x%lX)\n",
+           stream_buf_len, sector, byte_offset);
+
     stream_read_pos = 0;
     stream_active = 1;
     stream_ended = 0;
     port_stream_tick = 0;
-
-    printf("[stream] loaded %d bytes from sector %d (offset 0x%lX)\n",
-           stream_buf_len, sector, byte_offset);
 }
 
 int FS_StreamTaskState(void)
@@ -663,9 +671,9 @@ int FS_StreamIsEnd(void)
 
 void *FS_StreamGetData(int target_type)
 {
-    /* Scan stream buffer for next entry matching target_type.
-       Entry format: {size:24, type:8} where size = total entry bytes.
-       Returns pointer to data (after 4-byte header), matching PSX FS_StreamGetData. */
+    /* Scan VOX/DEMO stream buffer for next block matching target_type.
+       Block format: {code:8, size:16LE, pad:8} — read as 4 bytes LE gives
+       {type:8, size:24}. Banks end with 0xF0 + zero padding to 2048 boundary. */
     if (!stream_active || !stream_buf || stream_buf_len == 0) return NULL;
 
     int pos = 0;
@@ -677,17 +685,24 @@ void *FS_StreamGetData(int target_type)
         int type = tag & 0xFF;
         int size = (tag >> 8) & 0xFFFFFF;
 
-        if (size <= 0 || pos + size > stream_buf_len) {
-            static int fail_dbg = 0;
-            if (fail_dbg++ < 3)
-                printf("[GetData(%d)] FAIL at pos=%d: type=0x%02X size=%d buflen=%d scanned=%d\n",
-                       target_type, pos, type, size, stream_buf_len, entries_scanned);
+        /* Skip zero padding (between banks or at end of data) */
+        if (type == 0x00 && size == 0) {
+            /* Advance to next 2048-byte boundary (bank alignment) */
+            pos = (pos + 2048) & ~(2048 - 1);
+            continue;
+        }
+
+        /* End of bank marker */
+        if (type == 0xF0) {
+            pos += size > 0 ? size : 8;
+            continue;
+        }
+
+        if (size <= 0 || size > 0x100000 || pos + size > stream_buf_len) {
             return NULL;
         }
 
         if (type == target_type) {
-            /* Mark as returned (bit 7) so next scan skips this entry.
-               FS_StreamClear sets type to 0 for full consumption. */
             stream_buf[pos] = type | 0x80;
             return (void *)(stream_buf + pos + 4);
         }
