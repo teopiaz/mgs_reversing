@@ -29,17 +29,20 @@ Verify that the camera actor (`NewCameraSystem` in `source/game/camera.c`) is sp
 
 ## High (Major Features)
 
-### 3. Implement Sound File Loading (PcmOpen/PcmRead/PcmClose)
+### 3. Fix BGM Audio Quality
 
-Connect the SPU emulator to actual sound data:
+BGM sequencer is connected and plays (notes trigger, SPU produces audio), but the
+output sounds bad. Investigate:
 
-- Locate VXX.DAT and other sound bank files on disc
-- Parse the sound bank header to find sample offsets and ADPCM parameters
-- Load ADPCM data into SPU RAM emulation buffer
-- Map game sound IDs to SPU voice parameters (pitch, volume, ADSR)
-- Call the existing SPU emulator voice playback functions
+- Verify ADPCM decoding produces correct waveforms (compare with known-good decoder)
+- Check voice_tbl WAVE_W parameters (sample_note, sample_tune) are parsed correctly
+  from the .wvx header — the stage loader converts from PSX 16-byte format to port struct
+- Verify pitch calculation in sd_ioset.c freq_set/freq_tbl is correct on 64-bit
+- Check ADSR envelope timing — env_tick runs at 44100Hz per sample, may need tuning
+- The IntSdMain tick rate (3x per 30fps frame ≈ 90Hz) may need adjustment to match
+  the actual PSX SPU IRQ rate for correct tempo
 
-**Files**: `port/sound/spu_emu.c`, `source/sound/` (10 files)
+**Files**: `port/sound/spu_emu.c`, `source/sound/sd_ioset.c`, `port/libfs/libfs.c` (wave header parsing)
 
 ### 4. Fix GCL Bind Proc ID Corruption
 
@@ -125,13 +128,26 @@ Replace the software rasterizer with a GPU-accelerated backend:
 
 The software rasterizer is adequate for development but runs at roughly 30 FPS for complex scenes. GPU rendering would trivially hit 60+ FPS.
 
-### 12. Audio Streaming (BGM and Voice)
+### 12. VOX.DAT / DEMO.DAT Stream Audio (Codec Voice, Cutscene Dialog)
 
-BGM is streamed from XA audio sectors on the original disc. Voice lines come from RADIO.DAT and VOX.DAT. Implementing streaming requires:
+Codec voice and cutscene dialog use the stream system (FS_StreamGetData). The port
+loads raw data from VOX.DAT/DEMO.DAT but FS_StreamGetData fails to parse it because:
 
-- XA ADPCM decoding (different format from SPU ADPCM)
-- Sector-level disc image reading or pre-extracted audio files
-- Mixing streamed audio with SPU sound effects
+- On PSX, the CD driver reads sectors one at a time and wraps each 2048-byte payload
+  with a `{size:24, type:8}` header before placing it in the stream circular buffer
+- The port loads contiguous file data without this sector-to-entry conversion
+- FS_StreamGetData scans for `{size:24, type:8}` entry headers but finds raw sector data
+
+Fix: add a sector demuxer in FS_StreamTaskStart that processes the loaded data:
+- Each 2048-byte sector has a 4-byte tag at offset 0: `{size:24, type:8}`
+- Walk sector-by-sector, extract entries, place in stream buffer
+- Types: 0x01=audio ADPCM, 0x02=stream header, 0x05=subtitle/timing, 0x10=control
+
+The stream audio also needs SPU voice setup for voices 21-22 (left/right channels)
+via StrSpuTrans in sd_str.c, which transfers ADPCM blocks to SPU RAM ping-pong buffers.
+
+**Files**: `port/libfs/libfs.c` (FS_StreamTaskStart, FS_StreamGetData),
+`source/sound/sd_str.c` (StartStream, StrSpuTrans), `source/libfs/stream.c` (reference)
 
 ### 13. Proper Analog Stick Support
 
