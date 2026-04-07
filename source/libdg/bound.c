@@ -169,6 +169,25 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
             obj->free_count = 8;
             if (!obj->packs[idx])
             {
+#ifdef PORT_BUILD
+                /* Validate extend chain before packet creation — skip if any
+                   link points to freed/invalid memory (use-after-free). */
+                {
+                    DG_OBJ *chk = obj;
+                    int ok = 1, cnt = 0;
+                    while (chk && cnt++ < 256) {
+                        uintptr_t p = (uintptr_t)chk;
+                        uintptr_t m = (uintptr_t)chk->model;
+                        if (p < 0x1000 || (p >> 48) != 0 || !chk->model ||
+                            m < 0x1000 || (m >> 48) != 0 ||
+                            chk->n_packs <= 0 || chk->n_packs > 4096) {
+                            ok = 0; break;
+                        }
+                        chk = chk->extend;
+                    }
+                    if (!ok) { obj->bound_mode = 0; goto next_model; }
+                }
+#endif
                 int res = DG_MakeObjPacket(obj, idx, flag);
                 if (res < 0)
                 {
@@ -192,6 +211,9 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
                 }
             }
         }
+#ifdef PORT_BUILD
+        next_model:
+#endif
         obj++;
     }
 }
