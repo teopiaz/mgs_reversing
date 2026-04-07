@@ -233,7 +233,9 @@ void game_tick(void)
                The sequence engine advances ngc by 1 per call. */
             IntSdMain();
             WaveSpuTrans();
-            StrSpuTrans();
+            /* StrSpuTrans NOT called here — it's StrSpuTransWithNoLoop which
+               advances str_status. The sound tick loop below handles it with
+               proper gating (only in playback states >= 5). */
             StrFadeInt();
             if (se_load_code) LoadSeFile();
             if (sng_status == 1) {
@@ -262,6 +264,7 @@ void game_tick(void)
                 if (str_fout_fg == 1) str_fout_fg = 2;
                 if (dword_800BEFCC) { KeyOffStr(); dword_800BEFCC = 0; }
 
+                { static int last_ss = -1; if (str_status != last_ss) { printf("[str] status %d→%d (before switch)\n", last_ss, str_status); last_ss = str_status; } }
                 switch (str_status) {
                 case 1:
                     if (StartStream()) { str_status = 0; }
@@ -275,15 +278,10 @@ void game_tick(void)
                     }
                     break;
                 case 2: case 3: case 4: case 5: case 6:
-                    /* On PSX, SdInt runs at 60Hz (once per vsync), each call
-                       does one StrSpuTransWithNoLoop. Port runs at 30fps,
-                       so call twice to match 60Hz PSX rate.
-                       But during initial setup (states 2-4), call more times
-                       to advance quickly to playback state 5. */
-                    {
-                        int iters = (str_status < 5) ? 16 : 2;
-                        for (int _si = 0; _si < iters && str_status >= 2 && str_status <= 6; _si++)
-                            sub_800827A4();
+                    { extern int str_unplay_size; int ss_before = str_status;
+                      sub_800827A4();
+                      if (str_status != ss_before)
+                          printf("[str] sub_800827A4: %d→%d unplay=%d\n", ss_before, str_status, str_unplay_size);
                     }
                     break;
                 case 7:
@@ -314,18 +312,26 @@ void game_tick(void)
                 if (SpuIsTransferCompleted(0) == 1)
                     WaveSpuTrans();
                 StrFadeInt();
-                if (SpuIsTransferCompleted(0) == 1)
-                    StrSpuTrans();
-                /* Simulate SPU IRQ — UserSpuIRQProc increments the stream
-                   buffer counter (dword_800BF270) that StrSpuTrans uses to
-                   know when to load the next audio chunk. Without this, the
-                   stream system never advances its ping-pong buffers. */
+                /* Call StrSpuTrans during playback (str_status >= 5) to
+                   continuously feed audio data. During setup (states 2-4),
+                   the stream block's sub_800827A4 handles data loading once
+                   per frame. StrSpuTrans during setup consumes blocks too fast. */
+                {
+                    extern volatile int str_status;
+                    if (str_status >= 5 && SpuIsTransferCompleted(0) == 1) {
+                        extern void StrSpuTrans(void);
+                        StrSpuTrans();
+                    }
+                }
                 {
                     extern void UserSpuIRQProc(void);
                     UserSpuIRQProc();
                 }
             }
         }
+
+        { extern volatile int str_status; static int lst2=-1;
+          if (str_status!=lst2) { printf("[str] after_tick: %d→%d\n",lst2,str_status); lst2=str_status; } }
 
         /* SdMain loop body — deferred sound loading (replaces SdMain task).
            On PSX this runs as a MTS task; on port we call it inline to avoid
