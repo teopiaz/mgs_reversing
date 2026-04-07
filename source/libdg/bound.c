@@ -196,6 +196,15 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
 
     for ( n_models = objs->n_models; n_models > 0; n_models-- )
     {
+#ifdef PORT_BUILD
+        /* Skip objects with NULL/invalid model (freed memory) */
+        if ( !obj->model || (uintptr_t)obj->model < 0x1000 ||
+             ( (uintptr_t)obj->model >> 48 ) != 0 )
+        {
+            obj++;
+            continue;
+        }
+#endif
         bound_flag = 0;
 
         if ( arg_flag != 0 )
