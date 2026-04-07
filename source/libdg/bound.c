@@ -59,6 +59,13 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
 
     for (; n_models > 0; --n_models)
     {
+#ifdef PORT_BUILD
+        /* Skip objects with NULL/invalid model (freed memory) */
+        if (!obj->model || (uintptr_t)obj->model < 0x1000 || ((uintptr_t)obj->model >> 48) != 0) {
+            obj++;
+            continue;
+        }
+#endif
         bound_mode = 0;
         if (in_bound_mode)
         {

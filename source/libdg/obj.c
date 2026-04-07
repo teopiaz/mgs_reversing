@@ -97,6 +97,12 @@ void DG_FreeObjs( DG_OBJS *objs )
         ++obj;
     }
     DG_FreePreshade(objs);
+#ifdef PORT_BUILD
+    /* Zero out before freeing so stale render queue references see
+       n_models=0 and skip instead of crashing on freed memory. */
+    memset(objs->objs, 0, objs->n_models * sizeof(DG_OBJ));
+    objs->n_models = 0;
+#endif
     GV_Free(objs);
 }
 

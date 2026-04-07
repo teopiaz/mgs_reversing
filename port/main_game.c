@@ -4,7 +4,20 @@
  */
 #include <stdio.h>
 #include <math.h>
+#include <signal.h>
+#include <setjmp.h>
 #include <mach/mach_time.h>
+
+/* Safety net: catch SIGSEGV/SIGBUS from stale DG_OBJS pointers during
+   stage transitions. Root cause: DG_TransChanl (commit 578f7e9d7) iterates
+   the channel queue and extend chains, hitting freed/reused memory.
+   Proper fix needs DG queue lifecycle tracking; this prevents crashes. */
+static sigjmp_buf render_jmp;
+static volatile int render_guard_active = 0;
+static void render_signal_handler(int sig) {
+    if (render_guard_active) siglongjmp(render_jmp, sig);
+}
+
 #include "libgv/libgv.h"
 #include "libfs/libfs.h"
 #include "libdg/libdg.h"
@@ -289,9 +302,24 @@ void game_tick(void)
             }
         }
 
-        /* Actor system: game logic, collision, movement */
+        /* Actor system + render frame: wrapped in signal handler to catch
+           stale DG_OBJS pointer crashes during stage transitions. */
         uint64_t ta0 = mach_absolute_time();
-        GV_ExecActorSystem();
+        {
+            struct sigaction sa = {.sa_handler = render_signal_handler, .sa_flags = 0};
+            struct sigaction old_segv, old_bus;
+            sigaction(SIGSEGV, &sa, &old_segv);
+            sigaction(SIGBUS, &sa, &old_bus);
+            render_guard_active = 1;
+            if (sigsetjmp(render_jmp, 1) == 0) {
+                GV_ExecActorSystem();
+            } else {
+                printf("[game] Signal caught in actor system, recovering\n");
+            }
+            render_guard_active = 0;
+            sigaction(SIGSEGV, &old_segv, NULL);
+            sigaction(SIGBUS, &old_bus, NULL);
+        }
 
         /* Sound driver tick — mirrors SdInt's main loop on PSX.
            SPU IRQ fires at ~88Hz (~3 ticks per 30fps frame).
@@ -379,7 +407,21 @@ void game_tick(void)
            before actors added prims. DG_SwapFrame draws the PREVIOUS frame's
            OT (1-GV_Clock) and clears the CURRENT OT (GV_Clock). Then actors
            already added prims to the cleared OT in GV_ExecActorSystem above. */
-        DG_RenderFrame();
+        {
+            struct sigaction sa = {.sa_handler = render_signal_handler, .sa_flags = 0};
+            struct sigaction old_segv, old_bus;
+            sigaction(SIGSEGV, &sa, &old_segv);
+            sigaction(SIGBUS, &sa, &old_bus);
+            render_guard_active = 1;
+            if (sigsetjmp(render_jmp, 1) == 0) {
+                DG_RenderFrame();
+            } else {
+                printf("[game] Signal caught in render frame, skipping\n");
+            }
+            render_guard_active = 0;
+            sigaction(SIGSEGV, &old_segv, NULL);
+            sigaction(SIGBUS, &old_bus, NULL);
+        }
 
         /* Direct 3D renderer — skip when DG_UnDrawFrameCount > 0,
            and also skip when camera hasn't been initialized yet (port fix:
