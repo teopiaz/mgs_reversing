@@ -260,12 +260,14 @@ void game_tick(void)
                 extern void sub_800827A4(void);
                 extern void KeyOffStr(void);
                 extern int dword_800BF1A4;
+                extern int dword_800BF270;
 
                 if (str_fout_fg == 1) str_fout_fg = 2;
                 if (dword_800BEFCC) { KeyOffStr(); dword_800BEFCC = 0; }
 
                 switch (str_status) {
                 case 1:
+                    { extern void stream_reset(void); stream_reset(); }
                     if (StartStream()) { str_status = 0; }
                     else {
                         str_status = 2; dword_800BF1A4 = 0;
@@ -277,11 +279,7 @@ void game_tick(void)
                     }
                     break;
                 case 2: case 3: case 4: case 5: case 6:
-                    { extern int str_unplay_size; int ss_before = str_status;
-                      sub_800827A4();
-                      if (str_status != ss_before)
-                          printf("[str] sub_800827A4: %d→%d unplay=%d\n", ss_before, str_status, str_unplay_size);
-                    }
+                    sub_800827A4();
                     break;
                 case 7:
                     KeyOffStr();
@@ -325,6 +323,25 @@ void game_tick(void)
                 {
                     extern void UserSpuIRQProc(void);
                     UserSpuIRQProc();
+                }
+
+                /* Override dword_800BF270 with actual SPU voice playback position.
+                   On PSX, UserSpuIRQProc increments this counter at ~88Hz in sync
+                   with hardware playback. In the port, the SDL audio thread runs
+                   independently, so we derive the position from voice 20's cur_addr
+                   (SPU_21CH = right stream channel) relative to the ping-pong buffer. */
+                {
+                    extern volatile int str_status;
+                    extern int spu_bgm_start_ptr_r;
+                    extern int dword_800BF270;
+                    extern unsigned long spu_get_voice_cur_addr(int ch);
+                    if (str_status >= 5) {
+                        unsigned long va = spu_get_voice_cur_addr(21); /* SPU_21CH = voice 21 */
+                        unsigned long base = (unsigned long)spu_bgm_start_ptr_r;
+                        if (va >= base && va < base + 0x2000) {
+                            dword_800BF270 = (int)((va - base) & 0x1FFF);
+                        }
+                    }
                 }
             }
         }

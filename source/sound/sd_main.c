@@ -190,6 +190,12 @@ void sd_init(void)
     {
         printf("spu_bgm_start_ptr_l=%x\n", spuMem);
     }
+#ifdef PORT_BUILD
+    {
+        extern void spu_stream_set_buffers(unsigned long base_r, unsigned long base_l);
+        spu_stream_set_buffers(spu_bgm_start_ptr_r, spu_bgm_start_ptr_l);
+    }
+#endif
     SpuSetReverb(SPU_OFF);
     SpuReserveReverbWorkArea(SPU_ON);
     SpuClearReverbWorkArea(SPU_REV_MODE_STUDIO_C);

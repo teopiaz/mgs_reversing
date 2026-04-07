@@ -80,6 +80,81 @@ static int spu_irq_enabled = 0;
 static SDL_AudioDeviceID audio_dev = 0;
 
 /*---------------------------------------------------------------------------*/
+/* Stream PCM bypass — decode ADPCM at SpuWrite time instead of in callback. */
+/* Eliminates race condition between game thread (SpuWrite) and audio thread. */
+/*---------------------------------------------------------------------------*/
+#define STREAM_PCM_MAX (44100 * 60)  /* 60 seconds of mono samples */
+static short stream_pcm_r[STREAM_PCM_MAX];
+static short stream_pcm_l[STREAM_PCM_MAX];
+static volatile int stream_pcm_wr_r = 0;  /* write cursor (game thread) */
+static volatile int stream_pcm_wr_l = 0;
+static volatile int stream_pcm_rd = 0;    /* read cursor (audio thread) */
+static int stream_active = 0;
+static unsigned long stream_base_r = 0;   /* SPU RAM addr of right buffer */
+static unsigned long stream_base_l = 0;   /* SPU RAM addr of left buffer */
+/* Per-channel ADPCM decoder state (maintained across SpuWrite calls) */
+static int stream_prev1_r = 0, stream_prev2_r = 0;
+static int stream_prev1_l = 0, stream_prev2_l = 0;
+
+void spu_stream_set_buffers(unsigned long base_r, unsigned long base_l)
+{
+    stream_base_r = base_r;
+    stream_base_l = base_l;
+}
+
+void stream_reset(void)
+{
+    stream_pcm_wr_r = 0;
+    stream_pcm_wr_l = 0;
+    stream_pcm_rd = 0;
+    stream_prev1_r = stream_prev2_r = 0;
+    stream_prev1_l = stream_prev2_l = 0;
+    stream_active = 0;
+}
+
+/* Decode ADPCM data into the stream PCM ring buffer for one channel.
+   Returns number of PCM samples written. */
+static int stream_decode_adpcm(const unsigned char *data, int size,
+                                short *pcm_buf, int *wr_ptr,
+                                int *prev1, int *prev2)
+{
+    int written = 0;
+    int wr = *wr_ptr;
+    for (int off = 0; off + 16 <= size; off += 16) {
+        const unsigned char *block = data + off;
+        int shift = block[0] & 0x0F;
+        int filter = (block[0] >> 4) & 0x07;
+        if (filter > 4) filter = 4;
+
+        int f0 = pos_adpcm_table[filter];
+        int f1 = neg_adpcm_table[filter];
+
+        for (int i = 0; i < 28; i++) {
+            int nibble;
+            int byte_idx = 2 + i / 2;
+            if (i & 1) nibble = (block[byte_idx] >> 4) & 0x0F;
+            else       nibble = block[byte_idx] & 0x0F;
+            if (nibble >= 8) nibble -= 16;
+
+            int sample = nibble << (12 - shift);
+            sample += (*prev1 * f0 + *prev2 * f1 + 32) >> 6;
+            if (sample > 32767) sample = 32767;
+            if (sample < -32768) sample = -32768;
+
+            *prev2 = *prev1;
+            *prev1 = sample;
+
+            if (wr < STREAM_PCM_MAX) {
+                pcm_buf[wr++] = (short)sample;
+                written++;
+            }
+        }
+    }
+    *wr_ptr = wr;
+    return written;
+}
+
+/*---------------------------------------------------------------------------*/
 /* ADPCM block decoder                                                       */
 /*---------------------------------------------------------------------------*/
 static void decode_adpcm_block(SPU_Voice *v)
@@ -117,15 +192,26 @@ static void decode_adpcm_block(SPU_Voice *v)
         v->prev1 = sample;
     }
 
-    /* Handle loop flags */
+    /* Handle loop flags — must match real PSX SPU behavior.
+       Flag 0x04: save current address as loop point.
+       Flag 0x01 (end): ALWAYS jump to loop_addr.
+         - With 0x02: normal loop, keep playing.
+         - Without 0x02: enter envelope release, but still loop.
+       The stream audio ping-pong buffer relies on end-without-repeat
+       looping back to loop_addr (not stopping), because StrSpuTrans
+       writes fresh data to the other half while the voice loops. */
     if (flags & 4) { /* loop start */
         v->loop_addr = v->cur_addr;
     }
     if (flags & 1) { /* loop end */
-        if (flags & 2) { /* loop repeat */
-            v->cur_addr = v->loop_addr;
-        } else {
-            v->active = 0; /* stop — loop end without repeat */
+        v->cur_addr = v->loop_addr; /* always loop back */
+        if (!(flags & 2)) {
+            /* End without repeat: enter release phase (voice fades out
+               but keeps producing samples from loop_addr). */
+            if (!v->key_off) {
+                v->key_off = 1;
+                v->env_phase = ENV_RELEASE;
+            }
         }
         return;
     }
@@ -316,16 +402,50 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
     for (int s = 0; s < num_samples; s++) {
         int mix_l = 0, mix_r = 0;
 
+        /* Stream audio bypass: read pre-decoded PCM for voices 21-22 */
+        if (stream_active) {
+            int rd = stream_pcm_rd;
+            if (rd < stream_pcm_wr_r || rd < stream_pcm_wr_l) {
+                SPU_Voice *vr = &voices[21]; /* SPU_21CH = right */
+                SPU_Voice *vl = &voices[22]; /* SPU_22CH = left */
+                short sam_r = (rd < stream_pcm_wr_r) ? stream_pcm_r[rd] : 0;
+                short sam_l = (rd < stream_pcm_wr_l) ? stream_pcm_l[rd] : 0;
+
+                /* Apply voice volumes (set by StrFadeInt) */
+                if (vr->active) {
+                    mix_l += ((int)sam_r * vr->vol_l) >> 15;
+                    mix_r += ((int)sam_r * vr->vol_r) >> 15;
+                }
+                if (vl->active) {
+                    mix_l += ((int)sam_l * vl->vol_l) >> 15;
+                    mix_r += ((int)sam_l * vl->vol_r) >> 15;
+                }
+
+                /* Advance read cursor — PSX SPU pitch is 4.12 fixed-point.
+                   Pitch 0x1000 = 1.0 = 44100Hz (one decoded sample per output sample). */
+                vr->frac_pos += vr->pitch;
+                if ((vr->frac_pos >> 12) >= 1) {
+                    int adv = vr->frac_pos >> 12;
+                    vr->frac_pos -= adv << 12;
+                    stream_pcm_rd = rd + adv;
+                }
+            }
+        }
+
         for (int ch = 0; ch < NUM_VOICES; ch++) {
             SPU_Voice *v = &voices[ch];
             if (!v->active || v->env_phase == ENV_OFF)
                 continue;
 
-            /* 4-point Gaussian interpolation (matches PSX SPU).
-               Pitch 0x1000 = 44100Hz. frac_pos advances by pitch each sample.
-               Bits 16+ = sample index, bits 4-11 = Gaussian table index. */
-            int idx = (v->frac_pos >> 16) % 28;
-            int gauss_idx = (v->frac_pos >> 8) & 0xFF;
+            /* Skip stream voices — handled above via pre-decoded PCM */
+            if (stream_active && (ch == 21 || ch == 22))
+                continue;
+
+            /* PSX SPU pitch is 4.12 fixed-point: 0x1000 = 44100Hz.
+               frac_pos bits 12+ = sample index (0-27), bits 0-11 = fraction.
+               Gaussian interpolation uses bits 4-11 as table index. */
+            int idx = (v->frac_pos >> 12) % 28;
+            int gauss_idx = (v->frac_pos >> 4) & 0xFF;
             short s0 = (idx >= 3) ? v->decoded[idx - 3] : v->prev_decoded[idx];
             short s1 = (idx >= 2) ? v->decoded[idx - 2] : v->prev_decoded[idx + 1 > 2 ? 2 : idx + 1];
             short s2 = (idx >= 1) ? v->decoded[idx - 1] : v->prev_decoded[2];
@@ -342,9 +462,9 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
             /* Advance pitch counter */
             v->frac_pos += v->pitch;
 
-            /* Decode next ADPCM block when crossing boundary */
-            if ((v->frac_pos >> 16) >= 28) {
-                v->frac_pos -= (28 << 16);
+            /* Decode next ADPCM block when crossing 28-sample boundary */
+            if ((v->frac_pos >> 12) >= 28) {
+                v->frac_pos -= (28 << 12);
                 v->prev_decoded[0] = v->decoded[25];
                 v->prev_decoded[1] = v->decoded[26];
                 v->prev_decoded[2] = v->decoded[27];
@@ -442,6 +562,23 @@ u_long SpuWrite(u_char *addr, u_long size)
     if (spu_transfer_addr + size <= SPU_RAM_SIZE) {
         memcpy(&spu_ram[spu_transfer_addr], addr, size);
     }
+
+    /* Decode ADPCM→PCM for stream buffer writes (voices 21-22).
+       This pre-decodes audio at write time so the audio callback can
+       read clean PCM without racing with the game thread. */
+    if (stream_base_r && stream_base_l) {
+        unsigned long dst = spu_transfer_addr;
+        if (dst >= stream_base_r && dst < stream_base_r + 0x2000) {
+            stream_decode_adpcm(addr, (int)size,
+                stream_pcm_r, &stream_pcm_wr_r,
+                &stream_prev1_r, &stream_prev2_r);
+        } else if (dst >= stream_base_l && dst < stream_base_l + 0x2000) {
+            stream_decode_adpcm(addr, (int)size,
+                stream_pcm_l, &stream_pcm_wr_l,
+                &stream_prev1_l, &stream_prev2_l);
+        }
+    }
+
     spu_transfer_addr += size;
     return size;
 }
@@ -509,6 +646,18 @@ void SpuGetVoiceAttr(SpuVoiceAttr *attr)
 void SpuSetKey(long on_off, u_long voice_bit)
 {
     if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+
+    /* Detect stream voice key-on/off (SPU_21CH | SPU_22CH) */
+    if ((voice_bit & ((1 << 21) | (1 << 22))) && stream_base_r) {
+        if (on_off == SPU_ON) {
+            stream_pcm_rd = 0;
+            stream_active = 1;
+            printf("[spu] Stream key-on: wr_r=%d wr_l=%d\n",
+                   stream_pcm_wr_r, stream_pcm_wr_l);
+        } else {
+            stream_active = 0;
+        }
+    }
 
     for (int ch = 0; ch < NUM_VOICES; ch++) {
         if (!(voice_bit & (1 << ch)))
@@ -617,4 +766,12 @@ long SpuMalloc(long size)
 void SpuFree(long addr)
 {
     (void)addr; /* no-op for bump allocator */
+}
+
+/* Return current decode address for a voice (0-23). Used by stream code to
+   derive the actual playback position in the ping-pong buffer. */
+unsigned long spu_get_voice_cur_addr(int ch)
+{
+    if (ch < 0 || ch >= NUM_VOICES) return 0;
+    return voices[ch].cur_addr;
 }
