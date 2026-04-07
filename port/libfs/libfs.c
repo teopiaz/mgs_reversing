@@ -676,7 +676,7 @@ void *FS_StreamGetData(int target_type)
        {type:8, size:24}. Banks end with 0xF0 + zero padding to 2048 boundary. */
     if (!stream_active || !stream_buf || stream_buf_len == 0) return NULL;
 
-    int pos = 0;
+    int pos = stream_read_pos;
     int entries_scanned = 0;
     while (pos + 4 <= stream_buf_len)
     {
