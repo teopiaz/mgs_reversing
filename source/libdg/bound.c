@@ -156,6 +156,31 @@ static inline int BoundCheck( DVECTOR *verts )
     return bound_flag;
 }
 
+#ifdef PORT_BUILD
+/* Validate the whole extend chain before packet creation - skip the model if any
+   link points to freed/invalid memory (use-after-free). */
+static int ValidExtendChain( DG_OBJ *obj )
+{
+    DG_OBJ *chk = obj;
+    int cnt = 0;
+
+    while ( chk && cnt++ < 256 )
+    {
+        uintptr_t p = (uintptr_t)chk;
+        uintptr_t m = (uintptr_t)chk->model;
+
+        if ( p < 0x1000 || ( p >> 48 ) != 0 || !chk->model ||
+             m < 0x1000 || ( m >> 48 ) != 0 ||
+             chk->n_packs <= 0 || chk->n_packs > 4096 )
+        {
+            return 0;
+        }
+        chk = chk->extend;
+    }
+    return 1;
+}
+#endif
+
 static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
 {
     int n_models, bound_flag;
@@ -191,6 +216,14 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
         {
             obj->free_count = 8;
 
+#ifdef PORT_BUILD
+            if ( obj->packs[ pack ] == NULL && !ValidExtendChain( obj ) )
+            {
+                obj->bound_mode = 0;
+                goto next_model;
+            }
+#endif
+
             if ( obj->packs[ pack ] == NULL && DG_MakeObjPacket( obj, pack, flag ) < 0 )
             {
                 obj->bound_mode = 0;
@@ -209,7 +242,9 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
                 DG_FreeObjPacket( obj, pack );
             }
         }
-
+#ifdef PORT_BUILD
+        next_model:
+#endif
         obj++;
     }
 }

@@ -161,8 +161,17 @@ static void ActStream(LPMGSDEMOACT lpAct)
                 uint32_t maps_off, models_off;
                 memcpy(&maps_off,   &raw[20], 4);
                 memcpy(&models_off, &raw[24], 4);
-                port_def.maps   = (DMO_MAP *)(raw + maps_off);
-                port_def.models = (DMO_MDL *)(raw + models_off);
+                printf("[DEMO] DMO_DEF: n_frames=%d n_maps=%d n_models=%d maps_off=0x%x models_off=0x%x\n",
+                       port_def.n_frames, port_def.n_maps, port_def.n_models, maps_off, models_off);
+                /* Validate offsets — must be reasonable (within ~64KB of struct start) */
+                if (maps_off > 0 && maps_off < 0x10000)
+                    port_def.maps = (DMO_MAP *)(raw + maps_off);
+                else
+                    port_def.maps = NULL;
+                if (models_off > 0 && models_off < 0x10000)
+                    port_def.models = (DMO_MDL *)(raw + models_off);
+                else
+                    port_def.models = NULL;
                 def = &port_def;
             }
 #else
@@ -301,17 +310,7 @@ static void ActStream(LPMGSDEMOACT lpAct)
             } else {
                 port_dat.adjust = NULL;
             }
-            {
-                struct sigaction sa = { .sa_handler = demo_sigbus_handler }, old_sa;
-                sigaction(SIGBUS, &sa, &old_sa);
-                if (sigsetjmp(demo_sigbus_jmp, 1) == 0) {
-                    status = FrameRunDemo(lpAct, &port_dat);
-                } else {
-                    printf("[DEMO] FrameRunDemo SIGBUS caught, skipping frame\n");
-                    status = 1;
-                }
-                sigaction(SIGBUS, &old_sa, NULL);
-            }
+            status = FrameRunDemo(lpAct, &port_dat);
         }
 #else
         status = FrameRunDemo(lpAct, (DMO_DAT *)def);
