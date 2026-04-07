@@ -402,7 +402,11 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
     for (int s = 0; s < num_samples; s++) {
         int mix_l = 0, mix_r = 0;
 
-        /* Stream audio bypass: read pre-decoded PCM for voices 21-22 */
+        /* Stream audio bypass: read pre-decoded PCM for voices 21-22.
+           Don't gate on v->active — the SPU voice may hit ADPCM end flags
+           in the ping-pong buffer and enter release/inactive state, but the
+           stream should keep playing. Volume comes from voice attributes
+           set by StrFadeInt. */
         if (stream_active) {
             int rd = stream_pcm_rd;
             if (rd < stream_pcm_wr_r || rd < stream_pcm_wr_l) {
@@ -412,14 +416,10 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
                 short sam_l = (rd < stream_pcm_wr_l) ? stream_pcm_l[rd] : 0;
 
                 /* Apply voice volumes (set by StrFadeInt) */
-                if (vr->active) {
-                    mix_l += ((int)sam_r * vr->vol_l) >> 15;
-                    mix_r += ((int)sam_r * vr->vol_r) >> 15;
-                }
-                if (vl->active) {
-                    mix_l += ((int)sam_l * vl->vol_l) >> 15;
-                    mix_r += ((int)sam_l * vl->vol_r) >> 15;
-                }
+                mix_l += ((int)sam_r * vr->vol_l) >> 15;
+                mix_r += ((int)sam_r * vr->vol_r) >> 15;
+                mix_l += ((int)sam_l * vl->vol_l) >> 15;
+                mix_r += ((int)sam_l * vl->vol_r) >> 15;
 
                 /* Advance read cursor — PSX SPU pitch is 4.12 fixed-point.
                    Pitch 0x1000 = 1.0 = 44100Hz (one decoded sample per output sample). */

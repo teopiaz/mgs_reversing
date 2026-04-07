@@ -426,6 +426,9 @@ int FrameRunDemo(DemoWork *work, DMO_DAT *data)
     }
 
     chara = data->chara;
+#ifdef PORT_BUILD
+    if (!chara) data->n_charas = 0;
+#endif
     for ( i = 0; i < data->n_charas; i++, chara++ )
     {
         node = work->chain.next;
@@ -460,7 +463,11 @@ int FrameRunDemo(DemoWork *work, DMO_DAT *data)
         InsertChain(&work->chain, node);
         node->used = 1;
 
+#ifdef PORT_BUILD
+        memcpy(&node->chara, chara, sizeof(DMO_CHA));
+#else
         node->chara = *chara;
+#endif
 
         // This function uses offset 0x34 of chara despite it seemingly only being 0x34 bytes in size
         if ( !MakeChara(work, (DMO_DATA_0x36 *)chara, node) )

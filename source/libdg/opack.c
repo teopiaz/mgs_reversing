@@ -8,11 +8,20 @@ STATIC int DG_AllocPacks( DG_OBJ *obj, int idx )
     int     total_packs = 0;
     DG_OBJ *object = obj;
 
-    while (object)
+#ifdef PORT_BUILD
+    if (!obj) return -1;
+#endif
+
     {
-        total_packs += object->n_packs;
-        object = object->extend;
+        int safety = 0;
+        while (object && safety++ < 256)
+        {
+            total_packs += object->n_packs;
+            object = object->extend;
+        }
     }
+
+    if (total_packs <= 0) return -1;
 
     if (!GV_AllocMemory2(idx, total_packs * sizeof(POLY_GT4), (void **)&obj->packs[idx]))
     {
@@ -26,6 +35,10 @@ STATIC void DG_InitPolyGT4Pack( DG_OBJ *obj, int idx )
     POLY_GT4 *pack;
 
     int rgbCode = 0x3E808080;
+
+#ifdef PORT_BUILD
+    if (!obj->model) return;
+#endif
 
     if ( !(obj->model->flags & DG_MODEL_TRANS) )
     {
@@ -136,6 +149,10 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int idx )
 
 int DG_MakeObjPacket( DG_OBJ *obj, int idx, int flags )
 {
+#ifdef PORT_BUILD
+    if (!obj || !obj->model || !obj->n_packs) return -1;
+#endif
+
     if (DG_AllocPacks(obj, idx) < 0)
     {
         return -1;
