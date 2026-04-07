@@ -516,17 +516,21 @@ void DG_TransChanl(DG_CHANL *chanl, int idx)
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
-        if (objs->bound_mode == 0) continue;
+        if (!objs || objs->n_models <= 0 || objs->bound_mode == 0) continue;
 
         DG_OBJ *obj = objs->objs;
         for (int mi = objs->n_models; mi > 0; mi--, obj++)
         {
-            if (obj->bound_mode == 0) continue;
+            if (!obj->model || obj->bound_mode == 0) continue;
             POLY_GT4 *pack = obj->packs[idx];
             if (!pack) continue;
 
             DG_OBJ *cur = obj;
-            while (cur) {
+            int safety = 0;
+            while (cur && safety++ < 256) {
+                uintptr_t p = (uintptr_t)cur;
+                if (p < 0x1000 || (p >> 48) != 0) break;
+                if (!cur->model || cur->n_packs <= 0 || cur->n_packs > 4096) break;
                 for (int fi = 0; fi < cur->n_packs; fi++)
                     pack[fi].tag |= 1;  /* ensure shade processes this face */
                 pack += cur->n_packs;
