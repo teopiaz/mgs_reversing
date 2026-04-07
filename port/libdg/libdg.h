@@ -38,8 +38,8 @@ typedef struct DG_RVECTOR
 
 typedef struct DG_PVECTOR
 {
-    long vxy;
-    long vz;
+    int vxy;    /* Must be 4 bytes (not long, which is 8 on 64-bit) */
+    int vz;     /* Struct must be 8 bytes = sizeof(SVECTOR) */
 } DG_PVECTOR;
 
 /*---------------------------------------------------------------------------*/
