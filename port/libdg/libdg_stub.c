@@ -163,6 +163,7 @@ int DG_LoadInitKmdar(unsigned char *buf, int id) { (void)buf; (void)id; return 0
 
 extern uint16_t vram[512][1024];
 extern void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color);
+extern int port_tri_r[3], port_tri_g[3], port_tri_b[3];
 extern int DG_CurrentGroupID;
 extern DG_CHANL DG_Chanls[3];
 
@@ -175,28 +176,45 @@ static void mat_transform(MATRIX *m, SVECTOR *in, int *ox, int *oy, int *oz)
     *oz = (m->m[2][0]*x + m->m[2][1]*y + m->m[2][2]*z) / 4096 + m->t[2];
 }
 
-/* Perspective project: world → screen (returns 0 if behind camera) */
-static int project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, int *sz)
+/* Perspective project: world → screen */
+static void project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, int *sz)
 {
     int cx, cy, cz;
     mat_transform(screen, vert, &cx, &cy, &cz);
-    /* Clamp to near plane instead of rejecting — avoids geometry pop-in
-       when camera is close to walls. PSX handles this via DG_DivideChanl. */
     if (cz < 4) cz = 4;
     *sx = (int)((long long)cx * dist / cz);
     *sy = (int)((long long)cy * dist / cz);
     *sz = cz;
-    return 1;
+}
+
+/* Multiply two MATRIX: out = a * b (fixed-point 4.12) */
+static void mat_mul(MATRIX *a, MATRIX *b, MATRIX *out)
+{
+    for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 3; c++) {
+            out->m[r][c] = (short)((
+                (int)a->m[r][0] * b->m[0][c] +
+                (int)a->m[r][1] * b->m[1][c] +
+                (int)a->m[r][2] * b->m[2][c]
+            ) / 4096);
+        }
+    }
+    for (int r = 0; r < 3; r++) {
+        out->t[r] = (int)(
+            (long long)a->m[r][0] * b->t[0] +
+            (long long)a->m[r][1] * b->t[1] +
+            (long long)a->m[r][2] * b->t[2]
+        ) / 4096 + a->t[r];
+    }
 }
 
 /* Sample a texel from VRAM given tpage, clut, u, v */
 uint16_t sample_vram_texel(uint16_t tpage, uint16_t clut, int u, int v)
 {
-    /* Decode tpage: tp=color mode, base x/y in VRAM */
-    int tp = (tpage >> 7) & 0x3;    /* 0=4bit, 1=8bit, 2=16bit */
+    int tp = (tpage >> 7) & 0x3;
     int base_x = (tpage & 0xF) * 64;
     int base_y = ((tpage >> 4) & 0x1) * 256;
-    if (tpage & 0x800) base_y += 512; /* bit 11 */
+    if (tpage & 0x800) base_y += 512;
 
     int clut_x = (clut & 0x3F) * 16;
     int clut_y = (clut >> 6) & 0x1FF;
@@ -233,28 +251,6 @@ uint16_t sample_vram_texel(uint16_t tpage, uint16_t clut, int u, int v)
     }
 }
 
-/* Multiply two MATRIX: out = a * b (fixed-point 4.12) */
-static void mat_mul(MATRIX *a, MATRIX *b, MATRIX *out)
-{
-    /* Rotation: matches GTE MulMatrix0 (32-bit intermediate) */
-    for (int r = 0; r < 3; r++) {
-        for (int c = 0; c < 3; c++) {
-            out->m[r][c] = (short)((
-                (int)a->m[r][0] * b->m[0][c] +
-                (int)a->m[r][1] * b->m[1][c] +
-                (int)a->m[r][2] * b->m[2][c]
-            ) / 4096);
-        }
-    }
-    for (int r = 0; r < 3; r++) {
-        out->t[r] = (int)(
-            (long long)a->m[r][0] * b->t[0] +
-            (long long)a->m[r][1] * b->t[1] +
-            (long long)a->m[r][2] * b->t[2]
-        ) / 4096 + a->t[r];
-    }
-}
-
 int port_get_objs_count(void)
 {
     return DG_Chanls[1].objs_index;
@@ -263,7 +259,11 @@ int port_get_objs_count(void)
 /* Last-frame draw count — read by test_server.c for get_state */
 int port_last_drawn_faces = 0;
 
-/* Render all queued DG_OBJS directly to VRAM */
+/*---------------------------------------------------------------------------*/
+/* Hybrid renderer: uses old projection for screen XY (known working),       */
+/* but reads per-vertex colors from POLY_GT4 packs (shade pipeline output)   */
+/* and UVs from packs (opack pipeline output) for correct PSX shading.       */
+/*---------------------------------------------------------------------------*/
 static int render_debug = 0;
 void port_RenderObjects(int idx)
 {
@@ -272,34 +272,7 @@ void port_RenderObjects(int idx)
     int dist = chanl->clip_distance;
     if (dist <= 0) dist = 256;
 
-    /* Camera override from imgui debug panel */
-    extern int imgui_cam_override;
-    extern int imgui_cam_eye_inv_t[3];
-    extern int imgui_cam_clip_dist;
-    extern short imgui_cam_eye_inv_m[3][3];
-    MATRIX cam_override;
-    if (imgui_cam_override) {
-        for (int r = 0; r < 3; r++)
-            for (int c = 0; c < 3; c++)
-                cam_override.m[r][c] = imgui_cam_eye_inv_m[r][c];
-        cam_override.t[0] = imgui_cam_eye_inv_t[0];
-        cam_override.t[1] = imgui_cam_eye_inv_t[1];
-        cam_override.t[2] = imgui_cam_eye_inv_t[2];
-        dist = imgui_cam_clip_dist;
-    }
-
-    int total_faces = 0;
-    int drawn_faces = 0;
-
-    /* Check for DG_PRIM objects in the channel queue */
-    int n_prims = chanl->queue_size - chanl->prim_index;
-    if (render_debug < 3 && n_prims > 0) {
-        printf("[render] %d DG_PRIM objects in queue\n", n_prims);
-    }
-
-    /* Reset draw area clip to full screen for 3D rendering.
-       The OT walker may have set a small clip rect (e.g., for radar)
-       that would otherwise clip all 3D geometry. */
+    /* Reset draw area clip to full screen for 3D rendering */
     {
         extern int clip_x0, clip_y0, clip_x1, clip_y1;
         clip_x0 = 0; clip_y0 = 0; clip_x1 = 319; clip_y1 = 223;
@@ -312,9 +285,7 @@ void port_RenderObjects(int idx)
 
     DG_OBJS **queue = (DG_OBJS **)chanl->queue;
 
-    /* Skip rendering during stage transitions — the queue may contain
-       dangling pointers to DG_OBJS that were freed during stage unload.
-       Also skip for the first few frames after load to let the queue stabilize. */
+    /* Skip rendering during stage transitions */
     {
         extern int GM_LoadComplete;
         static int frames_since_load = 999;
@@ -323,25 +294,16 @@ void port_RenderObjects(int idx)
     }
 
     render_debug++;
-    if ((render_debug % 120) == 0 && chanl->objs_index > 5) {
-        printf("[PORT] frame=%d objs=%d\n", render_debug, chanl->objs_index);
-        DG_OBJS **dq = chanl->queue;
-        for (int qi = 0; qi < chanl->objs_index; qi++) {
-            DG_OBJS *o = dq[qi];
-            if (!o) continue;
-            // printf("[PORT] obj%d n=%d bm=%d fl=0x%x t=[%d,%d,%d]\n",
-            //        qi, o->n_models, o->bound_mode, o->flag,
-            //        o->world.t[0], o->world.t[1], o->world.t[2]);
-        }
-    }
+    int drawn_faces = 0;
+
+    extern uint16_t port_tex_tpage, port_tex_clut;
+    extern int port_tex_enabled, port_tex_semi_trans, port_tex_abr;
+    extern int port_tri_u[3], port_tri_v[3];
+
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
         if (!objs) continue;
-        /* Validate pointers — queue may contain dangling entries after
-           actors are destroyed during cutscene transitions.
-           Check def pointer is in a plausible heap range (not low addresses,
-           not obvious poison values like 0x0101..., 0xDEAD..., etc.) */
         {
             uintptr_t dp = (uintptr_t)objs->def;
             if (!dp || dp < 0x100000 || ((dp & 0xFFFF) == 0x1010) || ((dp >> 32) == 0x01010101)) continue;
@@ -360,9 +322,7 @@ void port_RenderObjects(int idx)
             DG_MDL *mdl = obj->model;
             if (!mdl->vertices || !mdl->vindices) continue;
 
-            /* Compute screen matrix from eye_inv * world.
-               Use per-model obj->world if rotation is set (non-zero m[]),
-               otherwise fall back to parent objs->world. */
+            /* Compute screen matrix for projection */
             MATRIX screen_mat;
             {
                 MATRIX *world;
@@ -370,20 +330,26 @@ void port_RenderObjects(int idx)
                 int is_zero = 1;
                 for (int k = 0; k < 9; k++) { if (m[k]) { is_zero = 0; break; } }
                 world = is_zero ? &objs->world : &obj->world;
-                mat_mul(imgui_cam_override ? &cam_override : &chanl->eye_inv, world, &screen_mat);
-                /* Apply DG_AdjustOverscan Y scaling AFTER multiply (matches PSX) */
+                mat_mul(&chanl->eye_inv, world, &screen_mat);
                 screen_mat.m[1][0] = (screen_mat.m[1][0] * 58) / 64;
                 screen_mat.m[1][1] = (screen_mat.m[1][1] * 58) / 64;
                 screen_mat.m[1][2] = (screen_mat.m[1][2] * 58) / 64;
                 screen_mat.t[1] = (screen_mat.t[1] * 58) / 64;
             }
 
+            /* Color pack pointer — only valid if shade pipeline wrote correct colors.
+               Skip DG_MODEL_INDIRECT models: shade.c's DG_ShadePacksIndirect
+               dereferences r0/g0/b0 as a 32-bit pointer, broken on 64-bit. */
+            POLY_GT4 *color_packs = ((objs->flag & DG_FLAG_SHADE) && objs->bound_mode && obj->bound_mode
+                                     && !(mdl->flags & DG_MODEL_INDIRECT))
+                                    ? obj->packs[idx] : NULL;
+
             SVECTOR *verts = mdl->vertices;
             unsigned char *vindices = mdl->vindices;
             unsigned char *texcoords = mdl->texcoords;
             unsigned short *materials = mdl->materials;
-            CVECTOR *rgbs = obj->rgbs;
             int n_faces = mdl->n_faces;
+
             for (int fi = 0; fi < n_faces; fi++)
             {
                 unsigned int vi = ((unsigned int *)vindices)[fi];
@@ -393,19 +359,14 @@ void port_RenderObjects(int idx)
                 int i3 = (vi >> 24) & 0x7F;
 
                 int sx0, sy0, sz0, sx1, sy1, sz1, sx2, sy2, sz2, sx3, sy3, sz3;
-
                 project(&screen_mat, &verts[i0], dist, &sx0, &sy0, &sz0);
                 project(&screen_mat, &verts[i1], dist, &sx1, &sy1, &sz1);
                 project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2);
                 project(&screen_mat, &verts[i3], dist, &sx3, &sy3, &sz3);
 
-                /* Skip faces entirely off-screen.
-                   Use wider bounds (±320/±224) to avoid clipping faces that
-                   partially overlap the screen edge. The rasterizer clips to
-                   the actual 320x224 framebuffer. */
+                /* Off-screen cull */
                 {
-                    int minx = sx0, maxx = sx0;
-                    int miny = sy0, maxy = sy0;
+                    int minx = sx0, maxx = sx0, miny = sy0, maxy = sy0;
                     if (sx1 < minx) minx = sx1; if (sx1 > maxx) maxx = sx1;
                     if (sx2 < minx) minx = sx2; if (sx2 > maxx) maxx = sx2;
                     if (sx3 < minx) minx = sx3; if (sx3 > maxx) maxx = sx3;
@@ -415,30 +376,48 @@ void port_RenderObjects(int idx)
                     if (maxx < -320 || minx > 320 || maxy < -224 || miny > 224) continue;
                 }
 
-                total_faces++;
-
-                /* PSX uses nclip(v0,v1,v2) and culls when area <= 0. */
+                /* Backface cull */
                 int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
                 if (area <= 0) {
                     if (!(mdl->flags & DG_MODEL_BOTHFACE) || area == 0) continue;
                 }
 
-                /* Screen → framebuffer (PSX center at 160,112) */
-                int fx0 = sx0 + 160, fy0 = sy0 + 112;
-                int fx1 = sx1 + 160, fy1 = sy1 + 112;
-                int fx2 = sx2 + 160, fy2 = sy2 + 112;
-                int fx3 = sx3 + 160, fy3 = sy3 + 112;
+                /* Screen → framebuffer */
+                int fx0 = sx0+160, fy0 = sy0+112;
+                int fx1 = sx1+160, fy1 = sy1+112;
+                int fx2 = sx2+160, fy2 = sy2+112;
+                int fx3 = sx3+160, fy3 = sy3+112;
 
-                /* Set Z for depth testing */
-                int avgz = (sz0 + sz1 + sz2 + sz3) / 4;
+                int avgz = (sz0+sz1+sz2+sz3) / 4;
                 port_current_z = (avgz > 0xFFFF) ? 0xFFFF : (avgz < 0 ? 0 : avgz);
 
-                /* Texture setup */
-                extern uint16_t port_tex_tpage, port_tex_clut;
-                extern int port_tex_enabled, port_tex_semi_trans, port_tex_abr;
-                extern int port_tri_u[3], port_tri_v[3];
+                /* Per-vertex colors (priority order):
+                   1. obj->rgbs + DG_FLAG_PAINT — preshaded (characters with dynamic lights)
+                   2. POLY_GT4 packs + DG_FLAG_SHADE — shade pipeline output (level geometry)
+                   3. Neutral 128 — fallback (no shading) */
+                int cr[4], cg[4], cb[4];
+                if ((objs->flag & DG_FLAG_PAINT) && obj->rgbs) {
+                    /* Preshade: 4 CVECTORs per face in KMD vertex order */
+                    CVECTOR *fc = &obj->rgbs[fi * 4];
+                    cr[0] = fc[0].r; cg[0] = fc[0].g; cb[0] = fc[0].b;
+                    cr[1] = fc[1].r; cg[1] = fc[1].g; cb[1] = fc[1].b;
+                    cr[2] = fc[2].r; cg[2] = fc[2].g; cb[2] = fc[2].b;
+                    cr[3] = fc[3].r; cg[3] = fc[3].g; cb[3] = fc[3].b;
+                } else if (color_packs) {
+                    /* Shade pipeline: pack vertex order r0=v0, r1=v1, r2=KMD_v3, r3=KMD_v2 */
+                    POLY_GT4 *pk = &color_packs[fi];
+                    cr[0] = pk->r0; cg[0] = pk->g0; cb[0] = pk->b0;
+                    cr[1] = pk->r1; cg[1] = pk->g1; cb[1] = pk->b1;
+                    cr[2] = pk->r3; cg[2] = pk->g3; cb[2] = pk->b3;
+                    cr[3] = pk->r2; cg[3] = pk->g2; cb[3] = pk->b2;
+                } else {
+                    cr[0]=cr[1]=cr[2]=cr[3] = 128;
+                    cg[0]=cg[1]=cg[2]=cg[3] = 128;
+                    cb[0]=cb[1]=cb[2]=cb[3] = 128;
+                }
 
-                uint16_t color = 0x4210; /* default grey */
+                /* Texture UVs from model data (reliable, always available) */
+                uint16_t color = 0x4210;
                 port_tex_enabled = 0;
                 port_tex_semi_trans = (mdl->flags & DG_MODEL_TRANS) ? 1 : 0;
 
@@ -448,51 +427,58 @@ void port_RenderObjects(int idx)
                     if (tex && (tex->w > 0 || tex->h > 0)) {
                         unsigned char *tc = &texcoords[fi * 8];
                         int tw = tex->w + 1, th = tex->h + 1;
-                        /* Compute UV for all 4 vertices.
-                           KMD texcoord order: v0(0,1) v1(2,3) v2(4,5) v3(6,7)
-                           (sequential, unlike POLY_GT4 which swaps v2/v3) */
                         int uv[4][2];
-                        uv[0][0] = ((tc[0] * tw) / 256) + tex->off_x;
-                        uv[0][1] = ((tc[1] * th) / 256) + tex->off_y;
-                        uv[1][0] = ((tc[2] * tw) / 256) + tex->off_x;
-                        uv[1][1] = ((tc[3] * th) / 256) + tex->off_y;
-                        uv[2][0] = ((tc[4] * tw) / 256) + tex->off_x;
-                        uv[2][1] = ((tc[5] * th) / 256) + tex->off_y;
-                        uv[3][0] = ((tc[6] * tw) / 256) + tex->off_x;
-                        uv[3][1] = ((tc[7] * th) / 256) + tex->off_y;
+                        uv[0][0] = ((tc[0]*tw)/256) + tex->off_x;
+                        uv[0][1] = ((tc[1]*th)/256) + tex->off_y;
+                        uv[1][0] = ((tc[2]*tw)/256) + tex->off_x;
+                        uv[1][1] = ((tc[3]*th)/256) + tex->off_y;
+                        uv[2][0] = ((tc[4]*tw)/256) + tex->off_x;
+                        uv[2][1] = ((tc[5]*th)/256) + tex->off_y;
+                        uv[3][0] = ((tc[6]*tw)/256) + tex->off_x;
+                        uv[3][1] = ((tc[7]*th)/256) + tex->off_y;
 
                         port_tex_tpage = tex->tpage;
                         port_tex_clut = tex->clut;
                         port_tex_abr = (tex->tpage >> 5) & 0x3;
                         port_tex_enabled = 1;
 
-                        /* Sample center for fallback flat color */
                         int cu = (uv[0][0]+uv[1][0]+uv[2][0]+uv[3][0])/4;
                         int cv = (uv[0][1]+uv[1][1]+uv[2][1]+uv[3][1])/4;
                         uint16_t texel = sample_vram_texel(tex->tpage, tex->clut, cu, cv);
                         if (texel) color = texel;
 
-                        /* Quad split: (v0,v1,v3) and (v1,v2,v3) — this worked for mesh.
-                           UV must match: screen v0→uv0, v1→uv1, v2→uv2, v3→uv3 */
-                        extern int port_tri_z[3];
-                        port_tri_u[0] = uv[0][0]; port_tri_v[0] = uv[0][1]; port_tri_z[0] = sz0;
-                        port_tri_u[1] = uv[1][0]; port_tri_v[1] = uv[1][1]; port_tri_z[1] = sz1;
-                        port_tri_u[2] = uv[3][0]; port_tri_v[2] = uv[3][1]; port_tri_z[2] = sz3;
-                        draw_flat_tri(fx0, fy0, fx1, fy1, fx3, fy3, color);
+                        /* Tri 1: v0, v1, v3 */
+                        port_tri_u[0]=uv[0][0]; port_tri_v[0]=uv[0][1];
+                        port_tri_u[1]=uv[1][0]; port_tri_v[1]=uv[1][1];
+                        port_tri_u[2]=uv[3][0]; port_tri_v[2]=uv[3][1];
+                        port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
+                        port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
+                        port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                        draw_flat_tri(fx0,fy0, fx1,fy1, fx3,fy3, color);
 
-                        port_tri_u[0] = uv[1][0]; port_tri_v[0] = uv[1][1]; port_tri_z[0] = sz1;
-                        port_tri_u[1] = uv[2][0]; port_tri_v[1] = uv[2][1]; port_tri_z[1] = sz2;
-                        port_tri_u[2] = uv[3][0]; port_tri_v[2] = uv[3][1]; port_tri_z[2] = sz3;
-                        draw_flat_tri(fx1, fy1, fx2, fy2, fx3, fy3, color);
+                        /* Tri 2: v1, v2, v3 */
+                        port_tri_u[0]=uv[1][0]; port_tri_v[0]=uv[1][1];
+                        port_tri_u[1]=uv[2][0]; port_tri_v[1]=uv[2][1];
+                        port_tri_u[2]=uv[3][0]; port_tri_v[2]=uv[3][1];
+                        port_tri_r[0]=cr[1]; port_tri_g[0]=cg[1]; port_tri_b[0]=cb[1];
+                        port_tri_r[1]=cr[2]; port_tri_g[1]=cg[2]; port_tri_b[1]=cb[2];
+                        port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                        draw_flat_tri(fx1,fy1, fx2,fy2, fx3,fy3, color);
 
                         port_tex_enabled = 0;
                     } else {
-                        draw_flat_tri(fx0, fy0, fx1, fy1, fx3, fy3, color);
-                        draw_flat_tri(fx1, fy1, fx2, fy2, fx3, fy3, color);
+                        goto untextured;
                     }
                 } else {
-                    draw_flat_tri(fx0, fy0, fx1, fy1, fx3, fy3, color);
-                    draw_flat_tri(fx1, fy1, fx2, fy2, fx3, fy3, color);
+                untextured:
+                    port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
+                    port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
+                    port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                    draw_flat_tri(fx0,fy0, fx1,fy1, fx3,fy3, color);
+                    port_tri_r[0]=cr[1]; port_tri_g[0]=cg[1]; port_tri_b[0]=cb[1];
+                    port_tri_r[1]=cr[2]; port_tri_g[1]=cg[2]; port_tri_b[1]=cb[2];
+                    port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                    draw_flat_tri(fx1,fy1, fx2,fy2, fx3,fy3, color);
                 }
                 drawn_faces++;
             }
@@ -500,11 +486,6 @@ void port_RenderObjects(int idx)
     }
 
     port_last_drawn_faces = drawn_faces;
-
-    if ((render_debug % 60) == 0 && chanl->objs_index > 0) {
-        printf("[PORT] faces=%d visible=%d objs=%d\n",
-               drawn_faces, total_faces, chanl->objs_index);
-    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -525,7 +506,33 @@ void DG_SortChanl(DG_CHANL *chanl, int idx)
     DG_DrawOTag(idx);
 }
 
-/* trans.c — no-op, rendering done by port_RenderObjects */
+/* trans.c — stub: we use our own projection, but we must set pack tags
+   to non-zero so shade.c processes all faces (shade checks tag & 0xFFFF,
+   skips faces where it's 0, leaving garbage colors in the pack). */
 void DG_TransStart(void) {}
-void DG_TransChanl(DG_CHANL *chanl, int idx) { (void)chanl; (void)idx; }
+void DG_TransChanl(DG_CHANL *chanl, int idx)
+{
+    DG_OBJS **queue = chanl->queue;
+    for (int n = chanl->objs_index; n > 0; n--)
+    {
+        DG_OBJS *objs = *queue++;
+        if (objs->bound_mode == 0) continue;
+
+        DG_OBJ *obj = objs->objs;
+        for (int mi = objs->n_models; mi > 0; mi--, obj++)
+        {
+            if (obj->bound_mode == 0) continue;
+            POLY_GT4 *pack = obj->packs[idx];
+            if (!pack) continue;
+
+            DG_OBJ *cur = obj;
+            while (cur) {
+                for (int fi = 0; fi < cur->n_packs; fi++)
+                    pack[fi].tag |= 1;  /* ensure shade processes this face */
+                pack += cur->n_packs;
+                cur = cur->extend;
+            }
+        }
+    }
+}
 void DG_TransEnd(void) {}
