@@ -368,6 +368,7 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
         out[s * 2 + 0] = (short)mix_l;
         out[s * 2 + 1] = (short)mix_r;
     }
+
 }
 
 /*---------------------------------------------------------------------------*/
