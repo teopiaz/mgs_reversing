@@ -25,6 +25,7 @@ uint16_t port_zbuf[224][320];
 static int disp_x = 0, disp_y = 0;
 static int disp_w = 320, disp_h = 224;
 static int draw_x = 0, draw_y = 0;
+void port_set_draw_offset(int x, int y) { draw_x = x; draw_y = y; }
 /* GPU draw area clipping (set by E3/E4 commands, reset by port_RenderObjects) */
 int clip_x0 = 0, clip_y0 = 0, clip_x1 = 319, clip_y1 = 223;
 int port_ot_buffer_index = 0;  /* Set by DG_DrawOTag before OT walk */

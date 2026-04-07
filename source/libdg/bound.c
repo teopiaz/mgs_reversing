@@ -211,6 +211,11 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
         {
             bound_flag = 2;
 
+#ifdef PORT_BUILD
+            /* Skip GTE frustum culling - the port's projection differs from
+               PSX GTE, causing incorrect object culling. Always mark visible. */
+            (void)flag;
+#else
             if ( flag & DG_FLAG_BOUND )
             {
                 gte_SetRotMatrix( &obj->screen );
@@ -218,6 +223,7 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
                 MakeBoundVerts( &obj->model->lx );
                 bound_flag = BoundCheck( VXY[ 1 ] );
             }
+#endif
         }
 
         obj->bound_mode = bound_flag;
