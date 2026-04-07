@@ -584,7 +584,7 @@ static int MakeChara(DemoWork *work, DMO_DATA_0x36 *data, ACTNODE *node)
     DG_SetPos2(&svec1, &svec2);
     ReadRotMatrix(&mat2);
 
-#ifdef PORT_BUILD
+#ifdef PORT_BUILD_VERBOSE
     {
         static int _mc = 0;
         if (_mc < 20) {
