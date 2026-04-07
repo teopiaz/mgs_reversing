@@ -109,6 +109,13 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
         return 0;
     }
 
+#ifdef PORT_BUILD
+    if (!header->maps || !header->models || header->n_maps <= 0 || header->n_models <= 0) {
+        printf("[DEMO] CreateDemo: invalid header (maps=%p models=%p n_maps=%d n_models=%d)\n",
+               (void*)header->maps, (void*)header->models, header->n_maps, header->n_models);
+        return 0;
+    }
+#endif
     memcpy(lpAct->header->maps, header->maps, sizeof(DMO_MAP) * lpAct->header->n_maps);
     memcpy(lpAct->header->models, header->models, sizeof(DMO_MDL) * lpAct->header->n_models);
 
