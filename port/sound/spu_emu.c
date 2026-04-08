@@ -88,7 +88,7 @@ static short stream_pcm_r[STREAM_PCM_MAX];
 static short stream_pcm_l[STREAM_PCM_MAX];
 static volatile int stream_pcm_wr_r = 0;  /* write cursor (game thread) */
 static volatile int stream_pcm_wr_l = 0;
-static volatile int stream_pcm_rd = 0;    /* read cursor (audio thread) */
+volatile int stream_pcm_rd = 0;           /* read cursor (audio thread) — extern'd by main_game.c */
 static int stream_active = 0;
 static unsigned long stream_base_r = 0;   /* SPU RAM addr of right buffer */
 static unsigned long stream_base_l = 0;   /* SPU RAM addr of left buffer */

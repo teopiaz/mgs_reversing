@@ -353,22 +353,21 @@ void game_tick(void)
                     UserSpuIRQProc();
                 }
 
-                /* Override dword_800BF270 with actual SPU voice playback position.
-                   On PSX, UserSpuIRQProc increments this counter at ~88Hz in sync
-                   with hardware playback. In the port, the SDL audio thread runs
-                   independently, so we derive the position from voice 20's cur_addr
-                   (SPU_21CH = right stream channel) relative to the ping-pong buffer. */
+                /* Override dword_800BF270 based on stream PCM read cursor.
+                   On PSX, UserSpuIRQProc increments this at ~88Hz in sync with
+                   SPU hardware. In the port, the stream PCM bypass reads decoded
+                   audio directly — voice 21 doesn't advance cur_addr. Instead,
+                   derive the position from stream_pcm_rd, converting PCM samples
+                   back to ADPCM byte position (28 samples = 16 bytes). */
                 {
                     extern volatile int str_status;
-                    extern int spu_bgm_start_ptr_r;
                     extern int dword_800BF270;
-                    extern unsigned long spu_get_voice_cur_addr(int ch);
+                    extern volatile int stream_pcm_rd;
                     if (str_status >= 5) {
-                        unsigned long va = spu_get_voice_cur_addr(21); /* SPU_21CH = voice 21 */
-                        unsigned long base = (unsigned long)spu_bgm_start_ptr_r;
-                        if (va >= base && va < base + 0x2000) {
-                            dword_800BF270 = (int)((va - base) & 0x1FFF);
-                        }
+                        /* Convert PCM sample position to ADPCM byte position.
+                           28 PCM samples = 16 ADPCM bytes. Wrap at 0x2000 (8KB). */
+                        int adpcm_pos = (stream_pcm_rd / 28) * 16;
+                        dword_800BF270 = adpcm_pos & 0x1FFF;
                     }
                 }
             }
