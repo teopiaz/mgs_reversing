@@ -117,7 +117,7 @@ int *GCL_SetArgStack(GCL_ARGS *args)
 {
     int *sp;
     int *sp2;
-    int *argv;
+    long *argv;  /* Must be long* to match args->argv stride (8 bytes on 64-bit) */
     int  i;
     int *org;
 
@@ -126,7 +126,7 @@ int *GCL_SetArgStack(GCL_ARGS *args)
         return NULL;
     }
 
-    argv = (int *)&args->argv[args->argc - 1];
+    argv = &args->argv[args->argc - 1];
     i = args->argc;
     org = argstack_p;
 
@@ -134,7 +134,7 @@ int *GCL_SetArgStack(GCL_ARGS *args)
     {
         // stack push
         sp = argstack_p;
-        *sp = *argv;
+        *sp = (int)*argv;  /* truncate long to int for stack */
         argstack_p = sp + 1;
 
         argv--;
