@@ -195,18 +195,28 @@ int main(int argc, char *argv[])
 
     g_running = true;
     {
-        /* Frame timing: 30fps cap for both logic and display */
-        const double FRAME_TIME_MS = 1000.0 / 60.0;  /* 33.33ms per frame */
+        /* Display runs at 60fps, game logic + sound at 30fps.
+           Input and rendering happen every frame; game_tick runs every other. */
+        const double FRAME_TIME_MS = 1000.0 / 60.0;  /* 16.67ms per frame */
         Uint64 freq = SDL_GetPerformanceFrequency();
         Uint64 frame_start = SDL_GetPerformanceCounter();
+        int frame_counter = 0;
 
         while (g_running)
         {
             port_poll_events();
             port_update_pad();
-            game_tick();
+
+            /* Game logic + sound at 30fps (every other frame) */
+            if ((frame_counter & 1) == 0) {
+                game_tick();
+            }
+
+            /* Rendering at 60fps (every frame) */
             port_render();
             TEST_HARNESS_tick();
+
+            frame_counter++;
 
             /* Frame limiter: sleep until next 60fps boundary */
             {
