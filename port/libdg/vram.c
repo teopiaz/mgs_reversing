@@ -599,18 +599,64 @@ void port_DrawOTag(unsigned long *ot)
                 break;
             }
             case 0x24: /* POLY_FT3 */
-            case 0x2C: /* POLY_FT4 */
+            case 0x2C: /* POLY_FT4 — textured flat-shaded quad */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                {
+                    static int _ft4 = 0;
+                    if (_ft4++ < 10)
+                        printf("[POLY_FT4] rgb=(%d,%d,%d) xy=(%d,%d) uv=(%d,%d) tpage=0x%x clut=0x%x draw_ofs=(%d,%d)\n",
+                               r, g, b,
+                               *(short *)(data+4), *(short *)(data+6),
+                               data[8], data[9],
+                               *(uint16_t *)(data+18), *(uint16_t *)(data+10),
+                               draw_x, draw_y);
+                }
+                short x0 = *(short *)(data + 4),  y0 = *(short *)(data + 6);
+                unsigned char u0 = data[8], v0 = data[9];
+                uint16_t clut = *(uint16_t *)(data + 10);
+                short x1 = *(short *)(data + 12), y1 = *(short *)(data + 14);
+                unsigned char u1 = data[16], v1 = data[17];
+                uint16_t tpage = *(uint16_t *)(data + 18);
+                short x2 = *(short *)(data + 20), y2 = *(short *)(data + 22);
+                unsigned char u2 = data[24], v2 = data[25];
+                short x3 = *(short *)(data + 28), y3 = *(short *)(data + 30);
+                unsigned char u3 = data[32], v3 = data[33];
+
+                /* Apply draw offset */
+                int fx0 = x0 + draw_x, fy0 = y0 + draw_y;
+                int fx1 = x1 + draw_x, fy1 = y1 + draw_y;
+                int fx2 = x2 + draw_x, fy2 = y2 + draw_y;
+                int fx3 = x3 + draw_x, fy3 = y3 + draw_y;
+
+                /* PSX quad: v0-v1 / v2-v3, draw as two textured triangles */
+                port_tex_tpage = tpage;
+                port_tex_clut = clut;
+                port_tex_enabled = 1;
+                port_tex_semi_trans = 0;
+
+                port_tri_r[0] = r; port_tri_g[0] = g; port_tri_b[0] = b;
+                port_tri_r[1] = r; port_tri_g[1] = g; port_tri_b[1] = b;
+                port_tri_r[2] = r; port_tri_g[2] = g; port_tri_b[2] = b;
+
+                port_tri_u[0] = u0; port_tri_v[0] = v0;
+                port_tri_u[1] = u1; port_tri_v[1] = v1;
+                port_tri_u[2] = u2; port_tri_v[2] = v2;
+                draw_flat_tri(fx0, fy0, fx1, fy1, fx2, fy2, 0);
+
+                port_tri_u[0] = u1; port_tri_v[0] = v1;
+                port_tri_u[1] = u3; port_tri_v[1] = v3;
+                port_tri_u[2] = u2; port_tri_v[2] = v2;
+                draw_flat_tri(fx1, fy1, fx3, fy3, fx2, fy2, 0);
+
+                port_tex_enabled = 0;
+                prim_count++;
+                break;
+            }
             case 0x34: /* POLY_GT3 */
             case 0x3C: /* POLY_GT4 */
             {
-                /* Textured polygons — render as flat color for now */
-                unsigned char r = data[0], g = data[1], b = data[2];
-                short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
-                /* The vertex layout differs per type but x0,y0 is always at offset 4,6 */
-                uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
-                if (color == 0) color = 0x4210; /* dark gray if black */
-                /* Just draw a small marker for now */
-                port_DrawTile(x0, y0, 4, 4, r ? r : 64, g ? g : 64, b ? b : 64);
+                /* Gouraud textured polygons — stub for now */
                 prim_count++;
                 break;
             }

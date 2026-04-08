@@ -125,7 +125,8 @@ PORT_OBJ = \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o \
-	$(OBJDIR)/test_server.o
+	$(OBJDIR)/test_server.o \
+	$(OBJDIR)/strcode_lookup.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
 
@@ -224,6 +225,9 @@ $(OBJDIR)/ovl_%.o: $(SRCDIR)/overlays/%.c | $(OBJDIR)
 
 $(OBJDIR)/game_script_fix.o: game_script_fix.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -I libgcl_fix -c -o $@ $<
+
+$(OBJDIR)/strcode_lookup.o: strcode_lookup.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/link_stubs.o: link_stubs.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
