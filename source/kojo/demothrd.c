@@ -280,6 +280,17 @@ static void StreamAct(DemoWork *work)
                     memcpy(&port_adjusts[ai].pos_y,   &a[14], 2);
                     memcpy(&port_adjusts[ai].pos_z,   &a[16], 2);
                     memcpy(&port_adjusts[ai].n_rots,  &a[18], 2);
+                    {
+                        static int _adj_dbg = 0;
+                        if (_adj_dbg < 20)
+                            printf("[DMO_ADJ] ai=%d type=%d pos=(%d,%d,%d) raw=[%02x%02x %02x%02x %02x%02x %02x%02x %02x%02x %02x%02x %02x%02x %02x%02x %02x%02x %02x%02x%02x%02x]\n",
+                                   ai, port_adjusts[ai].type,
+                                   port_adjusts[ai].pos_x, port_adjusts[ai].pos_y, port_adjusts[ai].pos_z,
+                                   a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],
+                                   a[10],a[11],a[12],a[13],a[14],a[15],a[16],a[17],a[18],a[19],
+                                   a[20],a[21],a[22],a[23]);
+                        _adj_dbg++;
+                    }
                     uint32_t rots_off; memcpy(&rots_off, &a[20], 4);
                     if (rots_off && port_adjusts[ai].n_rots > 0) {
                         /* Copy rots to aligned buffer — raw stream data may be

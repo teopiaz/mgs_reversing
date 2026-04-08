@@ -2190,6 +2190,16 @@ static int demothrd_8007CFE8(DemoWork *work, DMO_ADJ *adjust)
         model->control.mov.vx = adjust->pos_x;
         model->control.mov.vy = adjust->pos_y;
         model->control.mov.vz = adjust->pos_z;
+#ifdef PORT_BUILD
+        {
+            static int _ap = 0;
+            if (_ap++ < 10)
+                printf("[adjust] pos=(%d,%d,%d) step=(%d,%d,%d) step_size=%d hzd_h=%d\n",
+                       adjust->pos_x, adjust->pos_y, adjust->pos_z,
+                       model->control.step.vx, model->control.step.vy, model->control.step.vz,
+                       model->control.step_size, model->control.hzd_height);
+        }
+#endif
         model->control.rot.vx = adjust->rot_x;
         model->control.rot.vy = adjust->rot_y;
         model->control.rot.vz = adjust->rot_z;
