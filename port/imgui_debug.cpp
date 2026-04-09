@@ -28,6 +28,7 @@ typedef struct {
 } ActorList;
 
 extern ActorList gActorsList_800ACC18[7];
+extern void GV_DestroyActorQuick(void *actor);
 extern int GV_Clock;
 extern int GV_Time;
 extern int GM_GameStatus;
@@ -278,6 +279,16 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                         idx, name,
                         active ? "Y" : "DEAD",
                         cur->count, cur->runtime);
+                    static ActorNode *selected = nullptr;
+                    // add a button to kill the actor (for testing)
+                    ImGui::SameLine();
+                    if (active && ImGui::SmallButton("Kill")) {
+                        ActorNode *next = cur->next;
+                        GV_DestroyActorQuick(cur);
+                        cur = next;
+                        idx++;
+                        continue;
+                    }
 
                     if (!active)
                         ImGui::PopStyleColor();

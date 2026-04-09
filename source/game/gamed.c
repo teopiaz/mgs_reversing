@@ -581,9 +581,9 @@ static void Act(gameWork *work)
                 spu_key |= spu_stat & 1;
             }
 
-            printf("str_status %d irq %x %X %X\n", str_status, dword_800BF1A8, dword_800BF270,
-                   str_off_idx);
-            printf("key %08X\n", spu_key);
+            // printf("str_status %d irq %x %X %X\n", str_status, dword_800BF1A8, dword_800BF270,
+            //        str_off_idx);
+            // printf("key %08X\n", spu_key);
         }
 
         if (GV_PauseLevel == 0)

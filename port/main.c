@@ -25,7 +25,7 @@ static void port_install_crash_handler(void)
 
 #define SCREEN_WIDTH  320
 #define SCREEN_HEIGHT 224
-#define WINDOW_SCALE  4
+#define WINDOW_SCALE  2
 
 static SDL_Window   *g_window;
 static SDL_Renderer *g_renderer;
