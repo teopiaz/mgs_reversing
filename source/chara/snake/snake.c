@@ -77,6 +77,8 @@ int GM_SetPlayerStatusFlag(PlayerStatusFlag flag)
 
     new = GM_PlayerStatus | flag;
     GM_PlayerStatus = new;
+    printf("GM_SetPlayerStatusFlag %x
+", flag);
     return new;
 }
 
