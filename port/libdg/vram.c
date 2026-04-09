@@ -489,9 +489,9 @@ void port_DrawOTag(unsigned long *ot)
     int prim_count = 0;
     int node_count = 0;
 
-    /* Apply deferred clear from previous PutDrawEnv (isbg=1).
-       This clears the draw area BEFORE rendering new OT prims,
-       matching PSX GPU behavior. */
+    /* Deferred clear is now applied in main_game.c before port_RenderObjects,
+       so 3D geometry isn't erased. If it wasn't consumed there (e.g. skip_render),
+       apply it here as fallback. */
     extern void port_apply_deferred_clear(void);
     port_apply_deferred_clear();
 

@@ -718,6 +718,10 @@ void port_update_pad(void)
 
     port_pad_buttons = b;
 
+    if (port_controller) {
+        printf("[pad] buttons=0x%04X lx=%d ly=%d\n", port_pad_buttons, port_pad_lx, port_pad_ly);
+    }
+
     /* Input recording/replay — supports mid-session switching via port_replay_start() */
     {
         static int io_init = 0;

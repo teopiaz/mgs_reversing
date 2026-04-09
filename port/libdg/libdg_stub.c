@@ -273,7 +273,7 @@ void port_RenderObjects(int idx)
     if (dist <= 0) dist = 256;
 
     /* Reset draw area and offset for 3D rendering — the OT walker may have
-       set draw_x/draw_y to a non-zero offset via GPU E5 command. */
+       set draw_x/draw_y to a non-zero offset via GPU E5 command. for the radar */
     {
         extern int clip_x0, clip_y0, clip_x1, clip_y1;
         extern void port_set_draw_offset(int x, int y);
@@ -303,6 +303,12 @@ void port_RenderObjects(int idx)
     extern int port_tex_enabled, port_tex_semi_trans, port_tex_abr;
     extern int port_tri_u[3], port_tri_v[3];
 
+    /* Hide Snake's body in first person view (offset 0x22 = GM_CAMERA.first_person) */
+    extern void *GM_PlayerBody;
+    extern char GM_Camera;  /* raw access */
+    DG_OBJS *player_objs = GM_PlayerBody ? *(DG_OBJS **)GM_PlayerBody : NULL;
+    short fp_mode = *(short *)((char *)&GM_Camera + 0x22);
+
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
@@ -315,6 +321,7 @@ void port_RenderObjects(int idx)
         if (!objs->objs) continue;
         if (objs->flag & DG_FLAG_INVISIBLE) continue;
         if (objs->group_id && !(objs->group_id & group_id)) continue;
+        if (fp_mode && objs == player_objs) continue;
 
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
@@ -377,6 +384,13 @@ void port_RenderObjects(int idx)
                     if (sy2 < miny) miny = sy2; if (sy2 > maxy) maxy = sy2;
                     if (sy3 < miny) miny = sy3; if (sy3 > maxy) maxy = sy3;
                     if (maxx < -320 || minx > 320 || maxy < -224 || miny > 224) continue;
+                }
+
+                /* Near-plane cull: skip faces too close to camera
+                (PSX doesn't do this, but it prevents projection artifacts and is cheap) */
+                {
+                    int near = 32;  // tune this value
+                    if (sz0 < near || sz1 < near || sz2 < near || sz3 < near) continue;
                 }
 
                 /* Backface cull */

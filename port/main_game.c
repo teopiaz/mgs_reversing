@@ -431,21 +431,12 @@ void game_tick(void)
             int skip_render = (DG_FrameRate == 2) || (DG_UnDrawFrameCount > 0);
 
             if (!skip_render) {
-                extern int GM_LoadComplete;
-                extern SVECTOR GM_PlayerPosition;
-                extern DG_CHANL DG_Chanls[];
-                if (GM_LoadComplete == 1) {
-                    int cam_x = DG_Chanls[1].eye.t[0];
-                    int cam_z = DG_Chanls[1].eye.t[2];
-                    if (cam_x == GM_PlayerPosition.vx &&
-                        cam_z == GM_PlayerPosition.vz) {
-                        skip_render = 1;  /* camera not initialized yet */
-                    }
-                }
-            }
-
-            if (!skip_render)
+                /* Apply deferred clear BEFORE 3D rendering, not during
+                   DG_DrawOTag (which runs after and would erase 3D). */
+                extern void port_apply_deferred_clear(void);
+                port_apply_deferred_clear();
                 port_RenderObjects(GV_Clock);
+            }
         }
         uint64_t ta2 = mach_absolute_time();
 
@@ -457,6 +448,7 @@ void game_tick(void)
             extern void DG_DrawOTag(int which);
             DG_DrawOTag(GV_Clock);
         }
+
         uint64_t ta3 = mach_absolute_time();
 
         t_swap += ts1 - ts0;

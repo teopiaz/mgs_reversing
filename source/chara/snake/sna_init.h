@@ -116,7 +116,7 @@ typedef struct ACTPACK
 
 typedef enum
 {
-    SNA_FLAG1_UNK1 = 0x1,
+    SNA_FLAG1_UNK1 = 0x1, //related to knockdown
     SNA_FLAG1_UNK2 = 0x2,
     SNA_FLAG1_UNK3 = 0x4,
     SNA_FLAG1_UNK4 = 0x8,
