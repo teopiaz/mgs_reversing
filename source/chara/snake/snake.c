@@ -75,6 +75,7 @@ int GM_SetPlayerStatusFlag(PlayerStatusFlag arg0)
 
     temp_v0 = GM_PlayerStatus | arg0;
     GM_PlayerStatus = temp_v0;
+    printf("GM_SetPlayerStatusFlag %x\n", arg0);
     return temp_v0;
 }
 

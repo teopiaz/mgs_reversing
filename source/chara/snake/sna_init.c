@@ -2295,6 +2295,7 @@ int sna_80051BA4(SnaInitWork *work)
     return 0;
 }
 
+// control the vertical movement of the camera while in First Person View (FPV)
 void sna_80051DA0(SnaInitWork *work)
 {
     unsigned int status = work->field_9B0_pad_ptr->status;
@@ -2308,7 +2309,7 @@ void sna_80051DA0(SnaInitWork *work)
     short var_a0;
     short var_a2;
 
-    // status is passed using the wrong type here
+    // status is passed using the wrong type here (??? what is this? not executed?)
     GM_CheckShukanReverse((unsigned short *)&status);
     GM_CheckShukanReverseAnalog(&ldy);
 
@@ -2396,6 +2397,7 @@ void sna_80051DA0(SnaInitWork *work)
     work->control.turn.vx = var_s0;
 }
 
+// control the horizontal movement of the camera while in First Person View (FPV)
 void sna_80051FD0(SnaInitWork *work)
 {
     int          iVar1;
@@ -7374,14 +7376,16 @@ static inline void sna_init_main_logic_helper4_800596FC(SnaInitWork *work)
     int     bVar6;
     int     iVar9;
 
+
+    // flicker visibility during the short knockdown invincibility
     if (GM_CheckPlayerStatusFlag(PLAYER_INVINCIBLE))
     {
         iframes = work->field_A24_invuln_frames;
-
         if (iframes != 0)
         {
             if (--iframes > 0)
             {
+                // hide and show snake
                 if (sna_init_main_logic_helper4_helper_800596FC(work))
                 {
                     if ((iframes & 3) != 0)
