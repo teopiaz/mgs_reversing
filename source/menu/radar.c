@@ -184,11 +184,15 @@ void drawBorder_800390FC(MenuWork *menuMan, u_long *ot)
 
 // gte_ldv0 but without the second load (only loads VXY0, not VZ0).
 // On PSX: lwc2 $0 loads the packed vx/vy of V0 from 4 bytes at r0.
+// Must also copy to IR registers since gte_rt() reads IR1/IR2/IR3.
 #define gte_ldv0h(r0) do {              \
     const short *_s = (const short *)(r0); \
     gte_state.V0.vx = _s[0];           \
     gte_state.V0.vy = _s[1];           \
     gte_state.V0.vz = 0;               \
+    gte_state.IR1 = _s[0];             \
+    gte_state.IR2 = _s[1];             \
+    gte_state.IR3 = 0;                 \
 } while(0)
 
 extern CONTROL         *GM_WhereList[96];
@@ -552,8 +556,14 @@ void drawMap_800391D0(MenuWork *work, u_long *ot, int arg2)
                 gte_rt();
 
                 LSTORE(rgb, &pLine->r0);
+#ifdef PORT_BUILD
+                /* Use handle-based OT linking (raw 24-bit pointers don't work on 64-bit) */
+                setlen(pLine, 3);
+                addPrim(ot2, pLine);
+#else
                 pLine->tag = *ot2 | 0x03000000;
                 *ot2 = (int)(pLine)&0xffffff;
+#endif
                 gte_stbh(&pLine->x1);
 
                 pLine++;
