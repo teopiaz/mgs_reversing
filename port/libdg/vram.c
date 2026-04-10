@@ -501,6 +501,11 @@ void port_DrawOTag(unsigned long *ot)
     clip_x0 = 0; clip_y0 = 0;
     clip_x1 = 319; clip_y1 = 223;
 
+    /* 2D OT primitives should always pass the z-test.
+       port_RenderObjects clears port_zbuf, but during codec (DG_FrameRate==2)
+       it's skipped, leaving stale z values that reject face pixels. */
+    port_current_z = 0;
+
     while (p && !isendprim(p))
     {
         unsigned long *next = (unsigned long *)nextPrim(p);
@@ -570,6 +575,10 @@ void port_DrawOTag(unsigned long *ot)
                 short x1 = *(short *)(data + 8), y1 = *(short *)(data + 10);
                 short x2 = *(short *)(data + 12), y2 = *(short *)(data + 14);
                 uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+                port_tex_enabled = 0;
+                port_tri_r[0]=port_tri_r[1]=port_tri_r[2] = 128;
+                port_tri_g[0]=port_tri_g[1]=port_tri_g[2] = 128;
+                port_tri_b[0]=port_tri_b[1]=port_tri_b[2] = 128;
                 draw_flat_tri(x0, y0, x1, y1, x2, y2, color);
                 if ((code & 0xFC) == 0x28) /* F4: draw second triangle */
                 {
@@ -579,39 +588,75 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
-            case 0x30: /* POLY_G3 */
-            case 0x38: /* POLY_G4 */
+            case 0x30: /* POLY_G3 — gouraud triangle */
             {
-                /* Use first vertex color for now */
-                unsigned char r = data[0], g = data[1], b = data[2];
-                short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
-                short x1, y1, x2, y2;
-                if ((code & 0xFC) == 0x30) {
-                    x1 = *(short *)(data + 12); y1 = *(short *)(data + 14);
-                    x2 = *(short *)(data + 20); y2 = *(short *)(data + 22);
-                } else {
-                    x1 = *(short *)(data + 12); y1 = *(short *)(data + 14);
-                    x2 = *(short *)(data + 20); y2 = *(short *)(data + 22);
-                }
-                uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
-                draw_flat_tri(x0, y0, x1, y1, x2, y2, color);
+                /* G3 layout: r0g0b0 code x0y0 r1g1b1 pad x1y1 r2g2b2 pad x2y2 */
+                short x0 = *(short *)(data + 4),  y0 = *(short *)(data + 6);
+                short x1 = *(short *)(data + 12), y1 = *(short *)(data + 14);
+                short x2 = *(short *)(data + 20), y2 = *(short *)(data + 22);
+                port_tex_enabled = 0;
+                port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
+                port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
+                port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
+                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
                 prim_count++;
                 break;
             }
-            case 0x24: /* POLY_FT3 */
+            case 0x38: /* POLY_G4 — gouraud quad */
+            {
+                /* G4 layout: r0g0b0 code x0y0 r1g1b1 pad x1y1 r2g2b2 pad x2y2 r3g3b3 pad x3y3 */
+                short x0 = *(short *)(data + 4),  y0 = *(short *)(data + 6);
+                short x1 = *(short *)(data + 12), y1 = *(short *)(data + 14);
+                short x2 = *(short *)(data + 20), y2 = *(short *)(data + 22);
+                short x3 = *(short *)(data + 28), y3 = *(short *)(data + 30);
+                port_tex_enabled = 0;
+                /* Tri 1: v0, v1, v2 */
+                port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
+                port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
+                port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
+                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
+                /* Tri 2: v1, v3, v2 */
+                port_tri_r[0] = data[8];  port_tri_g[0] = data[9];  port_tri_b[0] = data[10];
+                port_tri_r[1] = data[24]; port_tri_g[1] = data[25]; port_tri_b[1] = data[26];
+                port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
+                draw_flat_tri(x1, y1, x3, y3, x2, y2, 0x4210);
+                prim_count++;
+                break;
+            }
+            case 0x24: /* POLY_FT3 — textured flat-shaded triangle */
+            {
+                unsigned char r = data[0], g = data[1], b = data[2];
+                short x0 = *(short *)(data + 4),  y0 = *(short *)(data + 6);
+                unsigned char u0 = data[8], v0 = data[9];
+                uint16_t clut = *(uint16_t *)(data + 10);
+                short x1 = *(short *)(data + 12), y1 = *(short *)(data + 14);
+                unsigned char u1 = data[16], v1 = data[17];
+                uint16_t tpage = *(uint16_t *)(data + 18);
+                short x2 = *(short *)(data + 20), y2 = *(short *)(data + 22);
+                unsigned char u2 = data[24], v2 = data[25];
+
+                port_tex_tpage = tpage;
+                port_tex_clut = clut;
+                port_tex_enabled = 1;
+                port_tex_semi_trans = (code & 0x02) ? 1 : 0;
+                if (port_tex_semi_trans) port_tex_abr = (tpage >> 5) & 0x3;
+
+                port_tri_r[0] = r; port_tri_g[0] = g; port_tri_b[0] = b;
+                port_tri_r[1] = r; port_tri_g[1] = g; port_tri_b[1] = b;
+                port_tri_r[2] = r; port_tri_g[2] = g; port_tri_b[2] = b;
+
+                port_tri_u[0] = u0; port_tri_v[0] = v0;
+                port_tri_u[1] = u1; port_tri_v[1] = v1;
+                port_tri_u[2] = u2; port_tri_v[2] = v2;
+                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0);
+
+                port_tex_enabled = 0;
+                prim_count++;
+                break;
+            }
             case 0x2C: /* POLY_FT4 — textured flat-shaded quad */
             {
                 unsigned char r = data[0], g = data[1], b = data[2];
-                {
-                    static int _ft4 = 0;
-                    if (_ft4++ < 10)
-                        printf("[POLY_FT4] rgb=(%d,%d,%d) xy=(%d,%d) uv=(%d,%d) tpage=0x%x clut=0x%x draw_ofs=(%d,%d)\n",
-                               r, g, b,
-                               *(short *)(data+4), *(short *)(data+6),
-                               data[8], data[9],
-                               *(uint16_t *)(data+18), *(uint16_t *)(data+10),
-                               draw_x, draw_y);
-                }
                 short x0 = *(short *)(data + 4),  y0 = *(short *)(data + 6);
                 unsigned char u0 = data[8], v0 = data[9];
                 uint16_t clut = *(uint16_t *)(data + 10);
@@ -623,17 +668,11 @@ void port_DrawOTag(unsigned long *ot)
                 short x3 = *(short *)(data + 28), y3 = *(short *)(data + 30);
                 unsigned char u3 = data[32], v3 = data[33];
 
-                /* Apply draw offset */
-                int fx0 = x0 + draw_x, fy0 = y0 + draw_y;
-                int fx1 = x1 + draw_x, fy1 = y1 + draw_y;
-                int fx2 = x2 + draw_x, fy2 = y2 + draw_y;
-                int fx3 = x3 + draw_x, fy3 = y3 + draw_y;
-
-                /* PSX quad: v0-v1 / v2-v3, draw as two textured triangles */
                 port_tex_tpage = tpage;
                 port_tex_clut = clut;
                 port_tex_enabled = 1;
-                port_tex_semi_trans = 0;
+                port_tex_semi_trans = (code & 0x02) ? 1 : 0;
+                if (port_tex_semi_trans) port_tex_abr = (tpage >> 5) & 0x3;
 
                 port_tri_r[0] = r; port_tri_g[0] = g; port_tri_b[0] = b;
                 port_tri_r[1] = r; port_tri_g[1] = g; port_tri_b[1] = b;
@@ -642,21 +681,91 @@ void port_DrawOTag(unsigned long *ot)
                 port_tri_u[0] = u0; port_tri_v[0] = v0;
                 port_tri_u[1] = u1; port_tri_v[1] = v1;
                 port_tri_u[2] = u2; port_tri_v[2] = v2;
-                draw_flat_tri(fx0, fy0, fx1, fy1, fx2, fy2, 0);
+                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0);
 
                 port_tri_u[0] = u1; port_tri_v[0] = v1;
                 port_tri_u[1] = u3; port_tri_v[1] = v3;
                 port_tri_u[2] = u2; port_tri_v[2] = v2;
-                draw_flat_tri(fx1, fy1, fx3, fy3, fx2, fy2, 0);
+                draw_flat_tri(x1, y1, x3, y3, x2, y2, 0);
 
                 port_tex_enabled = 0;
                 prim_count++;
                 break;
             }
-            case 0x34: /* POLY_GT3 */
-            case 0x3C: /* POLY_GT4 */
+            case 0x34: /* POLY_GT3 — gouraud textured triangle */
             {
-                /* Gouraud textured polygons — stub for now */
+                unsigned char r0 = data[0], g0 = data[1], b0 = data[2];
+                short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
+                unsigned char u0 = data[8], v0 = data[9];
+                uint16_t clut = *(uint16_t *)(data + 10);
+                unsigned char r1 = data[12], g1 = data[13], b1 = data[14];
+                short x1 = *(short *)(data + 16), y1 = *(short *)(data + 18);
+                unsigned char u1 = data[20], v1 = data[21];
+                uint16_t tpage = *(uint16_t *)(data + 22);
+                unsigned char r2 = data[24], g2 = data[25], b2 = data[26];
+                short x2 = *(short *)(data + 28), y2 = *(short *)(data + 30);
+                unsigned char u2 = data[32], v2 = data[33];
+
+                port_tex_tpage = tpage;
+                port_tex_clut = clut;
+                port_tex_enabled = 1;
+                port_tex_semi_trans = (code & 0x02) ? 1 : 0;
+                if (port_tex_semi_trans) port_tex_abr = (tpage >> 5) & 0x3;
+
+                port_tri_r[0] = r0; port_tri_g[0] = g0; port_tri_b[0] = b0;
+                port_tri_r[1] = r1; port_tri_g[1] = g1; port_tri_b[1] = b1;
+                port_tri_r[2] = r2; port_tri_g[2] = g2; port_tri_b[2] = b2;
+                port_tri_u[0] = u0; port_tri_v[0] = v0;
+                port_tri_u[1] = u1; port_tri_v[1] = v1;
+                port_tri_u[2] = u2; port_tri_v[2] = v2;
+                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0);
+
+                port_tex_enabled = 0;
+                prim_count++;
+                break;
+            }
+            case 0x3C: /* POLY_GT4 — gouraud textured quad */
+            {
+                unsigned char r0 = data[0], g0 = data[1], b0 = data[2];
+                short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
+                unsigned char u0 = data[8], v0 = data[9];
+                uint16_t clut = *(uint16_t *)(data + 10);
+                unsigned char r1 = data[12], g1 = data[13], b1 = data[14];
+                short x1 = *(short *)(data + 16), y1 = *(short *)(data + 18);
+                unsigned char u1 = data[20], v1 = data[21];
+                uint16_t tpage = *(uint16_t *)(data + 22);
+                unsigned char r2 = data[24], g2 = data[25], b2 = data[26];
+                short x2 = *(short *)(data + 28), y2 = *(short *)(data + 30);
+                unsigned char u2 = data[32], v2 = data[33];
+                unsigned char r3 = data[36], g3 = data[37], b3 = data[38];
+                short x3 = *(short *)(data + 40), y3 = *(short *)(data + 42);
+                unsigned char u3 = data[44], v3 = data[45];
+
+                port_tex_tpage = tpage;
+                port_tex_clut = clut;
+                port_tex_enabled = 1;
+                port_tex_semi_trans = (code & 0x02) ? 1 : 0;
+                if (port_tex_semi_trans) port_tex_abr = (tpage >> 5) & 0x3;
+
+                /* Tri 1: v0, v1, v2 */
+                port_tri_r[0] = r0; port_tri_g[0] = g0; port_tri_b[0] = b0;
+                port_tri_r[1] = r1; port_tri_g[1] = g1; port_tri_b[1] = b1;
+                port_tri_r[2] = r2; port_tri_g[2] = g2; port_tri_b[2] = b2;
+                port_tri_u[0] = u0; port_tri_v[0] = v0;
+                port_tri_u[1] = u1; port_tri_v[1] = v1;
+                port_tri_u[2] = u2; port_tri_v[2] = v2;
+                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0);
+
+                /* Tri 2: v1, v3, v2 */
+                port_tri_r[0] = r1; port_tri_g[0] = g1; port_tri_b[0] = b1;
+                port_tri_r[1] = r3; port_tri_g[1] = g3; port_tri_b[1] = b3;
+                port_tri_r[2] = r2; port_tri_g[2] = g2; port_tri_b[2] = b2;
+                port_tri_u[0] = u1; port_tri_v[0] = v1;
+                port_tri_u[1] = u3; port_tri_v[1] = v3;
+                port_tri_u[2] = u2; port_tri_v[2] = v2;
+                draw_flat_tri(x1, y1, x3, y3, x2, y2, 0);
+
+                port_tex_enabled = 0;
                 prim_count++;
                 break;
             }

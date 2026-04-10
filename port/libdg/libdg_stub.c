@@ -166,6 +166,8 @@ extern void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16
 extern int port_tri_r[3], port_tri_g[3], port_tri_b[3];
 extern int DG_CurrentGroupID;
 extern DG_CHANL DG_Chanls[3];
+extern uint16_t port_zbuf[224][320];
+extern uint16_t port_current_z;
 
 /* Simple 3x3 matrix * 3-vector multiply + translate (fixed-point 4.12) */
 static void mat_transform(MATRIX *m, SVECTOR *in, int *ox, int *oy, int *oz)
@@ -265,50 +267,18 @@ int port_last_drawn_faces = 0;
 /* and UVs from packs (opack pipeline output) for correct PSX shading.       */
 /*---------------------------------------------------------------------------*/
 static int render_debug = 0;
-void port_RenderObjects(int idx)
+static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
+                            DG_OBJS *player_objs, short fp_mode)
 {
-    DG_CHANL *chanl = &DG_Chanls[1];
-    int group_id = DG_CurrentGroupID;
     int dist = chanl->clip_distance;
     if (dist <= 0) dist = 256;
-
-    /* Reset draw area and offset for 3D rendering — the OT walker may have
-       set draw_x/draw_y to a non-zero offset via GPU E5 command. for the radar */
-    {
-        extern int clip_x0, clip_y0, clip_x1, clip_y1;
-        extern void port_set_draw_offset(int x, int y);
-        clip_x0 = 0; clip_y0 = 0; clip_x1 = 319; clip_y1 = 223;
-        port_set_draw_offset(0, 0);
-    }
-
-    /* Clear Z-buffer each frame */
-    extern uint16_t port_zbuf[224][320];
-    extern uint16_t port_current_z;
-    memset(port_zbuf, 0xFF, sizeof(port_zbuf));
-
-    DG_OBJS **queue = (DG_OBJS **)chanl->queue;
-
-    /* Skip rendering during stage transitions */
-    {
-        extern int GM_LoadComplete;
-        static int frames_since_load = 999;
-        if (GM_LoadComplete <= 0) { frames_since_load = 0; return; }
-        if (frames_since_load < 3) { frames_since_load++; return; }
-    }
-
-    render_debug++;
     int drawn_faces = 0;
 
     extern uint16_t port_tex_tpage, port_tex_clut;
     extern int port_tex_enabled, port_tex_semi_trans, port_tex_abr;
     extern int port_tri_u[3], port_tri_v[3];
 
-    /* Hide Snake's body in first person view (offset 0x22 = GM_CAMERA.first_person) */
-    extern void *GM_PlayerBody;
-    extern char GM_Camera;  /* raw access */
-    DG_OBJS *player_objs = GM_PlayerBody ? *(DG_OBJS **)GM_PlayerBody : NULL;
-    short fp_mode = *(short *)((char *)&GM_Camera + 0x22);
-
+    DG_OBJS **queue = (DG_OBJS **)chanl->queue;
     for (int n = chanl->objs_index; n > 0; n--)
     {
         DG_OBJS *objs = *queue++;
@@ -347,11 +317,9 @@ void port_RenderObjects(int idx)
                 screen_mat.t[1] = (screen_mat.t[1] * 58) / 64;
             }
 
-            /* Color pack pointer — only valid if shade pipeline wrote correct colors.
-               Skip DG_MODEL_INDIRECT models: shade.c's DG_ShadePacksIndirect
-               dereferences r0/g0/b0 as a 32-bit pointer, broken on 64-bit. */
-            POLY_GT4 *color_packs = ((objs->flag & DG_FLAG_SHADE) && objs->bound_mode && obj->bound_mode
-                                     && !(mdl->flags & DG_MODEL_INDIRECT))
+            /* Color pack pointer — valid if shade pipeline wrote correct colors.
+               DG_MODEL_INDIRECT is now handled safely in shade.c (PORT_BUILD). */
+            POLY_GT4 *color_packs = ((objs->flag & DG_FLAG_SHADE) && objs->bound_mode && obj->bound_mode)
                                     ? obj->packs[idx] : NULL;
 
             SVECTOR *verts = mdl->vertices;
@@ -502,6 +470,46 @@ void port_RenderObjects(int idx)
         }
     }
 
+    return drawn_faces;
+}
+
+void port_RenderObjects(int idx)
+{
+    int group_id = DG_CurrentGroupID;
+
+    /* Reset draw area and offset for 3D rendering — the OT walker may have
+       set draw_x/draw_y to a non-zero offset via GPU E5 command. for the radar */
+    {
+        extern int clip_x0, clip_y0, clip_x1, clip_y1;
+        extern void port_set_draw_offset(int x, int y);
+        clip_x0 = 0; clip_y0 = 0; clip_x1 = 319; clip_y1 = 223;
+        port_set_draw_offset(0, 0);
+    }
+
+    /* Clear Z-buffer each frame */
+    memset(port_zbuf, 0xFF, sizeof(port_zbuf));
+
+    /* Skip rendering during stage transitions */
+    {
+        extern int GM_LoadComplete;
+        static int frames_since_load = 999;
+        if (GM_LoadComplete <= 0) { frames_since_load = 0; return; }
+        if (frames_since_load < 3) { frames_since_load++; return; }
+    }
+
+    render_debug++;
+
+    /* Hide Snake's body in first person view (offset 0x22 = GM_CAMERA.first_person) */
+    extern void *GM_PlayerBody;
+    extern char GM_Camera;  /* raw access */
+    DG_OBJS *player_objs = GM_PlayerBody ? *(DG_OBJS **)GM_PlayerBody : NULL;
+    short fp_mode = *(short *)((char *)&GM_Camera + 0x22);
+
+    int drawn_faces = 0;
+    /* Render all 3 channels: 0=background, 1=main, 2=overlay */
+    for (int ci = 0; ci < 3; ci++)
+        drawn_faces += port_RenderChanl(&DG_Chanls[ci], idx, group_id, player_objs, fp_mode);
+
     port_last_drawn_faces = drawn_faces;
 }
 
@@ -511,16 +519,48 @@ void port_RenderObjects(int idx)
 
 extern unsigned int *ptr_800B1400[256];
 
-/* sort.c — Walk the full OT chain with draw environments.
-   DG_RenderPipeline calls this as the last pipeline step (step 6),
-   always with &DG_Chanls[1]. Walk the full ch0 env1→OT→env2 chain
-   (which includes ch1 and ch2 linked in) via DG_DrawOTag so draw
-   environments (E5 offsets for radar etc.) are properly applied. */
+/* sort.c — Sort DG_PRIM packs into the OT, then walk the OT chain.
+   DG_PrimChanl (step 4) already projected prim vertices into the POLY_FT4
+   packs via GTE emulation. We add those packs to the OT by Z depth so the
+   OT walker renders them (e.g. evpanel buttons, shadows, blood effects). */
 void DG_SortChanl(DG_CHANL *chanl, int idx)
 {
-    (void)chanl;
-    extern void DG_DrawOTag(int which);
-    DG_DrawOTag(idx);
+    /* Sort prim packs into the OT (PSX sort.c lines 73-124) */
+    int n_prims_queued = chanl->queue_size - chanl->prim_index;
+    if (n_prims_queued > 0)
+    {
+        u_long *ot = chanl->ot[idx] + 1;  /* +1: matches PSX (skips env1 link) */
+        DG_PRIM **pqueue = (DG_PRIM **)&chanl->queue[chanl->prim_index];
+        int group_id = DG_CurrentGroupID;
+
+        for (int i = 0; i < n_prims_queued; i++)
+        {
+            DG_PRIM *prim = pqueue[i];
+            if (!prim) continue;
+            if (prim->type & DG_PRIM_INVISIBLE) continue;
+            if (prim->group_id && !(prim->group_id & group_id)) continue;
+
+            int prim_count = prim->prim_count;
+            char *pack = (char *)prim->packs[idx];
+            int psize = prim->psize;
+            int raise = prim->raise;
+
+            while (--prim_count >= 0)
+            {
+                int z = *(unsigned short *)pack;
+                if (z > 0)
+                {
+                    int ot_idx = z - raise;
+                    if (ot_idx < 0) ot_idx = 0;
+                    ot_idx >>= 8;
+                    addPrim(&ot[ot_idx], pack);
+                }
+                pack += psize;
+            }
+        }
+    }
+
+    /* OT is walked later by main_game.c's DG_DrawOTag call */
 }
 
 /* trans.c — stub: we use our own projection, but we must set pack tags

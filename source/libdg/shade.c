@@ -72,6 +72,15 @@ STATIC POLY_GT4 *DG_ShadePacksIndirect( unsigned int *nindices, POLY_GT4 *packs,
 
         if ( v0123 & mask )
         {
+#ifdef PORT_BUILD
+            /* On 64-bit, the r0/g0/b0/code fields (4 bytes) can't hold a pointer.
+               Always use the GTE-computed normal color instead of following the
+               indirect pointer. This loses the color override but avoids crashes. */
+            *(int *)&packs->r0 = *(int *)f0; v0123 >>= 8;
+            *(int *)&packs->r1 = *(int *)f1; v0123 >>= 8;
+            *(int *)&packs->r3 = *(int *)f3; v0123 >>= 8;
+            *(int *)&packs->r2 = *(int *)f2; v0123 >>= 8;
+#else
             if ( v0123 & 0x80 )
             {
                 color = **(int **)&packs->r0;
@@ -115,6 +124,7 @@ STATIC POLY_GT4 *DG_ShadePacksIndirect( unsigned int *nindices, POLY_GT4 *packs,
             }
             v0123 >>= 8;
             *(int *)&packs->r2 = color;
+#endif
 
         }
         else
