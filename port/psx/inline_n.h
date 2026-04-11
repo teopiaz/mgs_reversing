@@ -614,9 +614,12 @@ void gte_op_lc(void);
     _v->vx = gte_state.MAC1; _v->vy = gte_state.MAC2; _v->vz = gte_state.MAC3; \
 } while(0)
 
+/* PSX stlvnl stores MAC1/2/3. On PSX with sf=1 (used by rt/rtps/rtpt),
+   MAC already contains the shifted result. Our MAC stores the raw unshifted
+   accumulator, so we shift down by 12 to match PSX behavior. */
 #define gte_stlvnl(r0) do { \
     VECTOR *_v = (VECTOR *)(r0); \
-    _v->vx = gte_state.MAC1; _v->vy = gte_state.MAC2; _v->vz = gte_state.MAC3; \
+    _v->vx = gte_state.MAC1 >> 12; _v->vy = gte_state.MAC2 >> 12; _v->vz = gte_state.MAC3 >> 12; \
 } while(0)
 
 #define gte_stlvnl0(r0) do { \
