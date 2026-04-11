@@ -296,6 +296,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
 
+
         for (int mi = 0; mi < n_models; mi++, obj++)
         {
             if (!obj->model) continue;
@@ -337,6 +338,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 int i3 = (vi >> 24) & 0x7F;
 
                 int sx0, sy0, sz0, sx1, sy1, sz1, sx2, sy2, sz2, sx3, sy3, sz3;
+
                 project(&screen_mat, &verts[i0], dist, &sx0, &sy0, &sz0);
                 project(&screen_mat, &verts[i1], dist, &sx1, &sy1, &sz1);
                 project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2);
@@ -563,9 +565,8 @@ void DG_SortChanl(DG_CHANL *chanl, int idx)
     /* OT is walked later by main_game.c's DG_DrawOTag call */
 }
 
-/* trans.c — stub: we use our own projection, but we must set pack tags
-   to non-zero so shade.c processes all faces (shade checks tag & 0xFFFF,
-   skips faces where it's 0, leaving garbage colors in the pack). */
+/* trans.c stub — set pack tags to non-zero so shade.c processes all faces
+   (shade checks tag & 0xFFFF, skips faces where it's 0). */
 void DG_TransStart(void) {}
 void DG_TransChanl(DG_CHANL *chanl, int idx)
 {
