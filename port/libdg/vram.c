@@ -463,7 +463,24 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                     fr = (fr * ir) >> 7; if (fr > 31) fr = 31;
                     fg = (fg * ig) >> 7; if (fg > 31) fg = 31;
                     fb = (fb * ib) >> 7; if (fb > 31) fb = 31;
-                    *row = (fb << 10) | (fg << 5) | fr;
+                    uint16_t c = (fb << 10) | (fg << 5) | fr;
+                    if (port_tex_semi_trans) {
+                        uint16_t bg = *row;
+                        int br = bg & 0x1F, bg2 = (bg>>5)&0x1F, bbb = (bg>>10)&0x1F;
+                        int rr, rg, rrb;
+                        switch (port_tex_abr) {
+                        case 0: rr=(br+fr)/2; rg=(bg2+fg)/2; rrb=(bbb+fb)/2; break;
+                        case 1: rr=br+fr; rg=bg2+fg; rrb=bbb+fb; break;
+                        case 2: rr=br-fr; rg=bg2-fg; rrb=bbb-fb; break;
+                        case 3: rr=br+fr/4; rg=bg2+fg/4; rrb=bbb+fb/4; break;
+                        default: rr=fr; rg=fg; rrb=fb; break;
+                        }
+                        if(rr<0)rr=0; if(rr>31)rr=31;
+                        if(rg<0)rg=0; if(rg>31)rg=31;
+                        if(rrb<0)rrb=0; if(rrb>31)rrb=31;
+                        c = (rrb<<10)|(rg<<5)|rr;
+                    }
+                    *row = c;
                     *zrow = z;
                 }
                 row++; zrow++;
@@ -595,10 +612,13 @@ void port_DrawOTag(unsigned long *ot)
                 short x1 = *(short *)(data + 12), y1 = *(short *)(data + 14);
                 short x2 = *(short *)(data + 20), y2 = *(short *)(data + 22);
                 port_tex_enabled = 0;
+                port_tex_semi_trans = (code & 0x02) ? 1 : 0;
+                if (port_tex_semi_trans) port_tex_abr = (port_current_tpage >> 5) & 0x3;
                 port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
                 port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
                 port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
                 draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
+                port_tex_semi_trans = 0;
                 prim_count++;
                 break;
             }
@@ -610,6 +630,8 @@ void port_DrawOTag(unsigned long *ot)
                 short x2 = *(short *)(data + 20), y2 = *(short *)(data + 22);
                 short x3 = *(short *)(data + 28), y3 = *(short *)(data + 30);
                 port_tex_enabled = 0;
+                port_tex_semi_trans = (code & 0x02) ? 1 : 0;
+                if (port_tex_semi_trans) port_tex_abr = (port_current_tpage >> 5) & 0x3;
                 /* Tri 1: v0, v1, v2 */
                 port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
                 port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
@@ -620,6 +642,7 @@ void port_DrawOTag(unsigned long *ot)
                 port_tri_r[1] = data[24]; port_tri_g[1] = data[25]; port_tri_b[1] = data[26];
                 port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
                 draw_flat_tri(x1, y1, x3, y3, x2, y2, 0x4210);
+                port_tex_semi_trans = 0;
                 prim_count++;
                 break;
             }
