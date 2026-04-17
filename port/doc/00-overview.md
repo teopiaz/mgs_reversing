@@ -47,26 +47,30 @@ statically into the single binary.
 
 ### Working
 - **Stage loading**: 95 stages in STAGE.DIR parsed, data loads (GCL, KMD, textures, HZD)
-- **3D rendering**: Software rasterizer — affine textured quads, Z-buffer, backface culling
-- **2D rendering**: OT-based primitives (TILE, SPRT, POLY_F/G/FT/GT), semi-transparency
+- **3D rendering**: Software rasterizer — affine textured quads, Z-buffer, backface culling, per-vertex Gouraud shading
+- **2D rendering**: Full OT primitive support — TILE, SPRT, POLY_F3/F4, POLY_G3/G4 (Gouraud), POLY_FT3/FT4 (textured), POLY_GT3/GT4 (textured Gouraud), LINE_F2/F4/G2/G4
+- **Semi-transparency**: 4 PSX blend modes (B+F, (B+F)/2, B-F, B+F/4) for both textured and non-textured primitives (radar vision cones, glass, fades)
+- **Multi-channel rendering**: channels 0 (background), 1 (main), 2 (overlay) all iterated
+- **Radar**: walls rendered via handle-based OT linking; vision cones semi-transparent
 - **Collision system**: HZD wall/floor/zone checks, level height testing, dynamic floors
 - **Actor system**: All 9 priority levels, 88 stage overlays compiled statically
 - **GCL scripting**: Bytecode interpreter, command dispatch, variable/expression system
 - **Input**: Keyboard + SDL GameController, analog sticks, input record/replay
 - **VRAM**: 1024×512 16-bit array, LoadImage/StoreImage/MoveImage/ClearImage
-- **GTE**: All COP2 ops in C (RTPS/RTPT/NCLIP/NCS/NCT/NCDS/AVSZ3/4/etc.)
+- **GTE**: All COP2 ops in C (RTPS/RTPT/NCLIP/NCS/NCT/NCDS/AVSZ3/4/etc.); sf=1 shift properly applied in stlvnl
 - **Sound**: SPU emulator (ADPCM, 24 voices, ADSR, Gaussian interpolation, SDL2 audio)
-- **Codec/Radio**: SELECT opens codec, UI renders via OT, VOX streaming starts
+- **Codec/Radio**: SELECT opens codec, UI renders via OT, VOX streaming starts; face portraits render correctly
 - **Cutscenes**: Camera/animation, 29 character types, subtitles via jimctrl
 - **Palette effects**: Goggle tint (thermal/NV) via LoadImage2/StoreImage2 callbacks
 - **FPV**: First-person view hides Snake model via DG_FLAG_INVISIBLE
 - **Frustum culling**: DG_BoundChanl works correctly on 64-bit (verified)
+- **Weapon spawn positions**: Nikita missile (and other GTE-computed spawn points) correct after gte_stlvnl fix
 - **ImGui overlay**: Press P for actor inspector
 
 ### Known Limitations
 - **VOX audio**: Stream transfers to SPU voices but playback needs work
 - **Subtitle timing**: MENU_JimakuWrite receives frames=0 (duration incorrect)
-- **Some floor geometry**: Multi-level stages may miss geometry (camera matrix issue)
+- **s02c floor**: One hangar room missing floor + walls (scratchpad mmap failure → `DG_ScreenChanl` produces wrong matrices for ONEPIECE maps; see known-issues #11)
 - **FMV**: Fully stubbed (no MDEC decoder)
 - **Memory cards**: Stubbed (no save/load)
 - **3 R-variant overlays**: Excluded (d18ar, s08br, s19br) — duplicate symbols

@@ -62,3 +62,21 @@ Chronological log of major fixes and milestones in the PSX-to-macOS port.
 43. GCL pointer table: 256-entry indirection for pointer-in-int storage
 44. GCL NULL guards: GCL_GetOption, GCL_GetParam safety checks
 45. Overlay symbol deconfliction: per-overlay -D prefix renames in Makefile
+
+## OT Primitive Rendering (April 2026)
+46. POLY_GT3/GT4: implemented in OT walker (was stubbed — broke water, reflections, title)
+47. POLY_G3/G4: per-vertex Gouraud interpolation (was using flat first-vertex color)
+48. POLY_FT3/FT4: split into separate cases (FT3 drew garbage second triangle)
+49. Double draw_x/draw_y offset: removed caller-side add in polygon cases (draw_flat_tri adds internally)
+50. POLY_F3/F4: set neutral vertex colors to prevent stale modulation
+51. POLY_FT3/FT4: check code&0x02 for semi-trans (was hardcoded off)
+52. POLY_G3/G4: added semi-transparency support + ABR blend mode from port_current_tpage
+53. draw_flat_tri non-textured path: added semi-transparency blending (4 PSX blend modes)
+54. DG_ShadePacksIndirect: PORT_BUILD path uses GTE colors (avoids 32-bit pointer cast in r0/g0/b0)
+55. port_RenderObjects: iterate all 3 channels (0=bg, 1=main, 2=overlay) — was channel 1 only
+56. port_DrawOTag: reset port_current_z=0 so 2D OT prims pass z-test (fixes codec face corruption)
+
+## GTE & 64-bit Fixes (April 2026)
+57. Radar walls: manual OT linking `(int)(pLine)&0xffffff` replaced with setlen/addPrim handle-based
+58. gte_ldv0h: also set IR1/IR2/IR3 (was only setting V0, causing gte_rt to read stale IR)
+59. gte_stlvnl: shift MAC >> 12 to match PSX sf=1 output — fixes Nikita missile spawn position
