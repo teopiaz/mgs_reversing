@@ -125,3 +125,31 @@ Implementing FMV would require:
 - Remaining files may have unresolved PSX-specific dependencies
 
 **Impact**: Actors defined exclusively in these files will not be available. This affects specific R-variant stage configurations (alternate versions of certain stages).
+
+---
+
+## 11. s02c Hangar Missing Floor and Walls
+
+**Symptom**: In stage s02c (Tank Hangar), the floor and some walls of one specific
+room are invisible — you can see through them into adjacent rooms. Other rooms
+in the same stage render correctly, and other stages (s00a, s01a, s03a) work.
+
+**Root cause**: The problematic map object is `DG_FLAG_ONEPIECE` with
+`objs->world` = identity and `t=(0,0,0)`. The model vertices are stored in
+absolute world coordinates (e.g., 19500, 4250, -2000). The port's renderer
+computes `screen_mat = eye_inv * objs->world`, which with identity world gives
+just `eye_inv` — and `chanl->eye_inv` is the raw matrix before
+`DG_AdjustOverscan` is applied. Result: screen coords in the thousands, well
+beyond the ±320/±224 cull range. All faces marked offscreen and culled.
+
+The proper fix requires using `obj->screen` (which `DG_ScreenChanl` computes
+correctly via scratchpad) for ONEPIECE objects. But this breaks other objects
+whose `obj->screen` is zeroed because `DG_ScreenChanl`'s scratchpad-based
+computation is unreliable when the port's scratchpad mmap fails (see the
+`port: WARNING: scratchpad mmap failed` log line).
+
+**Root-cause fix**: Fix the scratchpad mmap failure. With a working
+scratchpad, `DG_ScreenChanl` produces correct `obj->screen` matrices for all
+objects, and the renderer can use them directly.
+
+**Impact**: One room in s02c is missing its floor and some walls.

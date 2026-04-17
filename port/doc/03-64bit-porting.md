@@ -424,3 +424,103 @@ crashes in `FindTexture` (linear probe wraps the entire table).
 **Fix**: The flag timing fix above ensures `DG_SaveResidentTextureCache` is
 only called once when truly needed (when new resident data arrives). The
 saved list then contains only the genuine resident textures (typically 20-40).
+
+---
+
+## 8. GTE Emulation: sf=1 Shift Behavior
+
+### gte_stlvnl storing unshifted MAC
+
+The PSX GTE `MVMVA` instruction (used by `rt`, `rtps`, `rtpt`, etc.) has a
+shift factor `sf`. When `sf=1`, the hardware right-shifts the MAC output by
+12 before writing to the MAC registers. The port's `mat_vec_mul_add_tr`
+stores the raw 44-bit accumulator result into MAC (unshifted), relying on
+downstream `>> 12` reads to extract the world-space value.
+
+The `gte_stlvnl` store opcode (SWC2 of MAC1/2/3) is commonly used to read
+back a transformed vector, e.g., in `DG_MovePos`:
+
+```c
+gte_ldv0(offset);   /* IR = V0 = offset */
+gte_rt();           /* MAC = (TR << 12) + R*IR */
+gte_stlvnl(&vec);   /* vec = MAC */
+gte_SetTransVector(&vec);  /* TR = vec */
+```
+
+With unshifted MAC, `vec.vx` is ~4096x the intended world coordinate. Then
+`gte_SetTransVector` loads that huge value into TR, producing wildly wrong
+spawn positions. The Nikita missile, whose position is computed via this
+pattern, spawned millions of units away from Snake and exploded on contact.
+
+**Fix** (`port/psx/inline_n.h`): `gte_stlvnl` shifts MAC >> 12 when storing:
+```c
+#define gte_stlvnl(r0) do { \
+    VECTOR *_v = (VECTOR *)(r0); \
+    _v->vx = gte_state.MAC1 >> 12; \
+    _v->vy = gte_state.MAC2 >> 12; \
+    _v->vz = gte_state.MAC3 >> 12; \
+} while(0)
+```
+
+This matches PSX hardware: with sf=1, the GTE stores the shifted result to
+MAC, and SWC2 from MAC copies that shifted value to memory. Callers like
+`RotTrans` that already do their own `MAC >> 12` are unaffected because they
+access `gte_state.MAC` directly, not through `gte_stlvnl`.
+
+### gte_ldv0h missing IR load
+
+The radar wall drawing code uses a local `gte_ldv0h` macro to load just the
+XY portion of a vertex (not VZ). The original version only wrote to
+`gte_state.V0` — but `gte_rt()` reads from IR registers, not V0. Without
+also loading IR, every wall line endpoint got the stale IR value, producing
+zero-length degenerate lines. The radar rendered walls as invisible dots.
+
+**Fix** (`source/menu/radar.c`):
+```c
+#define gte_ldv0h(r0) do { \
+    const short *_s = (const short *)(r0); \
+    gte_state.V0.vx = _s[0]; \
+    gte_state.V0.vy = _s[1]; \
+    gte_state.V0.vz = 0; \
+    gte_state.IR1 = _s[0]; /* also load IR for gte_rt */ \
+    gte_state.IR2 = _s[1]; \
+    gte_state.IR3 = 0; \
+} while(0)
+```
+
+### Raw 24-bit OT linking in radar.c
+
+The radar wall code does manual OT linking:
+```c
+pLine->tag = *ot2 | 0x03000000;
+*ot2 = (int)(pLine) & 0xffffff;   /* PSX: truncates to 24-bit RAM address */
+```
+
+On PSX, pointers fit in 24 bits. On 64-bit, the upper bits are lost. The OT
+walker's `nextPrim` uses a handle table lookup that never finds the
+truncated value, so the wall chain is never traversed.
+
+**Fix** (`source/menu/radar.c`, under `#ifdef PORT_BUILD`): use
+`setlen(pLine, 3)` + `addPrim(ot2, pLine)` which registers the full 64-bit
+pointer in the handle table.
+
+---
+
+## 9. DG_ShadePacksIndirect 32-bit Pointer Cast
+
+The original shade code (`source/libdg/shade.c`) handles `DG_MODEL_INDIRECT`
+models by treating the r0/g0/b0/code bytes (4 bytes) of a `POLY_GT4` pack as
+a 32-bit pointer:
+
+```c
+if (v0123 & 0x80)
+    color = **(int **)&packs->r0;   /* dereferences 4-byte "pointer" */
+```
+
+On 64-bit, 4 bytes cannot hold a pointer. Before the fix, the port renderer
+skipped `DG_MODEL_INDIRECT` models entirely, causing them to render as flat
+gray.
+
+**Fix** (`source/libdg/shade.c`, `#ifdef PORT_BUILD`): always use the
+GTE-computed normal color instead of following the indirect pointer. This
+loses the color override mechanism but produces correctly lit models.
