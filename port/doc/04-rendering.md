@@ -341,6 +341,31 @@ primitive types listed in section 1.4, plus GPU state commands (E1/E3/E4/E5).
 For SPRT primitives, applies color modulation: each texel RGB is multiplied by the
 primitive's RGB values and divided by 128 (neutral = 128,128,128).
 
+**Primitive coverage**:
+- `POLY_F3/F4` (0x20/0x28): flat-colored, vertex RGB reset to 128 before draw (prevents stale modulation from prior Gouraud prims)
+- `POLY_G3/G4` (0x30/0x38): Gouraud-shaded with per-vertex color interpolation, passes `0x4210` as base color so modulation maps 0-255 → 0-31 correctly
+- `POLY_FT3/FT4` (0x24/0x2C): textured flat-shaded; FT3 draws one triangle, FT4 draws two (split as v0-v1-v2 and v1-v3-v2)
+- `POLY_GT3/GT4` (0x34/0x3C): textured Gouraud-shaded with per-vertex color + UVs
+- All polygon cases check `code & 0x02` for semi-transparency and read ABR blend mode from `tpage` (or from `port_current_tpage` for non-textured prims)
+
+**Coordinate convention**: Polygon cases pass raw primitive coordinates to `draw_flat_tri`.
+Do NOT add `draw_x`/`draw_y` at the call site — `draw_flat_tri` applies the draw offset
+internally. Doing both causes a double offset when the OT contains E5 commands (e.g., radar).
+
+**Semi-transparency in `draw_flat_tri` non-textured path**: when `port_tex_semi_trans` is
+set, the modulated color is blended with the framebuffer background using the PSX ABR mode:
+- Mode 0: (B + F) / 2
+- Mode 1: B + F (additive)
+- Mode 2: B - F (subtractive)
+- Mode 3: B + F/4 (quarter additive)
+
+This is what makes radar vision cones render semi-transparent instead of opaque.
+
+**z-test reset**: `port_DrawOTag` sets `port_current_z = 0` before walking the chain.
+Without this, during codec (`DG_FrameRate == 2`) `port_RenderObjects` is skipped so
+`port_zbuf` retains stale values — causing face pixels to be z-rejected and the codec
+face to render corrupted. 2D OT prims should always pass z-test (they're drawn on top).
+
 ### 3.6 OT on 64-bit: Handle Table
 
 PSX OT entries encode 24-bit pointers. On 64-bit, addresses are 8 bytes. The port uses
