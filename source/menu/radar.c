@@ -858,6 +858,7 @@ void drawCounter_8003A664(MenuPrim *pGlue, int alertLevel, int code)
     {
         digit = alertLevel % 10;
         alertLevel /= 10;
+        printf("digit: %d alertLevel: %d\n", digit, alertLevel);
 
         pImagePixel = &image_8009E338[i * 16 + 1];
         var_v1 = gDigit7Segment_8009E60C[digit];

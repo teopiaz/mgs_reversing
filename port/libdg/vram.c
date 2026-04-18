@@ -814,29 +814,48 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
-            case 0x4C: /* LINE_F4 — flat-colored polyline, 4 vertices (codec 7-segment) */
+            case 0x4C: /* LINE_F4 — 4-vertex primitive used by codec 7-segment digits.
+                          Game builds trapezoidal corners (v0,v1,v2,v3 clockwise).
+                          Fill the quad via scanline edge crossings. */
             {
                 unsigned char r = data[0], g = data[1], b = data[2];
                 uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
-                if (!color) color = 0x0421;
-                short pts[4][2];
-                pts[0][0] = *(short *)(data + 4);  pts[0][1] = *(short *)(data + 6);
-                pts[1][0] = *(short *)(data + 8);  pts[1][1] = *(short *)(data + 10);
-                pts[2][0] = *(short *)(data + 12); pts[2][1] = *(short *)(data + 14);
-                pts[3][0] = *(short *)(data + 16); pts[3][1] = *(short *)(data + 18);
-                /* Draw as filled quad: scan the bounding box and test point-in-quad.
-                   For the codec 7-segment bars these are axis-aligned rectangles. */
-                int minx = pts[0][0], maxx = pts[0][0];
-                int miny = pts[0][1], maxy = pts[0][1];
-                for (int p = 1; p < 4; p++) {
-                    if (pts[p][0] < minx) minx = pts[p][0];
-                    if (pts[p][0] > maxx) maxx = pts[p][0];
-                    if (pts[p][1] < miny) miny = pts[p][1];
-                    if (pts[p][1] > maxy) maxy = pts[p][1];
+                int px[4], py[4];
+                for (int p = 0; p < 4; p++) {
+                    px[p] = *(short *)(data + 4 + p*4);
+                    py[p] = *(short *)(data + 6 + p*4);
                 }
-                /* Fill the bounding box — works for axis-aligned quads */
+                int miny = py[0], maxy = py[0];
+                for (int p = 1; p < 4; p++) {
+                    if (py[p] < miny) miny = py[p];
+                    if (py[p] > maxy) maxy = py[p];
+                }
+                /* For each scanline, find x range by intersecting with edges */
                 for (int fy = miny; fy <= maxy; fy++) {
-                    for (int fx = minx; fx <= maxx; fx++) {
+                    int xL = 0x7FFFFFFF, xR = -0x7FFFFFFF;
+                    for (int e = 0; e < 4; e++) {
+                        int a = e, b = (e + 1) & 3;
+                        int y0 = py[a], y1 = py[b];
+                        int x0 = px[a], x1 = px[b];
+                        /* Edge crosses this scanline (inclusive of both endpoints) */
+                        int lo = y0 < y1 ? y0 : y1;
+                        int hi = y0 < y1 ? y1 : y0;
+                        if (fy < lo || fy > hi) continue;
+                        int x;
+                        if (y0 == y1) {
+                            if (x0 < xL) xL = x0;
+                            if (x1 < xL) xL = x1;
+                            if (x0 > xR) xR = x0;
+                            if (x1 > xR) xR = x1;
+                            continue;
+                        }
+                        /* Linear interpolate x at scanline fy */
+                        x = x0 + (x1 - x0) * (fy - y0) / (y1 - y0);
+                        if (x < xL) xL = x;
+                        if (x > xR) xR = x;
+                    }
+                    if (xL > xR) continue;
+                    for (int fx = xL; fx <= xR; fx++) {
                         int vx = fx + draw_x, vy = fy + draw_y;
                         if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1)
                             vram[vy][vx] = color;
@@ -877,6 +896,10 @@ void port_DrawOTag(unsigned long *ot)
                 uint16_t clut = *(uint16_t *)(data + 10);
                 short w = *(short *)(data + 12);
                 short h = *(short *)(data + 14);
+                /* Semi-transparent SPRT: code bit 1 set (0x66 vs 0x64). Blend pixels where
+                   TEXEL has STP bit set, using current tpage ABR mode. */
+                int sprt_semi = (code & 0x02) ? 1 : 0;
+                int sprt_abr = (port_current_tpage >> 5) & 0x3;
                 /* Render sprite from VRAM texture, clipped to draw area.
                    Apply color modulation: PSX GPU multiplies texel by (r,g,b)/128. */
                 for (int sy = 0; sy < h && (y+sy) <= clip_y1; sy++) {
@@ -885,7 +908,9 @@ void port_DrawOTag(unsigned long *ot)
                         if ((x+sx) < clip_x0) continue;
                         uint16_t c = sample_vram_texel(port_current_tpage, clut, u0+sx, v0+sy);
                         if (c == 0) continue; /* color 0 = transparent */
+                        uint16_t stp = c & 0x8000;
                         /* Apply color modulation (r,g,b are 0-255, neutral=128) */
+                        int fr, fg, fb;
                         if (r != 128 || g != 128 || b != 128) {
                             int cr = (c & 0x1F);
                             int cg = (c >> 5) & 0x1F;
@@ -893,9 +918,31 @@ void port_DrawOTag(unsigned long *ot)
                             cr = (cr * r) >> 7; if (cr > 31) cr = 31;
                             cg = (cg * g) >> 7; if (cg > 31) cg = 31;
                             cb = (cb * b) >> 7; if (cb > 31) cb = 31;
-                            c = (uint16_t)(cr | (cg << 5) | (cb << 10));
+                            fr = cr; fg = cg; fb = cb;
+                        } else {
+                            fr = c & 0x1F;
+                            fg = (c >> 5) & 0x1F;
+                            fb = (c >> 10) & 0x1F;
                         }
-                        vram[y+sy][x+sx] = c;
+                        int nr, ng, nb;
+                        if (sprt_semi && stp) {
+                            /* Semi-trans blend with current ABR mode */
+                            uint16_t bg = vram[y+sy][x+sx];
+                            int br = bg & 0x1F, bgr = (bg >> 5) & 0x1F, bb = (bg >> 10) & 0x1F;
+                            switch (sprt_abr) {
+                            case 0: nr = (br + fr) >> 1;  ng = (bgr + fg) >> 1;  nb = (bb + fb) >> 1;  break;
+                            case 1: nr = br + fr;         ng = bgr + fg;         nb = bb + fb;         break;
+                            case 2: nr = br - fr;         ng = bgr - fg;         nb = bb - fb;         break;
+                            case 3: nr = br + (fr >> 2);  ng = bgr + (fg >> 2);  nb = bb + (fb >> 2);  break;
+                            default: nr = fr; ng = fg; nb = fb; break;
+                            }
+                            if (nr < 0) nr = 0; if (nr > 31) nr = 31;
+                            if (ng < 0) ng = 0; if (ng > 31) ng = 31;
+                            if (nb < 0) nb = 0; if (nb > 31) nb = 31;
+                        } else {
+                            nr = fr; ng = fg; nb = fb;
+                        }
+                        vram[y+sy][x+sx] = (uint16_t)(nr | (ng << 5) | (nb << 10) | stp);
                     }
                 }
                 prim_count++;
