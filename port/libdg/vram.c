@@ -814,9 +814,9 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
-            case 0x4C: /* LINE_F4 — 4-vertex primitive used by codec 7-segment digits.
-                          Game builds trapezoidal corners (v0,v1,v2,v3 clockwise).
-                          Fill the quad via scanline edge crossings. */
+            case 0x4C: /* LINE_F4 — 4-vertex POLYLINE (3 connected line segments:
+                          v0→v1, v1→v2, v2→v3). Used for codec UI outlines and digit
+                          segments (game traces segment-bar outlines using this). */
             {
                 unsigned char r = data[0], g = data[1], b = data[2];
                 uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
@@ -825,40 +825,21 @@ void port_DrawOTag(unsigned long *ot)
                     px[p] = *(short *)(data + 4 + p*4);
                     py[p] = *(short *)(data + 6 + p*4);
                 }
-                int miny = py[0], maxy = py[0];
-                for (int p = 1; p < 4; p++) {
-                    if (py[p] < miny) miny = py[p];
-                    if (py[p] > maxy) maxy = py[p];
-                }
-                /* For each scanline, find x range by intersecting with edges */
-                for (int fy = miny; fy <= maxy; fy++) {
-                    int xL = 0x7FFFFFFF, xR = -0x7FFFFFFF;
-                    for (int e = 0; e < 4; e++) {
-                        int a = e, b = (e + 1) & 3;
-                        int y0 = py[a], y1 = py[b];
-                        int x0 = px[a], x1 = px[b];
-                        /* Edge crosses this scanline (inclusive of both endpoints) */
-                        int lo = y0 < y1 ? y0 : y1;
-                        int hi = y0 < y1 ? y1 : y0;
-                        if (fy < lo || fy > hi) continue;
-                        int x;
-                        if (y0 == y1) {
-                            if (x0 < xL) xL = x0;
-                            if (x1 < xL) xL = x1;
-                            if (x0 > xR) xR = x0;
-                            if (x1 > xR) xR = x1;
-                            continue;
-                        }
-                        /* Linear interpolate x at scanline fy */
-                        x = x0 + (x1 - x0) * (fy - y0) / (y1 - y0);
-                        if (x < xL) xL = x;
-                        if (x > xR) xR = x;
-                    }
-                    if (xL > xR) continue;
-                    for (int fx = xL; fx <= xR; fx++) {
-                        int vx = fx + draw_x, vy = fy + draw_y;
+                /* Draw 3 connected line segments via Bresenham */
+                for (int seg = 0; seg < 3; seg++) {
+                    int x0 = px[seg], y0 = py[seg];
+                    int x1 = px[seg+1], y1 = py[seg+1];
+                    int dx = abs(x1 - x0), dy = abs(y1 - y0);
+                    int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+                    int err = dx - dy;
+                    for (int steps = 0; steps < 2048; steps++) {
+                        int vx = x0 + draw_x, vy = y0 + draw_y;
                         if (vx >= clip_x0 && vx <= clip_x1 && vy >= clip_y0 && vy <= clip_y1)
                             vram[vy][vx] = color;
+                        if (x0 == x1 && y0 == y1) break;
+                        int e2 = 2 * err;
+                        if (e2 > -dy) { err -= dy; x0 += sx; }
+                        if (e2 < dx)  { err += dx; y0 += sy; }
                     }
                 }
                 prim_count++;
