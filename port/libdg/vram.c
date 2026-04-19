@@ -8,6 +8,7 @@
 #include <SDL.h>
 #include "libgte.h"
 #include "libgpu.h"
+#include "gl_renderer.h"
 
 /*---------------------------------------------------------------------------*/
 /* VRAM                                                                      */
@@ -42,10 +43,14 @@ static int debug_vram_view = 0;
 void port_vram_init(SDL_Renderer *renderer)
 {
     sdl_renderer = renderer;
-    /* Create texture large enough for debug VRAM view (1024x512) */
-    sdl_texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ABGR1555, SDL_TEXTUREACCESS_STREAMING,
-        1024, 512);
+    /* Create texture large enough for debug VRAM view (1024x512).
+       When running under the GL backend, renderer is NULL and this step is
+       skipped -- gl_renderer.c owns the on-screen texture. */
+    if (renderer) {
+        sdl_texture = SDL_CreateTexture(renderer,
+            SDL_PIXELFORMAT_ABGR1555, SDL_TEXTUREACCESS_STREAMING,
+            1024, 512);
+    }
     memset(vram, 0, sizeof(vram));
 
     /* Check environment variable for debug view */
@@ -59,6 +64,9 @@ void port_vram_toggle_debug(void)
     printf("[port] VRAM debug view: %s\n", debug_vram_view ? "ON" : "OFF");
     fflush(stdout);
 }
+
+/* Read by gl_renderer_present to pick the display region. */
+int port_vram_debug_view(void) { return debug_vram_view; }
 
 /* Convert 16-bit PSX pixel (1-bit MSB + 5-5-5 BGR) to match SDL ABGR1555 */
 void port_vram_display(void)
@@ -120,8 +128,6 @@ void port_vram_display(void)
 
 void port_ClearImage(RECT *rect, unsigned char r, unsigned char g, unsigned char b)
 {
-    uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
-
     int x0 = rect->x, y0 = rect->y;
     int x1 = x0 + rect->w, y1 = y0 + rect->h;
 
@@ -132,9 +138,23 @@ void port_ClearImage(RECT *rect, unsigned char r, unsigned char g, unsigned char
     if (y1 > 224) y1 = 224;
     if (y0 >= 224) return;
 
+    /* When the GL backend renders the 3D scene directly and overlays the VRAM
+       framebuffer on top, we need vram[][] to be "empty" outside of 2D prims.
+       Using PSX value 0 (which the overlay shader treats as transparent) lets
+       the 3D scene show through. The requested RGB becomes the GL clear color. */
+    uint16_t color;
+    if (gl_renderer_enabled()) {
+        gl_renderer_set_clear_color(r, g, b);
+        color = 0;
+    } else {
+        color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+    }
+
     for (int y = y0; y < y1; y++)
         for (int x = x0; x < x1; x++)
             vram[y][x] = color;
+
+    gl_renderer_mark_vram_dirty(y0, y1);
 }
 
 void port_LoadImage(RECT *rect, u_long *p)
@@ -148,6 +168,8 @@ void port_LoadImage(RECT *rect, u_long *p)
     for (int y = 0; y < h && (y0 + y) < VRAM_HEIGHT; y++)
         for (int x = 0; x < w && (x0 + x) < VRAM_WIDTH; x++)
             vram[y0 + y][x0 + x] = *src++;
+
+    gl_renderer_mark_vram_dirty(y0, y0 + h);
 }
 
 void port_StoreImage(RECT *rect, u_long *p)
@@ -178,6 +200,7 @@ void port_MoveImage(RECT *rect, int dx, int dy)
             memcpy(&vram[ddy][dx], temp, copy_w * 2);
         }
     }
+    gl_renderer_mark_vram_dirty(dy, dy + h);
 }
 
 DRAWENV *port_SetDefDrawEnv(DRAWENV *env, int x, int y, int w, int h)
@@ -523,6 +546,18 @@ void port_DrawOTag(unsigned long *ot)
        it's skipped, leaving stale z values that reject face pixels. */
     port_current_z = 0;
 
+    /* Drop last tick's GL 2D-semitrans triangles. gl_renderer_present does
+       NOT clear, so render frames between game ticks redraw stable content. */
+    gl_renderer_begin_2d();
+
+    /* Tell the GL overlay whether this frame is "codec mode" (DG_FrameRate==2
+       means 3D is disabled and vram holds the full scene -- no transparency
+       cutout needed). port_DrawOTag runs once per frame after DG_Hikituri. */
+    if (gl_renderer_enabled()) {
+        extern int DG_FrameRate;
+        gl_renderer_set_codec_mode(DG_FrameRate == 2 ? 1 : 0);
+    }
+
     while (p && !isendprim(p))
     {
         unsigned long *next = (unsigned long *)nextPrim(p);
@@ -561,8 +596,19 @@ void port_DrawOTag(unsigned long *ot)
                 short h = *(short *)(data + 10);
                 if (!(w >= 320 && h >= 200)) {
                     if (code & 0x02) {
-                        /* Semi-transparent: PSX blend mode 0 = B/2 + F/2 */
-                        port_DrawTileSemiTrans(x, y, w, h, r, g, b);
+                        if (gl_renderer_enabled()) {
+                            /* Route semi-trans TILE through GL so it blends against
+                               the 3D framebuffer. TILE uses PSX ABR mode 0 (B+F)/2. */
+                            int ax = x + draw_x, ay = y + draw_y;
+                            int xy0[2]={ax,ay}, xy1[2]={ax+w,ay};
+                            int xy2[2]={ax,ay+h}, xy3[2]={ax+w,ay+h};
+                            unsigned char c[3]={r,g,b};
+                            gl_submit_tri2d_semitrans(xy0, xy1, xy2, c, c, c, 0);
+                            gl_submit_tri2d_semitrans(xy1, xy3, xy2, c, c, c, 0);
+                        } else {
+                            /* Semi-transparent: PSX blend mode 0 = B/2 + F/2 */
+                            port_DrawTileSemiTrans(x, y, w, h, r, g, b);
+                        }
                     } else {
                         port_DrawTile(x, y, w, h, r, g, b);
                     }
@@ -591,16 +637,30 @@ void port_DrawOTag(unsigned long *ot)
                 short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
                 short x1 = *(short *)(data + 8), y1 = *(short *)(data + 10);
                 short x2 = *(short *)(data + 12), y2 = *(short *)(data + 14);
-                uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
-                port_tex_enabled = 0;
-                port_tri_r[0]=port_tri_r[1]=port_tri_r[2] = 128;
-                port_tri_g[0]=port_tri_g[1]=port_tri_g[2] = 128;
-                port_tri_b[0]=port_tri_b[1]=port_tri_b[2] = 128;
-                draw_flat_tri(x0, y0, x1, y1, x2, y2, color);
-                if ((code & 0xFC) == 0x28) /* F4: draw second triangle */
-                {
-                    short x3 = *(short *)(data + 16), y3 = *(short *)(data + 18);
-                    draw_flat_tri(x1, y1, x2, y2, x3, y3, color);
+                if (gl_renderer_enabled() && (code & 0x02)) {
+                    int abr = (port_current_tpage >> 5) & 0x3;
+                    int xy0[2]={x0+draw_x,y0+draw_y};
+                    int xy1[2]={x1+draw_x,y1+draw_y};
+                    int xy2[2]={x2+draw_x,y2+draw_y};
+                    unsigned char c[3]={r,g,b};
+                    gl_submit_tri2d_semitrans(xy0, xy1, xy2, c, c, c, abr);
+                    if ((code & 0xFC) == 0x28) {
+                        short x3 = *(short *)(data + 16), y3 = *(short *)(data + 18);
+                        int xy3[2]={x3+draw_x,y3+draw_y};
+                        gl_submit_tri2d_semitrans(xy1, xy2, xy3, c, c, c, abr);
+                    }
+                } else {
+                    uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+                    port_tex_enabled = 0;
+                    port_tri_r[0]=port_tri_r[1]=port_tri_r[2] = 128;
+                    port_tri_g[0]=port_tri_g[1]=port_tri_g[2] = 128;
+                    port_tri_b[0]=port_tri_b[1]=port_tri_b[2] = 128;
+                    draw_flat_tri(x0, y0, x1, y1, x2, y2, color);
+                    if ((code & 0xFC) == 0x28) /* F4: draw second triangle */
+                    {
+                        short x3 = *(short *)(data + 16), y3 = *(short *)(data + 18);
+                        draw_flat_tri(x1, y1, x2, y2, x3, y3, color);
+                    }
                 }
                 prim_count++;
                 break;
@@ -617,7 +677,17 @@ void port_DrawOTag(unsigned long *ot)
                 port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
                 port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
                 port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
-                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
+                if (gl_renderer_enabled() && port_tex_semi_trans) {
+                    int xy0[2]={x0+draw_x,y0+draw_y};
+                    int xy1[2]={x1+draw_x,y1+draw_y};
+                    int xy2[2]={x2+draw_x,y2+draw_y};
+                    unsigned char c0[3]={data[0],data[1],data[2]};
+                    unsigned char c1[3]={data[8],data[9],data[10]};
+                    unsigned char c2[3]={data[16],data[17],data[18]};
+                    gl_submit_tri2d_semitrans(xy0, xy1, xy2, c0, c1, c2, port_tex_abr);
+                } else {
+                    draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
+                }
                 port_tex_semi_trans = 0;
                 prim_count++;
                 break;
@@ -632,16 +702,29 @@ void port_DrawOTag(unsigned long *ot)
                 port_tex_enabled = 0;
                 port_tex_semi_trans = (code & 0x02) ? 1 : 0;
                 if (port_tex_semi_trans) port_tex_abr = (port_current_tpage >> 5) & 0x3;
-                /* Tri 1: v0, v1, v2 */
-                port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
-                port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
-                port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
-                draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
-                /* Tri 2: v1, v3, v2 */
-                port_tri_r[0] = data[8];  port_tri_g[0] = data[9];  port_tri_b[0] = data[10];
-                port_tri_r[1] = data[24]; port_tri_g[1] = data[25]; port_tri_b[1] = data[26];
-                port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
-                draw_flat_tri(x1, y1, x3, y3, x2, y2, 0x4210);
+                if (gl_renderer_enabled() && port_tex_semi_trans) {
+                    int xy0[2]={x0+draw_x,y0+draw_y};
+                    int xy1[2]={x1+draw_x,y1+draw_y};
+                    int xy2[2]={x2+draw_x,y2+draw_y};
+                    int xy3[2]={x3+draw_x,y3+draw_y};
+                    unsigned char c0[3]={data[0], data[1], data[2]};
+                    unsigned char c1[3]={data[8], data[9], data[10]};
+                    unsigned char c2[3]={data[16],data[17],data[18]};
+                    unsigned char c3[3]={data[24],data[25],data[26]};
+                    gl_submit_tri2d_semitrans(xy0, xy1, xy2, c0, c1, c2, port_tex_abr);
+                    gl_submit_tri2d_semitrans(xy1, xy3, xy2, c1, c3, c2, port_tex_abr);
+                } else {
+                    /* Tri 1: v0, v1, v2 */
+                    port_tri_r[0] = data[0];  port_tri_g[0] = data[1];  port_tri_b[0] = data[2];
+                    port_tri_r[1] = data[8];  port_tri_g[1] = data[9];  port_tri_b[1] = data[10];
+                    port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
+                    draw_flat_tri(x0, y0, x1, y1, x2, y2, 0x4210);
+                    /* Tri 2: v1, v3, v2 */
+                    port_tri_r[0] = data[8];  port_tri_g[0] = data[9];  port_tri_b[0] = data[10];
+                    port_tri_r[1] = data[24]; port_tri_g[1] = data[25]; port_tri_b[1] = data[26];
+                    port_tri_r[2] = data[16]; port_tri_g[2] = data[17]; port_tri_b[2] = data[18];
+                    draw_flat_tri(x1, y1, x3, y3, x2, y2, 0x4210);
+                }
                 port_tex_semi_trans = 0;
                 prim_count++;
                 break;

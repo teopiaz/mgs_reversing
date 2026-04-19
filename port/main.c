@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <execinfo.h>
@@ -7,6 +8,7 @@
 #include <SDL.h>
 #include "imgui_debug.h"
 #include "test_server.h"
+#include "libdg/gl_renderer.h"
 
 static void crash_handler(int sig)
 {
@@ -39,20 +41,43 @@ static int port_init(void)
         return -1;
     }
 
-    /* Bilinear filtering for texture upscaling (smoother than nearest-neighbor) */
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    const char *gl_env = getenv("PORT_GL");
+    int want_gl = (gl_env && strcmp(gl_env, "1") == 0);
+
+    Uint32 win_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
+    if (want_gl) {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+        win_flags |= SDL_WINDOW_OPENGL;
+    } else {
+        /* Bilinear filtering for texture upscaling (smoother than nearest-neighbor) */
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    }
 
     g_window = SDL_CreateWindow(
         "Metal Gear Solid",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         SCREEN_WIDTH * WINDOW_SCALE, SCREEN_HEIGHT * WINDOW_SCALE,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
+        win_flags);
 
     if (!g_window)
     {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
         SDL_Quit();
         return -1;
+    }
+
+    if (want_gl) {
+        if (gl_renderer_init(g_window) < 0 || !gl_renderer_enabled()) {
+            fprintf(stderr, "port: GL init failed; set PORT_GL=0 or retry.\n");
+            SDL_DestroyWindow(g_window);
+            SDL_Quit();
+            return -1;
+        }
+        printf("port: GL backend active\n");
+        return 0;
     }
 
     g_renderer = SDL_CreateRenderer(g_window, -1,
@@ -82,6 +107,10 @@ static int port_init(void)
 
 static void port_shutdown(void)
 {
+    if (gl_renderer_enabled())
+    {
+        gl_renderer_shutdown();
+    }
     if (g_renderer)
     {
         SDL_DestroyRenderer(g_renderer);
@@ -142,9 +171,18 @@ extern void port_vram_display(void);
 
 static void port_render(void)
 {
-    port_vram_display();
-    imgui_render(g_renderer);
-    SDL_RenderPresent(g_renderer);
+    if (gl_renderer_enabled())
+    {
+        gl_renderer_present();
+        imgui_render(NULL);
+        SDL_GL_SwapWindow(g_window);
+    }
+    else
+    {
+        port_vram_display();
+        imgui_render(g_renderer);
+        SDL_RenderPresent(g_renderer);
+    }
 
     /* Update window title with FPS every second */
     {
@@ -155,7 +193,8 @@ static void port_render(void)
         if (now - last_fps_time >= 1000)
         {
             char title[64];
-            snprintf(title, sizeof(title), "Metal Gear Solid — %d fps", fps_count);
+            snprintf(title, sizeof(title), "Metal Gear Solid — %d fps%s",
+                     fps_count, gl_renderer_enabled() ? " [GL]" : "");
             SDL_SetWindowTitle(g_window, title);
             fps_count = 0;
             last_fps_time = now;
@@ -182,8 +221,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    port_vram_init(g_renderer);
-    imgui_init(g_window, g_renderer);
+    port_vram_init(g_renderer);  /* safe with NULL renderer; sets up vram[][] */
+    imgui_init(g_window, g_renderer);  /* renderer==NULL => GL backend */
     TEST_HARNESS_init();
     game_init();
 
