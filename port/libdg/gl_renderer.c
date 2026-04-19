@@ -67,22 +67,41 @@ static GLint  g_tri3d_u_near_far    = -1;
 static float g_clear_rgb[3] = {0.0f, 0.0f, 0.0f};
 static int   g_codec_mode   = 0;
 
-/* 2D semi-transparent primitive pipeline.
- * Drawn between the 3D pass and the VRAM overlay so GL blends against the 3D
- * framebuffer -- matching PSX OT semi-trans behavior (radar, vision cones). */
+/* Hi-res internal FBO. All GL rendering targets this; we blit it upscaled to
+ * the window at the end of present via glBlitFramebuffer (linear filter). */
+static int    g_scale     = 4;
+static int    g_fbo_w     = 320 * 4;
+static int    g_fbo_h     = 224 * 4;
+static GLuint g_fbo       = 0;
+static GLuint g_fbo_color = 0;
+static GLuint g_fbo_depth = 0;
+
+/* 2D primitive pipeline. Handles all screen-space primitives (TILE, POLY_F*,
+ * POLY_G*, POLY_FT*, POLY_GT*, SPRT*). Flags encode textured / semi-trans /
+ * ABR mode so one batch can cover every primitive shape, switching state in
+ * runs at flush time. Lines use a parallel VBO with the same vertex format. */
 typedef struct {
-    float pos[2];      /* 0..320 x 0..224 (framebuffer pixel coords) */
+    float pos[2];         /* 0..320 x 0..224 (framebuffer pixel coords) */
+    float uv[2];          /* 0..255 typical; ignored when !textured */
     unsigned char rgba[4];
-    int   abr;         /* bucket key: 0..3 */
+    unsigned short tpage; /* PSX tpage */
+    unsigned short clut;  /* PSX CLUT */
+    unsigned short flags; /* bit 0 textured, bit 1 semi-trans, bits 2..3 ABR */
+    unsigned short _pad;
 } GL2DVert;
 
-static GL2DVert *g_tri2d_buf   = NULL;
-static size_t    g_tri2d_count = 0;
-static size_t    g_tri2d_cap   = 0;
+static GL2DVert *g_tri2d_buf    = NULL;
+static size_t    g_tri2d_count  = 0;
+static size_t    g_tri2d_cap    = 0;
+static GL2DVert *g_line2d_buf   = NULL;
+static size_t    g_line2d_count = 0;
+static size_t    g_line2d_cap   = 0;
 
-static GLuint g_tri2d_vao  = 0;
-static GLuint g_tri2d_vbo  = 0;
-static GLuint g_tri2d_prog = 0;
+static GLuint g_tri2d_vao   = 0;
+static GLuint g_tri2d_vbo   = 0;
+static GLuint g_line2d_vao  = 0;
+static GLuint g_line2d_vbo  = 0;
+static GLuint g_tri2d_prog  = 0;
 
 static const char *BLIT_VS =
     "#version 330 core\n"
@@ -213,24 +232,79 @@ static const char *TRI3D_FS =
     "    oColor = vec4(clamp(modulated, 0.0, 1.0), 1.0);\n"
     "}\n";
 
-/* 2D semi-trans pass -- simple pixel-space shader. */
+/* Unified 2D shader -- pixel-space triangles (and lines), optional texture
+ * with CLUT decode (same logic as the 3D FS). Per-vertex color modulates
+ * the texel when textured, or supplies the color directly when flat. */
 static const char *TRI2D_VS =
     "#version 330 core\n"
     "layout(location=0) in vec2 aPos;    // 0..320 x 0..224\n"
-    "layout(location=1) in vec4 aCol;\n"
+    "layout(location=1) in vec2 aUV;\n"
+    "layout(location=2) in vec4 aCol;\n"
+    "layout(location=3) in uvec4 aTex;   // tpage, clut, flags, _pad\n"
+    "out vec2 vUV;\n"
     "out vec4 vCol;\n"
+    "flat out uint vTPage;\n"
+    "flat out uint vCLUT;\n"
+    "flat out uint vFlags;\n"
     "void main() {\n"
     "    gl_Position = vec4(aPos.x / 160.0 - 1.0,\n"
     "                       1.0 - aPos.y / 112.0,\n"
     "                       0.0, 1.0);\n"
+    "    vUV = aUV;\n"
     "    vCol = aCol;\n"
+    "    vTPage = aTex.x;\n"
+    "    vCLUT  = aTex.y;\n"
+    "    vFlags = aTex.z;\n"
     "}\n";
 
 static const char *TRI2D_FS =
     "#version 330 core\n"
+    "in vec2 vUV;\n"
     "in vec4 vCol;\n"
+    "flat in uint vTPage;\n"
+    "flat in uint vCLUT;\n"
+    "flat in uint vFlags;\n"
+    "uniform usampler2D uVRAM;\n"
     "out vec4 oColor;\n"
-    "void main() { oColor = vec4(vCol.rgb, 1.0); }\n";
+    "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
+    "vec3 decodePSX(uint p) {\n"
+    "    return vec3(\n"
+    "        float(p & 0x1Fu) / 31.0,\n"
+    "        float((p >> 5) & 0x1Fu) / 31.0,\n"
+    "        float((p >> 10) & 0x1Fu) / 31.0);\n"
+    "}\n"
+    "void main() {\n"
+    "    bool textured = (vFlags & 1u) != 0u;\n"
+    "    vec3 out_rgb;\n"
+    "    if (textured) {\n"
+    "        uint tp = (vTPage >> 7u) & 3u;\n"
+    "        int base_x = int(vTPage & 0xFu) * 64;\n"
+    "        int base_y = int((vTPage >> 4u) & 1u) * 256;\n"
+    "        if ((vTPage & 0x800u) != 0u) base_y += 512;\n"
+    "        int clut_x = int(vCLUT & 0x3Fu) * 16;\n"
+    "        int clut_y = int((vCLUT >> 6u) & 0x1FFu);\n"
+    "        int u = int(clamp(vUV.x, 0.0, 255.0));\n"
+    "        int v = int(clamp(vUV.y, 0.0, 255.0));\n"
+    "        uint texel;\n"
+    "        if (tp == 0u) {\n"
+    "            uint word = fetchVRAM(base_x + (u >> 2), base_y + v);\n"
+    "            int idx = int((word >> uint((u & 3) * 4)) & 0xFu);\n"
+    "            texel = fetchVRAM(clut_x + idx, clut_y);\n"
+    "        } else if (tp == 1u) {\n"
+    "            uint word = fetchVRAM(base_x + (u >> 1), base_y + v);\n"
+    "            int idx = ((u & 1) == 1) ? int((word >> 8u) & 0xFFu) : int(word & 0xFFu);\n"
+    "            texel = fetchVRAM(clut_x + idx, clut_y);\n"
+    "        } else {\n"
+    "            texel = fetchVRAM(base_x + u, base_y + v);\n"
+    "        }\n"
+    "        if (texel == 0u) discard;   // PSX transparent\n"
+    "        vec3 tex = decodePSX(texel);\n"
+    "        out_rgb = clamp(tex * (vCol.rgb * 2.0), 0.0, 1.0);\n"
+    "    } else {\n"
+    "        out_rgb = vCol.rgb;\n"
+    "    }\n"
+    "    oColor = vec4(out_rgb, 1.0);\n"
+    "}\n";
 
 static GLuint compile_shader(GLenum type, const char *src)
 {
@@ -396,21 +470,91 @@ int gl_renderer_init(void *window_)
         g_ctx = NULL;
         return -1;
     }
+    GLsizei s2 = sizeof(GL2DVert);
+
     glGenVertexArrays(1, &g_tri2d_vao);
     glGenBuffers(1, &g_tri2d_vbo);
     glBindVertexArray(g_tri2d_vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_tri2d_vbo);
-    GLsizei s2 = sizeof(GL2DVert);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, s2, (void *)offsetof(GL2DVert, pos));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, s2, (void *)offsetof(GL2DVert, rgba));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, s2, (void *)offsetof(GL2DVert, uv));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, s2, (void *)offsetof(GL2DVert, rgba));
+    glEnableVertexAttribArray(3);
+    glVertexAttribIPointer(3, 4, GL_UNSIGNED_SHORT, s2, (void *)offsetof(GL2DVert, tpage));
+
+    /* Separate VAO/VBO for lines -- same vertex format, GL_LINES primitive. */
+    glGenVertexArrays(1, &g_line2d_vao);
+    glGenBuffers(1, &g_line2d_vbo);
+    glBindVertexArray(g_line2d_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, g_line2d_vbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, s2, (void *)offsetof(GL2DVert, pos));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, s2, (void *)offsetof(GL2DVert, uv));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, s2, (void *)offsetof(GL2DVert, rgba));
+    glEnableVertexAttribArray(3);
+    glVertexAttribIPointer(3, 4, GL_UNSIGNED_SHORT, s2, (void *)offsetof(GL2DVert, tpage));
+
+    /* Sampler unit for 2D textured prims. */
+    glUseProgram(g_tri2d_prog);
+    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uVRAM"), 0);
+    glUseProgram(0);
+
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     /* First frame: upload everything. */
     g_dirty_y0 = 0;
     g_dirty_y1 = 512;
+
+    /* --- Hi-res internal FBO ---------------------------------------------
+       Every pass renders here at 320*N x 224*N, then we blit to the window
+       with linear filter. PORT_GL_SCALE controls N (default 4). */
+    {
+        const char *sc = getenv("PORT_GL_SCALE");
+        int n = sc ? atoi(sc) : 4;
+        if (n < 1) n = 1;
+        if (n > 8) n = 8;
+        g_scale = n;
+        g_fbo_w = 320 * n;
+        g_fbo_h = 224 * n;
+
+        glGenFramebuffers(1, &g_fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
+
+        glGenTextures(1, &g_fbo_color);
+        glBindTexture(GL_TEXTURE_2D, g_fbo_color);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, g_fbo_color, 0);
+
+        glGenRenderbuffers(1, &g_fbo_depth);
+        glBindRenderbuffer(GL_RENDERBUFFER, g_fbo_depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+                              g_fbo_w, g_fbo_h);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                                  GL_RENDERBUFFER, g_fbo_depth);
+
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            fprintf(stderr, "[gl] FBO incomplete: 0x%x (scale=%d %dx%d)\n",
+                    status, n, g_fbo_w, g_fbo_h);
+            SDL_GL_DeleteContext(g_ctx);
+            g_ctx = NULL;
+            return -1;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        printf("[gl] FBO %dx%d (PORT_GL_SCALE=%d)\n", g_fbo_w, g_fbo_h, n);
+    }
 
     g_enabled = 1;
     return 0;
@@ -425,12 +569,19 @@ void gl_renderer_shutdown(void)
     free(g_tri3d_buf);
     g_tri3d_buf = NULL;
     g_tri3d_cap = g_tri3d_count = 0;
-    if (g_tri2d_prog) glDeleteProgram(g_tri2d_prog);
-    if (g_tri2d_vbo)  glDeleteBuffers(1, &g_tri2d_vbo);
-    if (g_tri2d_vao)  glDeleteVertexArrays(1, &g_tri2d_vao);
+    if (g_tri2d_prog)  glDeleteProgram(g_tri2d_prog);
+    if (g_tri2d_vbo)   glDeleteBuffers(1, &g_tri2d_vbo);
+    if (g_tri2d_vao)   glDeleteVertexArrays(1, &g_tri2d_vao);
+    if (g_line2d_vbo)  glDeleteBuffers(1, &g_line2d_vbo);
+    if (g_line2d_vao)  glDeleteVertexArrays(1, &g_line2d_vao);
     free(g_tri2d_buf);
-    g_tri2d_buf = NULL;
+    free(g_line2d_buf);
+    g_tri2d_buf = g_line2d_buf = NULL;
     g_tri2d_cap = g_tri2d_count = 0;
+    g_line2d_cap = g_line2d_count = 0;
+    if (g_fbo_depth) glDeleteRenderbuffers(1, &g_fbo_depth);
+    if (g_fbo_color) glDeleteTextures(1, &g_fbo_color);
+    if (g_fbo)       glDeleteFramebuffers(1, &g_fbo);
     if (g_blit_prog) glDeleteProgram(g_blit_prog);
     if (g_vram_tex)  glDeleteTextures(1, &g_vram_tex);
     if (g_zbuf_tex)  glDeleteTextures(1, &g_zbuf_tex);
@@ -448,7 +599,11 @@ void gl_renderer_set_clear_color(int r8, int g8, int b8)
 }
 
 void gl_renderer_begin_3d(void) { if (g_enabled) g_tri3d_count = 0; }
-void gl_renderer_begin_2d(void) { if (g_enabled) g_tri2d_count = 0; }
+void gl_renderer_begin_2d(void) {
+    if (!g_enabled) return;
+    g_tri2d_count  = 0;
+    g_line2d_count = 0;
+}
 void gl_renderer_set_codec_mode(int on) { g_codec_mode = on ? 1 : 0; }
 
 static void tri3d_reserve(size_t extra)
@@ -505,28 +660,66 @@ static void tri2d_reserve(size_t extra)
     g_tri2d_cap = ncap;
 }
 
-static void pack_vert2d(GL2DVert *v, const int xy[2], const unsigned char rgb[3], int abr)
+static void line2d_reserve(size_t extra)
+{
+    if (g_line2d_count + extra <= g_line2d_cap) return;
+    size_t ncap = g_line2d_cap ? g_line2d_cap * 2 : 256;
+    while (ncap < g_line2d_count + extra) ncap *= 2;
+    g_line2d_buf = (GL2DVert *)realloc(g_line2d_buf, ncap * sizeof(GL2DVert));
+    g_line2d_cap = ncap;
+}
+
+static void pack_vert2d(GL2DVert *v,
+    const int xy[2], const int uv[2], const unsigned char rgb[3],
+    unsigned short tpage, unsigned short clut, unsigned short flags)
 {
     v->pos[0] = (float)xy[0];
     v->pos[1] = (float)xy[1];
+    v->uv[0]  = uv ? (float)uv[0] : 0.0f;
+    v->uv[1]  = uv ? (float)uv[1] : 0.0f;
     v->rgba[0] = rgb[0];
     v->rgba[1] = rgb[1];
     v->rgba[2] = rgb[2];
     v->rgba[3] = 255;
-    v->abr = abr;
+    v->tpage = tpage;
+    v->clut  = clut;
+    v->flags = flags;
+    v->_pad  = 0;
 }
 
+void gl_submit_tri2d(
+    const int a[2], const int b[2], const int c[2],
+    const int uv_a[2], const int uv_b[2], const int uv_c[2],
+    const unsigned char col_a[3], const unsigned char col_b[3], const unsigned char col_c[3],
+    unsigned short tpage, unsigned short clut, unsigned short flags)
+{
+    if (!g_enabled) return;
+    tri2d_reserve(3);
+    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], a, uv_a, col_a, tpage, clut, flags);
+    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], b, uv_b, col_b, tpage, clut, flags);
+    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], c, uv_c, col_c, tpage, clut, flags);
+}
+
+/* Back-compat wrapper for existing semi-trans-only callers in vram.c. */
 void gl_submit_tri2d_semitrans(
     const int a[2], const int b[2], const int c[2],
     const unsigned char col_a[3], const unsigned char col_b[3], const unsigned char col_c[3],
     int abr)
 {
-    if (!g_enabled) return;
     if (abr < 0 || abr > 3) abr = 0;
-    tri2d_reserve(3);
-    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], a, col_a, abr);
-    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], b, col_b, abr);
-    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], c, col_c, abr);
+    unsigned short flags = 2 | ((abr & 3) << 2);   /* semi-trans, no texture */
+    gl_submit_tri2d(a, b, c, NULL, NULL, NULL, col_a, col_b, col_c, 0, 0, flags);
+}
+
+void gl_submit_line(
+    const int a[2], const int b[2],
+    const unsigned char col_a[3], const unsigned char col_b[3],
+    unsigned short flags)
+{
+    if (!g_enabled) return;
+    line2d_reserve(2);
+    pack_vert2d(&g_line2d_buf[g_line2d_count++], a, NULL, col_a, 0, 0, flags);
+    pack_vert2d(&g_line2d_buf[g_line2d_count++], b, NULL, col_b, 0, 0, flags);
 }
 
 /* Configure GL blend state for a given PSX ABR mode, matching the port
@@ -561,38 +754,66 @@ static void apply_abr(int abr)
     }
 }
 
-/* Flush all queued 2D semi-trans triangles, grouped by ABR bucket. Called
- * between the 3D pass and the VRAM overlay so blending reads the 3D FB. */
-static void flush_tri2d(void)
+/* Walks a buffer of GL2DVerts submitted in PSX-OT order (back-to-front) and
+ * issues draws in runs that share (semi_trans, abr). prim_type is GL_TRIANGLES
+ * or GL_LINES; stride is the number of verts per primitive (3 or 2). */
+static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
+                         size_t count, GLenum prim_type, size_t stride)
 {
-    if (g_tri2d_count == 0) return;
-
-    glBindVertexArray(g_tri2d_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, g_tri2d_vbo);
+    if (count == 0) return;
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER,
-                 (GLsizeiptr)(g_tri2d_count * sizeof(GL2DVert)),
-                 g_tri2d_buf, GL_STREAM_DRAW);
+                 (GLsizeiptr)(count * sizeof(GL2DVert)),
+                 buf, GL_STREAM_DRAW);
 
     glUseProgram(g_tri2d_prog);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, g_vram_tex);
     glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
 
-    /* Walk submissions and flush runs of identical ABR. Preserves OT order. */
     size_t i = 0;
-    while (i < g_tri2d_count) {
-        int abr = g_tri2d_buf[i].abr;
+    while (i < count) {
+        unsigned short f0 = buf[i].flags;
+        int semi0 = (f0 >> 1) & 1;
+        int abr0  = (f0 >> 2) & 3;
         size_t run_start = i;
-        while (i < g_tri2d_count && g_tri2d_buf[i].abr == abr) i++;
-        apply_abr(abr);
-        glDrawArrays(GL_TRIANGLES, (GLint)run_start, (GLsizei)(i - run_start));
+        size_t j = i;
+        while (j + stride <= count) {
+            unsigned short f = buf[j].flags;
+            int s = (f >> 1) & 1;
+            int a = (f >> 2) & 3;
+            if (s != semi0 || (s && a != abr0)) break;
+            j += stride;
+        }
+        if (semi0) {
+            glEnable(GL_BLEND);
+            apply_abr(abr0);
+        } else {
+            glDisable(GL_BLEND);
+        }
+        glDrawArrays(prim_type, (GLint)run_start, (GLsizei)(j - run_start));
+        i = j;
     }
 
     glDisable(GL_BLEND);
-    glBlendEquation(GL_FUNC_ADD);     /* restore default */
+    glBlendEquation(GL_FUNC_ADD);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     glUseProgram(0);
-    /* Do NOT reset g_tri2d_count -- see gl_renderer_present comment. */
+    /* Do NOT reset counts -- see gl_renderer_present comment. */
+}
+
+static void flush_tri2d(void)
+{
+    flush_2d_buf(g_tri2d_vao, g_tri2d_vbo, g_tri2d_buf, g_tri2d_count,
+                 GL_TRIANGLES, 3);
+}
+
+static void flush_line2d(void)
+{
+    flush_2d_buf(g_line2d_vao, g_line2d_vbo, g_line2d_buf, g_line2d_count,
+                 GL_LINES, 2);
 }
 
 void gl_renderer_mark_vram_dirty(int y0, int y1)
@@ -657,33 +878,47 @@ void gl_renderer_present(void)
         vp_y = (fb_h - vp_h) / 2;
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    /* Render everything into the hi-res FBO at 320*scale x 224*scale. */
+    glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
     glDisable(GL_SCISSOR_TEST);
-
-    /* Phase 1: black letterbox bars. */
-    glViewport(0, 0, fb_w, fb_h);
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    /* Game content area. */
-    glViewport(vp_x, vp_y, vp_w, vp_h);
+    glViewport(0, 0, g_fbo_w, g_fbo_h);
 
     /* Clear with the PSX framebuffer background color (stored by
-       port_ClearImage when GL is enabled) + depth buffer. */
-    glClearColor(g_clear_rgb[0], g_clear_rgb[1], g_clear_rgb[2], 1.0f);
+       port_ClearImage when GL is enabled) + depth buffer.
+
+       Codec mode: PSX doesn't clear the framebuffer each frame, which is
+       how FadeCodecScreen's semi-transparent TILE accumulates to near-black
+       over several frames. If we clear every frame the fade never builds.
+       Preserve color; always clear depth (safe since we skip 3D anyway). */
     glEnable(GL_DEPTH_TEST);
     /* LEQUAL + flat face_z gives painter's-algorithm semantics: later-submitted
        faces at the same centroid depth win, matching PSX OT-sort behavior. */
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (g_codec_mode) {
+        /* In codec mode the game paints a semi-trans fade TILE over the
+           whole screen (ABR=0, (B+F)/2) and expects it to converge to black
+           with the PSX framebuffer still holding the previous frame. In our
+           GL path the accumulation doesn't reach pitch-black via the game's
+           fade schedule alone; we get there by clearing to black so the
+           fade's (0+F)/2 is the only contributor -- the game's fade RGBs
+           already ramp to dim values (last frame ~31/255 = pitch-dark). */
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    } else {
+        glClearColor(g_clear_rgb[0], g_clear_rgb[1], g_clear_rgb[2], 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
 
     /* Debug VRAM view: skip 3D, just dump VRAM as before. */
     extern int port_vram_debug_view(void);
     int debug_view = port_vram_debug_view();
 
     /* --- 3D pass -------------------------------------------------------- */
-    if (!debug_view && g_tri3d_count > 0) {
+    /* In codec mode (DG_FrameRate == 2) the PSX pipeline disables 3D and the
+       screen is meant to be pure 2D. Skip the 3D batch entirely so stale
+       triangles from the pre-codec stage don't bleed through the codec UI. */
+    if (!debug_view && !g_codec_mode && g_tri3d_count > 0) {
         glBindVertexArray(g_tri3d_vao);
         glBindBuffer(GL_ARRAY_BUFFER, g_tri3d_vbo);
         glBufferData(GL_ARRAY_BUFFER,
@@ -697,47 +932,86 @@ void gl_renderer_present(void)
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, g_vram_tex);
 
-        glDisable(GL_BLEND);
         glDisable(GL_CULL_FACE);  /* port_RenderObjects already does backface cull */
 
-        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)g_tri3d_count);
+        /* Walk the 3D buffer in runs sharing the same (semi_trans, abr)
+           bucket. Submission order is PSX-OT order (back-to-front) so a
+           simple bucket-change detector preserves painter's semantics.
+           Opaque runs: blend OFF, depth write ON. Semi-trans runs: blend
+           via apply_abr, depth write OFF (depth test still on). */
+        size_t i = 0;
+        while (i < g_tri3d_count) {
+            unsigned short f0 = g_tri3d_buf[i].flags;
+            int semi0 = (f0 >> 1) & 1;
+            int abr0  = (f0 >> 2) & 3;
+            size_t run_start = i;
+            /* 3 verts per triangle — stride through whole triangles. */
+            size_t j = i;
+            while (j + 3 <= g_tri3d_count) {
+                unsigned short f = g_tri3d_buf[j].flags;
+                int s = (f >> 1) & 1;
+                int a = (f >> 2) & 3;
+                if (s != semi0 || (s && a != abr0)) break;
+                j += 3;
+            }
+            if (semi0) {
+                glEnable(GL_BLEND);
+                glDepthMask(GL_FALSE);
+                apply_abr(abr0);
+            } else {
+                glDisable(GL_BLEND);
+                glDepthMask(GL_TRUE);
+            }
+            glDrawArrays(GL_TRIANGLES, (GLint)run_start, (GLsizei)(j - run_start));
+            i = j;
+        }
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+        glBlendEquation(GL_FUNC_ADD);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
     }
 
-    /* --- 2D semi-trans pass -------------------------------------------- */
-    /* Blends radar darkening / vision cones / smoke fade against the 3D FB. */
-    if (!debug_view) flush_tri2d();
+    /* --- 2D pass (triangles + lines) ----------------------------------- */
+    /* All 2D primitives now go through GL directly. VRAM is still uploaded
+       so the shader can sample PSX textures/CLUTs from it, but we no longer
+       blit the whole framebuffer region as a compositor. */
+    if (!debug_view) {
+        flush_tri2d();
+        flush_line2d();
+    }
 
-    /* --- 2D overlay ----------------------------------------------------- */
-    /* Normally the overlay treats PSX pixel 0x0000 as transparent so the 3D
-       scene shows through. During codec (DG_FrameRate==2) there is no 3D,
-       the game clears the framebuffer to opaque black (value 0), and we must
-       NOT treat that as transparent -- otherwise black codec backdrops
-       render as the letterbox/clear color. g_codec_mode switches that off. */
-    glDisable(GL_DEPTH_TEST);
-    glUseProgram(g_blit_prog);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, g_vram_tex);
+    /* --- VRAM debug overlay (only when explicitly enabled) ------------- */
     if (debug_view) {
+        glDisable(GL_DEPTH_TEST);
+        glUseProgram(g_blit_prog);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, g_vram_tex);
         glUniform4f(g_blit_u_region, 0.0f, 0.0f, 1024.0f, 512.0f);
         glUniform1i(glGetUniformLocation(g_blit_prog, "uDiscardZero"), 0);
-    } else {
-        glUniform4f(g_blit_u_region, 0.0f, 0.0f, 320.0f, 224.0f);
-        glUniform1i(glGetUniformLocation(g_blit_prog, "uDiscardZero"),
-                    g_codec_mode ? 0 : 1);
+        glBindVertexArray(g_vao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
+        glUseProgram(0);
     }
-    glBindVertexArray(g_vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glBindVertexArray(0);
-    glUseProgram(0);
 
     /* Note: we do NOT reset g_tri3d_count / g_tri2d_count here. The game logic
        runs at 30 Hz but rendering runs at 60 Hz, so "idle" render frames must
        redraw the same accumulated content. The buffers are reset when the
        game logic starts a new tick (port_RenderObjects -> gl_renderer_begin_3d,
        port_DrawOTag -> gl_renderer_begin_2d). */
+
+    /* --- Upscale FBO -> window ----------------------------------------- */
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(0, 0, fb_w, fb_h);
+    glClearColor(0, 0, 0, 1);          /* letterbox bars */
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBlitFramebuffer(0, 0, g_fbo_w, g_fbo_h,
+                      vp_x, vp_y, vp_x + vp_w, vp_y + vp_h,
+                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     /* SwapWindow happens in port_render after ImGui draws. */
 }

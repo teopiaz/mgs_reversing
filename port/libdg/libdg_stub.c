@@ -447,25 +447,29 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         if (texel) color = texel;
 
                         if (gl_on) {
-                            /* Neutral vertex color (128) disables Gouraud modulation so
-                               textures show at their native brightness. Lighting can be
-                               re-enabled once the shade pipeline is verified stable. */
-                            unsigned char ca[3]={128,128,128};
-                            unsigned char cb_[3]={128,128,128};
-                            unsigned char cc_[3]={128,128,128};
-                            unsigned char cd_[3]={128,128,128};
-                            (void)cr; (void)cg; (void)cb;
+                            /* Shade/preshade per-vertex colors (KMD vertex order).
+                               Clamp to 0..255 to defend against any stale pack data
+                               from indirect chains the shade pipeline skips. */
+                            #define CLAMP255(x) ((unsigned char)((x) < 0 ? 0 : ((x) > 255 ? 255 : (x))))
+                            unsigned char ca[3]={CLAMP255(cr[0]),CLAMP255(cg[0]),CLAMP255(cb[0])};
+                            unsigned char cb_[3]={CLAMP255(cr[1]),CLAMP255(cg[1]),CLAMP255(cb[1])};
+                            unsigned char cc_[3]={CLAMP255(cr[2]),CLAMP255(cg[2]),CLAMP255(cb[2])};
+                            unsigned char cd_[3]={CLAMP255(cr[3]),CLAMP255(cg[3]),CLAMP255(cb[3])};
                             int face_z = (sz0+sz1+sz2+sz3)/4;
+                            /* flags bit 0 = textured, bit 1 = semi-trans,
+                               bits 2..3 = PSX ABR mode 0..3. */
+                            unsigned short fflags = 1;
+                            if (port_tex_semi_trans) fflags |= 2 | ((port_tex_abr & 3) << 2);
                             /* tri 1: v0, v1, v3 */
                             gl_submit_tri3d(eye[0], eye[1], eye[3],
                                             uv[0], uv[1], uv[3],
                                             ca, cb_, cd_,
-                                            dist, face_z, tex->tpage, tex->clut, 1);
+                                            dist, face_z, tex->tpage, tex->clut, fflags);
                             /* tri 2: v1, v2, v3 */
                             gl_submit_tri3d(eye[1], eye[2], eye[3],
                                             uv[1], uv[2], uv[3],
                                             cb_, cc_, cd_,
-                                            dist, face_z, tex->tpage, tex->clut, 1);
+                                            dist, face_z, tex->tpage, tex->clut, fflags);
                         } else {
                             /* Tri 1: v0, v1, v3 */
                             port_tri_u[0]=uv[0][0]; port_tri_v[0]=uv[0][1];
@@ -494,12 +498,10 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 untextured:
                     if (gl_on) {
                         int uv_dummy[2] = {0, 0};
-                        /* Neutral color for untextured path too, to keep GL output
-                           deterministic until shade/preshade colors are vetted. */
-                        unsigned char ca[3]={128,128,128};
-                        unsigned char cb_[3]={128,128,128};
-                        unsigned char cc_[3]={128,128,128};
-                        unsigned char cd_[3]={128,128,128};
+                        unsigned char ca[3]={CLAMP255(cr[0]),CLAMP255(cg[0]),CLAMP255(cb[0])};
+                        unsigned char cb_[3]={CLAMP255(cr[1]),CLAMP255(cg[1]),CLAMP255(cb[1])};
+                        unsigned char cc_[3]={CLAMP255(cr[2]),CLAMP255(cg[2]),CLAMP255(cb[2])};
+                        unsigned char cd_[3]={CLAMP255(cr[3]),CLAMP255(cg[3]),CLAMP255(cb[3])};
                         int face_z = (sz0+sz1+sz2+sz3)/4;
                         gl_submit_tri3d(eye[0], eye[1], eye[3],
                                         uv_dummy, uv_dummy, uv_dummy,
