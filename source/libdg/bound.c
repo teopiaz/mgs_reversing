@@ -1,6 +1,16 @@
 #include "libdg.h"
 #include "common.h"
 #include "game/game.h"
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#include "psx/port_ptr.h"
+#endif
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#include "psx/port_ptr.h"
+#endif
 
 static void UpdateThermalTexture( DG_CHANL *chanl, int index );
 
@@ -166,14 +176,7 @@ static int ValidExtendChain( DG_OBJ *obj )
 
     while ( chk && cnt++ < 256 )
     {
-        uintptr_t p = (uintptr_t)chk;
-        uintptr_t m;
-
-        /* Range-check chk itself before dereferencing it. */
-        if ( p < 0x1000 || ( p >> 48 ) != 0 ) return 0;
-
-        m = (uintptr_t)chk->model;
-        if ( !chk->model || m < 0x1000 || ( m >> 48 ) != 0 ||
+        if ( !port_ptr_in_pool( chk ) || !port_ptr_in_pool( chk->model ) ||
              chk->n_packs <= 0 || chk->n_packs > 4096 )
         {
             return 0;
@@ -201,11 +204,37 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
     {
 #ifdef PORT_BUILD
         /* Skip objects with NULL/invalid model (freed memory) */
-        if ( !obj->model || (uintptr_t)obj->model < 0x1000 ||
-             ( (uintptr_t)obj->model >> 48 ) != 0 )
+        if ( !port_ptr_in_pool( obj->model ) )
         {
             obj++;
             continue;
+        }
+        /* Also sanitize the extend pointer: if it's out of pool, it's been
+           stomped somehow - treat as NULL for this frame. */
+        if ( obj->extend && !port_ptr_in_pool( obj->extend ) )
+        {
+            obj->extend = NULL;
+        }
+        {
+            static int bt_enable = -1;
+            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
+            if (bt_enable) {
+                fprintf(stderr, "  [bo] model=%p n_packs=%d extend=%p packs[%d]=%p\n",
+                        (void *)obj->model, obj->n_packs, (void *)obj->extend, pack, (void *)obj->packs[pack]);
+            }
+        }
+        /* Also sanitize the extend pointer: if it's out of pool, it's been
+           stomped somehow — treat as NULL for this frame. */
+        if (obj->extend && !port_ptr_in_pool(obj->extend)) {
+            obj->extend = NULL;
+        }
+        {
+            static int bt_enable = -1;
+            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
+            if (bt_enable) {
+                fprintf(stderr, "  [bo] model=%p n_packs=%d extend=%p packs[%d]=%p\n",
+                        (void *)obj->model, obj->n_packs, (void *)obj->extend, idx, (void *)obj->packs[idx]);
+            }
         }
 #endif
         bound_flag = 0;
@@ -303,6 +332,17 @@ void DG_BoundChanl( DG_CHANL *chanl, int index )
         }
 
         objs->bound_mode = bound_flag;
+#ifdef PORT_BUILD
+        {
+            static int bt_enable = -1;
+            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
+            if (bt_enable) {
+                fprintf(stderr, "[dg] BoundObjs chanl=%d objs=%p def=%p n_models=%d flag=%x mode=%d\n",
+                        index, (void *)objs, (void *)objs->def,
+                        objs->n_models, flag, bound_flag);
+            }
+        }
+#endif
         BoundObjs( objs, index, flag, bound_flag );
     }
 
