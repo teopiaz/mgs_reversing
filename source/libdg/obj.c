@@ -4,6 +4,10 @@
 #include <libgte.h>
 #include <libgpu.h>
 #include "common.h"
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#endif
 
 STATIC int DG_MakeObjs_helper( DG_MDL *mdl )
 {
@@ -63,6 +67,14 @@ DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
                    On PSX it was int; on 64-bit the sign extension is lost. */
                 int extend_idx = (int)(intptr_t)model->extend;
                 int cur_idx = (int)(obj - &objs_buf->objs[0]);
+#ifdef PORT_BUILD
+                {
+                    static int bt = -1;
+                    if (bt == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt = (e && *e) ? 1 : 0; }
+                    if (bt) fprintf(stderr, "[mk] objs=%p cur=%d/%d extend_idx=%d\n",
+                                    (void *)objs_buf, cur_idx, def->n_models, extend_idx);
+                }
+#endif
                 if (extend_idx < 0 || extend_idx >= def->n_models || extend_idx == cur_idx)
                 {
                     obj->extend = 0;

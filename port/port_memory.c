@@ -29,6 +29,7 @@ void *port_packet_memory0;
 void *port_packet_memory1;
 char *port_gpu_base = NULL;
 uintptr_t port_mem_base = 0;
+size_t    port_mem_size = TOTAL_POOL_SIZE;
 
 static char *pm_pool_start;
 static char *pm_pool_end;

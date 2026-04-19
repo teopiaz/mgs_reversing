@@ -1,6 +1,11 @@
 #include "libdg.h"
 #include "common.h"
 #include "game/game.h"
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#include "psx/port_ptr.h"
+#endif
 
 STATIC void DG_WriteObjClut(DG_OBJ *obj, int idx);
 STATIC void DG_WriteObjClutUV(DG_OBJ *obj, int idx);
@@ -61,9 +66,22 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
     {
 #ifdef PORT_BUILD
         /* Skip objects with NULL/invalid model (freed memory) */
-        if (!obj->model || (uintptr_t)obj->model < 0x1000 || ((uintptr_t)obj->model >> 48) != 0) {
+        if (!port_ptr_in_pool(obj->model)) {
             obj++;
             continue;
+        }
+        /* Also sanitize the extend pointer: if it's out of pool, it's been
+           stomped somehow — treat as NULL for this frame. */
+        if (obj->extend && !port_ptr_in_pool(obj->extend)) {
+            obj->extend = NULL;
+        }
+        {
+            static int bt_enable = -1;
+            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
+            if (bt_enable) {
+                fprintf(stderr, "  [bo] model=%p n_packs=%d extend=%p packs[%d]=%p\n",
+                        (void *)obj->model, obj->n_packs, (void *)obj->extend, idx, (void *)obj->packs[idx]);
+            }
         }
 #endif
         bound_mode = 0;
@@ -183,16 +201,11 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
             if (!obj->packs[idx])
             {
 #ifdef PORT_BUILD
-                /* Validate extend chain before packet creation — skip if any
-                   link points to freed/invalid memory (use-after-free). */
                 {
                     DG_OBJ *chk = obj;
                     int ok = 1, cnt = 0;
                     while (chk && cnt++ < 256) {
-                        uintptr_t p = (uintptr_t)chk;
-                        if (p < 0x1000 || (p >> 48) != 0) { ok = 0; break; }
-                        uintptr_t m = (uintptr_t)chk->model;
-                        if (!chk->model || m < 0x1000 || (m >> 48) != 0 ||
+                        if (!port_ptr_in_pool(chk) || !port_ptr_in_pool(chk->model) ||
                             chk->n_packs <= 0 || chk->n_packs > 4096) {
                             ok = 0; break;
                         }
@@ -370,6 +383,17 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
             }
         }
         current_objs->bound_mode = bound_mode;
+#ifdef PORT_BUILD
+        {
+            static int bt_enable = -1;
+            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
+            if (bt_enable) {
+                fprintf(stderr, "[dg] BoundObjs chanl=%d objs=%p def=%p n_models=%d flag=%x mode=%d\n",
+                        idx, (void *)current_objs, (void *)current_objs->def,
+                        current_objs->n_models, flag, bound_mode);
+            }
+        }
+#endif
         DG_BoundObjs(current_objs, idx, flag, bound_mode);
     }
 
