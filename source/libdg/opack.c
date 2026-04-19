@@ -1,5 +1,8 @@
 #include "libdg.h"
 #include "common.h"
+#ifdef PORT_BUILD
+#include "psx/port_ptr.h"
+#endif
 
 STATIC DG_TEX dword_8009D3C4 = {0};
 
@@ -16,14 +19,10 @@ STATIC int DG_AllocPacks( DG_OBJ *obj, int idx )
         int safety = 0;
         while (object && safety++ < 256)
         {
-            /* Validate pointer: must be in userspace range (not freed/scribbled) */
-            uintptr_t p = (uintptr_t)object;
-            if (p < 0x1000 || (p >> 48) != 0) break;
+            if (!port_ptr_in_pool(object)) break;
             if (object->n_packs <= 0 || object->n_packs > 4096) break;
             total_packs += object->n_packs;
-            /* Validate extend pointer before following */
-            uintptr_t ep = (uintptr_t)object->extend;
-            if (ep != 0 && (ep < 0x1000 || (ep >> 48) != 0)) break;
+            if (object->extend && !port_ptr_in_pool(object->extend)) break;
             object = object->extend;
         }
     }
@@ -57,8 +56,7 @@ STATIC void DG_InitPolyGT4Pack( DG_OBJ *obj, int idx )
     {
         int n_packs;
 #ifdef PORT_BUILD
-        uintptr_t _p = (uintptr_t)obj;
-        if (_p < 0x1000 || (_p >> 48) != 0) break;
+        if (!port_ptr_in_pool(obj)) break;
 #endif
         for (n_packs = obj->n_packs; n_packs > 0; n_packs--)
         {
@@ -113,12 +111,8 @@ void DG_WriteObjPacketUV( DG_OBJ* obj, int idx )
         while ( obj )
         {
 #ifdef PORT_BUILD
-            {
-                uintptr_t _p = (uintptr_t)obj;
-                uintptr_t _m = (uintptr_t)obj->model;
-                if (_p < 0x1000 || (_p >> 48) != 0) break;
-                if (_m < 0x1000 || (_m >> 48) != 0) break;
-            }
+            if (!port_ptr_in_pool(obj)) break;
+            if (!port_ptr_in_pool(obj->model)) break;
 #endif
             tex_ids = obj->model->materials;
             texcoords = obj->model->texcoords;
@@ -149,8 +143,7 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int idx )
     {
         do {
 #ifdef PORT_BUILD
-            uintptr_t _p = (uintptr_t)obj;
-            if (_p < 0x1000 || (_p >> 48) != 0) break;
+            if (!port_ptr_in_pool(obj)) break;
 #endif
             CVECTOR *pack_rgbs = obj->rgbs;
             if (pack_rgbs)
