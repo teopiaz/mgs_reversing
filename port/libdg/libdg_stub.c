@@ -9,6 +9,7 @@
 #include "libgpu.h"
 #include "libgv/libgv.h"
 #include "libdg/libdg.h"
+#include "libdg/gl_renderer.h"
 
 /* Globals */
 int DG_FrameRate = 1;
@@ -375,6 +376,17 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 int fx2 = sx2+160, fy2 = sy2+112;
                 int fx3 = sx3+160, fy3 = sy3+112;
 
+                /* Eye-space positions for the GL path (post eye_inv*world).
+                   GL does the perspective divide and depth test on the GPU. */
+                int eye[4][3];
+                int gl_on = gl_renderer_enabled();
+                if (gl_on) {
+                    mat_transform(&screen_mat, &verts[i0], &eye[0][0], &eye[0][1], &eye[0][2]);
+                    mat_transform(&screen_mat, &verts[i1], &eye[1][0], &eye[1][1], &eye[1][2]);
+                    mat_transform(&screen_mat, &verts[i2], &eye[2][0], &eye[2][1], &eye[2][2]);
+                    mat_transform(&screen_mat, &verts[i3], &eye[3][0], &eye[3][1], &eye[3][2]);
+                }
+
                 int avgz = (sz0+sz1+sz2+sz3) / 4;
                 port_current_z = (avgz > 0xFFFF) ? 0xFFFF : (avgz < 0 ? 0 : avgz);
 
@@ -434,23 +446,45 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         uint16_t texel = sample_vram_texel(tex->tpage, tex->clut, cu, cv);
                         if (texel) color = texel;
 
-                        /* Tri 1: v0, v1, v3 */
-                        port_tri_u[0]=uv[0][0]; port_tri_v[0]=uv[0][1];
-                        port_tri_u[1]=uv[1][0]; port_tri_v[1]=uv[1][1];
-                        port_tri_u[2]=uv[3][0]; port_tri_v[2]=uv[3][1];
-                        port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
-                        port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
-                        port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
-                        draw_flat_tri(fx0,fy0, fx1,fy1, fx3,fy3, color);
+                        if (gl_on) {
+                            /* Neutral vertex color (128) disables Gouraud modulation so
+                               textures show at their native brightness. Lighting can be
+                               re-enabled once the shade pipeline is verified stable. */
+                            unsigned char ca[3]={128,128,128};
+                            unsigned char cb_[3]={128,128,128};
+                            unsigned char cc_[3]={128,128,128};
+                            unsigned char cd_[3]={128,128,128};
+                            (void)cr; (void)cg; (void)cb;
+                            int face_z = (sz0+sz1+sz2+sz3)/4;
+                            /* tri 1: v0, v1, v3 */
+                            gl_submit_tri3d(eye[0], eye[1], eye[3],
+                                            uv[0], uv[1], uv[3],
+                                            ca, cb_, cd_,
+                                            dist, face_z, tex->tpage, tex->clut, 1);
+                            /* tri 2: v1, v2, v3 */
+                            gl_submit_tri3d(eye[1], eye[2], eye[3],
+                                            uv[1], uv[2], uv[3],
+                                            cb_, cc_, cd_,
+                                            dist, face_z, tex->tpage, tex->clut, 1);
+                        } else {
+                            /* Tri 1: v0, v1, v3 */
+                            port_tri_u[0]=uv[0][0]; port_tri_v[0]=uv[0][1];
+                            port_tri_u[1]=uv[1][0]; port_tri_v[1]=uv[1][1];
+                            port_tri_u[2]=uv[3][0]; port_tri_v[2]=uv[3][1];
+                            port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
+                            port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
+                            port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                            draw_flat_tri(fx0,fy0, fx1,fy1, fx3,fy3, color);
 
-                        /* Tri 2: v1, v2, v3 */
-                        port_tri_u[0]=uv[1][0]; port_tri_v[0]=uv[1][1];
-                        port_tri_u[1]=uv[2][0]; port_tri_v[1]=uv[2][1];
-                        port_tri_u[2]=uv[3][0]; port_tri_v[2]=uv[3][1];
-                        port_tri_r[0]=cr[1]; port_tri_g[0]=cg[1]; port_tri_b[0]=cb[1];
-                        port_tri_r[1]=cr[2]; port_tri_g[1]=cg[2]; port_tri_b[1]=cb[2];
-                        port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
-                        draw_flat_tri(fx1,fy1, fx2,fy2, fx3,fy3, color);
+                            /* Tri 2: v1, v2, v3 */
+                            port_tri_u[0]=uv[1][0]; port_tri_v[0]=uv[1][1];
+                            port_tri_u[1]=uv[2][0]; port_tri_v[1]=uv[2][1];
+                            port_tri_u[2]=uv[3][0]; port_tri_v[2]=uv[3][1];
+                            port_tri_r[0]=cr[1]; port_tri_g[0]=cg[1]; port_tri_b[0]=cb[1];
+                            port_tri_r[1]=cr[2]; port_tri_g[1]=cg[2]; port_tri_b[1]=cb[2];
+                            port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                            draw_flat_tri(fx1,fy1, fx2,fy2, fx3,fy3, color);
+                        }
 
                         port_tex_enabled = 0;
                     } else {
@@ -458,14 +492,31 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                     }
                 } else {
                 untextured:
-                    port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
-                    port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
-                    port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
-                    draw_flat_tri(fx0,fy0, fx1,fy1, fx3,fy3, color);
-                    port_tri_r[0]=cr[1]; port_tri_g[0]=cg[1]; port_tri_b[0]=cb[1];
-                    port_tri_r[1]=cr[2]; port_tri_g[1]=cg[2]; port_tri_b[1]=cb[2];
-                    port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
-                    draw_flat_tri(fx1,fy1, fx2,fy2, fx3,fy3, color);
+                    if (gl_on) {
+                        int uv_dummy[2] = {0, 0};
+                        /* Neutral color for untextured path too, to keep GL output
+                           deterministic until shade/preshade colors are vetted. */
+                        unsigned char ca[3]={128,128,128};
+                        unsigned char cb_[3]={128,128,128};
+                        unsigned char cc_[3]={128,128,128};
+                        unsigned char cd_[3]={128,128,128};
+                        int face_z = (sz0+sz1+sz2+sz3)/4;
+                        gl_submit_tri3d(eye[0], eye[1], eye[3],
+                                        uv_dummy, uv_dummy, uv_dummy,
+                                        ca, cb_, cd_, dist, face_z, 0, 0, 0);
+                        gl_submit_tri3d(eye[1], eye[2], eye[3],
+                                        uv_dummy, uv_dummy, uv_dummy,
+                                        cb_, cc_, cd_, dist, face_z, 0, 0, 0);
+                    } else {
+                        port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
+                        port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
+                        port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                        draw_flat_tri(fx0,fy0, fx1,fy1, fx3,fy3, color);
+                        port_tri_r[0]=cr[1]; port_tri_g[0]=cg[1]; port_tri_b[0]=cb[1];
+                        port_tri_r[1]=cr[2]; port_tri_g[1]=cg[2]; port_tri_b[1]=cb[2];
+                        port_tri_r[2]=cr[3]; port_tri_g[2]=cg[3]; port_tri_b[2]=cb[3];
+                        draw_flat_tri(fx1,fy1, fx2,fy2, fx3,fy3, color);
+                    }
                 }
                 drawn_faces++;
             }
@@ -490,6 +541,10 @@ void port_RenderObjects(int idx)
 
     /* Clear Z-buffer each frame */
     memset(port_zbuf, 0xFF, sizeof(port_zbuf));
+
+    /* Drop last tick's GL 3D triangles. gl_renderer_present does NOT clear,
+       so "idle" render frames between game ticks redraw stable content. */
+    gl_renderer_begin_3d();
 
     /* Skip rendering during stage transitions */
     {
