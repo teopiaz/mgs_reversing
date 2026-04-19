@@ -493,12 +493,35 @@ static void Act( Work *work )
             do
             {
                 n = *unit->dataptr & 0x7F;
+                /* Port guard: the PSX original accepts 1..MAX_SCRIPTACT, but
+                   opcode 0 was never explicitly handled -- the table lookup
+                   (n - 1) underflows to ScriptAct[-1] and calls garbage. On PSX
+                   the surrounding bytes happened to be something tolerable;
+                   on the 64-bit port it crashes. Log enough context to find
+                   which animation produced the 0 byte, then bail cleanly. */
+#ifdef PORT_BUILD
+                if ( n == 0 || n > MAX_SCRIPTACT )
+                {
+                    fprintf(stderr,
+                        "[anime] bad op_code: work=%p unit=%p idx=%d/%d "
+                        "op_code_ptr=%p *op_code=0x%02x "
+                        "actor=%s\n",
+                        (void *)work, (void *)unit, i, work->n_verts,
+                        (const void *)unit->dataptr,
+                        (unsigned)(unsigned char)*unit->dataptr,
+                        work->actor.filename
+                            ? work->actor.filename : "(null)");
+                    GV_DestroyActor( &work->actor );
+                    return;
+                }
+#else
                 if ( n < 0 || n > MAX_SCRIPTACT )
                 {
                     fprintf( 1, " SCRIPT ACT ERR!! \n" );
                     GV_DestroyActor( work );
                     break;
                 }
+#endif
             } while ( !(( *ScriptAct[ n - 1 ] )( work, i )) );
         }
 
