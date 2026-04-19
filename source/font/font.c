@@ -687,14 +687,17 @@ static int font_draw_rubi_string_helper(int *length, const char *str)
 
     for (i = 0, strIter = str;; i++)
     {
-        if (strIter[0] < 128)
+        /* clang on macOS defaults to signed char; PSYQ's char is unsigned.
+           Casting through unsigned char avoids sign-extending 0x80..0xFF
+           bytes into a 0xFFFFFFXX rubiCode. */
+        if ((unsigned char)strIter[0] < 128)
         {
-            rubiCode = strIter[0] | 0x8000;
+            rubiCode = (unsigned char)strIter[0] | 0x8000;
             strIter += 1;
         }
         else
         {
-            rubiCode = (strIter[0] << 8) | strIter[1];
+            rubiCode = ((unsigned char)strIter[0] << 8) | (unsigned char)strIter[1];
             strIter += 2;
         }
 
@@ -868,17 +871,17 @@ static void font_draw_rubi_string(char *buffer, int x, int y, int width, const c
     pos_x_2 = pos_x;
     while (1)
     {
-        if (str[0] < 128)
+        if ((unsigned char)str[0] < 128)
         {
             do
             {
-                rubiCode = str[0] | 0x8000;
+                rubiCode = (unsigned char)str[0] | 0x8000;
                 str += 1;
             } while (0);
         }
         else
         {
-            rubiCode = (str[0] << 8) | str[1];
+            rubiCode = ((unsigned char)str[0] << 8) | (unsigned char)str[1];
             str += 2;
         }
         rubiCode &= ~0x6000;
