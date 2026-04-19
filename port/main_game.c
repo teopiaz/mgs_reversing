@@ -7,6 +7,8 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <mach/mach_time.h>
+#include <execinfo.h>
+#include <unistd.h>
 
 /* Safety net: catch SIGSEGV/SIGBUS from stale DG_OBJS pointers during
    stage transitions. Root cause: DG_TransChanl (commit 578f7e9d7) iterates
@@ -14,7 +16,19 @@
    Proper fix needs DG queue lifecycle tracking; this prevents crashes. */
 static sigjmp_buf render_jmp;
 static volatile int render_guard_active = 0;
-static void render_signal_handler(int sig) {
+static volatile void *render_fault_addr = NULL;
+static volatile int render_fault_sig = 0;
+#define RENDER_BT_MAX 24
+static void *render_fault_bt[RENDER_BT_MAX];
+static volatile int render_fault_bt_n = 0;
+static volatile int render_bt_logged = 0;
+static void render_signal_handler(int sig, siginfo_t *info, void *uctx) {
+    (void)uctx;
+    render_fault_sig = sig;
+    render_fault_addr = info ? info->si_addr : NULL;
+    if (!render_bt_logged) {
+        render_fault_bt_n = backtrace(render_fault_bt, RENDER_BT_MAX);
+    }
     if (render_guard_active) siglongjmp(render_jmp, sig);
 }
 
@@ -306,7 +320,7 @@ void game_tick(void)
            stale DG_OBJS pointer crashes during stage transitions. */
         uint64_t ta0 = mach_absolute_time();
         {
-            struct sigaction sa = {.sa_handler = render_signal_handler, .sa_flags = 0};
+            struct sigaction sa = {.sa_sigaction = render_signal_handler, .sa_flags = SA_SIGINFO};
             struct sigaction old_segv, old_bus;
             sigaction(SIGSEGV, &sa, &old_segv);
             sigaction(SIGBUS, &sa, &old_bus);
@@ -314,7 +328,8 @@ void game_tick(void)
             if (sigsetjmp(render_jmp, 1) == 0) {
                 GV_ExecActorSystem();
             } else {
-                printf("[game] Signal caught in actor system, recovering\n");
+                printf("[game] Signal caught in actor system, sig=%d addr=%p\n",
+                       render_fault_sig, (void *)render_fault_addr);
             }
             render_guard_active = 0;
             sigaction(SIGSEGV, &old_segv, NULL);
@@ -407,7 +422,7 @@ void game_tick(void)
            OT (1-GV_Clock) and clears the CURRENT OT (GV_Clock). Then actors
            already added prims to the cleared OT in GV_ExecActorSystem above. */
         {
-            struct sigaction sa = {.sa_handler = render_signal_handler, .sa_flags = 0};
+            struct sigaction sa = {.sa_sigaction = render_signal_handler, .sa_flags = SA_SIGINFO};
             struct sigaction old_segv, old_bus;
             sigaction(SIGSEGV, &sa, &old_segv);
             sigaction(SIGBUS, &sa, &old_bus);
@@ -415,7 +430,12 @@ void game_tick(void)
             if (sigsetjmp(render_jmp, 1) == 0) {
                 DG_RenderFrame();
             } else {
-                printf("[game] Signal caught in render frame, skipping\n");
+                printf("[game] Signal caught in render frame, sig=%d addr=%p\n",
+                       render_fault_sig, (void *)render_fault_addr);
+                if (!render_bt_logged && render_fault_bt_n > 0) {
+                    backtrace_symbols_fd(render_fault_bt, render_fault_bt_n, fileno(stdout));
+                    render_bt_logged = 1;
+                }
             }
             render_guard_active = 0;
             sigaction(SIGSEGV, &old_segv, NULL);

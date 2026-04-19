@@ -174,6 +174,13 @@ void GV_ExecActorSystem(void)
     int         i;
     ActorList  *lp = gActorsList_800ACC18;
 
+#ifdef PORT_BUILD
+    struct sigaction sa = {.sa_handler = actor_crash_handler, .sa_flags = 0};
+    struct sigaction old_segv, old_bus;
+    sigaction(SIGSEGV, &sa, &old_segv);
+    sigaction(SIGBUS, &sa, &old_bus);
+#endif
+
     // for every actor list
     for (i = GV_ACTOR_LEVEL; i > 0; i--)
     {
@@ -192,7 +199,22 @@ void GV_ExecActorSystem(void)
                 // if the actor has an update function, call it
                 if (current->act)
                 {
+#ifdef PORT_BUILD
+                    actor_in_handler = 1;
+                    if (sigsetjmp(actor_jmp, 1) == 0)
+                    {
+                        current->act(current);
+                    }
+                    else
+                    {
+                        fprintf(stderr, "[actor] crash in %s (act=%p)\n",
+                                current->filename ? current->filename : "?",
+                                (void *)current->act);
+                    }
+                    actor_in_handler = 0;
+#else
                     current->act(current);
+#endif
                 }
 
                 GM_CurrentMap = 0;
@@ -206,6 +228,11 @@ void GV_ExecActorSystem(void)
         }
         lp++;
     }
+
+#ifdef PORT_BUILD
+    sigaction(SIGSEGV, &old_segv, NULL);
+    sigaction(SIGBUS, &old_bus, NULL);
+#endif
 }
 
 /**
