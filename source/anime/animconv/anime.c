@@ -1207,11 +1207,26 @@ static void Act(AnimeWork *work)
             while (1)
             {
                 script_op_code = *item->op_code & 0x7F;
-                if (script_op_code > 15)
+                /* Port guard: the PSX original accepts 1..15, but opcode 0 was
+                   never explicitly handled -- the table lookup (script_op_code
+                   - 1) underflows to fn_table[-1] and calls garbage. On PSX
+                   the surrounding bytes happened to be something tolerable;
+                   on the 64-bit port it crashes. Log enough context to find
+                   which animation produced the 0 byte, then bail cleanly. */
+                if (script_op_code == 0 || script_op_code > 15)
                 {
-                    fprintf(1, " SCRIPT ACT ERR!! \n");
+                    fprintf(stderr,
+                        "[anime] bad op_code: work=%p item=%p idx=%d/%d "
+                        "op_code_ptr=%p *op_code=0x%02x field_14=%p "
+                        "actor=%s\n",
+                        (void *)work, (void *)item, i, work->n_vertices,
+                        (const void *)item->op_code,
+                        (unsigned)(unsigned char)*item->op_code,
+                        (const void *)item->field_14,
+                        work->actor.filename
+                            ? work->actor.filename : "(null)");
                     GV_DestroyActor(&work->actor);
-                    break;
+                    return;
                 }
                 opCodeRet = anime_fn_table_8009F228[script_op_code - 1](work, i);
                 if (opCodeRet)
