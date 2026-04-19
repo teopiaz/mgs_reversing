@@ -46,31 +46,36 @@ char *zendata[] = {NULL, NULL, NULL, NULL};
 #define HASH_font   0xCA68  // GV_StrCode("font")
 #define HASH_rubi   0xE0E3  // GV_StrCode("rubi")
 
+/* clang on macOS defaults to signed char; PSYQ's char is unsigned. Reading
+   through unsigned char avoids sign-extending 0x80..0xFF bytes into a
+   0xFFFFFFXX code. The casts are a no-op where char is already unsigned. */
+#define UCH( m )    ( (unsigned char)*( m ) )
+
 #define PEEK_CHAR( code, m )                     \
-    if ( *( m ) < 0x80 )                         \
+    if ( UCH( m ) < 0x80 )                       \
     {                                            \
-        ( code ) = 0x8000 | *( m );              \
+        ( code ) = 0x8000 | UCH( m );            \
     }                                            \
     else                                         \
     {                                            \
-        ( code ) = ( *( m ) << 8 ) | *( m + 1 ); \
+        ( code ) = ( UCH( m ) << 8 ) | UCH( m + 1 ); \
     }
 
 #define GETNEXTCHAR( code, m )                   \
-    if ( *( m ) < 0x80 )                         \
+    if ( UCH( m ) < 0x80 )                       \
     {                                            \
-        ( code ) = 0x8000 | *( m );              \
+        ( code ) = 0x8000 | UCH( m );            \
         ( m )++;                                 \
     }                                            \
     else                                         \
     {                                            \
-        ( code ) = ( *( m ) << 8 ) | *( m + 1 ); \
+        ( code ) = ( UCH( m ) << 8 ) | UCH( m + 1 ); \
         ( m ) += 2;                              \
     }
 
 
 #define SKIPNEXTCHAR( m ) \
-    if ( *( m ) < 0x80 )  \
+    if ( UCH( m ) < 0x80 ) \
     {                     \
         ( m )++;          \
     }                     \
@@ -911,17 +916,17 @@ static void draw_rubi_string(char *buffer, int x, int y, int width, const char *
     pos_x_2 = pos_x;
     while (1)
     {
-        if (str[0] < 128)
+        if ((unsigned char)str[0] < 128)
         {
             do
             {
-                rubiCode = str[0] | 0x8000;
+                rubiCode = (unsigned char)str[0] | 0x8000;
                 str += 1;
             } while (0);
         }
         else
         {
-            rubiCode = (str[0] << 8) | str[1];
+            rubiCode = ((unsigned char)str[0] << 8) | (unsigned char)str[1];
             str += 2;
         }
         rubiCode &= ~0x6000;
