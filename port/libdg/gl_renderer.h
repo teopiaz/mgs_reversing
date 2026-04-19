@@ -76,16 +76,31 @@ void gl_submit_tri3d(
     int dist, int face_z,
     unsigned short tpage, unsigned short clut, unsigned short flags);
 
-/* Submit a screen-space semi-transparent triangle. Draws between the 3D pass
- * and the VRAM overlay so it blends against the GL 3D framebuffer — the right
- * layering for PSX OT semi-trans primitives (radar darken, vision cones, etc).
- *   xy_*:  pixel coords in 0..319 x 0..223 framebuffer space.
- *   col_*: PSX RGB 0..255 per vertex.
- *   abr:   PSX blend mode 0=(B+F)/2, 1=B+F, 2=B-F, 3=B+F/4. */
+/* Submit a screen-space 2D triangle through the GL batcher.
+ *   xy_*:   pixel coords in 0..319 x 0..223 framebuffer space.
+ *   uv_*:   PSX texel coords 0..255 (ignored when flags bit 0 clear).
+ *   col_*:  PSX RGB 0..255 per vertex (128 = neutral for textured modulation).
+ *   tpage,clut: PSX GPU texture state (ignored when !textured).
+ *   flags:  bit 0 = textured, bit 1 = semi-trans, bits 2..3 = PSX ABR mode. */
+void gl_submit_tri2d(
+    const int xy_a[2], const int xy_b[2], const int xy_c[2],
+    const int uv_a[2], const int uv_b[2], const int uv_c[2],
+    const unsigned char col_a[3], const unsigned char col_b[3], const unsigned char col_c[3],
+    unsigned short tpage, unsigned short clut, unsigned short flags);
+
+/* Back-compat helper: untextured semi-transparent triangle. Equivalent to
+ * gl_submit_tri2d with NULL UVs, flags = 2 | ((abr & 3) << 2). */
 void gl_submit_tri2d_semitrans(
     const int xy_a[2], const int xy_b[2], const int xy_c[2],
     const unsigned char col_a[3], const unsigned char col_b[3], const unsigned char col_c[3],
     int abr);
+
+/* Submit a 2D line (GL_LINES primitive). Same flags layout as gl_submit_tri2d
+ * (typically not textured; semi-trans + abr honored). */
+void gl_submit_line(
+    const int xy_a[2], const int xy_b[2],
+    const unsigned char col_a[3], const unsigned char col_b[3],
+    unsigned short flags);
 
 #ifdef __cplusplus
 }
