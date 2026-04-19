@@ -91,6 +91,9 @@ typedef struct _Work
     int                       field_54_maybeFlags;
     unsigned short            clock;
     short                     field_5A_maybeFlags;
+#ifdef PORT_BUILD
+    SightPrimitiveBufferInfo  port_info;
+#endif
 } Work;
 
 /*---------------------------------------------------------------------------*/
@@ -612,26 +615,24 @@ static int GetResources(Work *work, int hashedFileName, short *itemEquippedIndic
 #ifdef PORT_BUILD
     /* SightPrimitiveBufferInfo is stored in PSX binary format: 24 bytes with
        32-bit pointers. On 64-bit the C struct is 48 bytes. Parse the raw
-       bytes into a separately allocated 64-bit struct. */
+       bytes into a per-actor slot so concurrent sight actors don't stomp
+       each other (PSG1 spawns three at once). */
     {
-        static SightPrimitiveBufferInfo port_sight_info;
         unsigned char *raw = (unsigned char *)info;
         uint32_t psx_ptrs[5];
-        port_sight_info.primitiveBufferSize = *(unsigned short *)&raw[0];
-        port_sight_info.field_2 = raw[2];
-        port_sight_info.primCount = raw[3];
+        work->port_info.primitiveBufferSize = *(unsigned short *)&raw[0];
+        work->port_info.field_2 = raw[2];
+        work->port_info.primCount = raw[3];
         for (int j = 0; j < 5; j++)
             psx_ptrs[j] = *(uint32_t *)&raw[4 + j * 4];
 
-        /* The 32-bit values are offsets from the start of the cache block.
-           raw IS the cache block start. */
-        port_sight_info.ancillaryInfo         = (SightPrimBufInfoStruct *)(raw + psx_ptrs[0]);
-        port_sight_info.primitiveBuffer       = (void *)                  (raw + psx_ptrs[1]);
-        port_sight_info.primOffsetIndicesArray = (SightPrimOffsetIndices *)(raw + psx_ptrs[2]);
-        port_sight_info.primOffsetInfoArray    = (SightPrimOffsetInfo *)   (raw + psx_ptrs[3]);
-        port_sight_info.field_14_array         = (SightPrimBufInfo_0x14 *)(raw + psx_ptrs[4]);
+        work->port_info.ancillaryInfo          = (SightPrimBufInfoStruct *)(raw + psx_ptrs[0]);
+        work->port_info.primitiveBuffer        = (void *)                  (raw + psx_ptrs[1]);
+        work->port_info.primOffsetIndicesArray = (SightPrimOffsetIndices *)(raw + psx_ptrs[2]);
+        work->port_info.primOffsetInfoArray    = (SightPrimOffsetInfo *)   (raw + psx_ptrs[3]);
+        work->port_info.field_14_array         = (SightPrimBufInfo_0x14 *) (raw + psx_ptrs[4]);
 
-        info = &port_sight_info;
+        info = &work->port_info;
         work->primitiveBufferInfo = info;
     }
 #endif
