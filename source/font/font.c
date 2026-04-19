@@ -910,17 +910,17 @@ static void draw_rubi_string(char *buffer, int x, int y, int width, const char *
     pos_x_2 = pos_x;
     while (1)
     {
-        if (str[0] < 128)
+        if ((unsigned char)str[0] < 128)
         {
             do
             {
-                rubiCode = str[0] | 0x8000;
+                rubiCode = (unsigned char)str[0] | 0x8000;
                 str += 1;
             } while (0);
         }
         else
         {
-            rubiCode = (str[0] << 8) | str[1];
+            rubiCode = ((unsigned char)str[0] << 8) | (unsigned char)str[1];
             str += 2;
         }
         rubiCode &= ~0x6000;
