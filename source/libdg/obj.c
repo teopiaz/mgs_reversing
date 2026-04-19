@@ -4,6 +4,10 @@
 #include <libgte.h>
 #include <libgpu.h>
 #include "common.h"
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#endif
 
 static int GetRaise( DG_MDL *mdl )
 {
@@ -45,6 +49,12 @@ DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
         obj->model = mdl;
 
 #ifdef PORT_BUILD
+        {
+            static int bt = -1;
+            if (bt == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt = (e && *e) ? 1 : 0; }
+            if (bt) fprintf(stderr, "[mk] objs=%p cur=%d/%d extend_idx=%d\n",
+                            (void *)objs, (int)( obj - &objs->objs[ 0 ] ), def->n_models, mdl->extend);
+        }
         /* Guard against out-of-range / self-referential extend indices, which
            chain DG_OBJ lists into loops or freed memory on the port. */
         if ( mdl->extend < 0 || mdl->extend >= def->n_models ||

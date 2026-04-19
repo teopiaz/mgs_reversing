@@ -16,6 +16,13 @@
 #include <stdint.h>
 
 extern uintptr_t port_mem_base;
+extern size_t    port_mem_size;
+
+/* Returns 1 iff p points inside the mmap'd pool. NULL returns 0. */
+static inline int port_ptr_in_pool(const void *p) {
+    uintptr_t v = (uintptr_t)p;
+    return (v >= port_mem_base) && (v < port_mem_base + port_mem_size);
+}
 
 /* Convert a native pointer to a 32-bit offset from the memory base.
    Returns 0 for NULL. Asserts the pointer is within the pool. */

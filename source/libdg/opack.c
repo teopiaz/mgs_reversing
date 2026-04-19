@@ -1,5 +1,8 @@
 #include "libdg.h"
 #include "common.h"
+#ifdef PORT_BUILD
+#include "psx/port_ptr.h"
+#endif
 
 static int AllocPacks( DG_OBJ *obj, int index )
 {
@@ -16,17 +19,11 @@ static int AllocPacks( DG_OBJ *obj, int index )
     for ( iter = obj; iter != NULL; iter = iter->extend )
     {
 #ifdef PORT_BUILD
-        /* Validate pointer: must be in userspace range (not freed/scribbled) */
-        {
-            uintptr_t p = (uintptr_t)iter;
-            uintptr_t ep;
-            if ( p < 0x1000 || ( p >> 48 ) != 0 ) break;
-            if ( iter->n_packs <= 0 || iter->n_packs > 4096 ) break;
-            size += iter->n_packs;
-            /* Validate extend pointer before following */
-            ep = (uintptr_t)iter->extend;
-            if ( ep != 0 && ( ep < 0x1000 || ( ep >> 48 ) != 0 ) ) break;
-        }
+        /* Validate pointer: must be inside the port memory pool (not freed/scribbled) */
+        if ( !port_ptr_in_pool( iter ) ) break;
+        if ( iter->n_packs <= 0 || iter->n_packs > 4096 ) break;
+        size += iter->n_packs;
+        if ( iter->extend && !port_ptr_in_pool( iter->extend ) ) break;
         /* Bound the extend chain: a corrupt DG_OBJ can loop forever. */
         if ( ++safety >= 256 ) break;
 #else
@@ -59,10 +56,7 @@ static void InitPacks( DG_OBJ *obj, int index )
     for ( ; obj != NULL; obj = obj->extend )
     {
 #ifdef PORT_BUILD
-        {
-            uintptr_t _p = (uintptr_t)obj;
-            if ( _p < 0x1000 || ( _p >> 48 ) != 0 ) break;
-        }
+        if ( !port_ptr_in_pool( obj ) ) break;
 #endif
         for ( i = obj->n_packs; i > 0; i-- )
         {
@@ -95,12 +89,8 @@ void DG_WriteObjPacketUV( DG_OBJ *obj, int index )
     for ( ; obj != NULL; obj = obj->extend )
     {
 #ifdef PORT_BUILD
-        {
-            uintptr_t _p = (uintptr_t)obj;
-            uintptr_t _m = (uintptr_t)obj->model;
-            if ( _p < 0x1000 || ( _p >> 48 ) != 0 ) break;
-            if ( _m < 0x1000 || ( _m >> 48 ) != 0 ) break;
-        }
+        if ( !port_ptr_in_pool( obj ) ) break;
+        if ( !port_ptr_in_pool( obj->model ) ) break;
 #endif
         texids = obj->model->texids;
         texcoords = obj->model->uvs;
@@ -145,10 +135,7 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int index )
     for ( ; obj != NULL; obj = obj->extend )
     {
 #ifdef PORT_BUILD
-        {
-            uintptr_t _p = (uintptr_t)obj;
-            if ( _p < 0x1000 || ( _p >> 48 ) != 0 ) break;
-        }
+        if ( !port_ptr_in_pool( obj ) ) break;
 #endif
         if ( ( rgbs = obj->rgbs ) == NULL ) continue;
         for ( i = obj->n_packs; i > 0; i-- )
