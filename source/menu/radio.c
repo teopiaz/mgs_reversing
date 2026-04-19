@@ -277,7 +277,14 @@ void menu_radio_codec_helper_helper14_helper_80040034(MenuPrim *pGlue, int x, in
     int           count;
     RadioUnknown *pRadioUnknown;
 
+#ifdef PORT_BUILD
+    /* Port: brighter green so the actual frequency overlay stands out from the
+       dim "88888" template (which uses 0x3D472E). PSX CRT glow hid the contrast
+       issue on the original hardware. */
+    color = 0x82C864;
+#else
     color = 0x3D472E;
+#endif
 
     pRadioUnknown = &dword_8009E63C;
     pRadioUnknown->color1 = color;
@@ -718,13 +725,41 @@ void menu_radio_codec_helper_helper14_80040DC4(MenuWork *work, int param_2)
         pGlue = work->prim;
         menu_radio_codec_helper_helper14_helper4_800408BC(pGlue, 0, 128, 140, 89, 90, 30);
         menu_radio_codec_helper_helper14_helper6_800407A4(pGlue, -90, 90, gCodecAction);
+#ifdef PORT_BUILD
+        /* Port override: the decompiled PSX code places the current-frequency
+           display at (51, 178). On the port that renders to VRAM at (51, 178)
+           — bottom-left, hidden behind the left character portrait. Since the
+           decomp is binary-identical to the PSX assembly, PSX must also
+           generate (51, 178) primitives. Some PSX-side
+           transformation remaps VRAM→screen during the codec mode that we
+           don't model (DG_ChangeReso(1) is called when opening the codec and
+           changes disp.w/screen.x — the port's DG_ChangeReso is #if 0'd out).
+           We override the target x,y here so the freq appears over the
+           "88888" template at the center panel — the visual the user wants. */
+        menu_radio_codec_helper_helper14_helper_80040034(pGlue, 141, 80, param_2);
+#else
         menu_radio_codec_helper_helper14_helper_80040034(pGlue, 51, 178, param_2);
-        menu_radio_codec_helper_helper14_helper5_800402A0(pGlue, 32, 149, dword_800ABAF8);
-        menu_radio_codec_helper_helper14_helper6_800407A4(pGlue, 0, -8, -1);
-        menu_radio_codec_helper_helper14_helper2_800401AC(pGlue, 141, 80);
-        menu_radio_codec_helper_helper14_helper5_800402A0(pGlue, 122, 51, -1);
-        menu_radio_codec_helper_helper14_helper3_80040590(pGlue, dword_8009E664, 19, 0, -8);
+#endif
 
+        /* Signal-strength / scrolling-noise bars below the face, at (32, 149). */
+        menu_radio_codec_helper_helper14_helper5_800402A0(pGlue, 32, 149, dword_800ABAF8);
+
+        /* Same text/arrows helper as above, but flags=-1 draws ALL labels
+           (PTT + MEMORY + both arrow indicators) at xpos=0, ypos=-8. */
+        menu_radio_codec_helper_helper14_helper6_800407A4(pGlue, 0, -8, -1);
+
+        /* Static "88888" dim template for the 5-digit frequency display
+           at the center of the codec panel (141, 80). The actual freq
+           (helper_80040034) draws on top of this. */
+        menu_radio_codec_helper_helper14_helper2_800401AC(pGlue, 141, 80);
+
+        /* Second bar graph, at (122, 51), flags=-1 fills all 43 bars. */
+        menu_radio_codec_helper_helper14_helper5_800402A0(pGlue, 122, 51, -1);
+
+        /* Codec UI frame: 19 TILEs (borders, tabs, side panels) from
+           gRadioCodecTiles_8009E664, offset by (0, -8). Called last so it
+           ends up at the OT HEAD → drawn first (at the back). */
+        menu_radio_codec_helper_helper14_helper3_80040590(pGlue, dword_8009E664, 19, 0, -8);
         _NEW_PRIM(stp, pGlue);
         SetDrawStp(stp, 1);
         addPrim(pGlue->ot, stp);
