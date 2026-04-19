@@ -165,6 +165,13 @@ void GV_ExecActorSystem( void )
     AList *list;
     int    i, pause;
 
+#ifdef PORT_BUILD
+    struct sigaction sa = {.sa_handler = actor_crash_handler, .sa_flags = 0};
+    struct sigaction old_segv, old_bus;
+    sigaction(SIGSEGV, &sa, &old_segv);
+    sigaction(SIGBUS, &sa, &old_bus);
+#endif
+
     list = ActorList;
     for ( i = GV_ACTOR_LEVEL; i > 0; i-- )
     {
@@ -182,13 +189,33 @@ void GV_ExecActorSystem( void )
                 next = this->next;
                 if ( ( act = this->act ) != NULL )
                 {
+#ifdef PORT_BUILD
+                    actor_in_handler = 1;
+                    if (sigsetjmp(actor_jmp, 1) == 0)
+                    {
+                        act( this );
+                    }
+                    else
+                    {
+                        fprintf(stderr, "[actor] crash in %s (act=%p)\n",
+                                this->filename ? this->filename : "?",
+                                (void *)act);
+                    }
+                    actor_in_handler = 0;
+#else
                     act( this );
+#endif
                 }
                 GM_CurrentMap = 0;
             } while ( ( this = next ) != NULL );
         }
         list++;
     }
+
+#ifdef PORT_BUILD
+    sigaction(SIGSEGV, &old_segv, NULL);
+    sigaction(SIGBUS, &old_bus, NULL);
+#endif
 }
 
 /**
