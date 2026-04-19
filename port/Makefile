@@ -17,7 +17,7 @@ CFLAGS = -Wno-everything -Wno-error -O0 -g -DINTEGRAL -include psx/port_override
 		 -Wno-incompatible-pointer-types $(SANITIZE)
 CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
 SDL_CFLAGS = $(shell sdl2-config --cflags)
-LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ $(SANITIZE)
+LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ -framework OpenGL $(SANITIZE)
 
 OBJDIR = obj
 TARGET = mgs
@@ -94,6 +94,7 @@ PORT_OBJ = \
 	$(OBJDIR)/imgui_widgets.o \
 	$(OBJDIR)/imgui_impl_sdl2.o \
 	$(OBJDIR)/imgui_impl_sdlrenderer2.o \
+	$(OBJDIR)/imgui_impl_opengl3.o \
 	$(OBJDIR)/port_memory.o \
 	$(OBJDIR)/extern_stubs.o \
 	$(OBJDIR)/game_stubs.o \
@@ -103,6 +104,7 @@ PORT_OBJ = \
 	$(OBJDIR)/mts.o \
 	$(OBJDIR)/libdg_stub.o \
 	$(OBJDIR)/vram.o \
+	$(OBJDIR)/gl_renderer.o \
 	$(OBJDIR)/pcx_loader.o \
 	$(OBJDIR)/kmd_loader.o \
 	$(OBJDIR)/libdg_bound.o \
@@ -149,6 +151,8 @@ $(OBJDIR)/imgui_impl_sdl2.o: imgui/backends/imgui_impl_sdl2.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 $(OBJDIR)/imgui_impl_sdlrenderer2.o: imgui/backends/imgui_impl_sdlrenderer2.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+$(OBJDIR)/imgui_impl_opengl3.o: imgui/backends/imgui_impl_opengl3.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 $(OBJDIR)/imgui_debug.o: imgui_debug.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) $(INCLUDES) -c -o $@ $<
 
@@ -184,6 +188,9 @@ $(OBJDIR)/libdg_stub.o: libdg/libdg_stub.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/vram.o: libdg/vram.c | $(OBJDIR)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/gl_renderer.o: libdg/gl_renderer.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/pcx_loader.o: libdg/pcx_loader.c | $(OBJDIR)

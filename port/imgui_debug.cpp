@@ -1,7 +1,12 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
 #include <SDL.h>
+
+/* When imgui_init is given a NULL SDL_Renderer, we assume an SDL_GL context
+   is current and use the ImGui OpenGL3 backend instead. */
+static bool g_imgui_use_gl = false;
 
 extern "C" {
 #include "imgui_debug.h"
@@ -114,15 +119,25 @@ extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.FontGlobalScale = 0.5f;
+    io.FontGlobalScale = 1.0f;
     ImGui::StyleColorsDark();
-    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer2_Init(renderer);
+
+    g_imgui_use_gl = (renderer == nullptr);
+    if (g_imgui_use_gl) {
+        ImGui_ImplSDL2_InitForOpenGL(window, SDL_GL_GetCurrentContext());
+        ImGui_ImplOpenGL3_Init("#version 330 core");
+    } else {
+        ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+        ImGui_ImplSDLRenderer2_Init(renderer);
+    }
 }
 
 extern "C" void imgui_shutdown(void)
 {
-    ImGui_ImplSDLRenderer2_Shutdown();
+    if (g_imgui_use_gl)
+        ImGui_ImplOpenGL3_Shutdown();
+    else
+        ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 }
@@ -151,7 +166,10 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
     if (!show_actors && !show_camera)
         return;
 
-    ImGui_ImplSDLRenderer2_NewFrame();
+    if (g_imgui_use_gl)
+        ImGui_ImplOpenGL3_NewFrame();
+    else
+        ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
@@ -230,7 +248,10 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
 
     if (!show_actors) {
         ImGui::Render();
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+        if (g_imgui_use_gl)
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        else
+            ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         return;
     }
 
@@ -423,5 +444,8 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
     ImGui::End();
 
     ImGui::Render();
-    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+    if (g_imgui_use_gl)
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    else
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
 }
