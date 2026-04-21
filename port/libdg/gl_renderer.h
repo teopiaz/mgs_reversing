@@ -65,6 +65,7 @@ extern int gl_debug_skip_2d;        /* skip the 2D triangle pass */
 extern int gl_debug_skip_lines;     /* skip the 2D line pass */
 extern int gl_debug_blit_nearest;   /* FBO->window: GL_NEAREST instead of GL_LINEAR */
 extern int gl_debug_no_cull;        /* skip CPU backface cull (sees all tris) */
+extern int gl_debug_cull_cw;        /* 0 = CCW front face, 1 = CW (flip cull) */
 extern int gl_debug_face_id;        /* color each 3D tri by gl_PrimitiveID hash */
 extern int gl_debug_show_normals;   /* output interpolated normal as RGB */
 extern int gl_debug_clear_override; /* 1 = use gl_debug_clear_rgb instead of game */
