@@ -176,6 +176,15 @@ extern "C" {
     extern PortSVEC           DG_Ambient;       /* global ambient RGB (0..255) */
     extern PortDG_FixedLight  gFixedLights_800B1E08[8];
     extern PortDG_TmpLightList LightSystems_800B1E48[2];
+
+    /* Lighting debug overrides (libdg_stub.c). */
+    extern int   port_light_ambient_override;
+    extern int   port_light_ambient_rgb[3];
+    extern int   port_light_disable_fixed;
+    extern int   port_light_group_disabled[8];
+    extern int   port_light_disable_dynamic;
+    extern int   port_light_dyn_slot_muted[2][8];
+    extern float port_light_ambient_scale;
 }
 
 extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
@@ -522,21 +531,49 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                             port_current_stage[0] ? port_current_stage : "(none)");
                 ImGui::Separator();
 
-                /* Ambient */
-                float amb_r = DG_Ambient.vx / 255.0f;
-                float amb_g = DG_Ambient.vy / 255.0f;
-                float amb_b = DG_Ambient.vz / 255.0f;
-                if (amb_r < 0) amb_r = 0; if (amb_r > 1) amb_r = 1;
-                if (amb_g < 0) amb_g = 0; if (amb_g > 1) amb_g = 1;
-                if (amb_b < 0) amb_b = 0; if (amb_b > 1) amb_b = 1;
-                float amb_col[3] = { amb_r, amb_g, amb_b };
-                ImGui::ColorEdit3("##amb", amb_col,
-                                  ImGuiColorEditFlags_NoInputs |
-                                  ImGuiColorEditFlags_NoPicker |
-                                  ImGuiColorEditFlags_NoLabel);
-                ImGui::SameLine();
-                ImGui::Text("Ambient  (%d, %d, %d)",
-                            DG_Ambient.vx, DG_Ambient.vy, DG_Ambient.vz);
+                /* --- Ambient ----------------------------------------- */
+                {
+                    float amb_r = DG_Ambient.vx / 255.0f;
+                    float amb_g = DG_Ambient.vy / 255.0f;
+                    float amb_b = DG_Ambient.vz / 255.0f;
+                    if (amb_r < 0) amb_r = 0; if (amb_r > 1) amb_r = 1;
+                    if (amb_g < 0) amb_g = 0; if (amb_g > 1) amb_g = 1;
+                    if (amb_b < 0) amb_b = 0; if (amb_b > 1) amb_b = 1;
+                    float amb_col[3] = { amb_r, amb_g, amb_b };
+                    ImGui::ColorEdit3("##amb", amb_col,
+                                      ImGuiColorEditFlags_NoInputs |
+                                      ImGuiColorEditFlags_NoPicker |
+                                      ImGuiColorEditFlags_NoLabel);
+                    ImGui::SameLine();
+                    ImGui::Text("Ambient  (%d, %d, %d)%s",
+                                DG_Ambient.vx, DG_Ambient.vy, DG_Ambient.vz,
+                                port_light_ambient_override ? " [OVERRIDE]" :
+                                (port_light_ambient_scale != 1.0f ? " [SCALED]" : ""));
+
+                    bool ov = port_light_ambient_override != 0;
+                    if (ImGui::Checkbox("Override ambient", &ov))
+                        port_light_ambient_override = ov ? 1 : 0;
+                    if (port_light_ambient_override) {
+                        float over[3] = {
+                            port_light_ambient_rgb[0] / 255.0f,
+                            port_light_ambient_rgb[1] / 255.0f,
+                            port_light_ambient_rgb[2] / 255.0f,
+                        };
+                        if (ImGui::ColorEdit3("Override RGB", over,
+                                              ImGuiColorEditFlags_Float)) {
+                            port_light_ambient_rgb[0] = (int)(over[0] * 255.0f);
+                            port_light_ambient_rgb[1] = (int)(over[1] * 255.0f);
+                            port_light_ambient_rgb[2] = (int)(over[2] * 255.0f);
+                        }
+                    } else {
+                        ImGui::SliderFloat("Ambient scale",
+                                           &port_light_ambient_scale,
+                                           0.0f, 4.0f, "%.2fx");
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Reset##ambscale"))
+                            port_light_ambient_scale = 1.0f;
+                    }
+                }
 
                 ImGui::Separator();
 
@@ -591,20 +628,44 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     }
                 }
 
-                /* Fixed point-lights. Each group has a count and an array. */
+                /* --- Fixed point lights. Each group has a count and an array,
+                   total across all groups in the header.                     */
                 int fx_total = 0;
                 for (int g = 0; g < 8; g++) fx_total += gFixedLights_800B1E08[g].count;
-                char fx_header[48];
-                snprintf(fx_header, sizeof(fx_header), "Fixed point lights (%d)", fx_total);
+                char fx_header[64];
+                snprintf(fx_header, sizeof(fx_header),
+                         "Fixed point lights (%d%s)",
+                         fx_total,
+                         port_light_disable_fixed ? " -- OFF" : "");
                 if (ImGui::CollapsingHeader(fx_header)) {
+                    bool dis = port_light_disable_fixed != 0;
+                    if (ImGui::Checkbox("Disable all fixed lights", &dis))
+                        port_light_disable_fixed = dis ? 1 : 0;
+
                     int row = 0;
                     for (int g = 0; g < 8; g++) {
                         int n = gFixedLights_800B1E08[g].count;
                         PortDG_LIT *p = gFixedLights_800B1E08[g].p;
-                        if (n <= 0 || !p) continue;
+                        if (n <= 0 || !p) {
+                            /* Still show a disabled checkbox if the engine has
+                               ever populated this group (cached via our mute),
+                               so the user can keep a group off across reloads.
+                               Skip empty-and-never-touched groups to reduce noise. */
+                            continue;
+                        }
+                        char gid[32]; snprintf(gid, sizeof(gid), "Group %d##gmute%d", g, g);
+                        bool gdis = port_light_group_disabled[g] != 0;
+                        if (ImGui::Checkbox(gid, &gdis))
+                            port_light_group_disabled[g] = gdis ? 1 : 0;
+                        ImGui::SameLine();
+                        ImGui::TextDisabled("(%d lights)", n);
+
+                        ImGui::Indent();
                         for (int i = 0; i < n; i++, row++) {
                             PortDG_LIT *lt = &p[i];
-                            float rr = lt->color.r/255.0f, gg = lt->color.g/255.0f, bb = lt->color.b/255.0f;
+                            float rr = lt->color.r/255.0f;
+                            float gg = lt->color.g/255.0f;
+                            float bb = lt->color.b/255.0f;
                             float col[3] = { rr, gg, bb };
                             char id[24]; snprintf(id, sizeof(id), "##fx%d", row);
                             ImGui::ColorEdit3(id, col,
@@ -612,28 +673,46 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                                               ImGuiColorEditFlags_NoPicker |
                                               ImGuiColorEditFlags_NoLabel);
                             ImGui::SameLine();
-                            ImGui::Text("g%d[%d]  pos=(%d,%d,%d)  bri=%u  r=%u",
-                                        g, i, lt->pos.vx, lt->pos.vy, lt->pos.vz,
+                            ImGui::Text("[%d] pos=(%d,%d,%d)  bri=%u  r=%u",
+                                        i, lt->pos.vx, lt->pos.vy, lt->pos.vz,
                                         lt->brightness, lt->radius);
                         }
+                        ImGui::Unindent();
                     }
-                    if (row == 0) ImGui::TextDisabled("(none)");
+                    if (row == 0) ImGui::TextDisabled("(no active groups)");
                 }
 
-                /* Dynamic (per-frame) light list, double-buffered. Show both
-                   buffers so you can see which is active on either frame. */
-                char dy_header[64];
-                snprintf(dy_header, sizeof(dy_header), "Dynamic lights (buf0=%d, buf1=%d)",
+                /* --- Dynamic (per-tick) light list, double-buffered. Show
+                   both buffers so you can see which is active on either
+                   frame. Per-slot "mute" zeroes the slot's RGB color each
+                   frame (engine keeps re-adding the light, we keep zeroing). */
+                char dy_header[80];
+                snprintf(dy_header, sizeof(dy_header),
+                         "Dynamic lights (buf0=%d, buf1=%d%s)",
                          LightSystems_800B1E48[0].n_lights,
-                         LightSystems_800B1E48[1].n_lights);
+                         LightSystems_800B1E48[1].n_lights,
+                         port_light_disable_dynamic ? " -- OFF" : "");
                 if (ImGui::CollapsingHeader(dy_header)) {
+                    bool dis = port_light_disable_dynamic != 0;
+                    if (ImGui::Checkbox("Disable all dynamic lights", &dis))
+                        port_light_disable_dynamic = dis ? 1 : 0;
+
                     for (int b = 0; b < 2; b++) {
                         int n = LightSystems_800B1E48[b].n_lights;
                         ImGui::Text("Buffer %d: %d lights", b, n);
                         if (n > 8) n = 8;
+                        ImGui::Indent();
                         for (int i = 0; i < n; i++) {
                             PortDG_LIT *lt = &LightSystems_800B1E48[b].lights[i];
-                            float rr = lt->color.r/255.0f, gg = lt->color.g/255.0f, bb = lt->color.b/255.0f;
+                            char mid[24]; snprintf(mid, sizeof(mid), "##dymute%d_%d", b, i);
+                            bool m = port_light_dyn_slot_muted[b][i] != 0;
+                            if (ImGui::Checkbox(mid, &m))
+                                port_light_dyn_slot_muted[b][i] = m ? 1 : 0;
+                            ImGui::SameLine();
+
+                            float rr = lt->color.r/255.0f;
+                            float gg = lt->color.g/255.0f;
+                            float bb = lt->color.b/255.0f;
                             float col[3] = { rr, gg, bb };
                             char id[24]; snprintf(id, sizeof(id), "##dy%d_%d", b, i);
                             ImGui::ColorEdit3(id, col,
@@ -641,10 +720,11 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                                               ImGuiColorEditFlags_NoPicker |
                                               ImGuiColorEditFlags_NoLabel);
                             ImGui::SameLine();
-                            ImGui::Text("  [%d] pos=(%d,%d,%d)  bri=%u  r=%u",
+                            ImGui::Text("[%d] pos=(%d,%d,%d)  bri=%u  r=%u",
                                         i, lt->pos.vx, lt->pos.vy, lt->pos.vz,
                                         lt->brightness, lt->radius);
                         }
+                        ImGui::Unindent();
                     }
                 }
 
