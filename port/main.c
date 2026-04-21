@@ -207,11 +207,25 @@ extern void game_tick(void);
 
 int main(int argc, char *argv[])
 {
-    (void)argc;
     port_argv0 = argv[0];   /* for the ImGui Restart button */
 
     /* Force line-buffered stdout so we can see output before the process ends */
     setvbuf(stdout, NULL, _IOLBF, 0);
+
+    /* Parse CLI. Accept `--iso <path>` or any positional arg that looks like
+     * a disc image (.iso/.bin/.cue/.img). libfs.c reads port_iso_override on
+     * FS_StartDaemon. */
+    extern const char *port_iso_override;
+    extern int         iso_path_looks_like_image(const char *);
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--iso") == 0 && i + 1 < argc) {
+            port_iso_override = argv[++i];
+        } else if (iso_path_looks_like_image(argv[i])) {
+            port_iso_override = argv[i];
+        }
+    }
+    if (port_iso_override)
+        printf("port: disc image = %s\n", port_iso_override);
 
     port_install_crash_handler();
 

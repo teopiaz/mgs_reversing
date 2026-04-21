@@ -122,6 +122,7 @@ PORT_OBJ = \
 	$(OBJDIR)/libdg_shade.o \
 	$(OBJDIR)/libdg_text.o \
 	$(OBJDIR)/libfs.o \
+	$(OBJDIR)/iso_reader.o \
 	$(OBJDIR)/spu_emu.o \
 	$(OBJDIR)/memcard_stub.o \
 	$(OBJDIR)/hzd_loader.o \
@@ -206,6 +207,9 @@ $(OBJDIR)/libdg_%.o: $(SRCDIR)/libdg/%.c | $(OBJDIR)
 	$(CC) $(LIBDG_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/libfs.o: libfs/libfs.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/iso_reader.o: libfs/iso_reader.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 
