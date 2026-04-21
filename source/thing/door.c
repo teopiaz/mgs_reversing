@@ -696,6 +696,15 @@ static int GetResources(Work *work, int name, int where)
 
     GM_InitObjectNoRots(obj, door_model_v, 23, 0);
     GM_ConfigObjectSlide((OBJECT *)&work->object);
+#ifdef PORT_BUILD
+    /* Port: GM_ConfigObjectSlide on PSX sets objs->movs to the OBJECT::rots
+       array, which lands on Work::field_C0 thanks to the struct layout of
+       (OBJECT *)&work->object. On 64-bit the larger pointer fields inside
+       OBJECT_NO_ROTS push ->rots past field_C0, so movs would point at
+       adjacent struct bytes and the door would slide along whatever axis
+       that noise decodes into. Wire it explicitly here. */
+    if (work->object.objs) work->object.objs->movs = work->field_C0;
+#endif
     DG_SetPos2(&pControl->mov, &pControl->rot);
     DG_PutObjs(work->object.objs);
     GM_ReshadeObjs(work->object.objs);
