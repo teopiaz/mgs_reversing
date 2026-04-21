@@ -357,6 +357,26 @@ static int asiato_800D17BC(Work2 *work)
 {
     HZD_HDL *hdl;
 
+#ifdef PORT_BUILD
+    /* Port: Guard the GM_WhereList[0]->map->hzd chain against NULLs.
+       Two cases can produce a NULL link on 64-bit:
+         1. Before the snake control is pushed, GM_WhereList[0] points at
+            gDefaultControl (zeroed BSS) so ->map is NULL. PSX tolerated this
+            because reading address 0 doesn't fault on R3000, and the
+            garbage `hdl` was discarded by AsiatoIsAllowedOnMove_800D179C()
+            short-circuiting to false while the player hadn't spawned yet.
+         2. A stage whose GCL map entry has no 'h' param leaves map->hzd at
+            its zero-init (NULL). The `hdl` would then be passed to
+            HZD_LineCheck via s00a_asiato_800D16F8 and crash there.
+       On macOS either deref is SIGSEGV, so bail out if any link is NULL. */
+    if (GM_WhereList[0] == NULL ||
+        GM_WhereList[0]->map == NULL ||
+        GM_WhereList[0]->map->hzd == NULL)
+    {
+        return 0;
+    }
+#endif
+
     hdl = GM_WhereList[0]->map->hzd;
     if (!AsiatoIsAllowedOnMove_800D179C() || !asiato_800D16F8(work, hdl, &GM_PlayerPosition))
     {
