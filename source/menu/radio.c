@@ -1382,17 +1382,36 @@ skip_fading:
     case 7: // codec call terminating
         pCharaStruct3 = work->field_218;
         dword_800ABAF8 = 0;
+#ifdef PORT_BUILD
+        {
+            static int s7_log_frame = -1;
+            if (s7_log_frame != (int)GV_Time)
+            {
+                printf("[codec-dbg] state7: cb_type=0x%X radioDat=%p end_check=%d\n",
+                       gMenuCallbackProc_800ABB08.type,
+                       (void *)pCharaStruct3->field_1C_radioDatFragment,
+                       menu_radio_end_check());
+                s7_log_frame = (int)GV_Time;
+            }
+        }
+#endif
         if (gMenuCallbackProc_800ABB08.type & 0x20)
         {
             sub_8004124C(work);
             gCodecFadingStep = 0x10;
             work->field_212 = 0;
             work->field_210_codec_state = 0x13;
+#ifdef PORT_BUILD
+            printf("[codec-dbg] state7 -> 0x13 (cb_type & 0x20)\n");
+#endif
         }
         else if (pCharaStruct3->field_1C_radioDatFragment != NULL)
         {
             if (menu_radio_end_check() != 0)
             {
+#ifdef PORT_BUILD
+                printf("[codec-dbg] state7: end_check OK, freeing radioDat fragment\n");
+#endif
                 menu_radio_codec_helper_helper7_80048080();
                 ResetCodecState();
             }
@@ -1404,10 +1423,16 @@ skip_fading:
             {
                 work->field_212 = 0;
                 work->field_210_codec_state = 18;
+#ifdef PORT_BUILD
+                printf("[codec-dbg] state7 -> 18 (type&0xF == 2, auto-close)\n");
+#endif
             }
             else
             {
                 work->field_210_codec_state = 1;
+#ifdef PORT_BUILD
+                printf("[codec-dbg] state7 -> 1 (type&0xF != 2, user-close)\n");
+#endif
             }
         }
         break;
@@ -1638,8 +1663,28 @@ STATIC void menu_radio_update_80042198(MenuWork *work, u_long *ot)
     }
     else if (state == MENU_CODEC_OPEN)
     {
+#ifdef PORT_BUILD
+        {
+            static int last_codec_state = -1;
+            static int last_stream_status = 0x7fffffff;
+            int cur_ss = GM_StreamStatus();
+            if (work->field_210_codec_state != last_codec_state || cur_ss != last_stream_status)
+            {
+                printf("[codec-dbg] codec_state=%d stream_status=%d cb_type=0x%X proc=0x%X field_8=%d\n",
+                       work->field_210_codec_state, cur_ss,
+                       gMenuCallbackProc_800ABB08.type,
+                       gMenuCallbackProc_800ABB08.procNameHashed,
+                       gRadioIncomingCall_8009E708.field_8);
+                last_codec_state = work->field_210_codec_state;
+                last_stream_status = cur_ss;
+            }
+        }
+#endif
         if (work->field_210_codec_state == 20 && GM_StreamStatus() != 0)
         {
+#ifdef PORT_BUILD
+            printf("[codec-dbg] close gate PASSED: state==20 && stream_status!=0\n");
+#endif
             work->field_2A_state = MENU_CLOSED;
             menu_radio_update_helper_80038A6C();
             menu_radio_update_helper6_80047D40(work);
@@ -1719,6 +1764,12 @@ void MENU_RadioCall(int param_1, int param_2, int time)
 
         GM_GameStatus |= STATE_MENU_OFF;
     }
+#ifdef PORT_BUILD
+    printf("[codec-dbg] MENU_RadioCall freq=%d code=%d time=%d -> field_8=%d timer=%d\n",
+           param_1, param_2, time,
+           gRadioIncomingCall_8009E708.field_8,
+           gRadioIncomingCall_8009E708.field_2_timer);
+#endif
 }
 
 void MENU_SetLoad(int procNameHashed, int param_2, short param_3)
