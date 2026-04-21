@@ -294,14 +294,14 @@ int DG_QueueObjs( DG_OBJS *objs )
 
     if (n_objs >= chanl->prim_index)
     {
-        printf("[dg] QueueObjs FULL: chanl=%d objs_index=%d prim_index=%d\n", n_chanl, n_objs, chanl->prim_index);
+       // printf("[dg] QueueObjs FULL: chanl=%d objs_index=%d prim_index=%d\n", n_chanl, n_objs, chanl->prim_index);
         return -1;
     }
     else
     {
         chanl->queue[n_objs++] = objs;
         chanl->objs_index = n_objs;
-        printf("[dg] QueueObjs: chanl=%d objs_index=%d def=%p n_models=%d\n", n_chanl, n_objs, objs->def, objs->n_models);
+       // printf("[dg] QueueObjs: chanl=%d objs_index=%d def=%p n_models=%d\n", n_chanl, n_objs, objs->def, objs->n_models);
         return 0;
     }
 }
