@@ -8,6 +8,7 @@
 #include <SDL.h>
 #include "libgte.h"
 #include "libgpu.h"
+#include "libdg/libdg.h"
 #include "gl_renderer.h"
 
 /*---------------------------------------------------------------------------*/
@@ -1031,7 +1032,9 @@ void port_DrawOTag(unsigned long *ot)
                 prim_count++;
                 break;
             }
-            case 0x48: /* LINE_G2 — gouraud-colored line */
+            case 0x50: /* LINE_G2 — gouraud-colored line (PSX opcode 0x50).
+                          Was mislabelled as 0x48 (LINE_F3) previously — made
+                          GAME OVER's text prims silently fall through. */
             {
                 unsigned char r0 = data[0], g0 = data[1], b0 = data[2];
                 short x0 = *(short *)(data + 4), y0 = *(short *)(data + 6);
