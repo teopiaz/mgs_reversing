@@ -15,6 +15,93 @@
 int DG_FrameRate = 1;
 int DG_HikituriFlag = 0;
 
+/* ---- Lighting debug overrides --------------------------------------------
+ * Written by the ImGui "Stage" tab, consumed by port_light_debug_apply()
+ * which runs once per frame before rendering. On enable->disable transitions
+ * we restore cached originals so toggling off fully reverts the state
+ * (the engine typically sets these once at stage load). */
+int   port_light_ambient_override = 0;
+int   port_light_ambient_rgb[3]   = { 32, 32, 32 };
+int   port_light_disable_fixed    = 0;           /* master: zero all groups   */
+int   port_light_group_disabled[8]= { 0 };       /* per-group zero-count      */
+int   port_light_disable_dynamic  = 0;           /* master: zero both buffers */
+int   port_light_dyn_slot_muted[2][8] = { { 0 } };/* per-slot color-zero     */
+float port_light_ambient_scale    = 1.0f;        /* cheap brightness knob    */
+
+extern DG_FixedLight   gFixedLights_800B1E08[8];
+extern DG_TmpLightList LightSystems_800B1E48[2];
+
+static int      s_prev_amb_override      = 0;
+static SVECTOR  s_cached_ambient;
+static int      s_prev_group_disabled[8] = { 0 };
+static int      s_cached_group_count[8]  = { 0 };
+static float    s_prev_ambient_scale     = 1.0f;
+static SVECTOR  s_cached_ambient_scale;
+
+void port_light_debug_apply(void)
+{
+    /* --- Ambient (absolute override OR scale). Override takes precedence. */
+    if (port_light_ambient_override) {
+        if (!s_prev_amb_override) s_cached_ambient = DG_Ambient;
+        DG_Ambient.vx = (short)port_light_ambient_rgb[0];
+        DG_Ambient.vy = (short)port_light_ambient_rgb[1];
+        DG_Ambient.vz = (short)port_light_ambient_rgb[2];
+    } else if (s_prev_amb_override) {
+        DG_Ambient = s_cached_ambient;   /* restore on disable edge */
+    } else if (port_light_ambient_scale != 1.0f) {
+        /* Cheap brightness knob: re-apply each frame. Cache the engine's
+           value on entering scale mode. */
+        if (s_prev_ambient_scale == 1.0f) s_cached_ambient_scale = DG_Ambient;
+        int r = (int)(s_cached_ambient_scale.vx * port_light_ambient_scale);
+        int g = (int)(s_cached_ambient_scale.vy * port_light_ambient_scale);
+        int b = (int)(s_cached_ambient_scale.vz * port_light_ambient_scale);
+        if (r < 0) r = 0; if (r > 255) r = 255;
+        if (g < 0) g = 0; if (g > 255) g = 255;
+        if (b < 0) b = 0; if (b > 255) b = 255;
+        DG_Ambient.vx = (short)r;
+        DG_Ambient.vy = (short)g;
+        DG_Ambient.vz = (short)b;
+    } else if (s_prev_ambient_scale != 1.0f) {
+        DG_Ambient = s_cached_ambient_scale;   /* restore on scale->1.0 edge */
+    }
+    s_prev_amb_override  = port_light_ambient_override;
+    s_prev_ambient_scale = port_light_ambient_scale;
+
+    /* --- Fixed point lights: master OR per-group disable. Cache the
+       engine-set count on the enable edge so disabling restores it. */
+    for (int g = 0; g < 8; g++) {
+        int want = port_light_disable_fixed || port_light_group_disabled[g];
+        if (want && !s_prev_group_disabled[g]) {
+            s_cached_group_count[g] = gFixedLights_800B1E08[g].field_0_lightCount;
+            gFixedLights_800B1E08[g].field_0_lightCount = 0;
+        } else if (!want && s_prev_group_disabled[g]) {
+            gFixedLights_800B1E08[g].field_0_lightCount = s_cached_group_count[g];
+        } else if (want) {
+            /* Stay off even if the engine re-set it. */
+            gFixedLights_800B1E08[g].field_0_lightCount = 0;
+        }
+        s_prev_group_disabled[g] = want;
+    }
+
+    /* --- Dynamic lights: the engine rebuilds n_lights every tick, so we
+       can just clobber them each frame. No caching needed. */
+    if (port_light_disable_dynamic) {
+        LightSystems_800B1E48[0].n_lights = 0;
+        LightSystems_800B1E48[1].n_lights = 0;
+    }
+    for (int b = 0; b < 2; b++) {
+        int n = LightSystems_800B1E48[b].n_lights;
+        if (n > 8) n = 8;
+        for (int i = 0; i < n; i++) {
+            if (port_light_dyn_slot_muted[b][i]) {
+                LightSystems_800B1E48[b].lights[i].field_C_colour.r = 0;
+                LightSystems_800B1E48[b].lights[i].field_C_colour.g = 0;
+                LightSystems_800B1E48[b].lights[i].field_C_colour.b = 0;
+            }
+        }
+    }
+}
+
 /* dgd.c — our custom init */
 extern int DG_LoadInitPcx(unsigned char *buf, int id);
 static int port_dg_safe_loader(unsigned char *buf, int id) { (void)buf; (void)id; return 1; }
@@ -614,6 +701,10 @@ void port_RenderObjects(int idx)
     /* Drop last tick's GL 3D triangles. gl_renderer_present does NOT clear,
        so "idle" render frames between game ticks redraw stable content. */
     gl_renderer_begin_3d();
+
+    /* Apply lighting debug overrides (ambient / fixed / dynamic). Must run
+       before the shade pipeline so the modified values propagate. */
+    port_light_debug_apply();
 
     /* Skip rendering during stage transitions */
     {
