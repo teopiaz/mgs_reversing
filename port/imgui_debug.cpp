@@ -129,8 +129,32 @@ extern "C" {
     extern unsigned char  port_pad_lx;
     extern unsigned char  port_pad_ly;
     extern char           port_current_stage[16];
-    extern unsigned int   str_status;       /* sound stream state */
+    /* Sound engine globals (sd_ext.h). */
+    extern unsigned int   str_status;        /* stream state 0..7 */
+    extern int            sng_status;        /* song state */
+    extern int            bgm_idx;           /* current BGM index */
+    extern unsigned int   str_volume;        /* stream volume */
+    extern int            str_vox_on;        /* VOX output flag */
+    extern int            str_mute_status;
     extern int            sd_sng_code_buf[16];
+    extern int            se_tracks;
+    /* SPU emulator accessors (port/sound/spu_emu.c). */
+    typedef struct {
+        int active, key_off;
+        short vol_l, vol_r;
+        unsigned short pitch;
+        unsigned long addr;
+        int env_phase, env_level;
+    } PortSpuVoiceInfo;
+    extern int  port_spu_get_voices(PortSpuVoiceInfo *out, int max);
+    extern void port_spu_get_master(short *l, short *r);
+    extern int  port_spu_stream_info(int *rd, int *wr_r, int *wr_l,
+                                     int *active, unsigned long *br, unsigned long *bl);
+    extern int  port_spu_is_muted(void);
+    extern void port_spu_set_muted(int on);
+    extern int  port_spu_voice_is_muted(int voice);
+    extern void port_spu_voice_set_mute(int voice, int on);
+    extern void port_spu_voice_mute_all(int on);
 }
 
 extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
@@ -560,20 +584,152 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
 
                 if (ImGui::CollapsingHeader("Audio"))
                 {
+                    /* --- Global mute ------------------------------------ */
+                    bool muted = port_spu_is_muted() != 0;
+                    if (ImGui::Checkbox("Mute SPU output", &muted))
+                        port_spu_set_muted(muted);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(silence all channels; non-destructive)");
+
+                    /* --- engine state ----------------------------------- */
                     ImGui::Text("str_status: %u  (%s)", str_status,
                                 str_status == 0 ? "idle" :
                                 str_status < 5  ? "setup" :
-                                                   "playing (>=5, Double-Pcm territory)");
-                    ImGui::Spacing();
-                    ImGui::Text("Queued BGM codes (sd_sng_code_buf):");
-                    char line[128] = {0};
-                    char *w = line;
-                    char *end = line + sizeof(line);
-                    for (int i = 0; i < 16 && w < end - 10; i++) {
-                        w += snprintf(w, end - w, "%08X ", sd_sng_code_buf[i]);
-                        if ((i & 3) == 3) { ImGui::Text("%s", line); w = line; line[0] = 0; }
+                                                   "playing (>=5)");
+                    ImGui::Text("sng_status: %d   bgm_idx: %d", sng_status, bgm_idx);
+                    ImGui::Text("str_volume: %u   vox_on: %d   mute: %d   se_tracks: %d",
+                                str_volume, str_vox_on, str_mute_status, se_tracks);
+
+                    short ml = 0, mr = 0;
+                    port_spu_get_master(&ml, &mr);
+                    ImGui::Text("SPU master: L=%d  R=%d (signed 14-bit, max 0x3FFF)", ml, mr);
+
+                    /* --- BGM queue (16 slots) --------------------------- */
+                    if (ImGui::TreeNodeEx("BGM queue (sd_sng_code_buf)",
+                                          ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        if (ImGui::BeginTable("##bgm", 4, ImGuiTableFlags_Borders |
+                                                         ImGuiTableFlags_SizingFixedFit))
+                        {
+                            for (int i = 0; i < 16; i++) {
+                                ImGui::TableNextColumn();
+                                int c = sd_sng_code_buf[i];
+                                if (c == 0)
+                                    ImGui::TextDisabled("[%02d] .", i);
+                                else
+                                    ImGui::Text("[%02d] %08X", i, c);
+                            }
+                            ImGui::EndTable();
+                        }
+                        ImGui::TreePop();
                     }
-                    if (line[0]) ImGui::Text("%s", line);
+
+                    /* --- Stream PCM buffer ------------------------------ */
+                    int rd = 0, wr_r = 0, wr_l = 0, stream_on = 0;
+                    unsigned long br = 0, bl = 0;
+                    int pcm_max = port_spu_stream_info(&rd, &wr_r, &wr_l, &stream_on,
+                                                        &br, &bl);
+                    if (ImGui::TreeNodeEx("VOX stream PCM",
+                                          ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        ImGui::Text("active: %s   base_r: 0x%lX   base_l: 0x%lX",
+                                    stream_on ? "yes" : "no", br, bl);
+                        int queued_r = wr_r - rd; if (queued_r < 0) queued_r = 0;
+                        int queued_l = wr_l - rd; if (queued_l < 0) queued_l = 0;
+                        float fill_r = pcm_max ? (float)queued_r / pcm_max : 0.0f;
+                        float fill_l = pcm_max ? (float)queued_l / pcm_max : 0.0f;
+                        ImGui::ProgressBar(fill_r, ImVec2(180, 0),
+                            ([&]{ static char b[64]; snprintf(b, sizeof b,
+                                "R %d smp (%.1f s)", queued_r, queued_r/44100.0f); return b; })());
+                        ImGui::SameLine();
+                        ImGui::ProgressBar(fill_l, ImVec2(180, 0),
+                            ([&]{ static char b[64]; snprintf(b, sizeof b,
+                                "L %d smp (%.1f s)", queued_l, queued_l/44100.0f); return b; })());
+                        ImGui::TreePop();
+                    }
+
+                    /* --- SPU voice table (24 channels) ------------------ */
+                    if (ImGui::TreeNodeEx("SPU voices (24)",
+                                          ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        static const char *env_names[5] = {
+                            "OFF", "ATTACK", "DECAY", "SUSTAIN", "RELEASE"
+                        };
+                        if (ImGui::SmallButton("Mute all"))
+                            port_spu_voice_mute_all(1);
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Unmute all"))
+                            port_spu_voice_mute_all(0);
+                        PortSpuVoiceInfo vi[24];
+                        int n = port_spu_get_voices(vi, 24);
+                        if (ImGui::BeginTable("##voices", 8,
+                            ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                        {
+                            /* Explicit widths keep the "state" column from
+                               jumping around when values toggle between
+                               "off" / "ON" / "RELEASE" (different string
+                               lengths). */
+                            ImGui::TableSetupColumn("#",        ImGuiTableColumnFlags_WidthFixed,  24);
+                            ImGui::TableSetupColumn("state",    ImGuiTableColumnFlags_WidthFixed,  56);
+                            ImGui::TableSetupColumn("envelope", ImGuiTableColumnFlags_WidthFixed,  66);
+                            ImGui::TableSetupColumn("lvl",      ImGuiTableColumnFlags_WidthFixed,  64);
+                            ImGui::TableSetupColumn("pitch",    ImGuiTableColumnFlags_WidthFixed,  54);
+                            ImGui::TableSetupColumn("vol L/R",  ImGuiTableColumnFlags_WidthFixed,  76);
+                            ImGui::TableSetupColumn("addr",     ImGuiTableColumnFlags_WidthFixed,  88);
+                            ImGui::TableSetupColumn("mute",     ImGuiTableColumnFlags_WidthFixed,  54);
+                            ImGui::TableHeadersRow();
+                            for (int i = 0; i < n; i++) {
+                                ImGui::TableNextRow();
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%2d", i);
+                                ImGui::TableNextColumn();
+                                const char *state = vi[i].active
+                                    ? (vi[i].key_off ? "RELEASE" : "ON")
+                                    : "off";
+                                if (vi[i].active)
+                                    ImGui::TextColored(ImVec4(0.4f,1.0f,0.4f,1.0f),
+                                                       "%s", state);
+                                else
+                                    ImGui::TextDisabled("%s", state);
+                                ImGui::TableNextColumn();
+                                int ep = vi[i].env_phase;
+                                if (ep < 0 || ep > 4) ep = 0;
+                                ImGui::Text("%s", env_names[ep]);
+                                ImGui::TableNextColumn();
+                                /* envelope level bar, 0..0x7FFF */
+                                ImGui::ProgressBar((float)vi[i].env_level / 32767.0f,
+                                                   ImVec2(60, 0), "");
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%u", vi[i].pitch);
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%d/%d", vi[i].vol_l, vi[i].vol_r);
+                                ImGui::TableNextColumn();
+                                ImGui::Text("0x%lX", vi[i].addr);
+                                /* Per-voice mute toggle. Non-destructive:
+                                   the voice keeps ticking, we just drop its
+                                   samples in the mixer. Color-coded: red
+                                   tint when muted so the row stands out. */
+                                ImGui::TableNextColumn();
+                                ImGui::PushID(i);
+                                bool m = port_spu_voice_is_muted(i) != 0;
+                                if (m) {
+                                    ImGui::PushStyleColor(ImGuiCol_Button,
+                                        ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+                                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                        ImVec4(0.8f, 0.3f, 0.3f, 1.0f));
+                                    if (ImGui::SmallButton("Muted"))
+                                        port_spu_voice_set_mute(i, 0);
+                                    ImGui::PopStyleColor(2);
+                                } else {
+                                    if (ImGui::SmallButton("Mute"))
+                                        port_spu_voice_set_mute(i, 1);
+                                }
+                                ImGui::PopID();
+                            }
+                            ImGui::EndTable();
+                        }
+                        ImGui::TreePop();
+                    }
                 }
 
                 if (ImGui::CollapsingHeader("Debug controls",
