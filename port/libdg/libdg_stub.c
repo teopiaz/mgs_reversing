@@ -319,6 +319,26 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 screen_mat.t[1] = (screen_mat.t[1] * 58) / 64;
             }
 
+            /* Detect mirror transforms: if det(screen_mat upper 3x3) < 0 the
+               triangle winding flips, and the standard area<=0 backface test
+               drops faces that are actually visible (classic case: Snake's
+               skeletal animation with mirrored left/right limb matrices).
+               Compute once per DG_OBJ and invert the cull test when set. */
+            long long m_det;
+            {
+                long long a = screen_mat.m[0][0];
+                long long b = screen_mat.m[0][1];
+                long long c = screen_mat.m[0][2];
+                long long d = screen_mat.m[1][0];
+                long long e = screen_mat.m[1][1];
+                long long f = screen_mat.m[1][2];
+                long long g = screen_mat.m[2][0];
+                long long h = screen_mat.m[2][1];
+                long long i = screen_mat.m[2][2];
+                m_det = a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g);
+            }
+            int mirrored = (m_det < 0);
+
             /* Color pack pointer — valid if shade pipeline wrote correct colors.
                DG_MODEL_INDIRECT is now handled safely in shade.c (PORT_BUILD). */
             POLY_GT4 *color_packs = ((objs->flag & DG_FLAG_SHADE) && objs->bound_mode && obj->bound_mode)
@@ -383,6 +403,9 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 extern int gl_debug_no_cull;
                 if (!any_clamped && !(gl_on && gl_debug_no_cull)) {
                     int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
+                    /* Mirror transforms flip the screen-space winding.
+                       Flip the sign of the area so the cull stays correct. */
+                    if (mirrored) area = -area;
                     if (area <= 0) {
                         if (!(mdl->flags & DG_MODEL_BOTHFACE) || area == 0) continue;
                     }
