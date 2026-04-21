@@ -103,6 +103,7 @@ int iso_open(IsoImage *img, const char *path)
 {
     if (!img || !path) return -1;
     memset(img, 0, sizeof(*img));
+    img->sibling_parent_lba = -1;
 
     /* If it's a cue, resolve to the real BIN first. */
     const char *dot = strrchr(path, '.');
@@ -139,10 +140,12 @@ int iso_open(IsoImage *img, const char *path)
 
 void iso_close(IsoImage *img)
 {
-    if (img && img->fp) {
-        fclose(img->fp);
-        img->fp = NULL;
-    }
+    if (!img) return;
+    if (img->fp) { fclose(img->fp); img->fp = NULL; }
+    free(img->sibling_lbas);
+    img->sibling_lbas = NULL;
+    img->sibling_count = 0;
+    img->sibling_parent_lba = -1;
 }
 
 /* Read an entire directory extent (may span several sectors). */
@@ -180,6 +183,79 @@ static int name_matches(const char *rec_name, int rec_name_len, const char *targ
         if (toupper((unsigned char)rec_name[i]) != toupper((unsigned char)target[i])) return 0;
     }
     return 1;
+}
+
+/* Ensure img->sibling_lbas contains a sorted list of every non-directory
+ * sibling's LBA in the directory at `parent_lba` (with size `parent_size`).
+ * We use this to extend a file's effective size up to the next sibling's
+ * start LBA — PSX discs routinely under-report .DAT sizes when the file
+ * contains XA-interleaved audio that the original CD driver streamed past
+ * the ISO-directory end. */
+static int lba_cmp(const void *a, const void *b)
+{
+    int la = ((const IsoLbaSlot *)a)->lba;
+    int lb = ((const IsoLbaSlot *)b)->lba;
+    return (la > lb) - (la < lb);
+}
+
+static void build_sibling_cache(IsoImage *img, int parent_lba, long parent_size)
+{
+    if (img->sibling_parent_lba == parent_lba && img->sibling_lbas) return;
+
+    free(img->sibling_lbas);
+    img->sibling_lbas = NULL;
+    img->sibling_count = 0;
+    img->sibling_parent_lba = -1;
+
+    long actual = 0;
+    uint8_t *dir = read_dir_extent(img, parent_lba, parent_size, &actual);
+    if (!dir) return;
+
+    int cap = 16;
+    IsoLbaSlot *slots = (IsoLbaSlot *)malloc(sizeof(*slots) * cap);
+    int n = 0;
+    for (long i = 0; i < parent_size; ) {
+        uint8_t rec_len = dir[i];
+        if (rec_len == 0) {
+            long next = ((i / ISO_SECTOR_USER_SIZE) + 1) * ISO_SECTOR_USER_SIZE;
+            if (next <= i) break;
+            i = next;
+            continue;
+        }
+        uint8_t flags = dir[i + 25];
+        int is_dir = (flags & 2) != 0;
+        int lba = (int)((uint32_t)dir[i+2]  | ((uint32_t)dir[i+3]  << 8) |
+                        ((uint32_t)dir[i+4] << 16) | ((uint32_t)dir[i+5] << 24));
+        if (!is_dir && lba > 0) {
+            if (n == cap) { cap *= 2; slots = (IsoLbaSlot *)realloc(slots, sizeof(*slots) * cap); }
+            slots[n++].lba = lba;
+        }
+        i += rec_len;
+    }
+    free(dir);
+
+    qsort(slots, n, sizeof(*slots), lba_cmp);
+    img->sibling_lbas = slots;
+    img->sibling_count = n;
+    img->sibling_parent_lba = parent_lba;
+}
+
+/* Given a file at start_lba and its directory-reported size, return the
+ * effective maximum read extent based on the next sibling's LBA. Never
+ * returns less than the directory-reported size. */
+static long effective_size(IsoImage *img, int start_lba, long dir_size)
+{
+    for (int i = 0; i < img->sibling_count; i++) {
+        if (img->sibling_lbas[i].lba == start_lba) {
+            if (i + 1 < img->sibling_count) {
+                long extent_sectors = (long)img->sibling_lbas[i + 1].lba - (long)start_lba;
+                long extent_bytes = extent_sectors * ISO_SECTOR_USER_SIZE;
+                if (extent_bytes > dir_size) return extent_bytes;
+            }
+            break;
+        }
+    }
+    return dir_size;
 }
 
 int iso_find_file(IsoImage *img, const char *iso_path, IsoFile *out)
@@ -243,8 +319,12 @@ int iso_find_file(IsoImage *img, const char *iso_path, IsoFile *out)
 
             if (name_matches(name, name_len, comp)) {
                 if (is_last && !is_dir) {
+                    /* Extend effective size to next sibling's LBA so XA-padded
+                     * files like RADIO.DAT/VOX.DAT expose their full physical
+                     * extent instead of the under-reported directory size. */
+                    build_sibling_cache(img, dir_lba, dir_size);
                     out->lba = f_lba;
-                    out->size = f_size;
+                    out->size = effective_size(img, f_lba, f_size);
                     free(dir_data);
                     return 0;
                 }
