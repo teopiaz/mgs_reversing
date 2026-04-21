@@ -188,7 +188,13 @@ void game_tick(void)
     }
 
     DG_CurrentGroupID = 0xFFFFFFFF;
-    port_ot_next = 0;
+    /* Port: do NOT reset port_ot_next here. OT link tags (e.g. chanl-1/2
+       linking into chanl-0's ot[which] at link position) are written at
+       DG_SwapFrame time and must remain resolvable for several frames
+       until DG_ClearChanlSystem rewrites them. Resetting per-frame made
+       old handles point at freshly-registered unrelated objects, which
+       silently broke the OT chain (e.g. GAME OVER text invisible). Let
+       port_ot_next grow naturally and wrap at PORT_OT_TABLE_SIZE. */
 
     /* Clear scratchpad each frame — collision stubs don't initialize it properly */
     {

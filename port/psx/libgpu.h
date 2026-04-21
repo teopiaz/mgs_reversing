@@ -20,7 +20,14 @@ typedef u_long P_TAG;
  * 24-bit indices to full 64-bit pointers. This avoids all address
  * truncation issues. */
 
-#define PORT_OT_TABLE_SIZE (1 << 18)  /* 256K entries, enough for any OT */
+/* 24-bit handle space. Entries must persist across frames because chanl
+ * linking (chanl0.ot[which][link].tag stores handle pointing to env1[...])
+ * is set up at DG_SwapFrame time and read multiple frames later. Smaller
+ * tables + per-frame reset overwrite slots while old tags still reference
+ * them, breaking the OT chain (e.g. GAME OVER text disappeared because the
+ * chanl-2 link resolved to a stale object). 2^24 × 8 bytes = 128 MB; at
+ * ~400 addPrim/frame this wraps every ~14 hours of gameplay. */
+#define PORT_OT_TABLE_SIZE (1 << 24)
 extern void *port_ot_table[PORT_OT_TABLE_SIZE];
 extern int port_ot_next;
 
