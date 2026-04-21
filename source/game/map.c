@@ -114,33 +114,6 @@ STATIC void GM_LoadMapModel(int name, MAP *map)
     DG_SetPos(&DG_ZeroMatrix);
     DG_PutObjs(objs);
 
-    /* Skip preshading — set flat grey lighting on all faces instead */
-    {
-        int n_models_total = def->n_models;
-        int total_faces = 0;
-        DG_MDL *m = (DG_MDL *)&def[1];
-        int mi;
-        for (mi = 0; mi < n_models_total; mi++) {
-            total_faces += m->n_faces;
-            m++;
-        }
-        CVECTOR *cvec = GV_Malloc(0x10 * total_faces);
-        if (cvec) {
-            CVECTOR *c = cvec;
-            int fi;
-            for (fi = 0; fi < total_faces * 4; fi++) {
-                c->r = 128; c->g = 128; c->b = 128; c->cd = 0x3C;
-                c++;
-            }
-            DG_OBJ *o = objs->objs;
-            for (mi = 0; mi < n_models_total; mi++) {
-                o->rgbs = cvec;
-                cvec += o->model->n_faces * 4;
-                o++;
-            }
-        }
-    }
-
     DG_QueueObjs(objs);
     DG_GroupObjs(objs, map->index);
 
