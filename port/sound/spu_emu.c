@@ -71,6 +71,74 @@ static SPU_Voice voices[NUM_VOICES];
 static short master_vol_l = 0x3FFF;
 static short master_vol_r = 0x3FFF;
 
+/* --- Debug accessor used by the imgui overlay (Audio tab). ----------------
+ * Copies a compact snapshot of the voice table into `out`. Returns the
+ * number of voices written (min(NUM_VOICES, max)). The struct layout is a
+ * plain-data copy to avoid exposing SPU_Voice internals outside this TU. */
+typedef struct {
+    int            active;
+    int            key_off;
+    short          vol_l, vol_r;
+    unsigned short pitch;
+    unsigned long  addr;
+    int            env_phase;   /* 0..4 (ENV_OFF .. ENV_RELEASE) */
+    int            env_level;   /* 0..0x7FFF */
+} PortSpuVoiceInfo;
+
+int port_spu_get_voices(PortSpuVoiceInfo *out, int max)
+{
+    int n = NUM_VOICES;
+    if (n > max) n = max;
+    for (int i = 0; i < n; i++) {
+        SPU_Voice *v = &voices[i];
+        out[i].active    = v->active;
+        out[i].key_off   = v->key_off;
+        out[i].vol_l     = v->vol_l;
+        out[i].vol_r     = v->vol_r;
+        out[i].pitch     = v->pitch;
+        out[i].addr      = v->addr;
+        out[i].env_phase = (int)v->env_phase;
+        out[i].env_level = v->env_level;
+    }
+    return n;
+}
+
+/* SPU master volume accessor (signed 14-bit). */
+void port_spu_get_master(short *l, short *r) { *l = master_vol_l; *r = master_vol_r; }
+
+/* Global mute. When on, the SDL audio device stays open but we don't feed
+ * samples -- it outputs silence. Non-destructive; unmute resumes mid-stream. */
+static int port_spu_muted_flag = 0;
+int  port_spu_is_muted(void) { return port_spu_muted_flag; }
+void port_spu_set_muted(int on)
+{
+    port_spu_muted_flag = on ? 1 : 0;
+    /* Actual muting is applied in the mixer (see master gain multiply below). */
+}
+
+/* Per-voice mute (bitmask, one bit per channel). Non-destructive: the game
+ * keeps ticking the voice, we just skip its contribution in the mixer. */
+static unsigned int port_spu_voice_mute_mask = 0;
+int  port_spu_voice_is_muted(int voice)
+{
+    if (voice < 0 || voice >= NUM_VOICES) return 0;
+    return (port_spu_voice_mute_mask >> voice) & 1u;
+}
+void port_spu_voice_set_mute(int voice, int on)
+{
+    if (voice < 0 || voice >= NUM_VOICES) return;
+    if (on) port_spu_voice_mute_mask |=  (1u << voice);
+    else    port_spu_voice_mute_mask &= ~(1u << voice);
+}
+void port_spu_voice_mute_all(int on)
+{
+    port_spu_voice_mute_mask = on ? 0x00FFFFFFu : 0u;
+}
+unsigned int port_spu_voice_mute_get_mask(void) { return port_spu_voice_mute_mask; }
+/* port_spu_stream_info() is defined below, after the stream_* statics. */
+int port_spu_stream_info(int *pcm_rd_out, int *pcm_wr_r_out, int *pcm_wr_l_out,
+                         int *active_out, unsigned long *base_r_out, unsigned long *base_l_out);
+
 /* IRQ */
 static SpuIRQCallbackProc spu_irq_callback = NULL;
 static unsigned long spu_irq_addr = 0;
@@ -95,6 +163,19 @@ static unsigned long stream_base_l = 0;   /* SPU RAM addr of left buffer */
 /* Per-channel ADPCM decoder state (maintained across SpuWrite calls) */
 static int stream_prev1_r = 0, stream_prev2_r = 0;
 static int stream_prev1_l = 0, stream_prev2_l = 0;
+
+/* Imgui debug accessor (forward-declared earlier). */
+int port_spu_stream_info(int *pcm_rd_out, int *pcm_wr_r_out, int *pcm_wr_l_out,
+                         int *active_out, unsigned long *base_r_out, unsigned long *base_l_out)
+{
+    if (pcm_rd_out)   *pcm_rd_out   = stream_pcm_rd;
+    if (pcm_wr_r_out) *pcm_wr_r_out = stream_pcm_wr_r;
+    if (pcm_wr_l_out) *pcm_wr_l_out = stream_pcm_wr_l;
+    if (active_out)   *active_out   = stream_active;
+    if (base_r_out)   *base_r_out   = stream_base_r;
+    if (base_l_out)   *base_l_out   = stream_base_l;
+    return STREAM_PCM_MAX;
+}
 
 void spu_stream_set_buffers(unsigned long base_r, unsigned long base_l)
 {
@@ -415,11 +496,19 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
                 short sam_r = (rd < stream_pcm_wr_r) ? stream_pcm_r[rd] : 0;
                 short sam_l = (rd < stream_pcm_wr_l) ? stream_pcm_l[rd] : 0;
 
-                /* Apply voice volumes (set by StrFadeInt) */
-                mix_l += ((int)sam_r * vr->vol_l) >> 15;
-                mix_r += ((int)sam_r * vr->vol_r) >> 15;
-                mix_l += ((int)sam_l * vl->vol_l) >> 15;
-                mix_r += ((int)sam_l * vl->vol_r) >> 15;
+                /* Apply voice volumes (set by StrFadeInt). Honor the
+                   per-voice mute bits so the ImGui mute toggles silence
+                   the stream channels too. */
+                int mute21 = (port_spu_voice_mute_mask >> 21) & 1u;
+                int mute22 = (port_spu_voice_mute_mask >> 22) & 1u;
+                if (!mute21) {
+                    mix_l += ((int)sam_r * vr->vol_l) >> 15;
+                    mix_r += ((int)sam_r * vr->vol_r) >> 15;
+                }
+                if (!mute22) {
+                    mix_l += ((int)sam_l * vl->vol_l) >> 15;
+                    mix_r += ((int)sam_l * vl->vol_r) >> 15;
+                }
 
                 /* Advance read cursor — PSX SPU pitch is 4.12 fixed-point.
                    Pitch 0x1000 = 1.0 = 44100Hz (one decoded sample per output sample). */
@@ -439,6 +528,12 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
 
             /* Skip stream voices — handled above via pre-decoded PCM */
             if (stream_active && (ch == 21 || ch == 22))
+                continue;
+
+            /* Debug per-voice mute: skip this channel's mix contribution.
+               The voice keeps ticking (envelope, addr advance) so the
+               game's state is unaffected -- we only silence it. */
+            if ((port_spu_voice_mute_mask >> ch) & 1u)
                 continue;
 
             /* PSX SPU pitch is 4.12 fixed-point: 0x1000 = 44100Hz.
@@ -475,9 +570,14 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
             env_tick(v);
         }
 
-        /* Apply master volume */
-        mix_l = (mix_l * master_vol_l) >> 14;
-        mix_r = (mix_r * master_vol_r) >> 14;
+        /* Apply master volume (or silence if the debug overlay muted us). */
+        if (port_spu_muted_flag) {
+            mix_l = 0;
+            mix_r = 0;
+        } else {
+            mix_l = (mix_l * master_vol_l) >> 14;
+            mix_r = (mix_r * master_vol_r) >> 14;
+        }
 
         /* Clamp */
         if (mix_l > 32767) mix_l = 32767;
