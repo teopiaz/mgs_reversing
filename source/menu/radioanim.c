@@ -185,7 +185,13 @@ void menu_radio_codec_task_proc_helper_80046F3C(menu_chara_struct *pStru, faces_
 
     int i, j;
     static face_header native_faces[64]; /* max faces per codec call */
-    if (face_count > 64) face_count = 64;
+    /* Port: sanity-clamp face_count. A non-Integral disc image can produce
+       garbage here because the game's radio table addresses RADIO.DAT sectors
+       beyond the vanilla file's physical size; the parser would then walk
+       arbitrary bytes and eventually fault. Fail soft instead. */
+    if (face_count < 0 || face_count > 64) {
+        face_count = (face_count < 0) ? 0 : 64;
+    }
 
     pStru->field_30_face_count = face_count;
     pStru->field_34_faces = native_faces;
@@ -197,8 +203,16 @@ void menu_radio_codec_task_proc_helper_80046F3C(menu_chara_struct *pStru, faces_
         native_faces[i].field_2_code      = read_u16(fh + 2);
         native_faces[i].field_4           = read_i32(fh + 4);
 
-        /* field_8 is a relative offset from faces_raw to the anim data */
+        /* field_8 is a relative offset from faces_raw to the anim data.
+           Port: clamp offsets clearly outside a reasonable pFacesGroup so
+           a garbage RADIO.DAT read doesn't produce wild pointers. The real
+           MGS FACE groups are at most a few hundred KB. */
         uint32_t anim_off = read_u32(fh + 8);
+        if (anim_off > (4 * 1024 * 1024)) {
+            native_faces[i].field_0_anim_type = 0;
+            native_faces[i].field_8_anim_data.raw_ptr = NULL;
+            continue;
+        }
         unsigned char *anim_base = faces_raw + anim_off;
         native_faces[i].field_8_anim_data.raw_ptr = anim_base;
 
