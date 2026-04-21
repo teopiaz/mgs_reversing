@@ -5,6 +5,8 @@
 #include <SDL.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
 
 /* When imgui_init is given a NULL SDL_Renderer, we assume an SDL_GL context
    is current and use the ImGui OpenGL3 backend instead. */
@@ -155,6 +157,25 @@ extern "C" {
     extern int  port_spu_voice_is_muted(int voice);
     extern void port_spu_voice_set_mute(int voice, int on);
     extern void port_spu_voice_mute_all(int on);
+
+    /* Lighting globals (source/libdg/light.c). Mirror layouts locally so this
+       C++ TU doesn't pull the C engine headers (and their MIPS/PSYQ types). */
+    typedef struct { short vx, vy, vz, pad; } PortSVEC;
+    typedef struct { unsigned char r, g, b, cd; } PortCVEC;
+    typedef struct {
+        PortSVEC       pos;
+        unsigned short brightness;
+        unsigned short radius;
+        PortCVEC       color;
+    } PortDG_LIT;
+    typedef struct { int count; PortDG_LIT *p; } PortDG_FixedLight;
+    typedef struct { int n_lights; PortDG_LIT lights[8]; } PortDG_TmpLightList;
+
+    extern PortMATRIX         DG_LightMatrix;   /* rows = main/sub1/sub2 directions */
+    extern PortMATRIX         DG_ColorMatrix;   /* cols = main/sub1/sub2 colors */
+    extern PortSVEC           DG_Ambient;       /* global ambient RGB (0..255) */
+    extern PortDG_FixedLight  gFixedLights_800B1E08[8];
+    extern PortDG_TmpLightList LightSystems_800B1E48[2];
 }
 
 extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
@@ -256,6 +277,7 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 {
                     extern int gl_debug_no_cull, gl_debug_face_id, gl_debug_show_normals;
                     extern int gl_debug_clear_override;
+                    extern int gl_debug_cull_cw;
                     extern float gl_debug_clear_rgb[3];
                     bool b;
                     b = gl_debug_wireframe != 0;
@@ -267,6 +289,9 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     b = gl_debug_no_cull != 0;
                     if (ImGui::Checkbox("Disable backface cull (see interior)", &b))
                         gl_debug_no_cull = b;
+                    b = gl_debug_cull_cw != 0;
+                    if (ImGui::Checkbox("Flip front-face (CW instead of CCW)", &b))
+                        gl_debug_cull_cw = b;
                     b = gl_debug_face_id != 0;
                     if (ImGui::Checkbox("Per-tri random color (face ID)", &b))
                         gl_debug_face_id = b;
@@ -486,6 +511,143 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 }
                 ImGui::Separator();
                 ImGui::Text("Total: %d actors", total);
+                ImGui::EndTabItem();
+            }
+
+            /* ---------------------------------------------------------- */
+            /* STAGE / LIGHTING                                           */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Stage")) {
+                ImGui::Text("Stage: %s",
+                            port_current_stage[0] ? port_current_stage : "(none)");
+                ImGui::Separator();
+
+                /* Ambient */
+                float amb_r = DG_Ambient.vx / 255.0f;
+                float amb_g = DG_Ambient.vy / 255.0f;
+                float amb_b = DG_Ambient.vz / 255.0f;
+                if (amb_r < 0) amb_r = 0; if (amb_r > 1) amb_r = 1;
+                if (amb_g < 0) amb_g = 0; if (amb_g > 1) amb_g = 1;
+                if (amb_b < 0) amb_b = 0; if (amb_b > 1) amb_b = 1;
+                float amb_col[3] = { amb_r, amb_g, amb_b };
+                ImGui::ColorEdit3("##amb", amb_col,
+                                  ImGuiColorEditFlags_NoInputs |
+                                  ImGuiColorEditFlags_NoPicker |
+                                  ImGuiColorEditFlags_NoLabel);
+                ImGui::SameLine();
+                ImGui::Text("Ambient  (%d, %d, %d)",
+                            DG_Ambient.vx, DG_Ambient.vy, DG_Ambient.vz);
+
+                ImGui::Separator();
+
+                /* Directional lights: DG_LightMatrix rows = directions (4.12),
+                   DG_ColorMatrix columns = colors scaled *16 (DG_SetMainLightCol
+                   multiplies by 16; divide by 16 to recover the user 0..255). */
+                if (ImGui::CollapsingHeader("Directional lights (3)",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                    static const char *names[3] = { "Main", "Sub 1", "Sub 2" };
+                    if (ImGui::BeginTable("##dirlights", 4,
+                                          ImGuiTableFlags_Borders |
+                                          ImGuiTableFlags_RowBg)) {
+                        ImGui::TableSetupColumn("Slot", ImGuiTableColumnFlags_WidthFixed, 55);
+                        ImGui::TableSetupColumn("Direction (x, y, z)", ImGuiTableColumnFlags_WidthFixed, 175);
+                        ImGui::TableSetupColumn("Color", ImGuiTableColumnFlags_WidthFixed, 140);
+                        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 30);
+                        ImGui::TableHeadersRow();
+
+                        for (int i = 0; i < 3; i++) {
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0);
+                            ImGui::Text("%s", names[i]);
+
+                            float dx = DG_LightMatrix.m[i][0] / 4096.0f;
+                            float dy = DG_LightMatrix.m[i][1] / 4096.0f;
+                            float dz = DG_LightMatrix.m[i][2] / 4096.0f;
+                            ImGui::TableSetColumnIndex(1);
+                            ImGui::Text("%+.2f, %+.2f, %+.2f", dx, dy, dz);
+
+                            /* Color matrix stores columns as R,G,B for each light. */
+                            float cr = DG_ColorMatrix.m[0][i] / 16.0f / 255.0f;
+                            float cg = DG_ColorMatrix.m[1][i] / 16.0f / 255.0f;
+                            float cb = DG_ColorMatrix.m[2][i] / 16.0f / 255.0f;
+                            if (cr < 0) cr = 0; if (cr > 1) cr = 1;
+                            if (cg < 0) cg = 0; if (cg > 1) cg = 1;
+                            if (cb < 0) cb = 0; if (cb > 1) cb = 1;
+                            float col[3] = { cr, cg, cb };
+                            ImGui::TableSetColumnIndex(2);
+                            char id[16]; snprintf(id, sizeof(id), "##c%d", i);
+                            ImGui::ColorEdit3(id, col,
+                                              ImGuiColorEditFlags_NoInputs |
+                                              ImGuiColorEditFlags_NoPicker |
+                                              ImGuiColorEditFlags_NoLabel);
+                            ImGui::SameLine();
+                            ImGui::Text("%d,%d,%d",
+                                        (int)(cr*255), (int)(cg*255), (int)(cb*255));
+                            ImGui::TableSetColumnIndex(3);
+                            float len = sqrtf(dx*dx + dy*dy + dz*dz);
+                            ImGui::TextDisabled("%.2f", len);
+                        }
+                        ImGui::EndTable();
+                    }
+                }
+
+                /* Fixed point-lights. Each group has a count and an array. */
+                int fx_total = 0;
+                for (int g = 0; g < 8; g++) fx_total += gFixedLights_800B1E08[g].count;
+                char fx_header[48];
+                snprintf(fx_header, sizeof(fx_header), "Fixed point lights (%d)", fx_total);
+                if (ImGui::CollapsingHeader(fx_header)) {
+                    int row = 0;
+                    for (int g = 0; g < 8; g++) {
+                        int n = gFixedLights_800B1E08[g].count;
+                        PortDG_LIT *p = gFixedLights_800B1E08[g].p;
+                        if (n <= 0 || !p) continue;
+                        for (int i = 0; i < n; i++, row++) {
+                            PortDG_LIT *lt = &p[i];
+                            float rr = lt->color.r/255.0f, gg = lt->color.g/255.0f, bb = lt->color.b/255.0f;
+                            float col[3] = { rr, gg, bb };
+                            char id[24]; snprintf(id, sizeof(id), "##fx%d", row);
+                            ImGui::ColorEdit3(id, col,
+                                              ImGuiColorEditFlags_NoInputs |
+                                              ImGuiColorEditFlags_NoPicker |
+                                              ImGuiColorEditFlags_NoLabel);
+                            ImGui::SameLine();
+                            ImGui::Text("g%d[%d]  pos=(%d,%d,%d)  bri=%u  r=%u",
+                                        g, i, lt->pos.vx, lt->pos.vy, lt->pos.vz,
+                                        lt->brightness, lt->radius);
+                        }
+                    }
+                    if (row == 0) ImGui::TextDisabled("(none)");
+                }
+
+                /* Dynamic (per-frame) light list, double-buffered. Show both
+                   buffers so you can see which is active on either frame. */
+                char dy_header[64];
+                snprintf(dy_header, sizeof(dy_header), "Dynamic lights (buf0=%d, buf1=%d)",
+                         LightSystems_800B1E48[0].n_lights,
+                         LightSystems_800B1E48[1].n_lights);
+                if (ImGui::CollapsingHeader(dy_header)) {
+                    for (int b = 0; b < 2; b++) {
+                        int n = LightSystems_800B1E48[b].n_lights;
+                        ImGui::Text("Buffer %d: %d lights", b, n);
+                        if (n > 8) n = 8;
+                        for (int i = 0; i < n; i++) {
+                            PortDG_LIT *lt = &LightSystems_800B1E48[b].lights[i];
+                            float rr = lt->color.r/255.0f, gg = lt->color.g/255.0f, bb = lt->color.b/255.0f;
+                            float col[3] = { rr, gg, bb };
+                            char id[24]; snprintf(id, sizeof(id), "##dy%d_%d", b, i);
+                            ImGui::ColorEdit3(id, col,
+                                              ImGuiColorEditFlags_NoInputs |
+                                              ImGuiColorEditFlags_NoPicker |
+                                              ImGuiColorEditFlags_NoLabel);
+                            ImGui::SameLine();
+                            ImGui::Text("  [%d] pos=(%d,%d,%d)  bri=%u  r=%u",
+                                        i, lt->pos.vx, lt->pos.vy, lt->pos.vz,
+                                        lt->brightness, lt->radius);
+                        }
+                    }
+                }
+
                 ImGui::EndTabItem();
             }
 

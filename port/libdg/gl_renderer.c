@@ -90,6 +90,7 @@ int   gl_debug_skip_2d        = 0;
 int   gl_debug_skip_lines     = 0;
 int   gl_debug_blit_nearest   = 0;
 int   gl_debug_no_cull        = 0;
+int   gl_debug_cull_cw        = 1;  /* 1 = CW front (default, matches PSX), 0 = CCW */
 int   gl_debug_face_id        = 0;
 int   gl_debug_show_normals   = 0;
 int   gl_debug_clear_override = 0;
@@ -1092,18 +1093,28 @@ void gl_renderer_present(void)
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, g_vram_tex);
 
-        glDisable(GL_CULL_FACE);  /* port_RenderObjects already does backface cull */
+        /* GPU backface cull. Our vertex shader flips Y (PSX screen is Y-down,
+           GL NDC is Y-up), which inverts 2D winding, so PSX-front (CW in
+           Y-down / NCLIP area > 0) becomes GL-CCW after projection. Default
+           front-face GL_CCW + cull GL_BACK reproduces PSX NCLIP exactly and
+           handles mirror matrices for free (GPU sees the real post-projection
+           winding). Per-tri "no cull" flag (bit 6) disables for characters /
+           DG_MODEL_BOTHFACE. */
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(gl_debug_cull_cw ? GL_CW : GL_CCW);
 
-        /* Walk the 3D buffer in runs sharing the same (semi_trans, abr)
-           bucket. Submission order is PSX-OT order (back-to-front) so a
-           simple bucket-change detector preserves painter's semantics.
+        /* Walk the 3D buffer in runs sharing the same (semi_trans, abr,
+           no_cull) bucket. Submission order is PSX-OT order (back-to-front)
+           so a simple bucket-change detector preserves painter's semantics.
            Opaque runs: blend OFF, depth write ON. Semi-trans runs: blend
            via apply_abr, depth write OFF (depth test still on). */
         size_t i = 0;
         while (i < g_tri3d_count) {
             unsigned short f0 = g_tri3d_buf[i].flags;
-            int semi0 = (f0 >> 1) & 1;
-            int abr0  = (f0 >> 2) & 3;
+            int semi0   = (f0 >> 1) & 1;
+            int abr0    = (f0 >> 2) & 3;
+            int nocull0 = (f0 >> 6) & 1;
             size_t run_start = i;
             /* 3 verts per triangle — stride through whole triangles. */
             size_t j = i;
@@ -1111,7 +1122,8 @@ void gl_renderer_present(void)
                 unsigned short f = g_tri3d_buf[j].flags;
                 int s = (f >> 1) & 1;
                 int a = (f >> 2) & 3;
-                if (s != semi0 || (s && a != abr0)) break;
+                int nc = (f >> 6) & 1;
+                if (s != semi0 || (s && a != abr0) || nc != nocull0) break;
                 j += 3;
             }
             if (semi0) {
@@ -1122,11 +1134,14 @@ void gl_renderer_present(void)
                 glDisable(GL_BLEND);
                 glDepthMask(GL_TRUE);
             }
+            if (nocull0) glDisable(GL_CULL_FACE);
+            else         glEnable(GL_CULL_FACE);
             glDrawArrays(GL_TRIANGLES, (GLint)run_start, (GLsizei)(j - run_start));
             i = j;
         }
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
+        glDisable(GL_CULL_FACE);
         glBlendEquation(GL_FUNC_ADD);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
