@@ -369,25 +369,27 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 if (sz0 < 1 && sz1 < 1 && sz2 < 1 && sz3 < 1) continue;
 
                 int gl_on = gl_renderer_enabled();
+                extern int gl_debug_no_cull;
+                /* Characters / dynamic props use DG_FLAG_SHADE (per-frame
+                   lighting, skeletal animation). Level geometry and static
+                   props use DG_FLAG_PAINT (preshaded). Snake has SHADE +
+                   IRTEXTURE; map walls have PAINT. Distinguishing by SHADE
+                   vs PAINT matches PSX behaviour: only SHADE objects have
+                   bones whose transforms can mirror-flip per-frame. */
+                int is_character = (objs->flag & DG_FLAG_SHADE) != 0;
+                int bothface = (mdl->flags & DG_MODEL_BOTHFACE) != 0;
 
-                /* Backface cull (PSX NCLIP semantics).
-                   Skip the test for GL characters (DG_FLAG_PAINT |
-                   DG_FLAG_IRTEXTURE): skeletal-animated meshes have mirrored
-                   bones whose projected winding flips, and the signed-area
-                   test drops legit front-faces, leaving holes on Snake.
-                   Characters are closed meshes so depth-test alone resolves
-                   visibility correctly. Level geometry still gets culled
-                   normally (walls are single-sided). */
+                /* Backface cull. GL mode defers to the GPU (GL_CULL_FACE in
+                   the 3D pass) which uses exact post-projection winding and
+                   handles mirror matrices correctly. Per-tri "no cull" flag
+                   (bit 6) bypasses GPU cull for characters and DG_MODEL_BOTHFACE.
+                   Software (PORT_GL=0) keeps the CPU NCLIP test. */
                 int any_clamped = (sz0 <= 4) || (sz1 <= 4) ||
                                   (sz2 <= 4) || (sz3 <= 4);
-                extern int gl_debug_no_cull;
-                int is_character =
-                    (objs->flag & (DG_FLAG_PAINT | DG_FLAG_IRTEXTURE)) != 0;
-                int skip_cull = gl_debug_no_cull || (gl_on && is_character);
-                if (!any_clamped && !skip_cull) {
+                if (!gl_on && !gl_debug_no_cull && !any_clamped) {
                     int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
                     if (area <= 0) {
-                        if (!(mdl->flags & DG_MODEL_BOTHFACE) || area == 0) continue;
+                        if (!bothface || area == 0) continue;
                     }
                 }
 
@@ -510,9 +512,11 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             unsigned char cd_[3]={CLAMP255(cr[3]),CLAMP255(cg[3]),CLAMP255(cb[3])};
                             int face_z = (sz0+sz1+sz2+sz3)/4;
                             /* flags: b0 textured, b1 semi-trans, b2-3 ABR,
-                               b4 per-pixel lit (from light_flag_bit). */
+                               b4 per-pixel lit (from light_flag_bit),
+                               b6 no-cull (characters/BOTHFACE, read by flush). */
                             unsigned short fflags = 1 | light_flag_bit;
                             if (port_tex_semi_trans) fflags |= 2 | ((port_tex_abr & 3) << 2);
+                            if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
                             const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                             /* tri 1: v0, v1, v3 */
                             gl_submit_tri3d(eye[0], eye[1], eye[3],
@@ -560,6 +564,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         unsigned char cd_[3]={CLAMP255(cr[3]),CLAMP255(cg[3]),CLAMP255(cb[3])};
                         int face_z = (sz0+sz1+sz2+sz3)/4;
                         unsigned short fflags = light_flag_bit;
+                        if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
                         const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                         gl_submit_tri3d(eye[0], eye[1], eye[3],
                                         uv_dummy, uv_dummy, uv_dummy,
