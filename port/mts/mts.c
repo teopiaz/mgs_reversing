@@ -512,8 +512,9 @@ void mts_get_use_stack_size(int *max, int *now, int *limit)
 #define BTN_START   0x0800
 #define BTN_SELECT  0x0100
 
-static unsigned short port_pad_buttons = 0;
-static unsigned char port_pad_lx = 128, port_pad_ly = 128;
+/* Non-static so imgui_debug.cpp can show live pad state in the Other tab. */
+unsigned short port_pad_buttons = 0;
+unsigned char  port_pad_lx = 128, port_pad_ly = 128;
 
 /* Replay / record state — file-scope so port_replay_start() / port_record_start() can reset */
 static FILE *play_file = NULL;

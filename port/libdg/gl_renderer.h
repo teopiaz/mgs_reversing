@@ -56,23 +56,57 @@ void gl_renderer_set_clear_color(int r8, int g8, int b8);
 void gl_renderer_begin_3d(void);
 void gl_renderer_begin_2d(void);
 
+/* --- Debug visualisation flags (read at draw time in gl_renderer_present).
+ *     Defaults: 0 = off (normal rendering). Flipped via ImGui debug menu. */
+extern int gl_debug_wireframe;      /* glPolygonMode(GL_LINE) for 3D + 2D tris */
+extern int gl_debug_no_textures;    /* fragment shader skips texture sample */
+extern int gl_debug_skip_3d;        /* skip the entire 3D pass */
+extern int gl_debug_skip_2d;        /* skip the 2D triangle pass */
+extern int gl_debug_skip_lines;     /* skip the 2D line pass */
+extern int gl_debug_blit_nearest;   /* FBO->window: GL_NEAREST instead of GL_LINEAR */
+extern int gl_debug_no_cull;        /* skip CPU backface cull (sees all tris) */
+extern int gl_debug_face_id;        /* color each 3D tri by gl_PrimitiveID hash */
+extern int gl_debug_show_normals;   /* output interpolated normal as RGB */
+extern int gl_debug_clear_override; /* 1 = use gl_debug_clear_rgb instead of game */
+extern float gl_debug_clear_rgb[3]; /* override clear color, 0..1 per channel */
+
+/* Recreate the hi-res FBO at a new PORT_GL_SCALE. Safe to call between frames
+ * (typically from the debug menu). n clamped to [1, 8]. */
+void gl_renderer_set_scale(int n);
+
+/* Current internal-resolution scale (1..8). Matches PORT_GL_SCALE. */
+int  gl_renderer_get_scale(void);
+
 /* 1 => overlay draws opaquely (no vram==0 discard). Set for codec / any full
  * -screen 2D scene where the game clears to an intended-visible color that
  * may coincide with PSX "transparent" (0x0000 = black). */
 void gl_renderer_set_codec_mode(int on);
 
+/* Opaque per-object lighting state. Pointers reference short[3] / short[9] /
+ * int[3] arrays in PSX 4.12 fixed-point (light matrices) or raw (ambient 0..255).
+ * All can be NULL when flags doesn't set bit 4 (per-pixel lighting off). */
+typedef struct {
+    const short *light_dir;    /* MATRIX.m[][], 3x3 row-major shorts, /4096 */
+    const short *light_color;  /* MATRIX.m[][], 3x3 row-major shorts, /4096 */
+    const int   *ambient;      /* 3 ints, /255 for 0..1 */
+} GLLight;
+
 /* Submit a triangle in eye space (post camera * world transform).
  *   eye_xyz_*: 3 components, fixed-point 4.12 world units, +Z away from camera.
  *   uv_*:      PSX texture coords in 0..255 (per-component, matches KMD UVs).
- *   col_*:     PSX vertex RGB 0..255, 128 = neutral modulation.
+ *   col_*:     PSX vertex RGB 0..255, 128 = neutral modulation (Gouraud fallback).
+ *   normal_*:  per-vertex normals (short[3], 4.12 fixed-point). NULL if unlit.
+ *   light:     per-DG_OBJS lighting state, NULL if unlit.
  *   dist:      chanl->clip_distance (PSX H register).
- *   face_z:    flat depth used for ALL 3 vertices (PSX painter's-algorithm
- *              sort depth). Typically the centroid cz of the source face.
- *   tpage,clut,flags: PSX GPU texture state. flags bit 0 = textured. */
+ *   face_z:    flat face centroid cz for painter's depth.
+ *   tpage,clut: PSX texture state.
+ *   flags:     b0 textured, b1 semi-trans, b2-3 ABR mode, b4 per-pixel lit. */
 void gl_submit_tri3d(
     const int eye_xyz_a[3], const int eye_xyz_b[3], const int eye_xyz_c[3],
     const int uv_a[2], const int uv_b[2], const int uv_c[2],
     const unsigned char col_a[3], const unsigned char col_b[3], const unsigned char col_c[3],
+    const short *normal_a, const short *normal_b, const short *normal_c,
+    const GLLight *light,
     int dist, int face_z,
     unsigned short tpage, unsigned short clut, unsigned short flags);
 

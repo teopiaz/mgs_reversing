@@ -3,6 +3,8 @@
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
 #include <SDL.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 /* When imgui_init is given a NULL SDL_Renderer, we assume an SDL_GL context
    is current and use the ImGui OpenGL3 backend instead. */
@@ -109,10 +111,27 @@ int imgui_cam_eye_inv_t[3] = {0};
 int imgui_cam_clip_dist = 320;
 short imgui_cam_eye_inv_m[3][3] = {{0}};
 
+/* Lighting mode: 0 = Gouraud (default), 1 = per-pixel (PSX NCS formula). */
+int imgui_per_pixel_light = 0;
+
 } /* extern "C" */
 
-static bool show_actors = false;
-static bool show_camera = false;
+/* Single unified debug window, toggled by F1 (see main.c). Tabs inside. */
+static bool show_debug    = false;
+static bool show_imgui_demo = false;
+
+/* Extern helpers pulled in from engine / port. */
+extern "C" {
+    extern int   DG_FrameRate;
+    extern void  port_vram_toggle_debug(void);
+    extern int   port_vram_debug_view(void);
+    extern long  mts_PadRead(int unused);
+    extern unsigned char  port_pad_lx;
+    extern unsigned char  port_pad_ly;
+    extern char           port_current_stage[16];
+    extern unsigned int   str_status;       /* sound stream state */
+    extern int            sd_sng_code_buf[16];
+}
 
 extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
 {
@@ -147,24 +166,13 @@ extern "C" void imgui_process_event(SDL_Event *event)
     ImGui_ImplSDL2_ProcessEvent(event);
 }
 
-extern "C" void imgui_toggle_actors(void)
-{
-    show_actors = !show_actors;
-}
-
-extern "C" void imgui_toggle_camera(void)
-{
-    show_camera = !show_camera;
-    /* Camera panel requires the actors panel to also be active
-       (same imgui render path) */
-    if (show_camera) show_actors = true;
-    printf("[imgui] camera debug: %s\n", show_camera ? "ON" : "OFF");
-}
+extern "C" void imgui_toggle_actors(void) { show_debug = !show_debug; }
+extern "C" void imgui_toggle_camera(void) { show_debug = !show_debug; }
+extern "C" void imgui_toggle_debug(void)  { show_debug = !show_debug; }
 
 extern "C" void imgui_render(SDL_Renderer *renderer)
 {
-    if (!show_actors && !show_camera)
-        return;
+    if (!show_debug) return;
 
     if (g_imgui_use_gl)
         ImGui_ImplOpenGL3_NewFrame();
@@ -173,275 +181,428 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    /* Camera debug window */
-    if (show_camera) {
-        PortDG_CHANL_Partial *chanl = &DG_Chanls[1];
-
-        ImGui::SetNextWindowPos(ImVec2(540, 10), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(420, 500), ImGuiCond_FirstUseEver);
-
-        if (ImGui::Begin("Camera Debug", &show_camera)) {
-            ImGui::Text("Snake: (%d, %d, %d)", GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
-            ImGui::Text("Eye.t: (%d, %d, %d)", chanl->eye.t[0], chanl->eye.t[1], chanl->eye.t[2]);
-            ImGui::Text("clip_dist: %d  objs: %d  faces: %d",
-                chanl->clip_distance, chanl->objs_index, port_last_drawn_faces);
-            ImGui::Text("GroupID: 0x%X", DG_CurrentGroupID);
-
-            ImGui::Separator();
-            ImGui::Text("eye_inv (view matrix used by renderer):");
-            ImGui::Text("  m[0]: %6d %6d %6d", chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2]);
-            ImGui::Text("  m[1]: %6d %6d %6d", chanl->eye_inv.m[1][0], chanl->eye_inv.m[1][1], chanl->eye_inv.m[1][2]);
-            ImGui::Text("  m[2]: %6d %6d %6d", chanl->eye_inv.m[2][0], chanl->eye_inv.m[2][1], chanl->eye_inv.m[2][2]);
-            ImGui::Text("  t:    %6d %6d %6d", chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2]);
-
-            int dx = chanl->eye.t[0] - GM_PlayerPosition.vx;
-            int dz = chanl->eye.t[2] - GM_PlayerPosition.vz;
-            ImGui::Text("cam-snake: dx=%d dz=%d", dx, dz);
-
-            ImGui::Separator();
-            ImGui::Checkbox("Override Camera", (bool *)&imgui_cam_override);
-
-            if (imgui_cam_override) {
-                /* Initialize override values from current camera on first enable */
-                static bool inited = false;
-                if (!inited) {
-                    for (int r = 0; r < 3; r++)
-                        for (int c = 0; c < 3; c++)
-                            imgui_cam_eye_inv_m[r][c] = chanl->eye_inv.m[r][c];
-                    imgui_cam_eye_inv_t[0] = chanl->eye_inv.t[0];
-                    imgui_cam_eye_inv_t[1] = chanl->eye_inv.t[1];
-                    imgui_cam_eye_inv_t[2] = chanl->eye_inv.t[2];
-                    imgui_cam_clip_dist = chanl->clip_distance;
-                    inited = true;
-                }
-
-                ImGui::Text("Translation (eye_inv.t):");
-                ImGui::SliderInt("t[0] (X)", &imgui_cam_eye_inv_t[0], -30000, 30000);
-                ImGui::SliderInt("t[1] (Y)", &imgui_cam_eye_inv_t[1], -30000, 30000);
-                ImGui::SliderInt("t[2] (Z)", &imgui_cam_eye_inv_t[2], -30000, 30000);
-
-                ImGui::Text("Clip distance:");
-                ImGui::SliderInt("dist", &imgui_cam_clip_dist, 50, 2000);
-
-                ImGui::Text("Rotation (eye_inv.m):");
-                for (int r = 0; r < 3; r++) {
-                    char label[16];
-                    for (int c = 0; c < 3; c++) {
-                        snprintf(label, sizeof(label), "m[%d][%d]", r, c);
-                        int val = imgui_cam_eye_inv_m[r][c];
-                        ImGui::PushItemWidth(100);
-                        if (ImGui::DragInt(label, &val, 10, -4096, 4096))
-                            imgui_cam_eye_inv_m[r][c] = (short)val;
-                        ImGui::PopItemWidth();
-                        if (c < 2) ImGui::SameLine();
-                    }
-                }
-
-                if (ImGui::Button("Reset to current")) {
-                    inited = false;
-                    imgui_cam_override = 0;
-                }
-            }
-        }
-        ImGui::End();
-    }
-
-    if (!show_actors) {
-        ImGui::Render();
-        if (g_imgui_use_gl)
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        else
-            ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-        return;
-    }
-
-    /* Also show camera debug when actors panel is open and F2 was pressed */
-
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(520, 500), ImGuiCond_FirstUseEver);
-
-    if (ImGui::Begin("MGS Debug", &show_actors)) {
-        ImGui::Text("Clock: %d  Time: %d  Status: 0x%08X", GV_Clock, GV_Time, GM_GameStatus);
-        ImGui::Text("Alert: mode=%d level=%d", GM_AlertMode, GM_AlertLevel);
+    ImGui::SetNextWindowSize(ImVec2(560, 620), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("MGS Debug (F1)", &show_debug)) {
+        /* Sticky header: always-on summary. */
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::Text("FPS %.1f  |  frame %.2f ms  |  GL %s  |  tick %d",
+                    io.Framerate, 1000.0f / (io.Framerate > 1.0f ? io.Framerate : 1.0f),
+                    g_imgui_use_gl ? "on" : "off", GV_Time);
         ImGui::Separator();
 
-        const char *level_names[] = {
-            "DAEMON", "MANAGER", "LEVEL2", "LEVEL3",
-            "LEVEL4", "LEVEL5", "DAEMON2"
-        };
+        if (ImGui::BeginTabBar("##mgs_tabs", ImGuiTabBarFlags_Reorderable)) {
+            /* ---------------------------------------------------------- */
+            /* RENDERER                                                   */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Renderer")) {
+                PortDG_CHANL_Partial *chanl = &DG_Chanls[1];
+                extern int port_prim_counts[8];
+                extern int gl_debug_wireframe, gl_debug_no_textures;
+                extern int gl_debug_skip_3d,   gl_debug_skip_2d, gl_debug_skip_lines;
+                extern int gl_debug_blit_nearest;
+                extern int gl_renderer_get_scale(void);
+                extern void gl_renderer_set_scale(int);
 
-        int total = 0;
+                ImGui::Text("Faces drawn this frame: %d", port_last_drawn_faces);
+                ImGui::Text("Objects queued: %d   GroupID: 0x%X",
+                            chanl->objs_index, DG_CurrentGroupID);
+                ImGui::Text("DG_FrameRate: %d", DG_FrameRate);
+                ImGui::Text("Primitives (this frame):");
+                ImGui::Indent();
+                static const char *pnames[8] = {
+                    "TILE", "POLY_F", "POLY_G", "POLY_FT",
+                    "POLY_GT", "SPRT", "LINE", "other"
+                };
+                for (int i = 0; i < 8; i++)
+                    ImGui::Text("  %-8s %5d", pnames[i], port_prim_counts[i]);
+                ImGui::Unindent();
 
-        for (int lv = 0; lv < 7; lv++) {
-            ActorList *list = &gActorsList_800ACC18[lv];
-            ActorNode *head = &list->first;
-            ActorNode *cur = head->next;
-            int count = 0;
-            while (cur && cur != &list->last && count < 256) {
-                count++;
-                cur = cur->next;
-            }
-            if (count == 0) continue;
-            total += count;
-
-            if (ImGui::TreeNode(level_names[lv], "%s (%d) pause=%d kill=%d",
-                                level_names[lv], count, list->pause, list->kill))
-            {
-                cur = head->next;
-                int idx = 0;
-                while (cur && cur != &list->last && idx < 256) {
-                    const char *name = cur->filename ? cur->filename : "???";
-                    bool active = (cur->act != NULL);
-
-                    if (!active)
-                        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-
-                    ImGui::Text("[%d] %-20s act=%s ticks=%d rt=%d",
-                        idx, name,
-                        active ? "Y" : "DEAD",
-                        cur->count, cur->runtime);
-                    static ActorNode *selected = nullptr;
-                    // add a button to kill the actor (for testing)
+                if (ImGui::CollapsingHeader("Lighting",
+                                            ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::Text("Applies to DG_FLAG_SHADE objects only (level geo).");
+                    ImGui::RadioButton("Gouraud (per-vertex)", &imgui_per_pixel_light, 0);
                     ImGui::SameLine();
-                    if (active && ImGui::SmallButton("Kill")) {
-                        ActorNode *next = cur->next;
-                        GV_DestroyActorQuick(cur);
-                        cur = next;
-                        idx++;
-                        continue;
-                    }
-
-                    if (!active)
-                        ImGui::PopStyleColor();
-
-                    cur = cur->next;
-                    idx++;
+                    ImGui::RadioButton("Per-pixel (PSX NCS)",   &imgui_per_pixel_light, 1);
                 }
-                ImGui::TreePop();
+
+                if (ImGui::CollapsingHeader("Visualization",
+                                            ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    extern int gl_debug_no_cull, gl_debug_face_id, gl_debug_show_normals;
+                    extern int gl_debug_clear_override;
+                    extern float gl_debug_clear_rgb[3];
+                    bool b;
+                    b = gl_debug_wireframe != 0;
+                    if (ImGui::Checkbox("Wireframe (GL_LINE polygons)", &b))
+                        gl_debug_wireframe = b;
+                    b = gl_debug_no_textures != 0;
+                    if (ImGui::Checkbox("Disable textures (flat color only)", &b))
+                        gl_debug_no_textures = b;
+                    b = gl_debug_no_cull != 0;
+                    if (ImGui::Checkbox("Disable backface cull (see interior)", &b))
+                        gl_debug_no_cull = b;
+                    b = gl_debug_face_id != 0;
+                    if (ImGui::Checkbox("Per-tri random color (face ID)", &b))
+                        gl_debug_face_id = b;
+                    b = gl_debug_show_normals != 0;
+                    if (ImGui::Checkbox("Show normals (N.xyz*0.5+0.5 as RGB)", &b))
+                        gl_debug_show_normals = b;
+                    bool vram_dbg = port_vram_debug_view() != 0;
+                    if (ImGui::Checkbox("VRAM debug view (show full 1024x512)", &vram_dbg))
+                        port_vram_toggle_debug();
+
+                    ImGui::Spacing();
+                    b = gl_debug_clear_override != 0;
+                    if (ImGui::Checkbox("Override clear color", &b))
+                        gl_debug_clear_override = b;
+                    if (gl_debug_clear_override) {
+                        ImGui::SameLine();
+                        ImGui::ColorEdit3("##clrcol", gl_debug_clear_rgb,
+                            ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+                    }
+                }
+
+                if (ImGui::CollapsingHeader("Render passes"))
+                {
+                    ImGui::TextDisabled("Toggle individual passes to isolate bugs.");
+                    bool b;
+                    b = gl_debug_skip_3d == 0;
+                    if (ImGui::Checkbox("Draw 3D", &b)) gl_debug_skip_3d = !b;
+                    b = gl_debug_skip_2d == 0;
+                    if (ImGui::Checkbox("Draw 2D triangles", &b)) gl_debug_skip_2d = !b;
+                    b = gl_debug_skip_lines == 0;
+                    if (ImGui::Checkbox("Draw 2D lines", &b)) gl_debug_skip_lines = !b;
+                }
+
+                if (ImGui::CollapsingHeader("Quality / Output"))
+                {
+                    int scale = gl_renderer_get_scale();
+                    if (ImGui::SliderInt("Internal scale (PORT_GL_SCALE)", &scale, 1, 8)) {
+                        gl_renderer_set_scale(scale);
+                    }
+                    int fbo_w = 320 * scale, fbo_h = 224 * scale;
+                    ImGui::TextDisabled("FBO size: %d x %d", fbo_w, fbo_h);
+
+                    bool b = gl_debug_blit_nearest != 0;
+                    if (ImGui::Checkbox("Upscale with GL_NEAREST (sharp / blocky)", &b))
+                        gl_debug_blit_nearest = b;
+
+                    /* Fullscreen toggle (matches the F11 / Alt+Enter hotkey). */
+                    SDL_Window *win = SDL_GL_GetCurrentWindow();
+                    if (!win) win = SDL_GetWindowFromID(1);
+                    if (win) {
+                        Uint32 wf = SDL_GetWindowFlags(win);
+                        bool fs = (wf & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+                        if (ImGui::Checkbox("Fullscreen (F11)", &fs))
+                            SDL_SetWindowFullscreen(win,
+                                fs ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+                    }
+                }
+
+                if (ImGui::CollapsingHeader("GL driver info"))
+                {
+                    if (g_imgui_use_gl) {
+                        static const char *gl_vendor   = NULL;
+                        static const char *gl_renderer = NULL;
+                        static const char *gl_version  = NULL;
+                        if (!gl_vendor) {
+                            typedef const unsigned char *(*PFNGLGETSTRING)(unsigned int);
+                            PFNGLGETSTRING f = (PFNGLGETSTRING)
+                                SDL_GL_GetProcAddress("glGetString");
+                            if (f) {
+                                gl_vendor   = (const char *)f(0x1F00);
+                                gl_renderer = (const char *)f(0x1F01);
+                                gl_version  = (const char *)f(0x1F02);
+                            }
+                        }
+                        if (gl_vendor) {
+                            ImGui::Text("Vendor:   %s", gl_vendor);
+                            ImGui::Text("Renderer: %s", gl_renderer);
+                            ImGui::Text("Version:  %s", gl_version);
+                        }
+                    } else {
+                        ImGui::TextDisabled("(SDL_Renderer path; no GL context)");
+                    }
+                }
+
+                ImGui::EndTabItem();
             }
-        }
 
-        ImGui::Separator();
-        ImGui::Text("Total: %d actors", total);
+            /* ---------------------------------------------------------- */
+            /* CAMERA                                                     */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Camera")) {
+                PortDG_CHANL_Partial *chanl = &DG_Chanls[1];
+                PortGM_CAMERA *gc = &GM_Camera;
+                PortCamStruct2 *s2 = &gUnkCameraStruct2_800B7868;
+                PortCamStructB *sb = &gUnkCameraStruct_800B77B8;
 
-        /* ---- Camera Debug ---- */
-        ImGui::Separator();
-        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-            PortDG_CHANL_Partial *chanl = &DG_Chanls[1];
-            PortGM_CAMERA *gc = &GM_Camera;
-            PortCamStruct2 *s2 = &gUnkCameraStruct2_800B7868;
-            PortCamStructB *sb = &gUnkCameraStruct_800B77B8;
-
-            ImGui::Text("Snake:  (%d, %d, %d)",
-                GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
-            int dx = chanl->eye.t[0] - GM_PlayerPosition.vx;
-            int dz = chanl->eye.t[2] - GM_PlayerPosition.vz;
-            ImGui::Text("cam-snake: dx=%d dz=%d", dx, dz);
-            ImGui::Text("clip_dist=%d  objs=%d  faces=%d  grp=0x%X",
-                chanl->clip_distance, chanl->objs_index, port_last_drawn_faces, DG_CurrentGroupID);
-            ImGui::Text("GameStatus=0x%08X  Alert: mode=%d level=%d",
-                GM_GameStatus, GM_AlertMode, GM_AlertLevel);
-
-            ImGui::Spacing();
-            if (ImGui::TreeNode("GM_Camera (target)")) {
-                ImGui::Text("eye:    (%d, %d, %d)", gc->eye.vx, gc->eye.vy, gc->eye.vz);
-                ImGui::Text("center: (%d, %d, %d)", gc->center.vx, gc->center.vy, gc->center.vz);
-                ImGui::Text("rotate: (%d, %d, %d)", gc->rotate.vx, gc->rotate.vy, gc->rotate.vz);
-                ImGui::Text("zoom=%d fp=%d flags=0x%X track=%d interp=%d",
-                    gc->zoom, gc->first_person, gc->flags, gc->track, gc->interp);
-                ImGui::Text("field_28=%d field_2A=%d", gc->field_28, gc->field_2A);
-                ImGui::Text("alert_mask=%d pan=(%d,%d,%d)",
-                    gc->alert_mask, gc->pan.vx, gc->pan.vy, gc->pan.vz);
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Struct2_7868 (smoothed -> DG_LookAt)")) {
-                ImGui::Text("eye:    (%d, %d, %d)", s2->eye.vx, s2->eye.vy, s2->eye.vz);
-                ImGui::Text("center: (%d, %d, %d)", s2->center.vx, s2->center.vy, s2->center.vz);
-                ImGui::Text("rotate: (%d, %d, %d)", s2->rotate.vx, s2->rotate.vy, s2->rotate.vz);
-                ImGui::Text("type=%d track=%d zoom=%d", s2->type, s2->track, s2->zoom);
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("StructB_77B8 (zone camera source)")) {
-                ImGui::Text("eye:     (%d, %d, %d)", sb->eye.vx, sb->eye.vy, sb->eye.vz);
-                ImGui::Text("center:  (%d, %d, %d)", sb->center.vx, sb->center.vy, sb->center.vz);
-                ImGui::Text("rotate:  (%d, %d, %d)", sb->rotate.vx, sb->rotate.vy, sb->rotate.vz);
-                ImGui::Text("rotate2: (%d, %d, %d)", sb->rotate2.vx, sb->rotate2.vy, sb->rotate2.vz);
-                ImGui::Text("track=%d interp=%d", sb->track, sb->interp);
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("DG_Chanls[1] (final view matrix)")) {
-                ImGui::Text("dblbuf=%d dirty=%d link=%d",
-                    chanl->dblbuf, chanl->dirty, chanl->link);
-                ImGui::Text("eye.t:     (%d, %d, %d)",
+                int dx = chanl->eye.t[0] - GM_PlayerPosition.vx;
+                int dz = chanl->eye.t[2] - GM_PlayerPosition.vz;
+                ImGui::Text("Snake: (%d, %d, %d)  Eye.t: (%d, %d, %d)",
+                    GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz,
                     chanl->eye.t[0], chanl->eye.t[1], chanl->eye.t[2]);
-                ImGui::Text("eye.m[0]:  %6d %6d %6d",
-                    chanl->eye.m[0][0], chanl->eye.m[0][1], chanl->eye.m[0][2]);
-                ImGui::Text("eye.m[1]:  %6d %6d %6d",
-                    chanl->eye.m[1][0], chanl->eye.m[1][1], chanl->eye.m[1][2]);
-                ImGui::Text("eye.m[2]:  %6d %6d %6d",
-                    chanl->eye.m[2][0], chanl->eye.m[2][1], chanl->eye.m[2][2]);
-                ImGui::Spacing();
-                ImGui::Text("eye_inv.t: (%d, %d, %d)",
-                    chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2]);
-                ImGui::Text("eye_inv.m[0]: %6d %6d %6d",
-                    chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2]);
-                ImGui::Text("eye_inv.m[1]: %6d %6d %6d",
-                    chanl->eye_inv.m[1][0], chanl->eye_inv.m[1][1], chanl->eye_inv.m[1][2]);
-                ImGui::Text("eye_inv.m[2]: %6d %6d %6d",
-                    chanl->eye_inv.m[2][0], chanl->eye_inv.m[2][1], chanl->eye_inv.m[2][2]);
-                ImGui::TreePop();
-            }
+                ImGui::Text("cam-snake dx=%d dz=%d   clip_dist=%d",
+                            dx, dz, chanl->clip_distance);
 
-            if (ImGui::TreeNode("svec_800ABA88 (prev eye)")) {
-                ImGui::Text("(%d, %d, %d)", svec_800ABA88.vx, svec_800ABA88.vy, svec_800ABA88.vz);
-                ImGui::TreePop();
-            }
-
-            ImGui::Spacing();
-            ImGui::Checkbox("Override Camera", (bool *)&imgui_cam_override);
-
-            if (imgui_cam_override) {
-                static bool inited = false;
-                if (!inited) {
-                    for (int r = 0; r < 3; r++)
-                        for (int c = 0; c < 3; c++)
-                            imgui_cam_eye_inv_m[r][c] = chanl->eye_inv.m[r][c];
-                    imgui_cam_eye_inv_t[0] = chanl->eye_inv.t[0];
-                    imgui_cam_eye_inv_t[1] = chanl->eye_inv.t[1];
-                    imgui_cam_eye_inv_t[2] = chanl->eye_inv.t[2];
-                    imgui_cam_clip_dist = chanl->clip_distance;
-                    inited = true;
+                if (ImGui::TreeNode("GM_Camera (target)")) {
+                    ImGui::Text("eye:    (%d, %d, %d)", gc->eye.vx, gc->eye.vy, gc->eye.vz);
+                    ImGui::Text("center: (%d, %d, %d)", gc->center.vx, gc->center.vy, gc->center.vz);
+                    ImGui::Text("rotate: (%d, %d, %d)", gc->rotate.vx, gc->rotate.vy, gc->rotate.vz);
+                    ImGui::Text("zoom=%d fp=%d flags=0x%X track=%d interp=%d",
+                        gc->zoom, gc->first_person, gc->flags, gc->track, gc->interp);
+                    ImGui::Text("alert_mask=%d pan=(%d,%d,%d)",
+                        gc->alert_mask, gc->pan.vx, gc->pan.vy, gc->pan.vz);
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("Struct2_7868 (smoothed -> DG_LookAt)")) {
+                    ImGui::Text("eye:    (%d, %d, %d)", s2->eye.vx, s2->eye.vy, s2->eye.vz);
+                    ImGui::Text("center: (%d, %d, %d)", s2->center.vx, s2->center.vy, s2->center.vz);
+                    ImGui::Text("rotate: (%d, %d, %d)", s2->rotate.vx, s2->rotate.vy, s2->rotate.vz);
+                    ImGui::Text("type=%d track=%d zoom=%d", s2->type, s2->track, s2->zoom);
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("StructB_77B8 (zone camera source)")) {
+                    ImGui::Text("eye:     (%d, %d, %d)", sb->eye.vx, sb->eye.vy, sb->eye.vz);
+                    ImGui::Text("center:  (%d, %d, %d)", sb->center.vx, sb->center.vy, sb->center.vz);
+                    ImGui::Text("rotate:  (%d, %d, %d)", sb->rotate.vx, sb->rotate.vy, sb->rotate.vz);
+                    ImGui::Text("track=%d interp=%d", sb->track, sb->interp);
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("DG_Chanls[1] (final view matrix)")) {
+                    ImGui::Text("eye_inv.t:    (%d, %d, %d)",
+                        chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2]);
+                    ImGui::Text("eye_inv.m[0]: %6d %6d %6d",
+                        chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2]);
+                    ImGui::Text("eye_inv.m[1]: %6d %6d %6d",
+                        chanl->eye_inv.m[1][0], chanl->eye_inv.m[1][1], chanl->eye_inv.m[1][2]);
+                    ImGui::Text("eye_inv.m[2]: %6d %6d %6d",
+                        chanl->eye_inv.m[2][0], chanl->eye_inv.m[2][1], chanl->eye_inv.m[2][2]);
+                    ImGui::TreePop();
                 }
 
-                ImGui::SliderInt("t[0] X", &imgui_cam_eye_inv_t[0], -30000, 30000);
-                ImGui::SliderInt("t[1] Y", &imgui_cam_eye_inv_t[1], -30000, 30000);
-                ImGui::SliderInt("t[2] Z", &imgui_cam_eye_inv_t[2], -30000, 30000);
-                ImGui::SliderInt("dist",   &imgui_cam_clip_dist, 50, 2000);
+                ImGui::Spacing();
+                ImGui::Checkbox("Override Camera", (bool *)&imgui_cam_override);
+                if (imgui_cam_override) {
+                    static bool inited = false;
+                    if (!inited) {
+                        for (int r = 0; r < 3; r++)
+                            for (int c = 0; c < 3; c++)
+                                imgui_cam_eye_inv_m[r][c] = chanl->eye_inv.m[r][c];
+                        imgui_cam_eye_inv_t[0] = chanl->eye_inv.t[0];
+                        imgui_cam_eye_inv_t[1] = chanl->eye_inv.t[1];
+                        imgui_cam_eye_inv_t[2] = chanl->eye_inv.t[2];
+                        imgui_cam_clip_dist = chanl->clip_distance;
+                        inited = true;
+                    }
+                    ImGui::SliderInt("t[0] X", &imgui_cam_eye_inv_t[0], -30000, 30000);
+                    ImGui::SliderInt("t[1] Y", &imgui_cam_eye_inv_t[1], -30000, 30000);
+                    ImGui::SliderInt("t[2] Z", &imgui_cam_eye_inv_t[2], -30000, 30000);
+                    ImGui::SliderInt("dist",   &imgui_cam_clip_dist, 50, 2000);
+                    for (int r = 0; r < 3; r++) {
+                        for (int c = 0; c < 3; c++) {
+                            char label[16];
+                            snprintf(label, sizeof(label), "m[%d][%d]", r, c);
+                            int val = imgui_cam_eye_inv_m[r][c];
+                            ImGui::PushItemWidth(80);
+                            if (ImGui::DragInt(label, &val, 10, -4096, 4096))
+                                imgui_cam_eye_inv_m[r][c] = (short)val;
+                            ImGui::PopItemWidth();
+                            if (c < 2) ImGui::SameLine();
+                        }
+                    }
+                    if (ImGui::Button("Reset")) { inited = false; imgui_cam_override = 0; }
+                }
+                ImGui::EndTabItem();
+            }
 
-                for (int r = 0; r < 3; r++) {
-                    for (int c = 0; c < 3; c++) {
-                        char label[16];
-                        snprintf(label, sizeof(label), "m[%d][%d]", r, c);
-                        int val = imgui_cam_eye_inv_m[r][c];
-                        ImGui::PushItemWidth(80);
-                        if (ImGui::DragInt(label, &val, 10, -4096, 4096))
-                            imgui_cam_eye_inv_m[r][c] = (short)val;
-                        ImGui::PopItemWidth();
-                        if (c < 2) ImGui::SameLine();
+            /* ---------------------------------------------------------- */
+            /* ACTORS                                                     */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Actors")) {
+                const char *level_names[] = {
+                    "DAEMON", "MANAGER", "LEVEL2", "LEVEL3",
+                    "LEVEL4", "LEVEL5", "DAEMON2"
+                };
+                int total = 0;
+                for (int lv = 0; lv < 7; lv++) {
+                    ActorList *list = &gActorsList_800ACC18[lv];
+                    ActorNode *head = &list->first;
+                    ActorNode *cur = head->next;
+                    int count = 0;
+                    while (cur && cur != &list->last && count < 256) { count++; cur = cur->next; }
+                    if (count == 0) continue;
+                    total += count;
+                    if (ImGui::TreeNode(level_names[lv], "%s (%d) pause=%d kill=%d",
+                                        level_names[lv], count, list->pause, list->kill))
+                    {
+                        cur = head->next;
+                        int idx = 0;
+                        while (cur && cur != &list->last && idx < 256) {
+                            const char *name = cur->filename ? cur->filename : "???";
+                            bool active = (cur->act != NULL);
+                            if (!active)
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                            ImGui::Text("[%d] %-20s act=%s ticks=%d rt=%d",
+                                idx, name, active ? "Y" : "DEAD", cur->count, cur->runtime);
+                            ImGui::SameLine();
+                            if (active && ImGui::SmallButton("Kill")) {
+                                ActorNode *next = cur->next;
+                                GV_DestroyActorQuick(cur);
+                                cur = next; idx++;
+                                continue;
+                            }
+                            if (!active) ImGui::PopStyleColor();
+                            cur = cur->next; idx++;
+                        }
+                        ImGui::TreePop();
                     }
                 }
-
-                if (ImGui::Button("Reset")) {
-                    inited = false;
-                    imgui_cam_override = 0;
-                }
+                ImGui::Separator();
+                ImGui::Text("Total: %d actors", total);
+                ImGui::EndTabItem();
             }
+
+            /* ---------------------------------------------------------- */
+            /* GAME STATE                                                 */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Game")) {
+                ImGui::Text("GV_Clock:      %d", GV_Clock);
+                ImGui::Text("GV_Time:       %d", GV_Time);
+                ImGui::Text("GM_GameStatus: 0x%08X", GM_GameStatus);
+                /* Decoded flag bits -- names from source/game/gamed.h STATE_*.
+                   Only the ones commonly seen during play are listed. */
+                static const struct { unsigned long bit; const char *name; } gs[] = {
+                    {0x00000001, "PADON"},       {0x00000002, "DEMO"},
+                    {0x00000004, "PAUSE"},       {0x00000008, "MENU"},
+                    {0x00000010, "RADIO"},       {0x00000020, "MAP"},
+                    {0x00000040, "ITEM"},        {0x00000080, "WEAPON"},
+                    {0x00000100, "OVERMAP"},     {0x00000200, "MISSION"},
+                    {0x00001000, "FADE"},        {0x00010000, "PADRELEASE"},
+                    {0x80000000, "INIT/FRESH"},
+                };
+                ImGui::Indent();
+                char buf[256] = {0}; char *w = buf, *end = buf + sizeof(buf);
+                int any = 0;
+                for (size_t i = 0; i < sizeof(gs)/sizeof(gs[0]); i++) {
+                    if ((unsigned long)GM_GameStatus & gs[i].bit) {
+                        w += snprintf(w, end - w, "%s%s", any ? " " : "", gs[i].name);
+                        any = 1;
+                    }
+                }
+                ImGui::TextDisabled("%s", any ? buf : "(no flags)");
+                ImGui::Unindent();
+
+                ImGui::Separator();
+                ImGui::Text("DG_FrameRate:  %d  (1=normal, 2=codec)", DG_FrameRate);
+                ImGui::Text("Alert mode:  %d", GM_AlertMode);
+                ImGui::Text("Alert level: %d", GM_AlertLevel);
+                ImGui::Text("GroupID:     0x%X", DG_CurrentGroupID);
+                ImGui::Separator();
+                ImGui::Text("Snake pos: (%d, %d, %d)",
+                    GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
+                ImGui::Text("prev-eye svec_800ABA88: (%d, %d, %d)",
+                    svec_800ABA88.vx, svec_800ABA88.vy, svec_800ABA88.vz);
+                ImGui::EndTabItem();
+            }
+
+            /* ---------------------------------------------------------- */
+            /* OTHER — stage / input / audio / controls                   */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Other")) {
+                if (ImGui::CollapsingHeader("Stage",
+                                            ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::Text("Current stage: %s",
+                                port_current_stage[0] ? port_current_stage : "(none)");
+                    ImGui::Text("Snake pos: (%d, %d, %d)",
+                        GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
+                }
+
+                if (ImGui::CollapsingHeader("Input / Pad",
+                                            ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    unsigned long b = (unsigned long)mts_PadRead(0);
+                    ImGui::Text("Buttons: 0x%04lX", b);
+                    /* PSX pad button bits (active-high after port_update_pad) */
+                    static const struct { unsigned long bit; const char *n; } pb[] = {
+                        {0x0010, "Up"}, {0x0020, "Right"}, {0x0040, "Down"}, {0x0080, "Left"},
+                        {0x1000, "Tri"}, {0x2000, "Circ"}, {0x4000, "Cross"}, {0x8000, "Sq"},
+                        {0x0100, "Sel"}, {0x0800, "Start"},
+                        {0x0004, "L1"}, {0x0001, "L2"}, {0x0008, "R1"}, {0x0002, "R2"},
+                    };
+                    for (size_t i = 0; i < sizeof(pb)/sizeof(pb[0]); i++) {
+                        bool on = (b & pb[i].bit) != 0;
+                        if (on)
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[%s]", pb[i].n);
+                        else
+                            ImGui::TextDisabled("[%s]", pb[i].n);
+                        if (((i + 1) % 5) != 0) ImGui::SameLine();
+                    }
+                    ImGui::NewLine();
+                    /* Analog stick (0..255, 128 = center) drawn as a small 2D pad. */
+                    ImVec2 p = ImGui::GetCursorScreenPos();
+                    const float sz = 60.0f;
+                    ImDrawList *dl = ImGui::GetWindowDrawList();
+                    dl->AddRect(p, ImVec2(p.x + sz, p.y + sz),
+                                IM_COL32(180,180,180,200));
+                    float cx = p.x + (port_pad_lx / 255.0f) * sz;
+                    float cy = p.y + (port_pad_ly / 255.0f) * sz;
+                    dl->AddCircleFilled(ImVec2(cx, cy), 4.0f,
+                                        IM_COL32(120,220,120,255));
+                    ImGui::Dummy(ImVec2(sz, sz));
+                    ImGui::SameLine();
+                    ImGui::Text("L stick\n  lx = %u\n  ly = %u",
+                                (unsigned)port_pad_lx, (unsigned)port_pad_ly);
+                }
+
+                if (ImGui::CollapsingHeader("Audio"))
+                {
+                    ImGui::Text("str_status: %u  (%s)", str_status,
+                                str_status == 0 ? "idle" :
+                                str_status < 5  ? "setup" :
+                                                   "playing (>=5, Double-Pcm territory)");
+                    ImGui::Spacing();
+                    ImGui::Text("Queued BGM codes (sd_sng_code_buf):");
+                    char line[128] = {0};
+                    char *w = line;
+                    char *end = line + sizeof(line);
+                    for (int i = 0; i < 16 && w < end - 10; i++) {
+                        w += snprintf(w, end - w, "%08X ", sd_sng_code_buf[i]);
+                        if ((i & 3) == 3) { ImGui::Text("%s", line); w = line; line[0] = 0; }
+                    }
+                    if (line[0]) ImGui::Text("%s", line);
+                }
+
+                if (ImGui::CollapsingHeader("Debug controls",
+                                            ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    extern bool g_running;  /* main.c */
+                    if (ImGui::Button("Quit"))
+                        g_running = false;
+                    ImGui::SameLine();
+                    if (ImGui::Button("Restart"))
+                    {
+                        /* Best-effort: re-exec the current binary. argv[0] is
+                           captured at startup in main.c (see port_argv0). */
+                        extern const char *port_argv0;
+                        if (port_argv0)
+                            execl(port_argv0, port_argv0, (char *)NULL);
+                    }
+                    ImGui::TextDisabled("Restart: re-execs the current binary.");
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
         }
     }
     ImGui::End();
+
+    (void)show_imgui_demo;   /* reserved for future: link imgui_demo.cpp and show. */
 
     ImGui::Render();
     if (g_imgui_use_gl)

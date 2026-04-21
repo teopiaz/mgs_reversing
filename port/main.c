@@ -32,6 +32,7 @@ static void port_install_crash_handler(void)
 static SDL_Window   *g_window;
 static SDL_Renderer *g_renderer;
 bool                 g_running;  /* non-static: test_server.c may set it false to quit */
+const char          *port_argv0 = NULL;  /* used by imgui Restart button */
 
 static int port_init(void)
 {
@@ -142,10 +143,8 @@ static void port_poll_events(void)
                 extern void port_vram_toggle_debug(void);
                 port_vram_toggle_debug();
             }
-            if (event.key.keysym.sym == SDLK_p)
-                imgui_toggle_actors();
-            if (event.key.keysym.sym == SDLK_F2)
-                imgui_toggle_camera();
+            if (event.key.keysym.sym == SDLK_F1)
+                imgui_toggle_debug();
             if (event.key.keysym.sym == SDLK_F11 ||
                 (event.key.keysym.sym == SDLK_RETURN &&
                  (event.key.keysym.mod & KMOD_ALT)))
@@ -209,7 +208,7 @@ extern void game_tick(void);
 int main(int argc, char *argv[])
 {
     (void)argc;
-    (void)argv;
+    port_argv0 = argv[0];   /* for the ImGui Restart button */
 
     /* Force line-buffered stdout so we can see output before the process ends */
     setvbuf(stdout, NULL, _IOLBF, 0);

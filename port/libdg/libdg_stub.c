@@ -357,17 +357,35 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                     if (maxx < -320 || minx > 320 || maxy < -224 || miny > 224) continue;
                 }
 
-                /* Near-plane cull: skip faces too close to camera
-                (PSX doesn't do this, but it prevents projection artifacts and is cheap) */
-                {
-                    int near = 32;  // tune this value
-                    if (sz0 < near || sz1 < near || sz2 < near || sz3 < near) continue;
-                }
+                /* Near-plane cull: only skip if the WHOLE face is behind the
+                   near plane. The previous "any vertex < 32" test was too
+                   aggressive -- characters close to camera (Snake) had many
+                   faces where one corner dipped below 32 units, killing the
+                   triangle and producing visible holes in the mesh. Faces
+                   that straddle the near plane are clipped correctly by GL
+                   in clip space; the vertex shader clamps cz < 4 to avoid
+                   perspective-divide blowup. */
+                if (sz0 < 1 && sz1 < 1 && sz2 < 1 && sz3 < 1) continue;
 
-                /* Backface cull */
-                int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
-                if (area <= 0) {
-                    if (!(mdl->flags & DG_MODEL_BOTHFACE) || area == 0) continue;
+                int gl_on = gl_renderer_enabled();
+
+                /* Backface cull (PSX NCLIP semantics).
+                   Skip the test when ANY vertex was clamped at the near plane
+                   (project() floors cz at 4). For clamped verts the projected
+                   sx/sy can be wildly off, flipping the signed-area sign and
+                   dropping legit front-faces (visible as holes in Snake when
+                   the camera is close). Letting such faces through reaches
+                   the GPU which projects them correctly; far-away geometry
+                   still gets culled. Backface culling is still active for
+                   software-only mode and for GL when all verts are safe. */
+                int any_clamped = (sz0 <= 4) || (sz1 <= 4) ||
+                                  (sz2 <= 4) || (sz3 <= 4);
+                extern int gl_debug_no_cull;
+                if (!any_clamped && !(gl_on && gl_debug_no_cull)) {
+                    int area = (sx1-sx0)*(sy2-sy0) - (sx2-sx0)*(sy1-sy0);
+                    if (area <= 0) {
+                        if (!(mdl->flags & DG_MODEL_BOTHFACE) || area == 0) continue;
+                    }
                 }
 
                 /* Screen → framebuffer */
@@ -379,12 +397,44 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 /* Eye-space positions for the GL path (post eye_inv*world).
                    GL does the perspective divide and depth test on the GPU. */
                 int eye[4][3];
-                int gl_on = gl_renderer_enabled();
                 if (gl_on) {
                     mat_transform(&screen_mat, &verts[i0], &eye[0][0], &eye[0][1], &eye[0][2]);
                     mat_transform(&screen_mat, &verts[i1], &eye[1][0], &eye[1][1], &eye[1][2]);
                     mat_transform(&screen_mat, &verts[i2], &eye[2][0], &eye[2][1], &eye[2][2]);
                     mat_transform(&screen_mat, &verts[i3], &eye[3][0], &eye[3][1], &eye[3][2]);
+                }
+
+                /* Per-pixel lighting: look up per-vertex normals + per-DG_OBJS
+                   light matrices. Opt-in via the ImGui toggle (defaults off --
+                   Gouraud is the baseline since the PSX scaling on the NCS
+                   formula isn't perfectly calibrated yet). Only valid for
+                   DG_FLAG_SHADE objects (level geometry lit by directional
+                   lights). DG_FLAG_PAINT actors (preshaded characters with
+                   dynamic point lights) always stay on the Gouraud / obj->rgbs
+                   path -- their lighting can't be replicated from directional
+                   matrices alone. */
+                const short *nvecs[4] = {0,0,0,0};
+                GLLight gl_light = {0};
+                unsigned short light_flag_bit = 0;
+                extern int imgui_per_pixel_light;
+                if (gl_on && imgui_per_pixel_light &&
+                    (objs->flag & DG_FLAG_SHADE) && objs->light &&
+                    mdl->normals && mdl->nindices)
+                {
+                    unsigned int ni = ((unsigned int *)mdl->nindices)[fi];
+                    int ni0 = (ni >> 0)  & 0x7F;
+                    int ni1 = (ni >> 8)  & 0x7F;
+                    int ni2 = (ni >> 16) & 0x7F;
+                    int ni3 = (ni >> 24) & 0x7F;
+                    nvecs[0] = (const short *)&mdl->normals[ni0];
+                    nvecs[1] = (const short *)&mdl->normals[ni1];
+                    nvecs[2] = (const short *)&mdl->normals[ni2];
+                    nvecs[3] = (const short *)&mdl->normals[ni3];
+                    gl_light.light_dir   = (const short *)&objs->light[0].m[0][0];
+                    gl_light.light_color = (const short *)&objs->light[1].m[0][0];
+                    if (objs->flag & DG_FLAG_AMBIENT)
+                        gl_light.ambient = (const int *)&objs->light[0].t[0];
+                    light_flag_bit = 16;   /* flags b4 = per-pixel lit */
                 }
 
                 int avgz = (sz0+sz1+sz2+sz3) / 4;
@@ -456,19 +506,22 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             unsigned char cc_[3]={CLAMP255(cr[2]),CLAMP255(cg[2]),CLAMP255(cb[2])};
                             unsigned char cd_[3]={CLAMP255(cr[3]),CLAMP255(cg[3]),CLAMP255(cb[3])};
                             int face_z = (sz0+sz1+sz2+sz3)/4;
-                            /* flags bit 0 = textured, bit 1 = semi-trans,
-                               bits 2..3 = PSX ABR mode 0..3. */
-                            unsigned short fflags = 1;
+                            /* flags: b0 textured, b1 semi-trans, b2-3 ABR,
+                               b4 per-pixel lit (from light_flag_bit). */
+                            unsigned short fflags = 1 | light_flag_bit;
                             if (port_tex_semi_trans) fflags |= 2 | ((port_tex_abr & 3) << 2);
+                            const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                             /* tri 1: v0, v1, v3 */
                             gl_submit_tri3d(eye[0], eye[1], eye[3],
                                             uv[0], uv[1], uv[3],
                                             ca, cb_, cd_,
+                                            nvecs[0], nvecs[1], nvecs[3], lp,
                                             dist, face_z, tex->tpage, tex->clut, fflags);
                             /* tri 2: v1, v2, v3 */
                             gl_submit_tri3d(eye[1], eye[2], eye[3],
                                             uv[1], uv[2], uv[3],
                                             cb_, cc_, cd_,
+                                            nvecs[1], nvecs[2], nvecs[3], lp,
                                             dist, face_z, tex->tpage, tex->clut, fflags);
                         } else {
                             /* Tri 1: v0, v1, v3 */
@@ -503,12 +556,18 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         unsigned char cc_[3]={CLAMP255(cr[2]),CLAMP255(cg[2]),CLAMP255(cb[2])};
                         unsigned char cd_[3]={CLAMP255(cr[3]),CLAMP255(cg[3]),CLAMP255(cb[3])};
                         int face_z = (sz0+sz1+sz2+sz3)/4;
+                        unsigned short fflags = light_flag_bit;
+                        const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                         gl_submit_tri3d(eye[0], eye[1], eye[3],
                                         uv_dummy, uv_dummy, uv_dummy,
-                                        ca, cb_, cd_, dist, face_z, 0, 0, 0);
+                                        ca, cb_, cd_,
+                                        nvecs[0], nvecs[1], nvecs[3], lp,
+                                        dist, face_z, 0, 0, fflags);
                         gl_submit_tri3d(eye[1], eye[2], eye[3],
                                         uv_dummy, uv_dummy, uv_dummy,
-                                        cb_, cc_, cd_, dist, face_z, 0, 0, 0);
+                                        cb_, cc_, cd_,
+                                        nvecs[1], nvecs[2], nvecs[3], lp,
+                                        dist, face_z, 0, 0, fflags);
                     } else {
                         port_tri_r[0]=cr[0]; port_tri_g[0]=cg[0]; port_tri_b[0]=cb[0];
                         port_tri_r[1]=cr[1]; port_tri_g[1]=cg[1]; port_tri_b[1]=cb[1];
