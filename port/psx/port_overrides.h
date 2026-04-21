@@ -31,17 +31,25 @@ extern void *port_packet_memory1;
 
 /* Check if a pointer is safely readable (page is mapped).
    Used to guard against dangling pointers to freed memory on macOS.
-   Uses Mach VM API — the only fully safe approach on Apple Silicon. */
+   Uses Mach VM API — the only fully safe approach on Apple Silicon.
+   On non-Apple platforms, this always returns 1 (assume readable). */
+#ifdef __APPLE__
 #include <mach/mach.h>
 static inline int port_ptr_readable(const void *p) {
-    if (!p) return 0;
-    char buf;
-    vm_size_t sz = 1;
-    kern_return_t kr = vm_read_overwrite(
-        mach_task_self(), (vm_address_t)p, 1,
-        (vm_address_t)&buf, &sz);
-    return kr == KERN_SUCCESS;
+   if (!p) return 0;
+   char buf;
+   vm_size_t sz = 1;
+   kern_return_t kr = vm_read_overwrite(
+      mach_task_self(), (vm_address_t)p, 1,
+      (vm_address_t)&buf, &sz);
+   return kr == KERN_SUCCESS;
 }
+#else
+static inline int port_ptr_readable(const void *p) {
+   (void)p;
+   return 1;
+}
+#endif
 
 /* The PSX MTS declares fprintf(int stream, ...) which conflicts with
    stdio's fprintf(FILE*, ...). We suppress MTS's declaration and

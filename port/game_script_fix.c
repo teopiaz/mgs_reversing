@@ -28,7 +28,6 @@ STATIC int  SECTION(".sbss") gBinds_800ABA60;
 STATIC int  SECTION(".sbss") gBindsCount_800ABA64;
 
 extern char *GM_StageName;
-char         SECTION(".sbss") * GM_StageName;
 
 /*---------------------------------------------------------------------------*/
 
