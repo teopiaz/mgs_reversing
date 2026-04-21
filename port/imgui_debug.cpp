@@ -185,6 +185,8 @@ extern "C" {
     extern int   port_light_disable_dynamic;
     extern int   port_light_dyn_slot_muted[2][8];
     extern float port_light_ambient_scale;
+    extern int   port_force_gouraud_neutral;
+    extern int   port_light_dump_request;
 }
 
 extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
@@ -301,6 +303,9 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     b = gl_debug_cull_cw != 0;
                     if (ImGui::Checkbox("Flip front-face (CW instead of CCW)", &b))
                         gl_debug_cull_cw = b;
+                    b = port_force_gouraud_neutral != 0;
+                    if (ImGui::Checkbox("Force Gouraud neutral (128,128,128)", &b))
+                        port_force_gouraud_neutral = b ? 1 : 0;
                     b = gl_debug_face_id != 0;
                     if (ImGui::Checkbox("Per-tri random color (face ID)", &b))
                         gl_debug_face_id = b;
@@ -529,6 +534,11 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             if (ImGui::BeginTabItem("Stage")) {
                 ImGui::Text("Stage: %s",
                             port_current_stage[0] ? port_current_stage : "(none)");
+                if (ImGui::Button("Dump lighting state to stderr")) {
+                    port_light_dump_request = 1;
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("(run once; copy stderr lines after press)");
                 ImGui::Separator();
 
                 /* --- Ambient ----------------------------------------- */
