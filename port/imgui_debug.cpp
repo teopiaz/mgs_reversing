@@ -194,7 +194,26 @@ extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.FontGlobalScale = 1.0f;
+
+    /* HiDPI scaling. On macOS, SDL_WINDOW_ALLOW_HIGHDPI makes the drawable
+       2x the window size on Retina displays and ImGui handles this via
+       DisplayFramebufferScale — FontGlobalScale stays 1.0. On Linux, the
+       drawable equals the window size even on HiDPI screens, so we query
+       the display DPI and scale the font accordingly. */
+    float dpi_scale = 1.0f;
+#ifndef __APPLE__
+    {
+        float ddpi = 0.0f;
+        int display = SDL_GetWindowDisplayIndex(window);
+        if (SDL_GetDisplayDPI(display >= 0 ? display : 0, &ddpi, NULL, NULL) == 0 && ddpi > 0.0f) {
+            dpi_scale = ddpi / 96.0f;
+            if (dpi_scale < 1.0f) dpi_scale = 1.0f;
+            /* Snap to nearest 0.5 to avoid odd fractional scales */
+            dpi_scale = floorf(dpi_scale * 2.0f + 0.5f) / 2.0f;
+        }
+    }
+#endif
+    io.FontGlobalScale = dpi_scale;
     ImGui::StyleColorsDark();
 
     g_imgui_use_gl = (renderer == nullptr);
