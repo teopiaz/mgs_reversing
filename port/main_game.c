@@ -6,7 +6,9 @@
 #include <math.h>
 #include <signal.h>
 #include <setjmp.h>
+#ifdef __APPLE__
 #include <mach/mach_time.h>
+#endif
 #include <execinfo.h>
 #include <unistd.h>
 
@@ -170,9 +172,9 @@ static void update_camera(void)
 void game_tick(void)
 {
     extern int GV_Clock;
-    extern int DG_CurrentGroupID;
-    extern int port_ot_next;
-    extern void port_RenderObjects(int idx);
+        extern int DG_CurrentGroupID;
+        extern int port_ot_next;
+        extern void port_RenderObjects(int idx);
 
     /* Clear framebuffer — deferred clear from PutDrawEnv handles
        background color during codec/menu mode. Only clear here if
@@ -196,14 +198,11 @@ void game_tick(void)
 
     /* Track draw state for rendering */
     {
-        extern int DG_UnDrawFrameCount;
-        extern int DG_HikituriFlag;
-        extern int DG_HikituriFlagOld;
-        /* Don't force DG_UnDrawFrameCount to 0 — it's a countdown used by
-           cutscene camera cuts (pad_demo.c) and scene transitions. DG_SwapFrame
-           decrements it naturally. Forcing it to 0 breaks cutscene flow. */
-        DG_HikituriFlagOld = DG_HikituriFlag;
-        DG_HikituriFlag = 0;
+           extern int DG_UnDrawFrameCount;
+           extern int DG_HikituriFlag;
+           extern int DG_HikituriFlagOld;
+           DG_HikituriFlagOld = DG_HikituriFlag;
+           DG_HikituriFlag = 0;
     }
 
 
@@ -213,8 +212,8 @@ void game_tick(void)
        the flag stuck and blocking ALL pad input including L2/R2 menus.
        Clearing here lets actors re-set it each frame if they're still active. */
     {
-        extern int GM_GameStatus;
-        GM_GameStatus &= ~STATE_PADRELEASE;
+           extern int GM_GameStatus;
+           GM_GameStatus &= ~STATE_PADRELEASE;
     }
     /* Match original PSX frame order:
        1. DG_ActFirst (DAEMON): swap frame, read pad
@@ -223,26 +222,25 @@ void game_tick(void)
     {
         static uint64_t t_swap = 0, t_actors = 0, t_dgrender = 0, t_portrender = 0, t_drawotag = 0;
         static int perf_frames = 0;
+        #ifdef __APPLE__
         static mach_timebase_info_data_t tb = {0};
         if (tb.denom == 0) mach_timebase_info(&tb);
-
         uint64_t ts0 = mach_absolute_time();
         DG_SwapFrame();
         uint64_t ts1 = mach_absolute_time();
+        #else
+        DG_SwapFrame();
+        #endif
 
         /* Pad update — matches DG_ActFirst in original dgd.c */
         {
-            extern void GV_UpdatePadSystem(void);
-            extern GV_PAD *GM_CurrentPadData;
-            extern GV_PAD  GV_PadData[];
-            GV_UpdatePadSystem();
-            GM_CurrentPadData = GV_PadData;
-
-            /* The menu system reads from GM_CurrentPadData[2] (GV_PadData[2]).
-               The pad update loop only populates indices 0 and 1.
-               Copy pad[0] to pad[2] and pad[3] so menus and codec see input. */
-            GV_PadData[2] = GV_PadData[0];
-            GV_PadData[3] = GV_PadData[1];
+              extern void GV_UpdatePadSystem(void);
+              extern GV_PAD *GM_CurrentPadData;
+              extern GV_PAD  GV_PadData[];
+              GV_UpdatePadSystem();
+              GM_CurrentPadData = GV_PadData;
+              GV_PadData[2] = GV_PadData[0];
+              GV_PadData[3] = GV_PadData[1];
         }
 
         /* Sound update — process SE requests, load files, SPU transfers */
@@ -318,7 +316,9 @@ void game_tick(void)
 
         /* Actor system + render frame: wrapped in signal handler to catch
            stale DG_OBJS pointer crashes during stage transitions. */
+        #ifdef __APPLE__
         uint64_t ta0 = mach_absolute_time();
+        #endif
         {
             struct sigaction sa = {.sa_sigaction = render_signal_handler, .sa_flags = SA_SIGINFO};
             struct sigaction old_segv, old_bus;
@@ -415,7 +415,9 @@ void game_tick(void)
             mts_scheduler_tick();
         }
 
+        #ifdef __APPLE__
         uint64_t ta1 = mach_absolute_time();
+        #endif
 
         /* OT render pipeline — must run BEFORE 3D so the OT clear happens
            before actors added prims. DG_SwapFrame draws the PREVIOUS frame's
@@ -458,7 +460,9 @@ void game_tick(void)
                 port_RenderObjects(GV_Clock);
             }
         }
+        #ifdef __APPLE__
         uint64_t ta2 = mach_absolute_time();
+        #endif
 
         /* Draw the CURRENT frame's OT on top of 3D. This renders subtitles,
            HUD, and other 2D prims that actors just added to OT[GV_Clock].
@@ -469,25 +473,29 @@ void game_tick(void)
             DG_DrawOTag(GV_Clock);
         }
 
+        #ifdef __APPLE__
         uint64_t ta3 = mach_absolute_time();
+        #endif
 
+        #ifdef __APPLE__
         t_swap += ts1 - ts0;
         t_actors += ta1 - ta0;
         t_dgrender += ta2 - ta1;
         t_portrender += ta3 - ta2;
         perf_frames++;
-#ifdef PORT_BUILD_VERBOSE
+    #ifdef PORT_BUILD_VERBOSE
         if (perf_frames == 60) {
             double ns = (double)tb.numer / (double)tb.denom;
             printf("[tick-perf] swap=%.2fms actors=%.2fms DG_Render=%.2fms port_Render=%.2fms\n",
-                   (double)t_swap * ns / 1e6 / 60.0,
-                   (double)t_actors * ns / 1e6 / 60.0,
-                   (double)t_dgrender * ns / 1e6 / 60.0,
-                   (double)t_portrender * ns / 1e6 / 60.0);
+               (double)t_swap * ns / 1e6 / 60.0,
+               (double)t_actors * ns / 1e6 / 60.0,
+               (double)t_dgrender * ns / 1e6 / 60.0,
+               (double)t_portrender * ns / 1e6 / 60.0);
             t_swap = t_actors = t_dgrender = t_portrender = 0;
             perf_frames = 0;
         }
-#endif
+    #endif
+        #endif
     }
 
     /* Debug: print pad state every second */

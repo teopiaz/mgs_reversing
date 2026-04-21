@@ -11,8 +11,8 @@
 int port_sd_init_done = 0;
 
 /* game globals */
-int GM_CurrentMap = 0;
-int gTotalFrameTime = 0;
+extern int GM_CurrentMap;
+extern int gTotalFrameTime;
 
 /* StageCharacterEntries is defined in source/game/chara.c.
    GM_InitChara sets it via mts_get_bss_tail (we override that in mts.c).

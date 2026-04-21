@@ -30,8 +30,8 @@ float port_light_ambient_scale    = 1.0f;        /* cheap brightness knob    */
 int   port_force_gouraud_neutral  = 0;           /* skip shade colors, force 128 */
 int   port_light_dump_request     = 0;           /* set from ImGui, cleared after dump */
 
-extern DG_FixedLight   gFixedLights_800B1E08[8];
-extern DG_TmpLightList LightSystems_800B1E48[2];
+    extern DG_FixedLight   gFixedLights_800B1E08[8];
+    extern DG_TmpLightList LightSystems_800B1E48[2];
 
 static int      s_prev_amb_override      = 0;
 static SVECTOR  s_cached_ambient;

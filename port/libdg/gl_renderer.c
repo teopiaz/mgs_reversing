@@ -17,8 +17,12 @@
 #include <SDL.h>
 
 /* macOS ships GL 4.1 Core via the OpenGL framework. We don't need a loader. */
+#ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
+#else
+#include <GL/gl.h>
+#endif
 
 #include "gl_renderer.h"
 
