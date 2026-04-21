@@ -1,4 +1,6 @@
 
+
+UNAME_S := $(shell uname -s)
 CC = clang
 CXX = clang++
 SRCDIR = ../source
@@ -12,12 +14,21 @@ else
 SANITIZE =
 endif
 
-CFLAGS = -Wno-everything -Wno-error -O0 -g -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
+CFLAGS = -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
 		 -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
 		 -Wno-incompatible-pointer-types $(SANITIZE)
 CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
 SDL_CFLAGS = $(shell sdl2-config --cflags)
-LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ -framework OpenGL $(SANITIZE)
+
+ifeq ($(UNAME_S),Darwin)
+	OPENGL_LIB = -framework OpenGL
+	CODESIGN = codesign -s - --entitlements entitlements.plist -f $@ 2>/dev/null || true
+else
+	OPENGL_LIB = -lGL
+	CODESIGN = true
+endif
+
+LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ $(OPENGL_LIB) $(SANITIZE)
 
 OBJDIR = obj
 TARGET = mgs
@@ -137,7 +148,7 @@ ALL_OBJ = $(PORT_OBJ) $(STAGE_OBJ) $(OVERLAY_OBJ) $(LIBGV_OBJ) $(LIBGCL_OBJ) $(L
 
 $(TARGET): $(ALL_OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS)
-	codesign -s - --entitlements entitlements.plist -f $@ 2>/dev/null || true
+	$(CODESIGN)
 
 # --- ImGui rules ---
 $(OBJDIR)/imgui.o: imgui/imgui.cpp | $(OBJDIR)
