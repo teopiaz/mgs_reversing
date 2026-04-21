@@ -1,6 +1,10 @@
 /**
- * Port filesystem — simple stdio replacement for PSX CD-ROM.
- * Reads game data directly from extracted disc files.
+ * Port filesystem — stdio replacement for PSX CD-ROM.
+ * Can read game data from either:
+ *   - an extracted disc directory (PORT_DATA_PATH / PORT_DATA_DIR env)
+ *   - a disc image (.iso / .bin / .cue) passed via CLI or PORT_ISO env
+ *
+ * All internal access goes through the PortFile abstraction (see below).
  */
 
 #include <stdio.h>
@@ -10,6 +14,7 @@
 #include "libgpu.h"
 #include "libfs/libfs.h"
 #include "libgv/libgv.h"
+#include "iso_reader.h"
 
 /*---------------------------------------------------------------------------*/
 /* Configuration                                                             */
@@ -19,12 +24,42 @@
 #define PORT_DATA_PATH "data/disc1/MGS/"
 #endif
 
+/* Set by main.c before FS_StartDaemon runs if the user passed an image. */
+const char *port_iso_override = NULL;
+
 /*---------------------------------------------------------------------------*/
-/* State                                                                     */
+/* PortFile — uniform view over stdio FILE* or an ISO-embedded file          */
 /*---------------------------------------------------------------------------*/
 
-static FILE *stage_dir_file = NULL;
-static FILE *dat_files[7] = {};
+typedef struct PortFile {
+    FILE    *fp;       /* directory mode: real file handle */
+    IsoFile  iso_ent;  /* iso mode: (lba, size) inside image */
+    long     size;     /* cached size in bytes (both modes) */
+    int      from_iso; /* 0 = fp, 1 = iso_ent */
+    int      valid;    /* 1 if opened successfully */
+} PortFile;
+
+static IsoImage port_iso = {0};
+static int      port_iso_active = 0;
+
+static int pf_valid(const PortFile *pf) { return pf && pf->valid; }
+
+/* Read `size` bytes from the given byte offset into `buf`. Returns bytes
+ * read (0 on EOF, -1 on error or unopened). */
+static int pf_read_at(PortFile *pf, long byte_offset, int size, void *buf)
+{
+    if (!pf_valid(pf)) return -1;
+    if (pf->from_iso) {
+        return iso_read_file(&port_iso, &pf->iso_ent, byte_offset, size, buf);
+    }
+    if (fseek(pf->fp, byte_offset, SEEK_SET) != 0) return -1;
+    return (int)fread(buf, 1, size, pf->fp);
+}
+
+static long pf_size(const PortFile *pf) { return pf_valid(pf) ? pf->size : 0; }
+
+static PortFile stage_dir_pf;
+static PortFile dat_pf[7];
 
 /* Stage directory table */
 #define FS_DIRNAME_MAX  8
@@ -75,10 +110,8 @@ int  CDBIOS_TaskState(void) { return 0; }
 
 static int stage_dir_read(void *buf, int sector_offset, int size)
 {
-    if (!stage_dir_file) return -1;
     long byte_offset = (long)sector_offset * FS_SECTOR_SIZE;
-    fseek(stage_dir_file, byte_offset, SEEK_SET);
-    return (int)fread(buf, 1, size, stage_dir_file);
+    return pf_read_at(&stage_dir_pf, byte_offset, size, buf);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -90,29 +123,83 @@ static const char *dat_names[] = {
     "VOX.DAT", "DEMO.DAT", "BRF.DAT"
 };
 
+/* Try to open all 7 DAT files from a plain directory. */
+static int port_fs_open_dir(const char *data_path)
+{
+    int any_opened = 0;
+    for (int i = 0; i < 7; i++)
+    {
+        char path[512];
+        snprintf(path, sizeof(path), "%s%s", data_path, dat_names[i]);
+        FILE *fp = fopen(path, "rb");
+        if (fp) {
+            fseek(fp, 0, SEEK_END);
+            long sz = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            dat_pf[i].fp = fp;
+            dat_pf[i].size = sz;
+            dat_pf[i].from_iso = 0;
+            dat_pf[i].valid = 1;
+            printf(" %s", dat_names[i]);
+            any_opened = 1;
+        } else {
+            printf(" [%s:MISSING]", dat_names[i]);
+        }
+    }
+    stage_dir_pf = dat_pf[0];
+    return any_opened;
+}
+
+/* Open a disc image (.iso/.bin/.cue) and locate /MGS/<dat> for each. */
+static int port_fs_open_iso(const char *image_path)
+{
+    if (iso_open(&port_iso, image_path) != 0) return 0;
+    port_iso_active = 1;
+
+    int any_found = 0;
+    for (int i = 0; i < 7; i++) {
+        char path[64];
+        snprintf(path, sizeof(path), "MGS/%s", dat_names[i]);
+        if (iso_find_file(&port_iso, path, &dat_pf[i].iso_ent) == 0) {
+            dat_pf[i].size = dat_pf[i].iso_ent.size;
+            dat_pf[i].from_iso = 1;
+            dat_pf[i].valid = 1;
+            printf(" %s", dat_names[i]);
+            any_found = 1;
+        } else {
+            printf(" [%s:MISSING]", dat_names[i]);
+        }
+    }
+    stage_dir_pf = dat_pf[0];
+    return any_found;
+}
+
 void FS_StartDaemon(void)
 {
     printf("fs:");
 
-    /* Open all data files */
-    for (int i = 0; i < 7; i++)
-    {
-        char path[256];
-        snprintf(path, sizeof(path), "%s%s", PORT_DATA_PATH, dat_names[i]);
-        dat_files[i] = fopen(path, "rb");
-        if (dat_files[i])
-            printf(" %s", dat_names[i]);
-        else
-            printf(" [%s:MISSING]", dat_names[i]);
+    /* Selection order: (1) port_iso_override from CLI / main.c,
+       (2) PORT_ISO env var, (3) PORT_DATA_DIR env, (4) default dir. */
+    const char *iso_path = port_iso_override;
+    if (!iso_path || !*iso_path) iso_path = getenv("PORT_ISO");
+
+    int opened = 0;
+    if (iso_path && *iso_path) {
+        opened = port_fs_open_iso(iso_path);
+        if (!opened) printf(" (iso '%s' unusable, falling back to dir)", iso_path);
     }
-    stage_dir_file = dat_files[0];
+    if (!opened) {
+        const char *dir = getenv("PORT_DATA_DIR");
+        if (!dir || !*dir) dir = PORT_DATA_PATH;
+        opened = port_fs_open_dir(dir);
+    }
     printf("\n");
 
     /* Parse STAGE.DIR directory table */
-    if (stage_dir_file)
+    if (pf_valid(&stage_dir_pf))
     {
         unsigned char header[2048];
-        fread(header, 1, 2048, stage_dir_file);
+        pf_read_at(&stage_dir_pf, 0, 2048, header);
 
         unsigned int table_size = *(unsigned int *)header;
         stage_count = table_size / 12;
@@ -524,11 +611,12 @@ void FS_LoadStageComplete(void *info)
 
 void FS_LoadFileRequest(int fileno, int offset, int size, void *buffer)
 {
-    if (fileno < 0 || fileno >= 7 || !dat_files[fileno])
+    if (fileno < 0 || fileno >= 7 || !pf_valid(&dat_pf[fileno]))
         return;
-    fseek(dat_files[fileno], (long)offset * FS_SECTOR_SIZE, SEEK_SET);
-    size_t r = fread(buffer, 1, size, dat_files[fileno]);
-    if (r < (size_t)size)
+    long byte_offset = (long)offset * FS_SECTOR_SIZE;
+    int r = pf_read_at(&dat_pf[fileno], byte_offset, size, buffer);
+    if (r < 0) r = 0;
+    if (r < size)
         memset((char *)buffer + r, 0, size - r);
 }
 
@@ -569,18 +657,18 @@ static int port_stream_tick = 0;
 void FS_StreamTaskStart(int sector)
 {
     /* Determine which file to read from based on sector marker */
-    FILE *f;
+    PortFile *pf;
     if (sector & VOX_SECTOR_BASE) {
         sector &= ~VOX_SECTOR_BASE;
-        f = dat_files[4]; /* VOX.DAT */
+        pf = &dat_pf[4]; /* VOX.DAT */
     } else if (sector & DEMO_SECTOR_BASE) {
         sector &= ~DEMO_SECTOR_BASE;
-        f = dat_files[5]; /* DEMO.DAT */
+        pf = &dat_pf[5]; /* DEMO.DAT */
     } else {
-        f = dat_files[5]; /* default: DEMO.DAT */
-        if (!f) f = dat_files[4];
+        pf = &dat_pf[5]; /* default: DEMO.DAT */
+        if (!pf_valid(pf)) pf = &dat_pf[4];
     }
-    if (!f) {
+    if (!pf_valid(pf)) {
         printf("[stream] no stream file available\n");
         stream_active = 0;
         return;
@@ -592,8 +680,7 @@ void FS_StreamTaskStart(int sector)
        to find entries from OTHER cutscenes, breaking subtitle/timing dispatch. */
     #define STREAM_MAX_SIZE (4 * 1024 * 1024)
     long byte_offset = (long)sector * 2048;
-    fseek(f, 0, SEEK_END);
-    long file_len = ftell(f);
+    long file_len = pf_size(pf);
     long stream_len = file_len - byte_offset;
     if (stream_len > STREAM_MAX_SIZE) {
         printf("[stream] capped %ld → %d bytes\n", stream_len, STREAM_MAX_SIZE);
@@ -612,8 +699,8 @@ void FS_StreamTaskStart(int sector)
     }
 
     /* Read raw sectors from file */
-    fseek(f, byte_offset, SEEK_SET);
-    int raw_len = (int)fread(stream_buf, 1, stream_len, f);
+    int raw_len = pf_read_at(pf, byte_offset, (int)stream_len, stream_buf);
+    if (raw_len < 0) raw_len = 0;
 
     /* VOX/DEMO data uses {code:8, size:16LE} block headers. When read as
        4 bytes LE (like FS_StreamGetData does), the 4th byte extends to 24-bit
