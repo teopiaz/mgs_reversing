@@ -164,7 +164,8 @@ static int port_fs_open_iso(const char *image_path)
             dat_pf[i].size = dat_pf[i].iso_ent.size;
             dat_pf[i].from_iso = 1;
             dat_pf[i].valid = 1;
-            printf(" %s", dat_names[i]);
+            printf(" %s(lba=%d size=%ld)", dat_names[i],
+                   dat_pf[i].iso_ent.lba, dat_pf[i].iso_ent.size);
             any_found = 1;
         } else {
             printf(" [%s:MISSING]", dat_names[i]);

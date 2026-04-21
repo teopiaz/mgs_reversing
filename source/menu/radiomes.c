@@ -562,6 +562,16 @@ void sub_80047D70(MenuWork *work, int param_2, int pRadioCode)
 
     // radioDatFragment is parsed in menu_radio_codec_task_proc_80047AA0()
     FS_LoadFileRequest(1, startSector, size, radioDatFragment);
+#ifdef PORT_BUILD
+    if (radioDatFragment && size > 0) {
+        unsigned char *b = (unsigned char *)radioDatFragment;
+        fprintf(stderr, "[radio-dbg] RADIO.DAT loaded: buf=%p first16=%02x %02x %02x %02x %02x %02x %02x %02x"
+                " %02x %02x %02x %02x %02x %02x %02x %02x\n",
+                radioDatFragment,
+                b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],
+                b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]);
+    }
+#endif
 
     pCharaStruct->field_24_pImgData256 = GV_AllocMemory(GV_PACKET_MEMORY0, 0x200);
     if (pCharaStruct->field_24_pImgData256 == NULL)

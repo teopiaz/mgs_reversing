@@ -12,10 +12,27 @@
  * Enough for reading flat data files out of /MGS/ — no CDDA, no
  * multi-track, no XA streaming. */
 
+/* Cache of sibling LBAs in a given directory. Used so that after we locate
+ * a file like /MGS/RADIO.DAT, we know the next-higher-LBA file in that
+ * directory and can extend RADIO.DAT's effective size up to that boundary.
+ * PSX .DAT files with XA-interleaved audio usually report a truncated size
+ * in the ISO directory and the game code reads raw sectors past it; without
+ * this extension our reader returns EOF where the original hardware would
+ * happily keep streaming. */
+typedef struct {
+    int  lba;
+} IsoLbaSlot;
+
 typedef struct IsoImage {
     FILE *fp;
     int   sector_size;   /* 2048 or 2352 */
     int   data_offset;   /* 0, 16 or 24 depending on format */
+
+    /* Sorted list of sibling LBAs used to extend file extents. Filled lazily
+     * the first time iso_find_file() is called for a given parent directory. */
+    IsoLbaSlot *sibling_lbas;
+    int         sibling_count;
+    int         sibling_parent_lba;
 } IsoImage;
 
 typedef struct IsoFile {
