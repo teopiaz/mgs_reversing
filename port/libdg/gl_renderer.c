@@ -16,12 +16,17 @@
 
 #include <SDL.h>
 
-/* macOS ships GL 4.1 Core via the OpenGL framework. We don't need a loader. */
+/* macOS ships GL 4.1 Core via the OpenGL framework. On Linux, glcorearb.h
+   provides all GL Core Profile declarations (functions + constants) without
+   needing a loader — Mesa's libGL exports them all. Plain <GL/gl.h> only
+   covers GL 1.x, so modern calls like glCreateShader silently fail via
+   implicit function declarations. */
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #else
-#include <GL/gl.h>
+#define GL_GLEXT_PROTOTYPES
+#include <GL/glcorearb.h>
 #endif
 
 #include "gl_renderer.h"
