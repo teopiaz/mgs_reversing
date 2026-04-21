@@ -27,6 +27,8 @@ int   port_light_group_disabled[8]= { 0 };       /* per-group zero-count      */
 int   port_light_disable_dynamic  = 0;           /* master: zero both buffers */
 int   port_light_dyn_slot_muted[2][8] = { { 0 } };/* per-slot color-zero     */
 float port_light_ambient_scale    = 1.0f;        /* cheap brightness knob    */
+int   port_force_gouraud_neutral  = 0;           /* skip shade colors, force 128 */
+int   port_light_dump_request     = 0;           /* set from ImGui, cleared after dump */
 
 extern DG_FixedLight   gFixedLights_800B1E08[8];
 extern DG_TmpLightList LightSystems_800B1E48[2];
@@ -40,6 +42,37 @@ static SVECTOR  s_cached_ambient_scale;
 
 void port_light_debug_apply(void)
 {
+    /* One-shot global lighting dump (Stage tab button). Runs once at the
+       start of a frame; the per-face dump in port_RenderChanl then adds
+       per-object samples and finally clears the request. */
+    static int s_dump_seen_header = 0;
+    if (port_light_dump_request && !s_dump_seen_header) {
+        s_dump_seen_header = 1;
+        fprintf(stderr, "\n===== MGS lighting dump =====\n");
+        fprintf(stderr, "DG_Ambient: (%d, %d, %d)\n",
+                DG_Ambient.vx, DG_Ambient.vy, DG_Ambient.vz);
+        fprintf(stderr, "DG_LightMatrix (rows = main/sub1/sub2 directions, /4096):\n");
+        for (int i = 0; i < 3; i++)
+            fprintf(stderr, "  [%d] %+.3f %+.3f %+.3f\n", i,
+                    DG_LightMatrix.m[i][0]/4096.0,
+                    DG_LightMatrix.m[i][1]/4096.0,
+                    DG_LightMatrix.m[i][2]/4096.0);
+        fprintf(stderr, "DG_ColorMatrix (cols = main/sub1/sub2, /16 for 0..255):\n");
+        for (int r = 0; r < 3; r++)
+            fprintf(stderr, "  %c: %d %d %d\n", "RGB"[r],
+                    DG_ColorMatrix.m[r][0]/16,
+                    DG_ColorMatrix.m[r][1]/16,
+                    DG_ColorMatrix.m[r][2]/16);
+        int fx = 0;
+        for (int g = 0; g < 8; g++) fx += gFixedLights_800B1E08[g].field_0_lightCount;
+        fprintf(stderr, "Fixed point lights: total=%d across 8 groups\n", fx);
+        fprintf(stderr, "Dynamic lights: buf0=%d buf1=%d\n",
+                LightSystems_800B1E48[0].n_lights,
+                LightSystems_800B1E48[1].n_lights);
+    } else if (!port_light_dump_request) {
+        s_dump_seen_header = 0;  /* rearm for next press */
+    }
+
     /* --- Ambient (absolute override OR scale). Override takes precedence. */
     if (port_light_ambient_override) {
         if (!s_prev_amb_override) s_cached_ambient = DG_Ambient;
@@ -537,7 +570,12 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                    2. POLY_GT4 packs + DG_FLAG_SHADE — shade pipeline output (level geometry)
                    3. Neutral 128 — fallback (no shading) */
                 int cr[4], cg[4], cb[4];
-                if ((objs->flag & DG_FLAG_PAINT) && obj->rgbs) {
+                extern int port_force_gouraud_neutral;
+                if (port_force_gouraud_neutral) {
+                    cr[0]=cr[1]=cr[2]=cr[3] = 128;
+                    cg[0]=cg[1]=cg[2]=cg[3] = 128;
+                    cb[0]=cb[1]=cb[2]=cb[3] = 128;
+                } else if ((objs->flag & DG_FLAG_PAINT) && obj->rgbs) {
                     /* Preshade: 4 CVECTORs per face in KMD vertex order */
                     CVECTOR *fc = &obj->rgbs[fi * 4];
                     cr[0] = fc[0].r; cg[0] = fc[0].g; cb[0] = fc[0].b;
@@ -555,6 +593,49 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                     cr[0]=cr[1]=cr[2]=cr[3] = 128;
                     cg[0]=cg[1]=cg[2]=cg[3] = 128;
                     cb[0]=cb[1]=cb[2]=cb[3] = 128;
+                }
+
+                /* --- Lighting dump (one-shot). Print the first face we see for
+                   each of the 3 object kinds (preshade, shade, fallback) so we
+                   can correlate rendered colors with the values flowing into
+                   the pixel pipe. Port_light_dump_request is set from ImGui. */
+                extern int port_light_dump_request;
+                if (port_light_dump_request) {
+                    static int  dumped_preshade, dumped_shade, dumped_fallback;
+                    const char *kind = NULL;
+                    if ((objs->flag & DG_FLAG_PAINT) && obj->rgbs && !dumped_preshade) {
+                        kind = "PRESHADE"; dumped_preshade = 1;
+                    } else if (color_packs && !dumped_shade) {
+                        kind = "SHADE";    dumped_shade = 1;
+                    } else if (!(objs->flag & DG_FLAG_PAINT) && !color_packs && !dumped_fallback) {
+                        kind = "FALLBACK"; dumped_fallback = 1;
+                    }
+                    if (kind) {
+                        fprintf(stderr,
+                            "[lightdump %s] flag=0x%X fi=%d verts rgb: "
+                            "v0=(%d,%d,%d) v1=(%d,%d,%d) v2=(%d,%d,%d) v3=(%d,%d,%d)\n",
+                            kind, objs->flag, fi,
+                            cr[0],cg[0],cb[0], cr[1],cg[1],cb[1],
+                            cr[2],cg[2],cb[2], cr[3],cg[3],cb[3]);
+                        if (objs->light) {
+                            fprintf(stderr,
+                                "    objs->light[0] dirs: %d %d %d | %d %d %d | %d %d %d\n",
+                                objs->light[0].m[0][0], objs->light[0].m[0][1], objs->light[0].m[0][2],
+                                objs->light[0].m[1][0], objs->light[0].m[1][1], objs->light[0].m[1][2],
+                                objs->light[0].m[2][0], objs->light[0].m[2][1], objs->light[0].m[2][2]);
+                            fprintf(stderr,
+                                "    objs->light[0] t[0..2] (ambient if DG_FLAG_AMBIENT): %d %d %d\n",
+                                objs->light[0].t[0], objs->light[0].t[1], objs->light[0].t[2]);
+                            fprintf(stderr,
+                                "    objs->light[1] colors (cols=lights, rows=RGB, /16):\n"
+                                "      R: %d %d %d\n      G: %d %d %d\n      B: %d %d %d\n",
+                                objs->light[1].m[0][0]/16, objs->light[1].m[0][1]/16, objs->light[1].m[0][2]/16,
+                                objs->light[1].m[1][0]/16, objs->light[1].m[1][1]/16, objs->light[1].m[1][2]/16,
+                                objs->light[1].m[2][0]/16, objs->light[1].m[2][1]/16, objs->light[1].m[2][2]/16);
+                        }
+                        if (dumped_preshade && dumped_shade && dumped_fallback)
+                            port_light_dump_request = 0;
+                    }
                 }
 
                 /* Texture UVs from model data (reliable, always available) */
