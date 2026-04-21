@@ -46,11 +46,17 @@ typedef struct {
     float    dist;        /* chanl->clip_distance */
     float    uv[2];       /* 0..255 typical */
     float    face_z;      /* flat per-face eye-Z for depth test (painter's) */
-    unsigned char rgba[4];/* modulation color, a unused */
-    unsigned short tpage; /* PSX tpage register */
-    unsigned short clut;  /* PSX CLUT index */
-    unsigned short flags; /* bit 0 = textured */
+    unsigned char rgba[4];/* Gouraud fallback color (used when !per-pixel) */
+    unsigned short tpage;
+    unsigned short clut;
+    unsigned short flags; /* b0 textured, b1 semi-trans, b2-3 ABR, b4 per-pixel lit */
     unsigned short _pad;
+    /* Per-pixel lighting (PSX NCS formula). All stored as floats in
+       "fixed-point /4096" convention -- see PSX 4.12 SVECTOR/MATRIX. */
+    float    normal[3];       /* vertex normal (SVECTOR / 4096) */
+    float    lightDir[9];     /* 3x3 light direction matrix (row-major) */
+    float    lightColor[9];   /* 3x3 color contribution matrix (row-major) */
+    float    ambient[3];      /* background / ambient color in [0,1] */
 } GL3DVert;
 
 static GL3DVert *g_tri3d_buf   = NULL;
@@ -75,6 +81,19 @@ static int    g_fbo_h     = 224 * 4;
 static GLuint g_fbo       = 0;
 static GLuint g_fbo_color = 0;
 static GLuint g_fbo_depth = 0;
+
+/* Debug visualisation flags -- read by gl_renderer_present / shaders. */
+int   gl_debug_wireframe      = 0;
+int   gl_debug_no_textures    = 0;
+int   gl_debug_skip_3d        = 0;
+int   gl_debug_skip_2d        = 0;
+int   gl_debug_skip_lines     = 0;
+int   gl_debug_blit_nearest   = 0;
+int   gl_debug_no_cull        = 0;
+int   gl_debug_face_id        = 0;
+int   gl_debug_show_normals   = 0;
+int   gl_debug_clear_override = 0;
+float gl_debug_clear_rgb[3]   = {1.0f, 0.0f, 1.0f};  /* magenta default */
 
 /* 2D primitive pipeline. Handles all screen-space primitives (TILE, POLY_F*,
  * POLY_G*, POLY_FT*, POLY_GT*, SPRT*). Flags encode textured / semi-trans /
@@ -144,19 +163,27 @@ static const char *BLIT_FS =
  * perspective-correct interpolation of UV and vertex color. */
 static const char *TRI3D_VS =
     "#version 330 core\n"
-    "layout(location=0) in vec3 aPos;\n"
-    "layout(location=1) in float aDist;\n"
-    "layout(location=2) in vec2 aUV;\n"
-    "layout(location=3) in float aFaceZ;\n"
-    "layout(location=4) in vec4 aCol;\n"
-    "layout(location=5) in uvec4 aTex;   // tpage, clut, flags, _pad\n"
+    "layout(location=0)  in vec3  aPos;\n"
+    "layout(location=1)  in float aDist;\n"
+    "layout(location=2)  in vec2  aUV;\n"
+    "layout(location=3)  in float aFaceZ;\n"
+    "layout(location=4)  in vec4  aCol;\n"
+    "layout(location=5)  in uvec4 aTex;         // tpage, clut, flags, _pad\n"
+    "layout(location=6)  in vec3  aNormal;      // per-vertex normal (4.12 / 4096)\n"
+    "layout(location=7)  in mat3  aLightDir;    // takes slots 7,8,9\n"
+    "layout(location=10) in mat3  aLightColor;  // slots 10,11,12\n"
+    "layout(location=13) in vec3  aAmbient;\n"
     "out vec2 vUV;\n"
     "out vec4 vCol;\n"
+    "out vec3 vNormal;                   // smooth-interpolated across tri\n"
     "flat out uint vTPage;\n"
     "flat out uint vCLUT;\n"
     "flat out uint vFlags;\n"
-    "uniform vec2 uHalfScreen;   // (160, 112) -- PSX logical half-screen\n"
-    "uniform vec2 uNearFar;      // (near, far) in world units\n"
+    "flat out mat3 vLightDir;            // constant per tri\n"
+    "flat out mat3 vLightColor;\n"
+    "flat out vec3 vAmbient;\n"
+    "uniform vec2 uHalfScreen;           // (160, 112)\n"
+    "uniform vec2 uNearFar;              // (near, far)\n"
     "void main() {\n"
     "    float cz = aPos.z;\n"
     "    if (cz < 4.0) cz = 4.0;\n"
@@ -165,29 +192,38 @@ static const char *TRI3D_VS =
     "    float n = uNearFar.x, f = uNearFar.y;\n"
     "    float A = (f + n) / (f - n);\n"
     "    float B = -2.0 * f * n / (f - n);\n"
-    "    // We want z_ndc = (A*fz + B)/fz (constant per face) but w = cz (per-vertex\n"
-    "    // for correct perspective divide on x/y). So z_clip = z_ndc * w.\n"
     "    float z_ndc = (A * fz + B) / fz;\n"
     "    gl_Position = vec4(\n"
     "        aPos.x * aDist / uHalfScreen.x,\n"
-    "       -aPos.y * aDist / uHalfScreen.y,  // flip Y to GL up\n"
+    "       -aPos.y * aDist / uHalfScreen.y,\n"
     "        z_ndc * cz,\n"
     "        cz);\n"
-    "    vUV    = aUV;\n"
-    "    vCol   = aCol;\n"
-    "    vTPage = aTex.x;\n"
-    "    vCLUT  = aTex.y;\n"
-    "    vFlags = aTex.z;\n"
+    "    vUV         = aUV;\n"
+    "    vCol        = aCol;\n"
+    "    vTPage      = aTex.x;\n"
+    "    vCLUT       = aTex.y;\n"
+    "    vFlags      = aTex.z;\n"
+    "    vNormal     = aNormal;\n"
+    "    vLightDir   = aLightDir;\n"
+    "    vLightColor = aLightColor;\n"
+    "    vAmbient    = aAmbient;\n"
     "}\n";
 
 static const char *TRI3D_FS =
     "#version 330 core\n"
     "in vec2 vUV;\n"
     "in vec4 vCol;\n"
+    "in vec3 vNormal;\n"
     "flat in uint vTPage;\n"
     "flat in uint vCLUT;\n"
     "flat in uint vFlags;\n"
+    "flat in mat3 vLightDir;\n"
+    "flat in mat3 vLightColor;\n"
+    "flat in vec3 vAmbient;\n"
     "uniform usampler2D uVRAM;\n"
+    "uniform int uNoTextures;    // debug: 1 => skip texture sample\n"
+    "uniform int uFaceId;        // debug: 1 => color tri by gl_PrimitiveID\n"
+    "uniform int uShowNormals;   // debug: 1 => output normal.xyz*0.5+0.5\n"
     "out vec4 oColor;\n"
     "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
     "vec3 decodePSX(uint p) {\n"
@@ -196,9 +232,28 @@ static const char *TRI3D_FS =
     "        float((p >> 5) & 0x1Fu) / 31.0,\n"
     "        float((p >> 10) & 0x1Fu) / 31.0);\n"
     "}\n"
+    "// Cheap hash -> RGB. Used by the face-ID debug visualisation.\n"
+    "vec3 hashId(int i) {\n"
+    "    uint u = uint(i) * 2654435761u;\n"
+    "    return vec3(\n"
+    "        float((u      ) & 0xFFu) / 255.0,\n"
+    "        float((u >>  8) & 0xFFu) / 255.0,\n"
+    "        float((u >> 16) & 0xFFu) / 255.0);\n"
+    "}\n"
     "void main() {\n"
+    "    // Debug overrides take precedence over the normal lit path.\n"
+    "    if (uShowNormals != 0) {\n"
+    "        vec3 n = normalize(vNormal);\n"
+    "        oColor = vec4(n * 0.5 + 0.5, 1.0);\n"
+    "        return;\n"
+    "    }\n"
+    "    if (uFaceId != 0) {\n"
+    "        oColor = vec4(hashId(gl_PrimitiveID), 1.0);\n"
+    "        return;\n"
+    "    }\n"
     "    vec3 tex = vec3(1.0);\n"
-    "    bool textured = (vFlags & 1u) != 0u;\n"
+    "    bool textured = (vFlags & 1u) != 0u && (uNoTextures == 0);\n"
+    "    bool per_pixel = (vFlags & 16u) != 0u;\n"
     "    if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
     "        int base_x = int(vTPage & 0xFu) * 64;\n"
@@ -220,16 +275,37 @@ static const char *TRI3D_FS =
     "        } else {\n"
     "            texel = fetchVRAM(base_x + u, base_y + v);\n"
     "        }\n"
-    "        if (texel == 0u) discard;   // PSX palette index 0 / direct 0 => transparent\n"
+    "        if (texel == 0u) discard;\n"
     "        tex = decodePSX(texel);\n"
     "    }\n"
-    "    // Match the port software rasterizer (vram.c draw_flat_tri):\n"
-    "    //   textured:   out_channel = texel * vert / 128, clamp 31. vCol = vert/255,\n"
-    "    //               so tex * (vCol * 2) gives correct neutral at vert=128.\n"
-    "    //   untextured: base color is 0x4210 = (16/31 per ch) modulated by vert/128,\n"
-    "    //               which simplifies to vert/255 (identity normalized).\n"
-    "    vec3 modulated = textured ? (tex * (vCol.rgb * 2.0)) : vCol.rgb;\n"
-    "    oColor = vec4(clamp(modulated, 0.0, 1.0), 1.0);\n"
+    "\n"
+    "    // Pick the shading source. The Gouraud vertex color vCol is linear-\n"
+    "    // interpolated across the triangle; per-pixel recomputes the PSX NCS\n"
+    "    // formula at every fragment using the interpolated normal.\n"
+    "    //   PSX GTE:  IR  = LightDir * Normal       (clamp >= 0)\n"
+    "    //             RGB = LightColor * IR + Ambient\n"
+    "    // Both matrices and normals are 4.12 fixed-point (/4096 in our floats).\n"
+    "    // The Gouraud branch supplies the caller-computed shade pipeline result\n"
+    "    // in vCol, normalized so 0.5 (=128/255) is neutral-bright.\n"
+    "    vec3 shade;\n"
+    "    if (per_pixel) {\n"
+    "        vec3 n = normalize(vNormal);\n"
+    "        // PSX MATRIX is row-major (shorts[0..8] = m[0][0..2], m[1][0..2], ...)\n"
+    "        // while GLSL mat3 is column-major, so our uploaded mat3 holds the\n"
+    "        // transpose of the PSX matrix. To compute PSX_mat * v we use\n"
+    "        // `v * M` (left-multiply by row vector), which in GLSL equals\n"
+    "        // (M^T * v). Applied to our transposed M that recovers PSX_mat*v.\n"
+    "        vec3 ir = max(n * vLightDir, 0.0);\n"
+    "        // Guaranteed floor so back-facing fragments aren't pitch-black when\n"
+    "        // an object has no DG_FLAG_AMBIENT (typical for prop geometry).\n"
+    "        vec3 amb = max(vAmbient, vec3(0.15));\n"
+    "        shade = clamp(ir * vLightColor + amb, 0.0, 1.0);\n"
+    "    } else {\n"
+    "        // Gouraud: match the software path (tex * vCol * 2, neutral at 0.5)\n"
+    "        shade = vCol.rgb * 2.0;\n"
+    "    }\n"
+    "    vec3 rgb = textured ? tex * shade : (per_pixel ? shade : vCol.rgb);\n"
+    "    oColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);\n"
     "}\n";
 
 /* Unified 2D shader -- pixel-space triangles (and lines), optional texture
@@ -265,6 +341,7 @@ static const char *TRI2D_FS =
     "flat in uint vCLUT;\n"
     "flat in uint vFlags;\n"
     "uniform usampler2D uVRAM;\n"
+    "uniform int uNoTextures;\n"
     "out vec4 oColor;\n"
     "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
     "vec3 decodePSX(uint p) {\n"
@@ -274,7 +351,7 @@ static const char *TRI2D_FS =
     "        float((p >> 10) & 0x1Fu) / 31.0);\n"
     "}\n"
     "void main() {\n"
-    "    bool textured = (vFlags & 1u) != 0u;\n"
+    "    bool textured = (vFlags & 1u) != 0u && (uNoTextures == 0);\n"
     "    vec3 out_rgb;\n"
     "    if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
@@ -457,8 +534,21 @@ int gl_renderer_init(void *window_)
     glEnableVertexAttribArray(4);
     glVertexAttribPointer(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, s, (void *)offsetof(GL3DVert, rgba));
     glEnableVertexAttribArray(5);
-    /* tpage, clut, flags, _pad -- four u16 as uvec4 */
     glVertexAttribIPointer(5, 4, GL_UNSIGNED_SHORT, s, (void *)offsetof(GL3DVert, tpage));
+    /* Per-pixel lighting attributes: normal + light matrices + ambient. */
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, normal));
+    /* mat3 takes 3 consecutive attribute slots. */
+    for (int c = 0; c < 3; c++) {
+        glEnableVertexAttribArray(7 + c);
+        glVertexAttribPointer(7 + c, 3, GL_FLOAT, GL_FALSE, s,
+            (void *)(offsetof(GL3DVert, lightDir) + c * 3 * sizeof(float)));
+        glEnableVertexAttribArray(10 + c);
+        glVertexAttribPointer(10 + c, 3, GL_FLOAT, GL_FALSE, s,
+            (void *)(offsetof(GL3DVert, lightColor) + c * 3 * sizeof(float)));
+    }
+    glEnableVertexAttribArray(13);
+    glVertexAttribPointer(13, 3, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, ambient));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -598,6 +688,30 @@ void gl_renderer_set_clear_color(int r8, int g8, int b8)
     g_clear_rgb[2] = (float)b8 / 255.0f;
 }
 
+int gl_renderer_get_scale(void) { return g_scale; }
+
+void gl_renderer_set_scale(int n)
+{
+    if (!g_enabled) return;
+    if (n < 1) n = 1;
+    if (n > 8) n = 8;
+    if (n == g_scale) return;
+
+    /* Rebuild the color texture + depth renderbuffer at the new size. */
+    g_scale = n;
+    g_fbo_w = 320 * n;
+    g_fbo_h = 224 * n;
+
+    glBindTexture(GL_TEXTURE_2D, g_fbo_color);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindRenderbuffer(GL_RENDERBUFFER, g_fbo_depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+                          g_fbo_w, g_fbo_h);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    printf("[gl] FBO resized to %dx%d (scale=%d)\n", g_fbo_w, g_fbo_h, g_scale);
+}
+
 void gl_renderer_begin_3d(void) { if (g_enabled) g_tri3d_count = 0; }
 void gl_renderer_begin_2d(void) {
     if (!g_enabled) return;
@@ -615,8 +729,40 @@ static void tri3d_reserve(size_t extra)
     g_tri3d_cap = ncap;
 }
 
+static void pack_light(GL3DVert *v, const short *normal, const GLLight *light)
+{
+    /* Normal: 4.12 fixed-point short -> unit-ish float. */
+    if (normal) {
+        v->normal[0] = (float)normal[0] / 4096.0f;
+        v->normal[1] = (float)normal[1] / 4096.0f;
+        v->normal[2] = (float)normal[2] / 4096.0f;
+    } else {
+        v->normal[0] = v->normal[1] = 0.0f; v->normal[2] = 1.0f;
+    }
+    /* Light state: 9 shorts per matrix, /4096. Ambient: 3 ints, /255. */
+    if (light && light->light_dir) {
+        for (int i = 0; i < 9; i++) v->lightDir[i] = (float)light->light_dir[i] / 4096.0f;
+    } else {
+        /* Identity with only row 0 active = falls back to Lambert-ish. */
+        for (int i = 0; i < 9; i++) v->lightDir[i] = 0.0f;
+    }
+    if (light && light->light_color) {
+        for (int i = 0; i < 9; i++) v->lightColor[i] = (float)light->light_color[i] / 4096.0f;
+    } else {
+        for (int i = 0; i < 9; i++) v->lightColor[i] = 0.0f;
+    }
+    if (light && light->ambient) {
+        v->ambient[0] = (float)light->ambient[0] / 255.0f;
+        v->ambient[1] = (float)light->ambient[1] / 255.0f;
+        v->ambient[2] = (float)light->ambient[2] / 255.0f;
+    } else {
+        v->ambient[0] = v->ambient[1] = v->ambient[2] = 0.0f;
+    }
+}
+
 static void pack_vert(GL3DVert *v,
     const int xyz[3], const int uv[2], const unsigned char rgb[3],
+    const short *normal, const GLLight *light,
     int dist, int face_z,
     unsigned short tpage, unsigned short clut, unsigned short flags)
 {
@@ -635,20 +781,23 @@ static void pack_vert(GL3DVert *v,
     v->clut  = clut;
     v->flags = flags;
     v->_pad  = 0;
+    pack_light(v, normal, light);
 }
 
 void gl_submit_tri3d(
     const int a[3], const int b[3], const int c[3],
     const int uv_a[2], const int uv_b[2], const int uv_c[2],
     const unsigned char col_a[3], const unsigned char col_b[3], const unsigned char col_c[3],
+    const short *na, const short *nb, const short *nc,
+    const GLLight *light,
     int dist, int face_z,
     unsigned short tpage, unsigned short clut, unsigned short flags)
 {
     if (!g_enabled) return;
     tri3d_reserve(3);
-    pack_vert(&g_tri3d_buf[g_tri3d_count++], a, uv_a, col_a, dist, face_z, tpage, clut, flags);
-    pack_vert(&g_tri3d_buf[g_tri3d_count++], b, uv_b, col_b, dist, face_z, tpage, clut, flags);
-    pack_vert(&g_tri3d_buf[g_tri3d_count++], c, uv_c, col_c, dist, face_z, tpage, clut, flags);
+    pack_vert(&g_tri3d_buf[g_tri3d_count++], a, uv_a, col_a, na, light, dist, face_z, tpage, clut, flags);
+    pack_vert(&g_tri3d_buf[g_tri3d_count++], b, uv_b, col_b, nb, light, dist, face_z, tpage, clut, flags);
+    pack_vert(&g_tri3d_buf[g_tri3d_count++], c, uv_c, col_c, nc, light, dist, face_z, tpage, clut, flags);
 }
 
 static void tri2d_reserve(size_t extra)
@@ -768,6 +917,8 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
                  buf, GL_STREAM_DRAW);
 
     glUseProgram(g_tri2d_prog);
+    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uNoTextures"),
+                gl_debug_no_textures ? 1 : 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_vram_tex);
     glDisable(GL_DEPTH_TEST);
@@ -895,14 +1046,13 @@ void gl_renderer_present(void)
        faces at the same centroid depth win, matching PSX OT-sort behavior. */
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
-    if (g_codec_mode) {
-        /* In codec mode the game paints a semi-trans fade TILE over the
-           whole screen (ABR=0, (B+F)/2) and expects it to converge to black
-           with the PSX framebuffer still holding the previous frame. In our
-           GL path the accumulation doesn't reach pitch-black via the game's
-           fade schedule alone; we get there by clearing to black so the
-           fade's (0+F)/2 is the only contributor -- the game's fade RGBs
-           already ramp to dim values (last frame ~31/255 = pitch-dark). */
+    if (gl_debug_clear_override) {
+        /* Debug override: bright color makes gaps / unpainted regions obvious. */
+        glClearColor(gl_debug_clear_rgb[0], gl_debug_clear_rgb[1],
+                     gl_debug_clear_rgb[2], 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    } else if (g_codec_mode) {
+        /* Codec: see comment in the earlier fix -- must be black. */
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     } else {
@@ -914,11 +1064,15 @@ void gl_renderer_present(void)
     extern int port_vram_debug_view(void);
     int debug_view = port_vram_debug_view();
 
+    /* Apply wireframe polygon mode if the debug flag is set. Cleared later. */
+    if (gl_debug_wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
     /* --- 3D pass -------------------------------------------------------- */
     /* In codec mode (DG_FrameRate == 2) the PSX pipeline disables 3D and the
        screen is meant to be pure 2D. Skip the 3D batch entirely so stale
        triangles from the pre-codec stage don't bleed through the codec UI. */
-    if (!debug_view && !g_codec_mode && g_tri3d_count > 0) {
+    if (!debug_view && !g_codec_mode && !gl_debug_skip_3d && g_tri3d_count > 0) {
         glBindVertexArray(g_tri3d_vao);
         glBindBuffer(GL_ARRAY_BUFFER, g_tri3d_vbo);
         glBufferData(GL_ARRAY_BUFFER,
@@ -928,6 +1082,12 @@ void gl_renderer_present(void)
         glUseProgram(g_tri3d_prog);
         glUniform2f(g_tri3d_u_half_screen, 160.0f, 112.0f);
         glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
+        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"),
+                    gl_debug_no_textures ? 1 : 0);
+        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"),
+                    gl_debug_face_id ? 1 : 0);
+        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"),
+                    gl_debug_show_normals ? 1 : 0);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, g_vram_tex);
@@ -978,9 +1138,13 @@ void gl_renderer_present(void)
        so the shader can sample PSX textures/CLUTs from it, but we no longer
        blit the whole framebuffer region as a compositor. */
     if (!debug_view) {
-        flush_tri2d();
-        flush_line2d();
+        if (!gl_debug_skip_2d)    flush_tri2d();
+        if (!gl_debug_skip_lines) flush_line2d();
     }
+
+    /* Restore fill polygon mode so the overlay/blit pass isn't wireframed. */
+    if (gl_debug_wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     /* --- VRAM debug overlay (only when explicitly enabled) ------------- */
     if (debug_view) {
@@ -1010,7 +1174,8 @@ void gl_renderer_present(void)
     glClear(GL_COLOR_BUFFER_BIT);
     glBlitFramebuffer(0, 0, g_fbo_w, g_fbo_h,
                       vp_x, vp_y, vp_x + vp_w, vp_y + vp_h,
-                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+                      GL_COLOR_BUFFER_BIT,
+                      gl_debug_blit_nearest ? GL_NEAREST : GL_LINEAR);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     /* SwapWindow happens in port_render after ImGui draws. */

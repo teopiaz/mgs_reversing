@@ -31,6 +31,12 @@ void port_set_draw_offset(int x, int y) { draw_x = x; draw_y = y; }
 int clip_x0 = 0, clip_y0 = 0, clip_x1 = 319, clip_y1 = 223;
 int port_ot_buffer_index = 0;  /* Set by DG_DrawOTag before OT walk */
 
+/* Per-primitive-class counts for the debug overlay. Populated inside
+ * port_DrawOTag; indexes:
+ *   0=TILE (+TILE_1/8/16), 1=POLY_F, 2=POLY_G, 3=POLY_FT, 4=POLY_GT,
+ *   5=SPRT (+SPRT_8/16),   6=LINE (F2/F4/G2/G4), 7=other (state cmds etc.) */
+int port_prim_counts[8] = {0};
+
 /*---------------------------------------------------------------------------*/
 /* SDL display                                                               */
 /*---------------------------------------------------------------------------*/
@@ -529,6 +535,9 @@ void port_DrawOTag(unsigned long *ot)
     int prim_count = 0;
     int node_count = 0;
 
+    /* Reset per-primitive-class counters (populated inside the switch below). */
+    for (int i = 0; i < 8; i++) port_prim_counts[i] = 0;
+
     /* Deferred clear is now applied in main_game.c before port_RenderObjects,
        so 3D geometry isn't erased. If it wasn't consumed there (e.g. skip_render),
        apply it here as fallback. */
@@ -583,6 +592,22 @@ void port_DrawOTag(unsigned long *ot)
         {
             unsigned char code = *((unsigned char *)p + 7);  /* command byte */
             unsigned char *data = (unsigned char *)p + 4;    /* after tag */
+
+            /* Bump the category counter matching this primitive (debug menu). */
+            {
+                unsigned char c = code & 0xFC;
+                int idx = 7;
+                switch (c) {
+                case 0x60: case 0x68: case 0x70: case 0x78: idx = 0; break; /* TILE* */
+                case 0x20: case 0x28: idx = 1; break;           /* POLY_F3/F4 */
+                case 0x30: case 0x38: idx = 2; break;           /* POLY_G3/G4 */
+                case 0x24: case 0x2C: idx = 3; break;           /* POLY_FT3/FT4 */
+                case 0x34: case 0x3C: idx = 4; break;           /* POLY_GT3/GT4 */
+                case 0x64: case 0x74: case 0x7C: idx = 5; break;/* SPRT* */
+                case 0x40: case 0x48: case 0x4C: idx = 6; break;/* LINE* */
+                }
+                port_prim_counts[idx]++;
+            }
 
             /* Decode and render based on GPU command code */
             switch (code & 0xFC)  /* mask off semi-trans and texture bits */
