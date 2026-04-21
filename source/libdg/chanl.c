@@ -152,16 +152,6 @@ void DG_DrawChanlSystem( int which )
     DG_StartTime = GetRCnt( RCntCNT1 );
 
     /* channels 1 and 2 are linked into channel 0 */
-    {
-        static int dd = 0;
-        if (dd < 5) {
-            /* Check channel 2's OT for prims */
-            u_long *ch2ot = DG_Chanls[2].ot[which];
-            printf("[DG_DrawOTag] which=%d ch2_ot[%d]=%p val=0x%X\n",
-                   which, which, ch2ot, ch2ot ? *ch2ot : 0);
-            dd++;
-        }
-    }
 #ifdef PORT_BUILD
     {
         extern int port_ot_buffer_index;
