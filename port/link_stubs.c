@@ -1,61 +1,21 @@
-/* Auto-generated stubs — functions as no-ops, data as zero */
+/* Stubs for symbols not provided by compiled source files.
+   Most game globals are now defined in their original source files
+   (gamed.c, gvd.c, display.c, chanl.c, overlay files, etc.)
+   thanks to -fcommon merging tentative definitions. */
 #include <stddef.h>
 
-typedef struct { short vx, vy, vz, pad; } STUB_SVECTOR;
-
-/* Data variables — types MUST match declarations in game.h */
-int DG_CurrentGroupID = 0;
-int GM_AlertLevel = 0;
-int GM_AlertMax = 0;
-int GM_AlertMode = 0;
-int GM_ClaymoreMap = 0;
-int GM_DisableItem = 0;
-unsigned int GM_DisableWeapon = 0;
-short GM_Magazine = 0;
-short GM_MagazineMax = 0;
-int GM_NoiseLength = 0;
-STUB_SVECTOR GM_NoisePosition = {0};
-int GM_NoisePower = 0;
-short GM_O2 = 0;
-int GM_PadVibration = 0;
-int GM_PadVibration2 = 0;
-STUB_SVECTOR GM_PhotoViewPos = {0};
-int GM_Photocode = 0;
-int GM_PlayerAction = 0;
-int GM_PlayerAddress = 0;
-void *GM_PlayerBody = NULL;        /* OBJECT * */
-/* CONTROL struct: starts with SVECTOR mov, SVECTOR rot, ...
-   Provide a static zero-initialized one so GM_PlayerControl is never NULL */
+/* GM_PlayerControl needs a valid default so NULL dereferences don't crash.
+   The real definition (CONTROL *) comes from gamed.c as a zero/NULL tentative
+   def; this strong initializer wins via -fcommon linkage rules. */
 static char _default_control[256] = {0};
 void *GM_PlayerControl = _default_control;  /* CONTROL * */
-int GM_PlayerMap = 0;
-STUB_SVECTOR GM_PlayerPosition = {0};  /* SVECTOR */
-short GM_WeaponChanged = 0;
+
+/* Variables whose source files are NOT compiled in the port */
 int MGS_DiskName = 0;
 int MGS_MemoryCardName = 0;
-int N_ChanlPerfMax = 0;
 int DG_HikituriFlagOld = 0;
-int dword_800AB9D4 = 0;
-int dword_800ABA1C = 0;
 
-/* Variables from overlay data (declared as extern int in various source files) */
-int ZAKO11F_GameFlag_800D5C4C = 0;
-int ZAKOCOM_PlayerAddress_800D5C50 = 0;
-int ZAKOCOM_PlayerAddress_800DF3B8 = 0;
-int ZAKOCOM_PlayerMap_800D5C54 = 0;
-int ZAKOCOM_PlayerMap_800DF3BC = 0;
-STUB_SVECTOR ZAKOCOM_PlayerPosition_800D5AF0 = {0};
-STUB_SVECTOR ZAKOCOM_PlayerPosition_800DF278 = {0};
-int Zako11FCommand_800D5AF8 = 0;
-int ZakoCommand_800DF280 = 0;
-int TOPCOMMAND_800D5C40 = 0;
-int TOPCOMMAND_800DF3A8 = 0;
-int s07a_dword_800E3650 = 0;
-int s07a_dword_800E3654 = 0;
-int s07a_dword_800E3658 = 0;
-int s11e_dword_800DF3B0 = 0;
-int s11e_dword_800DF3B4 = 0;
-int s11i_dword_800D5C48 = 0;
+/* s12c fog overlay stubs — libdg2.c is excluded from build */
 int s12c_800D497C = 0;
 int s12c_800D4AB4 = 0;
 
