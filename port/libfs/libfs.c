@@ -180,8 +180,17 @@ typedef struct {
 
 static PortStageInfo port_stage_info;
 
+/* Last stage name requested via FS_LoadStageRequest. Used by the imgui debug
+   overlay (Other tab) to show the current stage without hooking the overlay
+   loader. Not cleared on unload -- it keeps showing the most recent name. */
+char port_current_stage[16] = {0};
+
 void *FS_LoadStageRequest(const char *dirname)
 {
+    if (dirname) {
+        strncpy(port_current_stage, dirname, sizeof(port_current_stage) - 1);
+        port_current_stage[sizeof(port_current_stage) - 1] = 0;
+    }
     int sector = FS_CdGetStageFileTop((char *)dirname);
     if (sector < 0)
     {
