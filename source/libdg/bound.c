@@ -383,7 +383,7 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
             }
         }
         current_objs->bound_mode = bound_mode;
-#ifdef PORT_BUILD
+#ifdef PORT_BUILD_VERBOSE
         {
             static int bt_enable = -1;
             if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
