@@ -568,11 +568,41 @@ void port_DrawOTag(unsigned long *ot)
         gl_renderer_set_codec_mode(DG_FrameRate == 2 ? 1 : 0);
     }
 
+    /* Track whether the current walker position is inside the "world"
+       channel's own OT range. In internal DG_Chanls[] indexing, [0] is the
+       root carrier, [1] is the world chanl (where the sphere/skybox with
+       DG_PRIM_SORTONLY ends up), and [2] is overlay/menu. World chanl
+       prims must sit behind 3D geometry via depth test; overlay prims
+       must always draw on top. */
+    extern DG_CHANL DG_Chanls[3];
+    u_long *ch_world_ot   = DG_Chanls[1].ot[port_ot_buffer_index];
+    int     ch_world_size = (1 << DG_Chanls[1].ot_size) + 1;
+    u_long *ch_ovly_ot    = DG_Chanls[2].ot[port_ot_buffer_index];
+    int     ch_ovly_size  = (1 << DG_Chanls[2].ot_size) + 1;
+
+    extern unsigned short port_2d_depth_flag;
+    port_2d_depth_flag = 0;
+
     while (p && !isendprim(p))
     {
         unsigned long *next = (unsigned long *)nextPrim(p);
         int len = getlen(p);
         node_count++;
+
+        /* Route only DEEP world-chanl OT slots to the bg buffer (drawn before
+           3D so 3D can paint over them). The sphere skybox writes z=63000
+           which maps to an OT slot near the top of the table (~246/257). VFX
+           like smoke/explosions/shadows sort into shallow slots (based on
+           eye-space z) and stay in the fg buffer so they draw after 3D at
+           their proper screen-space position. Near-plane-wrapped VFX quads
+           are rejected by the bounding-box guard in gl_submit_tri2d. */
+        if (p >= ch_world_ot && p < ch_world_ot + ch_world_size) {
+            long slot = (u_long *)p - ch_world_ot;
+            port_2d_depth_flag = (slot >= ch_world_size - 32) ? 1 : 0;
+        } else if (p >= ch_ovly_ot && p < ch_ovly_ot + ch_ovly_size) {
+            port_2d_depth_flag = 0;
+        }
+        /* Prim pointers inherit whatever the last OT-cell set. */
 
         if (node_count > 100000) {
             printf("[ot] ABORT: >100000 nodes, likely cycle\n");
