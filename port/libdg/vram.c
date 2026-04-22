@@ -861,6 +861,16 @@ void port_DrawOTag(unsigned long *ot)
                 port_tex_semi_trans = (code & 0x02) ? 1 : 0;
                 if (port_tex_semi_trans) port_tex_abr = (tpage >> 5) & 0x3;
 
+                /* Drop POLY_FT4 packs whose 4 vertex XYs collapse to a
+                   near-degenerate quad (v0==v3). These come from 3D-object
+                   face transforms (trans.c DG_TransformFaces) when two
+                   opposite-corner vertices project to the same pixel,
+                   typically for near-plane faces on the lit_mdl light
+                   cone. PSX GPU silently rejects them via NCLIP area<=0;
+                   we rendered them as two overlapping triangles that
+                   produce large dark cross-shaped artifacts on screen. */
+                if (x0 == x3 && y0 == y3) { prim_count++; break; }
+
                 if (gl_renderer_enabled()) {
                     int xy0[2]={x0+draw_x,y0+draw_y};
                     int xy1[2]={x1+draw_x,y1+draw_y};
