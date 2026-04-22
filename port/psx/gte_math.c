@@ -113,11 +113,28 @@ static void do_perspective(void)
 
     if (sz3 == 0) sz3 = 1; /* avoid div by zero */
 
-    long quotient = (h * 0x20000) / sz3;
-    if (quotient > 0x1ffff) quotient = 0x1ffff;
+    /* Perspective divide: screen_px = IR * H / SZ + OFX_px.
+       Quotient is the fixed-point 16.16 value of (H / SZ). Multiplying by
+       IR (integer eye-space coord) then OFX (also 16.16) and shifting back
+       16 yields the final pixel coord. This matches the 3D path's
+       project()/shader (sx = cx * dist / cz) so 2D actor prims (footprints,
+       spotlights, smoke) project to the same screen positions as the 3D
+       ground under them. */
+    long quotient = (h * 0x10000) / sz3;
+    if (quotient > 0xffff) quotient = 0xffff;
 
     long sx = (int)(((long long)gte_state.IR1 * quotient + gte_state.OFX) >> 16);
     long sy = (int)(((long long)gte_state.IR2 * quotient + gte_state.OFY) >> 16);
+
+    /* Real PSX GTE clamps screen coords to 11-bit signed (-1024..1023). The
+       GPU additionally rejects polygons with edge extents > 1023 horizontal
+       or > 511 vertical, so bogus coords from near-plane overflow never
+       make it to the framebuffer. Mirror the clamp so wrapped-16-bit
+       shorts can't sneak past gl_submit_tri2d's bbox guard. */
+    if (sx >  0x3ff) sx =  0x3ff;
+    if (sx < -0x400) sx = -0x400;
+    if (sy >  0x3ff) sy =  0x3ff;
+    if (sy < -0x400) sy = -0x400;
 
     gte_state.SXY2.vx = (short)sx;
     gte_state.SXY2.vy = (short)sy;

@@ -110,21 +110,40 @@ float gl_debug_clear_rgb[3]   = {1.0f, 0.0f, 1.0f};  /* magenta default */
  * ABR mode so one batch can cover every primitive shape, switching state in
  * runs at flush time. Lines use a parallel VBO with the same vertex format. */
 typedef struct {
-    float pos[2];         /* 0..320 x 0..224 (framebuffer pixel coords) */
-    float uv[2];          /* 0..255 typical; ignored when !textured */
+    float pos[2];             /* 0..320 x 0..224 (framebuffer pixel coords) */
+    float uv[2];              /* 0..255 typical; ignored when !textured */
     unsigned char rgba[4];
-    unsigned short tpage; /* PSX tpage */
-    unsigned short clut;  /* PSX CLUT */
-    unsigned short flags; /* bit 0 textured, bit 1 semi-trans, bits 2..3 ABR */
-    unsigned short _pad;
+    unsigned short tpage;     /* PSX tpage */
+    unsigned short clut;      /* PSX CLUT */
+    unsigned short flags;     /* bit 0 textured, bit 1 semi-trans, bits 2..3 ABR */
+    unsigned short depth_flag;/* 0 = foreground (z=0.0, on top of 3D),
+                                 non-zero = background (z=0.999, behind 3D
+                                 via depth test; used for skybox tiles). */
 } GL2DVert;
 
+/* Set by port_DrawOTag when walker enters a buffer slot that belongs to
+ * channel 0's own OT (not chanl 1/2 that got linked into it). Chanl 0 is
+ * where world/background prims like the sphere skybox live. pack_vert2d
+ * copies this flag into the vertex so the 2D shader can push them to
+ * z=0.999 and the depth test against 3D's z-buffer makes them hide behind
+ * stage geometry. */
+unsigned short port_2d_depth_flag = 0;
+
+/* Foreground 2D (the normal buffer: HUD, menu, subtitles). Rendered after
+ * 3D so it always sits on top. */
 static GL2DVert *g_tri2d_buf    = NULL;
 static size_t    g_tri2d_count  = 0;
 static size_t    g_tri2d_cap    = 0;
 static GL2DVert *g_line2d_buf   = NULL;
 static size_t    g_line2d_count = 0;
 static size_t    g_line2d_cap   = 0;
+
+/* Background 2D (world-chanl OT prims -- notably the sphere skybox). These
+ * are drawn BEFORE 3D geometry so the 3D pass can paint over them with its
+ * depth-tested fragments, yielding proper sky-behind-scene ordering. */
+static GL2DVert *g_tri2d_bg_buf   = NULL;
+static size_t    g_tri2d_bg_count = 0;
+static size_t    g_tri2d_bg_cap   = 0;
 
 static GLuint g_tri2d_vao   = 0;
 static GLuint g_tri2d_vbo   = 0;
@@ -326,7 +345,7 @@ static const char *TRI2D_VS =
     "layout(location=0) in vec2 aPos;    // 0..320 x 0..224\n"
     "layout(location=1) in vec2 aUV;\n"
     "layout(location=2) in vec4 aCol;\n"
-    "layout(location=3) in uvec4 aTex;   // tpage, clut, flags, _pad\n"
+    "layout(location=3) in uvec4 aTex;   // tpage, clut, flags, depth_flag\n"
     "out vec2 vUV;\n"
     "out vec4 vCol;\n"
     "flat out uint vTPage;\n"
@@ -725,8 +744,9 @@ void gl_renderer_set_scale(int n)
 void gl_renderer_begin_3d(void) { if (g_enabled) g_tri3d_count = 0; }
 void gl_renderer_begin_2d(void) {
     if (!g_enabled) return;
-    g_tri2d_count  = 0;
-    g_line2d_count = 0;
+    g_tri2d_count    = 0;
+    g_tri2d_bg_count = 0;
+    g_line2d_count   = 0;
 }
 void gl_renderer_set_codec_mode(int on) { g_codec_mode = on ? 1 : 0; }
 
@@ -810,6 +830,15 @@ void gl_submit_tri3d(
     pack_vert(&g_tri3d_buf[g_tri3d_count++], c, uv_c, col_c, nc, light, dist, face_z, tpage, clut, flags);
 }
 
+static void tri2d_bg_reserve(size_t extra)
+{
+    if (g_tri2d_bg_count + extra <= g_tri2d_bg_cap) return;
+    size_t ncap = g_tri2d_bg_cap ? g_tri2d_bg_cap * 2 : 1024;
+    while (ncap < g_tri2d_bg_count + extra) ncap *= 2;
+    g_tri2d_bg_buf = (GL2DVert *)realloc(g_tri2d_bg_buf, ncap * sizeof(GL2DVert));
+    g_tri2d_bg_cap = ncap;
+}
+
 static void tri2d_reserve(size_t extra)
 {
     if (g_tri2d_count + extra <= g_tri2d_cap) return;
@@ -843,7 +872,7 @@ static void pack_vert2d(GL2DVert *v,
     v->tpage = tpage;
     v->clut  = clut;
     v->flags = flags;
-    v->_pad  = 0;
+    v->depth_flag = 0;
 }
 
 void gl_submit_tri2d(
@@ -853,6 +882,34 @@ void gl_submit_tri2d(
     unsigned short tpage, unsigned short clut, unsigned short flags)
 {
     if (!g_enabled) return;
+
+    /* PSX GPU silently rejects polygons whose vertex deltas exceed the
+       drawing-area limits (1023 horizontal, 511 vertical). Our transformed
+       2D prims come from the emulated GTE, which clamps vertices behind the
+       near plane to SZ=0 -> do_perspective divides by 1 and produces massive
+       screen coords that wrap in 16-bit. Reproducing the hardware reject is
+       the simplest way to drop these degenerate triangles instead of
+       stretching them across the screen. */
+    {
+        int minx = a[0], maxx = a[0], miny = a[1], maxy = a[1];
+        if (b[0] < minx) minx = b[0]; if (b[0] > maxx) maxx = b[0];
+        if (c[0] < minx) minx = c[0]; if (c[0] > maxx) maxx = c[0];
+        if (b[1] < miny) miny = b[1]; if (b[1] > maxy) maxy = b[1];
+        if (c[1] < miny) miny = c[1]; if (c[1] > maxy) maxy = c[1];
+        if ((maxx - minx) > 1023 || (maxy - miny) > 511) return;
+    }
+
+    /* Route world-chanl 2D prims (notably the sphere skybox) to a separate
+     * buffer that gets flushed BEFORE 3D geometry. This gives real skybox
+     * semantics -- 3D is drawn over the sky with the normal depth test --
+     * without any per-vertex z trickery. */
+    if (port_2d_depth_flag) {
+        tri2d_bg_reserve(3);
+        pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], a, uv_a, col_a, tpage, clut, flags);
+        pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], b, uv_b, col_b, tpage, clut, flags);
+        pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], c, uv_c, col_c, tpage, clut, flags);
+        return;
+    }
     tri2d_reserve(3);
     pack_vert2d(&g_tri2d_buf[g_tri2d_count++], a, uv_a, col_a, tpage, clut, flags);
     pack_vert2d(&g_tri2d_buf[g_tri2d_count++], b, uv_b, col_b, tpage, clut, flags);
@@ -971,6 +1028,14 @@ static void flush_tri2d(void)
                  GL_TRIANGLES, 3);
 }
 
+static void flush_tri2d_bg(void)
+{
+    /* Background 2D (sphere skybox) -- reuse the fg VAO/VBO, just hand in
+     * the bg buffer. Called from gl_renderer_present BEFORE the 3D pass. */
+    flush_2d_buf(g_tri2d_vao, g_tri2d_vbo, g_tri2d_bg_buf, g_tri2d_bg_count,
+                 GL_TRIANGLES, 3);
+}
+
 static void flush_line2d(void)
 {
     flush_2d_buf(g_line2d_vao, g_line2d_vbo, g_line2d_buf, g_line2d_count,
@@ -1078,11 +1143,33 @@ void gl_renderer_present(void)
     if (gl_debug_wireframe)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+    /* --- Background 2D pass (sphere skybox) ---------------------------- */
+    /* World-chanl 2D prims are drawn FIRST so the 3D pass below paints
+     * over them using the normal depth test. Real skybox semantics:
+     * sky fills the framebuffer, 3D geometry occludes it. */
+    if (!debug_view && !g_codec_mode && !gl_debug_skip_2d)
+        flush_tri2d_bg();
+
     /* --- 3D pass -------------------------------------------------------- */
     /* In codec mode (DG_FrameRate == 2) the PSX pipeline disables 3D and the
        screen is meant to be pure 2D. Skip the 3D batch entirely so stale
        triangles from the pre-codec stage don't bleed through the codec UI. */
     if (!debug_view && !g_codec_mode && !gl_debug_skip_3d && g_tri3d_count > 0) {
+        /* flush_tri2d_bg above ran flush_2d_buf, which disables depth test.
+           Re-enable it here so the 3D pass actually depth-sorts. Without this
+           the whole scene draws in submission order, which looks like geometry
+           is flipped / missing. */
+        glEnable(GL_DEPTH_TEST);
+
+        /* PSX has no real far clip -- the original hardware uses the OT for
+           ordering, not a z clip plane. GL will cull any vertex with
+           z_ndc > 1 or z_ndc < -1, which hides distant stage geometry (e.g.
+           the s01a docks, eye-z > ~32k) and makes the sphere skybox appear
+           to sit in front of the world. GL_DEPTH_CLAMP clamps such vertices
+           to the depth range instead of discarding the primitive, matching
+           PSX semantics. */
+        glEnable(GL_DEPTH_CLAMP);
+
         glBindVertexArray(g_tri3d_vao);
         glBindBuffer(GL_ARRAY_BUFFER, g_tri3d_vbo);
         glBufferData(GL_ARRAY_BUFFER,
@@ -1151,6 +1238,7 @@ void gl_renderer_present(void)
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
         glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_CLAMP);
         glBlendEquation(GL_FUNC_ADD);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
