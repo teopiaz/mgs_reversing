@@ -803,6 +803,21 @@ void port_RenderObjects(int idx)
     DG_OBJS *player_objs = GM_PlayerBody ? *(DG_OBJS **)GM_PlayerBody : NULL;
     short fp_mode = *(short *)((char *)&GM_Camera + 0x22);
 
+    /* Run the PSX rendering pipeline stages that populate per-vertex RGBs.
+       - DG_BoundChanl sets objs->bound_mode / obj->bound_mode (frustum test).
+         Without it they stay 0 and the shade + render both fall through to
+         neutral 128 for every scene object.
+       - DG_TransChanl (port stub) sets pack->tag |= 1 so DG_ShadePacks
+         actually processes every face.
+       - DG_ShadeChanl loads each DG_OBJS's light/color matrices into the
+         emulated GTE and runs gte_nct_b per normal, writing r0..r3 / g0..g3
+         / b0..b3 into the pack. */
+    for (int ci = 0; ci < 3; ci++) {
+        DG_BoundChanl(&DG_Chanls[ci], idx);
+        DG_TransChanl(&DG_Chanls[ci], idx);
+        DG_ShadeChanl(&DG_Chanls[ci], idx);
+    }
+
     int drawn_faces = 0;
     /* Render all 3 channels: 0=background, 1=main, 2=overlay */
     for (int ci = 0; ci < 3; ci++)

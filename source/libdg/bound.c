@@ -322,6 +322,15 @@ void DG_BoundChanl( DG_CHANL *chanl, int index )
         {
             bound_flag = 2;
 
+#ifdef PORT_BUILD
+            /* Port: the GBOUND frustum test below uses the PSX GTE's
+               rtpt_b + scratchpad store, which produces wrong screen
+               coords on 64-bit and culls everything to 0. BoundObjs
+               already skips its per-model BOUND test for the same
+               reason; mirror that here: trust the group-level flag and
+               always mark visible. */
+            (void)flag;
+#else
             if ( flag & DG_FLAG_GBOUND )
             {
                 gte_SetRotMatrix( &objs->objs[ 0 ].screen );
@@ -329,6 +338,7 @@ void DG_BoundChanl( DG_CHANL *chanl, int index )
                 MakeBoundVerts( &objs->def->lx );
                 bound_flag = BoundCheck( VXY[ 1 ] );
             }
+#endif /* PORT_BUILD */
         }
 
         objs->bound_mode = bound_flag;
