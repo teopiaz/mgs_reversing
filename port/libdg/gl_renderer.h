@@ -78,6 +78,12 @@ void gl_renderer_set_scale(int n);
 /* Current internal-resolution scale (1..8). Matches PORT_GL_SCALE. */
 int  gl_renderer_get_scale(void);
 
+/* 16:9 Hor+ widescreen toggle. When on, internal render width becomes 400
+ * (up from 320) so the 3D scene has wider horizontal FOV; 2D/HUD stays
+ * pillar-boxed at 4:3 in the center of the wider frame. */
+void gl_renderer_set_widescreen(int on);
+int  gl_renderer_get_widescreen(void);
+
 /* 1 => overlay draws opaquely (no vram==0 discard). Set for codec / any full
  * -screen 2D scene where the game clears to an intended-visible color that
  * may coincide with PSX "transparent" (0x0000 = black). */
