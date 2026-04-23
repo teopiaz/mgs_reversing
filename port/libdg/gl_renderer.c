@@ -85,6 +85,8 @@ static int   g_codec_mode   = 0;
 /* Hi-res internal FBO. All GL rendering targets this; we blit it upscaled to
  * the window at the end of present via glBlitFramebuffer (linear filter). */
 static int    g_scale     = 4;
+static int    g_widescreen = 0;            /* 0 = 4:3 (320w), 1 = 16:9 Hor+ (400w) */
+static int    g_render_w   = 320;          /* internal render width, follows g_widescreen */
 static int    g_fbo_w     = 320 * 4;
 static int    g_fbo_h     = 224 * 4;
 static GLuint g_fbo       = 0;
@@ -346,13 +348,14 @@ static const char *TRI2D_VS =
     "layout(location=1) in vec2 aUV;\n"
     "layout(location=2) in vec4 aCol;\n"
     "layout(location=3) in uvec4 aTex;   // tpage, clut, flags, depth_flag\n"
+    "uniform float uXScale;              // 1.0 in 4:3, 320/render_w in widescreen\n"
     "out vec2 vUV;\n"
     "out vec4 vCol;\n"
     "flat out uint vTPage;\n"
     "flat out uint vCLUT;\n"
     "flat out uint vFlags;\n"
     "void main() {\n"
-    "    gl_Position = vec4(aPos.x / 160.0 - 1.0,\n"
+    "    gl_Position = vec4((aPos.x / 160.0 - 1.0) * uXScale,\n"
     "                       1.0 - aPos.y / 112.0,\n"
     "                       0.0, 1.0);\n"
     "    vUV = aUV;\n"
@@ -621,6 +624,7 @@ int gl_renderer_init(void *window_)
     /* Sampler unit for 2D textured prims. */
     glUseProgram(g_tri2d_prog);
     glUniform1i(glGetUniformLocation(g_tri2d_prog, "uVRAM"), 0);
+    glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"), 1.0f);
     glUseProgram(0);
 
     glBindVertexArray(0);
@@ -639,7 +643,7 @@ int gl_renderer_init(void *window_)
         if (n < 1) n = 1;
         if (n > 8) n = 8;
         g_scale = n;
-        g_fbo_w = 320 * n;
+        g_fbo_w = g_render_w * n;
         g_fbo_h = 224 * n;
 
         glGenFramebuffers(1, &g_fbo);
@@ -728,7 +732,7 @@ void gl_renderer_set_scale(int n)
 
     /* Rebuild the color texture + depth renderbuffer at the new size. */
     g_scale = n;
-    g_fbo_w = 320 * n;
+    g_fbo_w = g_render_w * n;
     g_fbo_h = 224 * n;
 
     glBindTexture(GL_TEXTURE_2D, g_fbo_color);
@@ -739,6 +743,28 @@ void gl_renderer_set_scale(int n)
                           g_fbo_w, g_fbo_h);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     printf("[gl] FBO resized to %dx%d (scale=%d)\n", g_fbo_w, g_fbo_h, g_scale);
+}
+
+int gl_renderer_get_widescreen(void) { return g_widescreen; }
+
+void gl_renderer_set_widescreen(int on)
+{
+    if (!g_enabled) return;
+    int want = on ? 1 : 0;
+    if (want == g_widescreen) return;
+
+    g_widescreen = want;
+    g_render_w   = want ? 400 : 320;
+    g_fbo_w      = g_render_w * g_scale;
+
+    glBindTexture(GL_TEXTURE_2D, g_fbo_color);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindRenderbuffer(GL_RENDERBUFFER, g_fbo_depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+                          g_fbo_w, g_fbo_h);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    printf("[gl] widescreen=%d, FBO %dx%d\n", g_widescreen, g_fbo_w, g_fbo_h);
 }
 
 void gl_renderer_begin_3d(void) { if (g_enabled) g_tri3d_count = 0; }
@@ -986,6 +1012,8 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
     glUseProgram(g_tri2d_prog);
     glUniform1i(glGetUniformLocation(g_tri2d_prog, "uNoTextures"),
                 gl_debug_no_textures ? 1 : 0);
+    glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"),
+                320.0f / (float)g_render_w);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_vram_tex);
     glDisable(GL_DEPTH_TEST);
@@ -1091,8 +1119,9 @@ void gl_renderer_present(void)
     SDL_GL_GetDrawableSize(g_window, &fb_w, &fb_h);
     if (fb_w <= 0 || fb_h <= 0) { fb_w = 640; fb_h = 448; }
 
-    /* Aspect-correct 320:224 inside the window. */
-    const float target = 320.0f / 224.0f;
+    /* Aspect-correct render_w:224 inside the window (4:3 normally, 16:9 when
+       widescreen is enabled via gl_renderer_set_widescreen). */
+    const float target = (float)g_render_w / 224.0f;
     float wf = (float)fb_w;
     float hf = (float)fb_h;
     int vp_w = fb_w, vp_h = fb_h, vp_x = 0, vp_y = 0;
@@ -1177,7 +1206,7 @@ void gl_renderer_present(void)
                      g_tri3d_buf, GL_STREAM_DRAW);
 
         glUseProgram(g_tri3d_prog);
-        glUniform2f(g_tri3d_u_half_screen, 160.0f, 112.0f);
+        glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
         glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"),
                     gl_debug_no_textures ? 1 : 0);
