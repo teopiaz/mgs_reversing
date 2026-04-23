@@ -63,14 +63,19 @@ statically into the single binary.
 - **Cutscenes**: Camera/animation, 29 character types, subtitles via jimctrl
 - **Palette effects**: Goggle tint (thermal/NV) via LoadImage2/StoreImage2 callbacks
 - **FPV**: First-person view hides Snake model via DG_FLAG_INVISIBLE
-- **Frustum culling**: DG_BoundChanl works correctly on 64-bit (verified)
+- **3D Gouraud lighting**: NCS colour pipeline wired up end-to-end; actors and
+  SHADE-flag level geometry now render with per-vertex Gouraud lighting matching
+  PSX (see `13-shading-and-lighting.md` §5.6–§5.8)
 - **Weapon spawn positions**: Nikita missile (and other GTE-computed spawn points) correct after gte_stlvnl fix
-- **ImGui overlay**: Press P for actor inspector
+- **ImGui overlay**: Press F1 for debug panel (renderer, camera, actors, stage, game, other tabs)
+- **Widescreen**: Optional 16:9 Hor+ toggle in ImGui Renderer → Quality/Output
 
 ### Known Limitations
 - **VOX audio**: Stream transfers to SPU voices but playback needs work
 - **Subtitle timing**: MENU_JimakuWrite receives frames=0 (duration incorrect)
 - **s02c floor**: One hangar room missing floor + walls (scratchpad mmap failure → `DG_ScreenChanl` produces wrong matrices for ONEPIECE maps; see known-issues #11)
+- **Frustum culling**: GTE-based BOUND/GBOUND tests produce wrong coords on 64-bit and are bypassed (every visible group passes with `bound_mode=2`); causes no visual bugs but wastes CPU on off-screen geometry
+- **s01a-style `map -c` stage walls**: render brighter than the PSX reference for unknown reasons (see known-issues #12) — actors and preshaded props are correct
 - **FMV**: Fully stubbed (no MDEC decoder)
 - **Memory cards**: Stubbed (no save/load)
 - **3 R-variant overlays**: Excluded (d18ar, s08br, s19br) — duplicate symbols

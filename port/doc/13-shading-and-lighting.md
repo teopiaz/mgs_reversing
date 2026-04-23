@@ -163,15 +163,22 @@ The port renderer (`port/libdg/libdg_stub.c`, `port_RenderObjects`) reads per-ve
 colors from three sources in priority order:
 
 1. **`obj->rgbs` + `DG_FLAG_PAINT`**: Preshaded characters with dynamic lighting.
-   Read directly from the CVECTOR array (4 per face, KMD vertex order).
+   Read directly from the CVECTOR array (4 per face, KMD vertex order). Filled by
+   `DG_MakePreshade` (invoked from Snake init, door/wall actors, `Takabe_MakePreshade`
+   for props, and `GM_UpdateMapGroup` when the stage script uses `map -s`).
 
 2. **POLY_GT4 packs + `DG_FLAG_SHADE`**: Level geometry shaded by the pipeline.
    Read from pack fields `r0/g0/b0` through `r3/g3/b3`.
-   Skipped for `DG_MODEL_INDIRECT` models (64-bit pointer bug).
-   Pack vertex order has v2/v3 swapped vs KMD: `r2=KMD_v3, r3=KMD_v2`.
+   Filled each frame by `DG_ShadeChanl` → GTE NCS (runs from `port_RenderObjects`
+   as of April 2026 — see §5.7). Pack vertex order has v2/v3 swapped vs KMD:
+   `r2=KMD_v3, r3=KMD_v2`. Skipped for `DG_MODEL_INDIRECT` models (64-bit pointer
+   bug, §5.1).
 
-3. **Neutral 128**: Fallback when no color data is available.
-   Produces unmodified texture colors (128/128 = 1.0x modulation).
+3. **Neutral 128 (= `DG_InitPolyGT4Pack` default)**: Used for `DG_FLAG_PAINT`
+   objects whose `obj->rgbs` never got allocated — most commonly stage maps
+   loaded via GCL `map -c` (no-preshade reload). Produces unmodified texture
+   colours (128/128 = 1.0x modulation). See §6 for the open question of why
+   this differs visibly between port and PSX.
 
 ### 3.2 Gouraud Interpolation
 
@@ -252,16 +259,109 @@ The PSX inline assembly writes screen XY at type-specific offsets:
 The port previously aliased all types to the F3 version (consecutive), which
 corrupted UV and color fields in POLY_GT4 packets.
 
-### 5.5 Trans Stage Not Yet Enabled
+### 5.5 Trans Stage (stubbed, ties into shade)
 
-**Status**: Stubbed (sets pack tags only)
+**Status**: Port stub retained. DG_TransChanl itself is not needed on the port
+(vertices are re-projected each frame by `port_RenderChanl`). The stub still
+runs to set `pack->tag |= 1`, which is what DG_ShadePacks checks to decide
+whether to process a face. Without it the shade pipeline would skip everything.
 
-DG_TransChanl is stubbed because the GTE projection formula produces different
-screen coordinates than the port's software projection. The stub sets `tag |= 1`
-for all packs so the shade pipeline processes every face. Full trans.c enablement
-requires resolving the GTE projection scale factor (H * 0x20000 vs H * 0x10000).
+### 5.6 NCS output scaling (fixed April 2026)
 
-## 6. File Reference
+**File**: `port/psx/gte_math.c` `push_rgb_fifo`
+**Status**: Fixed (use `IR >> 4` instead of `MAC >> 4`)
+
+Original PSX semantics for NCS/NCDS/NCCS colour output:
+
+```
+[MAC1,MAC2,MAC3] = (BK*1000h + LCM*IR) SAR (sf*12)   ; post-shift MAC
+[IR1,IR2,IR3]    = clamp(MAC, 0..7FFFh)              ; lm=1
+Color FIFO       <- [MAC1>>4, MAC2>>4, MAC3>>4, CODE]
+```
+
+The port's `mat_vec_mul_add_bk` keeps MAC at its **pre-(>>12)** value
+(shifting happens when IR is computed), so `push_rgb_fifo` reading `MAC>>4`
+was off by a factor of 4096x and saturated every channel to 0 or 255. The
+fix reads from `IR` (which already holds the post-shift+clamp value),
+yielding proper 8-bit bytes in the 0..255 range.
+
+This bug affected every caller of `push_rgb_fifo`: NCS, NCT, NCDS, NCDT,
+NCCS, NCCT. Characters that went through `DG_ShadeChanl` / `DG_MakePreshade`
+rendered either pitch-black (MAC negative → clamped to 0) or full-bright
+(MAC huge → clamped to 255), with no middle ground.
+
+### 5.7 Pipeline wiring in `port_RenderObjects` (April 2026)
+
+**File**: `port/libdg/libdg_stub.c` `port_RenderObjects`
+**Status**: Fixed
+
+The port previously skipped every pipeline stage between `DG_ScreenChanl`
+and the renderer, so `obj->packs` stayed at their
+`DG_InitPolyGT4Pack`-written 0x80 neutral defaults. Even after the NCS
+scaling fix, no code path was actually *invoking* NCS on the geometry.
+
+Now `port_RenderObjects` runs the three relevant stages for each of the
+three channels (0=background, 1=main, 2=overlay) before submitting
+triangles to GL:
+
+```c
+for (int ci = 0; ci < 3; ci++) {
+    DG_BoundChanl(&DG_Chanls[ci], idx);   // sets bound_mode, allocates packs
+    DG_TransChanl(&DG_Chanls[ci], idx);   // port stub: sets pack->tag |= 1
+    DG_ShadeChanl(&DG_Chanls[ci], idx);   // per-vertex GTE NCS into packs
+}
+```
+
+After this, `DG_FLAG_SHADE` level geometry renders with its baked Gouraud
+vertex colours; actors with `DG_FLAG_PAINT` + preshade keep using the
+`obj->rgbs` path as before.
+
+### 5.8 DG_BoundChanl GBOUND test on 64-bit (April 2026)
+
+**File**: `source/libdg/bound.c` `DG_BoundChanl`
+**Status**: Fixed (PORT_BUILD skip)
+
+The group-level `DG_FLAG_GBOUND` frustum test uses `gte_rtpt_b` plus raw
+scratchpad stores, which produce wrong screen coordinates on 64-bit. Before
+the fix the test culled essentially every `DG_OBJS` group to
+`objs->bound_mode = 0`, which short-circuited `DG_BoundObjs` and prevented
+`DG_MakeObjPacket` from allocating packs — so the shade pipeline had
+nowhere to write colours, and the render-time check
+`(objs->flag & DG_FLAG_SHADE) && objs->bound_mode && obj->bound_mode` always
+failed.
+
+`DG_BoundObjs` already had a matching PORT_BUILD skip for its per-model
+BOUND test; the DG_BoundChanl GBOUND branch is now guarded the same way, so
+visible groups flow through with `bound_mode = 2` and packs get allocated.
+Restoring the GTE frustum path requires first fixing the 64-bit
+scratchpad / rtpt interaction.
+
+## 6. Remaining divergence: `map -c` stage walls
+
+Stage maps loaded with GCL `map -c` (the majority of stages, including
+s01a) skip the preshade pipeline on both PSX and the port. Their
+`DG_OBJS` is created with `MAP_FLAG` (`DG_FLAG_PAINT | ...`) but
+`obj->rgbs` stays NULL; `DG_InitPolyGT4Pack` writes 0x80 neutral and
+neither shade nor preshade touches the packs again.
+
+On PSX these walls nonetheless appear darker / tinted (visibly
+"preshaded"), while the port renders them at full texture brightness.
+The mechanism is not yet identified. Hypotheses:
+
+- A PSX-only runtime modulation (e.g. GPU DRAWENV RGB or a post-process
+  TILE) that the port skips or blends incorrectly.
+- A CLUT/palette swap applied at stage load that selects the night
+  variant of each texture.
+- Subtle differences in how the port's GL fragment shader modulates a
+  0x80 vertex byte vs the PSX GPU's `(texel * vcol) / 128` formula.
+
+The GCL parser and map loading were audited (see
+`port/libgcl_parse_fix.c` and the raw-byte dump experiment in
+`port/game_script_fix.c` during April 2026): s01a genuinely emits
+`P'c'` and not `P's'` in its compiled script, so the stage-walls
+brightness gap is not a parsing bug.
+
+## 7. File Reference
 
 | File | Role |
 |------|------|
