@@ -80,3 +80,29 @@ Chronological log of major fixes and milestones in the PSX-to-macOS port.
 57. Radar walls: manual OT linking `(int)(pLine)&0xffffff` replaced with setlen/addPrim handle-based
 58. gte_ldv0h: also set IR1/IR2/IR3 (was only setting V0, causing gte_rt to read stale IR)
 59. gte_stlvnl: shift MAC >> 12 to match PSX sf=1 output — fixes Nikita missile spawn position
+
+## 3D Gouraud Lighting (April 2026)
+60. push_rgb_fifo: use IR>>4 instead of MAC>>4 — the port stores pre-(>>12) MAC so
+    the original formula was off by 4096x, saturating every NCS output channel to
+    0 or 255 (actors rendered either pitch-black or full-bright). Now produces
+    correct 8-bit color bytes.
+61. port_RenderObjects: call DG_BoundChanl / DG_TransChanl / DG_ShadeChanl per
+    channel before submission. Previously none of the lighting stages ran, so
+    POLY_GT4 packs stayed at DG_InitPolyGT4Pack's 0x80 neutral and every SHADE
+    object rendered unmodulated. Wired-up pipeline fills r0..b3 with real Gouraud
+    values for every DG_FLAG_SHADE object.
+62. DG_BoundChanl GBOUND test: the PSX GTE rtpt_b + scratchpad store used by the
+    group-level frustum test produces wrong screen coords on 64-bit, culling
+    every GBOUND-flagged `DG_OBJS` to `bound_mode=0`. That blocked
+    DG_MakeObjPacket from allocating packs, which in turn blocked shade from
+    having anywhere to write. DG_BoundObjs already had a PORT_BUILD skip for the
+    same reason; mirrored it in DG_BoundChanl so the group flag is trusted
+    unconditionally.
+
+## Widescreen (April 2026)
+63. ImGui toggle for 16:9 Hor+ widescreen mode: when enabled, internal render
+    width grows from 320 to 400, the GL 3D shader's uHalfScreen widens to
+    (200,112), and the 2D shader gets a uXScale uniform that pillar-boxes HUD
+    into the 4:3 centre of the wider frame. Toggled via Renderer tab →
+    Quality/Output → "Widescreen (16:9 Hor+)". No PSX-side changes required
+    (3D Hor+ is achieved purely via the GL shader's half-screen uniform).
