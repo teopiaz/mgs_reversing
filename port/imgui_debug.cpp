@@ -278,6 +278,8 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 extern int gl_debug_blit_nearest;
                 extern int gl_renderer_get_scale(void);
                 extern void gl_renderer_set_scale(int);
+                extern int gl_renderer_get_widescreen(void);
+                extern void gl_renderer_set_widescreen(int);
 
                 ImGui::Text("Faces drawn this frame: %d", port_last_drawn_faces);
                 ImGui::Text("Objects queued: %d   GroupID: 0x%X",
@@ -381,6 +383,12 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                             SDL_SetWindowFullscreen(win,
                                 fs ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
                     }
+
+                    bool ws = gl_renderer_get_widescreen() != 0;
+                    if (ImGui::Checkbox("Widescreen (16:9 Hor+)", &ws))
+                        gl_renderer_set_widescreen(ws ? 1 : 0);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(3D widens; HUD stays 4:3)");
                 }
 
                 if (ImGui::CollapsingHeader("GL driver info"))
