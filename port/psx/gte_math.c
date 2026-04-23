@@ -288,9 +288,12 @@ static void push_rgb_fifo(void)
 {
     gte_state.RGB0 = gte_state.RGB1;
     gte_state.RGB1 = gte_state.RGB2;
-    gte_state.RGB2.r = clamp_rgb(gte_state.MAC1 >> 4);
-    gte_state.RGB2.g = clamp_rgb(gte_state.MAC2 >> 4);
-    gte_state.RGB2.b = clamp_rgb(gte_state.MAC3 >> 4);
+    /* PSX: color byte = MAC >> 4 where MAC is the post-(>>12) value. Our
+       MAC registers keep the pre-shift value, but IR already holds the
+       post-shift+clamped result, so IR >> 4 produces the correct byte. */
+    gte_state.RGB2.r = clamp_rgb(gte_state.IR1 >> 4);
+    gte_state.RGB2.g = clamp_rgb(gte_state.IR2 >> 4);
+    gte_state.RGB2.b = clamp_rgb(gte_state.IR3 >> 4);
     gte_state.RGB2.cd = gte_state.RGBC.cd;
 }
 

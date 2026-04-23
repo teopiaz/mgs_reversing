@@ -288,6 +288,16 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
             if (!current_objs->group_id || (current_objs->group_id & local_group_id))
             {
                 bound_mode = 2;
+#ifdef PORT_BUILD
+                /* Port: the GBOUND frustum test below uses the PSX GTE's
+                   rtpt_b + scratchpad store, which produces wrong screen
+                   coords on 64-bit and culls everything to 0. DG_BoundObjs
+                   already skips its per-model BOUND test for the same
+                   reason; mirror that here: trust the group-level flag and
+                   always mark visible. Restore the GTE path once the GBOUND
+                   projection is verified 64-bit-clean. */
+                (void)flag;
+#else
                 if (flag & DG_FLAG_GBOUND)
                 {
                     gte_SetRotMatrix(&current_objs->objs->screen);
@@ -380,6 +390,7 @@ void DG_BoundChanl(DG_CHANL *chanl, int idx)
                     }
                 END:
                 }
+#endif /* PORT_BUILD */
             }
         }
         current_objs->bound_mode = bound_mode;
