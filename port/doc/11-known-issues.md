@@ -153,3 +153,42 @@ scratchpad, `DG_ScreenChanl` produces correct `obj->screen` matrices for all
 objects, and the renderer can use them directly.
 
 **Impact**: One room in s02c is missing its floor and some walls.
+
+---
+
+## 12. Stage Walls Too Bright in `map -c` Scenes (e.g. s01a heliport)
+
+**Symptom**: In stages whose script reloads maps via GCL `map -c`
+(no-preshade), the stage geometry (walls, floors, static props) renders at
+full texture brightness in the port while the emulator shows them visibly
+darker / tinted. Actors and preshaded props in the same scene match the
+emulator; only the stage map itself looks wrong. Most obvious on s01a at
+night (heliport outdoor).
+
+**Root cause**: Not yet identified. Audit confirmed:
+
+- The stage's compiled GCL emits `P'c'` (not `P's'`), so preshade is
+  correctly skipped on both PSX and port.
+- `DG_InitPolyGT4Pack` writes the same 0x80 neutral default on both
+  platforms. No code path populates `obj->rgbs` for these maps.
+- Actor-triggered preshade (elevators, doors, walls) fires identically
+  on both.
+
+So the pipeline is behaving the same; the visible difference must come
+from somewhere outside the normal per-vertex lighting path. Suspected
+mechanisms (none confirmed):
+
+1. A PSX-only 2D overlay TILE that tints the scene and isn't
+   blending correctly in the port.
+2. A CLUT/palette swap that selects a night-palette variant of the
+   same textures on PSX.
+3. Subtle modulation-math difference between the port's GL fragment
+   shader and the PSX GPU's `(texel * vcol) / 128` for vcol=0x80.
+
+**Impact**: Night outdoor stages (s01a and similar) look too bright.
+Interior / bright stages (s03a etc.) are less affected because their
+textures and ambient lighting are naturally bright to begin with.
+
+**Investigation pointers**: see doc `13-shading-and-lighting.md` §6, and
+the GCL raw-byte dump instrumentation in `port/game_script_fix.c`
+(removed after April 2026 session but easy to re-add).

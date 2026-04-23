@@ -174,9 +174,16 @@ Returns `bound_mode`:
 0x6C:      <-- int[8] Z-test read starts here
 ```
 
-**Port status**: Works correctly on 64-bit. All types used in scratchpad
-(`DG_VECTOR`=12 bytes, `SVECTOR`=8 bytes, `DVECTOR`=4 bytes) have identical sizes
-on both 32-bit and 64-bit.
+**Port status**: Partially stubbed. The struct sizes used in the
+scratchpad (`DG_VECTOR`=12 bytes, `SVECTOR`=8 bytes, `DVECTOR`=4 bytes)
+are identical on 32-bit and 64-bit, but the GTE `rtpt_b` + scratchpad
+store path used by the frustum test produces wrong screen coordinates
+in practice. Both the per-model `DG_FLAG_BOUND` test (in
+`DG_BoundObjs`) and the group-level `DG_FLAG_GBOUND` test (in
+`DG_BoundChanl`) are therefore guarded out with `#ifdef PORT_BUILD` —
+visible groups/models are marked `bound_mode = 2` unconditionally so
+`DG_MakeObjPacket` can allocate packs and the shade pipeline can
+populate them. See `13-shading-and-lighting.md` §5.8.
 
 ### 2.3 Stage 2: DG_TransChanl -- Vertex Transformation
 
