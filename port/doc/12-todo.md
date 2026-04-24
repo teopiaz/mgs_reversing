@@ -113,9 +113,19 @@ is to dequeue objects from the OT before their memory is freed:
 
 ### 7. shakemdl Model Hash
 
-The GCL `m` parameter for the camera-shake model actor is being parsed
-incorrectly — may be going through the pointer table when it should be
-a direct integer. Add logging of raw vs resolved values.
+Diagnostic logging is now in `NewShakeModelGCL` — it prints the raw
+GCLCODE byte and following 4 bytes at the 'm' param site alongside
+the resolved `model` int and the computed cacheID. Run a stage that
+spawns a `shakemdl` actor and capture the log to see whether the
+failure is upstream (wrong bytes parsed, e.g. a pointer-table index)
+or downstream (correct hash but `GV_GetCache` miss — data not
+resident).
+
+Note: `gcl_store_ptr` is no longer called anywhere in the tree — only
+the HZD bind persistent pointer table remains active. The original
+"going through the pointer table" theory is likely stale; expect the
+log to show a clean `GCLCODE_SDCODE (0x09)` followed by a 4-byte
+hash, in which case the issue is a cache miss, not a parse bug.
 
 **Files**: `source/takabe/shakemdl.c`.
 
