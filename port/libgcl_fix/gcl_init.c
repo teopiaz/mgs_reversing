@@ -2,6 +2,9 @@
 #include "common.h"
 #include "strcode.h"        // for GCX_* defs
 #include "libgv/libgv.h"    // for GV_SetLoader
+#include "gcl_overlay.h"
+
+extern char *GM_GetArea(int flag);
 
 int SECTION(".sbss") scenerio_code;
 int SECTION(".sbss") dword_800AB994;
@@ -20,9 +23,28 @@ int SECTION(".sbss") dword_800AB994;
  */
 static int GCL_InitFunc(unsigned char *top, int id)
 {
+    const char *stage = GM_GetArea(0);
+    printf("[gcl-init] id=0x%08x scenerio_code=0x%08x stage=%s match=%d\n",
+           id, scenerio_code,
+           (stage && *stage) ? stage : "(empty)",
+           id == scenerio_code);
+
     if (id == scenerio_code)
     {
-        GCL_LoadScript(top);
+        unsigned char *overlay = port_gcl_overlay_load(stage, id, top);
+        if (overlay)
+        {
+            GCL_LoadScript(overlay);
+            /* IMPORTANT: point font #2 at the ORIGINAL buffer's trailing
+             * (not the overlay's). The overlay may have empty or missing
+             * font data (.tail file) but the cached `top` always has the
+             * real font glyph blob from the .gcx on disc. */
+            port_gcl_overlay_patch_font(top);
+        }
+        else
+        {
+            GCL_LoadScript(top);
+        }
     }
     return 1;
 }

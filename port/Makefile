@@ -140,7 +140,8 @@ PORT_OBJ = \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o \
 	$(OBJDIR)/test_server.o \
-	$(OBJDIR)/strcode_lookup.o
+	$(OBJDIR)/strcode_lookup.o \
+	$(OBJDIR)/gcl_overlay.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
 
@@ -255,6 +256,9 @@ $(OBJDIR)/link_stubs.o: link_stubs.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/test_server.o: test_server.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/gcl_overlay.o: gcl_overlay.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # --- Original source rules ---
