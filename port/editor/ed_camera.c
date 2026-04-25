@@ -89,6 +89,15 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held)
     g_cam.pos[2] += move[2] * speed * dt;
 }
 
+void ed_camera_focus(int wx, int wy, int wz, float distance)
+{
+    float fwd[3], right[3], down[3];
+    cam_basis(fwd, right, down);
+    g_cam.pos[0] = (float)wx - fwd[0] * distance;
+    g_cam.pos[1] = (float)wy - fwd[1] * distance;
+    g_cam.pos[2] = (float)wz - fwd[2] * distance;
+}
+
 /* Build eye_inv via DG_LookAt: feed it a camera position and a center one
    forward step ahead, mirroring what main_game.c update_camera does for the
    in-game free-cam. The renderer convention (handedness, +Y-down screen)

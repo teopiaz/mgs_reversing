@@ -140,10 +140,13 @@ int main(int argc, char *argv[])
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
 
-    /* CLI: --iso <path> or any positional arg that looks like a disc image. */
+    /* CLI: --iso <path>, --stage <name>, or positional disc image. */
+    const char *start_stage = "s01a";
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--iso") == 0 && i + 1 < argc) {
             port_iso_override = argv[++i];
+        } else if (strcmp(argv[i], "--stage") == 0 && i + 1 < argc) {
+            start_stage = argv[++i];
         } else if (iso_path_looks_like_image(argv[i])) {
             port_iso_override = argv[i];
         }
@@ -155,14 +158,13 @@ int main(int argc, char *argv[])
     ed_ui_init(g_window);
 
     editor_engine_init();
-    if (ed_load_stage("s01a") != 0) {
-        fprintf(stderr, "editor: failed to load s01a\n");
-        /* not fatal — let the user see an empty scene */
-    }
     GM_LoadComplete = 1;
+    if (ed_load_stage(start_stage) != 0) {
+        fprintf(stderr, "editor: failed to load stage '%s'\n", start_stage);
+        /* not fatal — let the user pick another from the inspector */
+    }
 
     ed_camera_default();
-    ed_actors_load("data/s01a_actors.tsv");
 
     g_running = 1;
     Uint64 freq = SDL_GetPerformanceFrequency();

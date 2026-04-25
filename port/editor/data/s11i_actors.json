@@ -1,0 +1,1547 @@
+[
+  {
+    "type": "FADEIO",
+    "instance": "$s:4190",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        0
+      ],
+      "s": [
+        10
+      ]
+    },
+    "proc": "sub_C6C2",
+    "color": "#B074A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "ZAKO11F",
+    "instance": "$s:41E2",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": "b:4",
+    "flags": null,
+    "options": {
+      "a": [
+        "'S'"
+      ],
+      "r": [
+        "b:4"
+      ],
+      "n": [
+        "b:6"
+      ],
+      "l": [
+        "$w:00041C"
+      ],
+      "z": [
+        "$w:00041E"
+      ],
+      "w": [
+        "$w:00043A"
+      ]
+    },
+    "proc": "sub_3576",
+    "color": "#E39779",
+    "source": "scenerio"
+  },
+  {
+    "type": "ZAKO11F",
+    "instance": "$s:41E3",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": "b:3",
+    "flags": null,
+    "options": {
+      "a": [
+        "'S'"
+      ],
+      "r": [
+        "b:3"
+      ],
+      "n": [
+        "b:7"
+      ],
+      "l": [
+        "$w:00041C"
+      ],
+      "z": [
+        "$w:00041E"
+      ],
+      "w": [
+        "$w:00043A"
+      ]
+    },
+    "proc": "sub_3577",
+    "color": "#E39779",
+    "source": "scenerio"
+  },
+  {
+    "type": "ZAKO11F",
+    "instance": "$s:41E4",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": "b:2",
+    "flags": null,
+    "options": {
+      "a": [
+        "'S'"
+      ],
+      "r": [
+        "b:2"
+      ],
+      "n": [
+        "b:13"
+      ],
+      "l": [
+        "$w:00041C"
+      ],
+      "z": [
+        "$w:00041E"
+      ],
+      "w": [
+        "$w:00043A"
+      ]
+    },
+    "proc": "sub_3578",
+    "color": "#E39779",
+    "source": "scenerio"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:13F9",
+    "pos": [
+      0,
+      0,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6F58"
+      ],
+      "g": [
+        "b:0"
+      ]
+    },
+    "proc": "sub_1C77",
+    "color": "#6DE680",
+    "source": "scenerio"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:6DF7",
+    "pos": [
+      5500,
+      -16500,
+      14250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": 2000,
+    "flags": null,
+    "options": {
+      "p": [
+        5500,
+        -16500,
+        14250
+      ],
+      "d": [
+        0,
+        2048,
+        0
+      ],
+      "m": [
+        "$s:6DF9"
+      ],
+      "t": [
+        "b:1"
+      ],
+      "w": [
+        1500
+      ],
+      "s": [
+        200
+      ],
+      "r": [
+        2000
+      ],
+      "e": [
+        "b:91",
+        "b:88"
+      ]
+    },
+    "proc": "sub_1C77",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:3D49",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "S": [],
+      "I": [
+        "$s:0E6F"
+      ],
+      "a": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:0E6F",
+        5,
+        "HASH_LOOP",
+        3
+      ],
+      "b": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:4878",
+        5,
+        "HASH_LOOP",
+        3
+      ]
+    },
+    "proc": "sub_1C77",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:66FA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "sub_F695",
+    "color": "#E8F4DB",
+    "source": "scenerio"
+  },
+  {
+    "type": "CAT_IN",
+    "instance": "$s:1632",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "c": [
+        "$w:0002BA",
+        -16356,
+        -12588,
+        6000,
+        -13500,
+        -26000
+      ],
+      "t": [
+        90
+      ]
+    },
+    "proc": "sub_F695",
+    "color": "#A9E0E0",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:9602",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:479F"
+      ],
+      "S": [],
+      "a": [
+        "$s:DD19",
+        0,
+        30,
+        "$s:DD19",
+        "$s:479F",
+        30,
+        "HASH_LOOP",
+        0
+      ]
+    },
+    "proc": "sub_9CEF",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "$s:B959",
+    "instance": "$s:7B5C",
+    "pos": [
+      6000,
+      -25000,
+      -24000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        6000,
+        -25000,
+        -24000
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:924A"
+      ],
+      "w": [
+        530,
+        466
+      ],
+      "g": [
+        0,
+        -2728,
+        5587
+      ],
+      "v": [
+        "t:153CC",
+        "t:15421",
+        "t:15423",
+        "t:95E6"
+      ],
+      "e": [
+        "sub_F695"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8818A",
+    "source": "scenerio"
+  },
+  {
+    "type": "DYNWALL",
+    "instance": "$s:8C3B",
+    "pos": [
+      4000,
+      -16500,
+      14250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        4000,
+        -16500,
+        14250,
+        5500,
+        -16500,
+        14250
+      ],
+      "h": [
+        4500
+      ],
+      "s": [
+        254
+      ]
+    },
+    "proc": "<script>",
+    "color": "#B06DCD",
+    "source": "scenerio"
+  },
+  {
+    "type": "DYNWALL",
+    "instance": "$s:8C3B",
+    "pos": [
+      -9750,
+      -16500,
+      -17500
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -9750,
+        -16500,
+        -17500,
+        -8250,
+        -16500,
+        -17500
+      ],
+      "h": [
+        4500
+      ],
+      "s": [
+        254
+      ]
+    },
+    "proc": "<script>",
+    "color": "#B06DCD",
+    "source": "scenerio"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:E6D4",
+    "pos": [
+      0,
+      0,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6A15"
+      ],
+      "g": [
+        "b:0"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "scenerio"
+  },
+  {
+    "type": "DMYWALL",
+    "instance": "$s:52F3",
+    "pos": [
+      5500,
+      -16500,
+      14250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      2048,
+      0
+    ],
+    "flags": false,
+    "options": {
+      "p": [
+        5500,
+        -16500,
+        14250
+      ],
+      "d": [
+        0,
+        2048,
+        0
+      ],
+      "m": [
+        "$s:6DFA",
+        "$s:E224"
+      ],
+      "e": [
+        "sub_5D17"
+      ],
+      "f": [
+        false
+      ],
+      "c": [
+        "b:0"
+      ],
+      "s": [
+        -32768
+      ]
+    },
+    "proc": "<script>",
+    "color": "#945FE4",
+    "source": "scenerio"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:6DF8",
+    "pos": [
+      -7500,
+      -16500,
+      -21625
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      3072,
+      0
+    ],
+    "flags": "sub_BDE0",
+    "options": {
+      "p": [
+        -7500,
+        -16500,
+        -21625
+      ],
+      "d": [
+        0,
+        3072,
+        0
+      ],
+      "m": [
+        "$s:6DF8"
+      ],
+      "t": [
+        "b:1"
+      ],
+      "w": [
+        1500
+      ],
+      "s": [
+        200
+      ],
+      "u": [
+        200
+      ],
+      "e": [
+        "b:91",
+        "b:88"
+      ],
+      "f": [
+        "sub_BDE0"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:3D51",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "S": [],
+      "I": [
+        "$s:0E6F"
+      ],
+      "a": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:0E6F",
+        5,
+        "HASH_LOOP",
+        3
+      ],
+      "b": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:4878",
+        5,
+        "HASH_LOOP",
+        3
+      ]
+    },
+    "proc": "<script>",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:3D52",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "S": [],
+      "I": [
+        "$s:0E6F"
+      ],
+      "a": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:0E6F",
+        5,
+        "HASH_LOOP",
+        3
+      ],
+      "b": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:4878",
+        5,
+        "HASH_LOOP",
+        3
+      ]
+    },
+    "proc": "<script>",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:6DF9",
+    "pos": [
+      -9750,
+      -16500,
+      -17250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": 2000,
+    "flags": null,
+    "options": {
+      "p": [
+        -9750,
+        -16500,
+        -17250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6DF7"
+      ],
+      "t": [
+        "b:1"
+      ],
+      "w": [
+        1500
+      ],
+      "s": [
+        200
+      ],
+      "r": [
+        2000
+      ],
+      "e": [
+        "b:91",
+        "b:88"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:3D59",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "S": [],
+      "I": [
+        "$s:0E6F"
+      ],
+      "a": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:0E6F",
+        5,
+        "HASH_LOOP",
+        3
+      ],
+      "b": [
+        "$s:DD19",
+        0,
+        5,
+        "$s:DD19",
+        "$s:4878",
+        5,
+        "HASH_LOOP",
+        3
+      ]
+    },
+    "proc": "<script>",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "FADEIO",
+    "instance": "$s:1F8B",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        0
+      ],
+      "s": [
+        30
+      ]
+    },
+    "proc": "<script>",
+    "color": "#B074A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "FADEIO",
+    "instance": "$s:1F8B",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        0
+      ],
+      "s": [
+        30
+      ]
+    },
+    "proc": "<script>",
+    "color": "#B074A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89B",
+    "pos": [
+      1000,
+      -16500,
+      -20000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        1000,
+        -16500,
+        -20000
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:4"
+      ],
+      "i": [
+        "b:13"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "RATION"
+      ],
+      "x": [
+        {
+          "SCRIPT": [
+            {
+              "CMD": {
+                "EVAL": [
+                  {
+                    "EXPR": [
+                      {
+                        "OP": {
+                          "ASSIGN": [
+                            {
+                              "VAR": {
+                                "BYTE": "0003A2"
+                              }
+                            },
+                            {
+                              "VAR": {
+                                "BYTE": "000000"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89B",
+    "pos": [
+      750,
+      -16500,
+      13250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        750,
+        -16500,
+        13250
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:4"
+      ],
+      "i": [
+        "b:13"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "RATION"
+      ],
+      "x": [
+        {
+          "SCRIPT": [
+            {
+              "CMD": {
+                "EVAL": [
+                  {
+                    "EXPR": [
+                      {
+                        "OP": {
+                          "ASSIGN": [
+                            {
+                              "VAR": {
+                                "BYTE": "0003F7"
+                              }
+                            },
+                            {
+                              "VAR": {
+                                "BYTE": "000000"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89B",
+    "pos": [
+      750,
+      -16500,
+      11250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        750,
+        -16500,
+        11250
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:2"
+      ],
+      "i": [
+        "b:9"
+      ],
+      "n": [
+        5
+      ],
+      "m": [
+        "PSG1/BULLET * 5"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89B",
+    "pos": [
+      750,
+      -16500,
+      12250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        750,
+        -16500,
+        12250
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:2"
+      ],
+      "i": [
+        "b:9"
+      ],
+      "n": [
+        5
+      ],
+      "m": [
+        "PSG1/BULLET * 5"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89D",
+    "pos": [
+      8500,
+      -16500,
+      11500
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        8500,
+        -16500,
+        11500
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:0"
+      ],
+      "i": [
+        "b:6"
+      ],
+      "n": [
+        2
+      ],
+      "m": [
+        "C4 * 2"
+      ],
+      "x": [
+        {
+          "SCRIPT": [
+            {
+              "CMD": {
+                "EVAL": [
+                  {
+                    "EXPR": [
+                      {
+                        "OP": {
+                          "ASSIGN": [
+                            {
+                              "VAR": {
+                                "BYTE": "0003A4"
+                              }
+                            },
+                            {
+                              "VAR": {
+                                "BYTE": "000000"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89E",
+    "pos": [
+      -11500,
+      -16500,
+      -21500
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -11500,
+        -16500,
+        -21500
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:0"
+      ],
+      "i": [
+        "b:4"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "STINGER LAUNCHER"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:A89F",
+    "pos": [
+      -11500,
+      -16500,
+      -19750
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -11500,
+        -16500,
+        -19750
+      ],
+      "h": [
+        450
+      ],
+      "b": [
+        "b:3"
+      ],
+      "i": [
+        "b:4"
+      ],
+      "n": [
+        5
+      ],
+      "m": [
+        "STINGER MISSILE * 5"
+      ],
+      "x": [
+        {
+          "SCRIPT": [
+            {
+              "CMD": {
+                "EVAL": [
+                  {
+                    "EXPR": [
+                      {
+                        "OP": {
+                          "ASSIGN": [
+                            {
+                              "VAR": {
+                                "BYTE": "0003E7"
+                              }
+                            },
+                            {
+                              "VAR": {
+                                "BYTE": "000000"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "SNOW",
+    "instance": "$s:806E",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "l": [
+        -5000,
+        0,
+        -5000
+      ],
+      "h": [
+        5000,
+        5000,
+        5000
+      ],
+      "s": [
+        600,
+        -200,
+        100
+      ],
+      "w": [
+        50,
+        -20,
+        -50
+      ],
+      "n": [
+        256
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8D7277",
+    "source": "scenerio"
+  },
+  {
+    "type": "SPHERE",
+    "instance": "$s:F810",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        "$s:CA89"
+      ],
+      "y": [
+        -200
+      ],
+      "c": [
+        30,
+        35,
+        56
+      ],
+      "s": [
+        4
+      ]
+    },
+    "proc": "<script>",
+    "color": "#99D88D",
+    "source": "scenerio"
+  },
+  {
+    "type": "ZK11FCOM",
+    "instance": "$s:6355",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "n": [
+        "sub_3576",
+        "sub_3577",
+        "sub_3578"
+      ],
+      "a": [
+        "sub_A94B"
+      ],
+      "e": [
+        "sub_C573"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#B2C9C6",
+    "source": "scenerio"
+  },
+  {
+    "type": "SNAKE",
+    "instance": "SNAKE",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": [
+      0,
+      "$w:000002",
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        "$w:800010",
+        "$w:800012",
+        "$w:800014"
+      ],
+      "d": [
+        0,
+        "$w:000002",
+        0
+      ]
+    },
+    "proc": "<script>",
+    "color": "#D0A1C6",
+    "source": "scenerio"
+  },
+  {
+    "type": "FADEIO",
+    "instance": "$s:1F8B",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        1
+      ],
+      "s": [
+        30
+      ]
+    },
+    "proc": "<script>",
+    "color": "#B074A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "BREATH",
+    "instance": "$s:5E08",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        90
+      ]
+    },
+    "proc": "<script>",
+    "color": "#83A8A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "ASIOTOKUN",
+    "instance": "$s:77BE",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": [
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      0,
+      0
+    ],
+    "options": {
+      "f": [
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        0,
+        0
+      ]
+    },
+    "proc": "<script>",
+    "color": "#A5995D",
+    "source": "scenerio"
+  }
+]

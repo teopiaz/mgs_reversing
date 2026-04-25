@@ -1,0 +1,93 @@
+DYNWALL	$s:1623	-2500	0	15500	#B06DCD	sub_FB1D		0
+DYNWALL	$s:29DE	-2500	0	5500	#B06DCD	sub_8FAA		0
+ITEM	$s:F71A	-7000	0	-3500	#929D77	sub_2DEB		0
+ITEM	$s:F71B	4500	0	-1500	#929D77	sub_2DEB		0
+ITEM	$s:F71D	5000	0	3250	#929D77	sub_2DEB		0
+$s:AF72	$s:BB89	-750	2000	-1800	#C99C63	<script>	[0, 0, 0]	0
+WALL	$s:67CB	-3627	0	-1850	#6DE680	<script>	[0, 0, 0]	0
+DYNWALL	$s:0A56	-3375	0	-1000	#B06DCD	<script>		0
+DYNWALL	$s:0A56	-3125	0	-1125	#B06DCD	<script>		0
+DYNWALL	$s:0A56	-3625	0	-2000	#B06DCD	<script>		0
+DYNWALL	$s:0A56	-3875	0	-1875	#B06DCD	<script>		0
+DYNWALL	$s:AACE	-1750	0	15625	#B06DCD	<script>		0
+DYNWALL	$s:AACF	3000	-1500	-15875	#B06DCD	<script>		0
+WALL	$s:0973	4800	0	-5250	#6DE680	<script>	[0, 2048, 0]	0
+WALL	$s:0973	2800	0	-5250	#6DE680	<script>	[0, 2048, 0]	0
+WALL	$s:734B	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+$s:710D	$s:4AF3	5550	600	500	#6C6BBB	<script>	[0, 3072, 0]	0
+$s:710D	$s:4AF4	5550	600	1500	#6C6BBB	<script>	[0, 3072, 0]	0
+$s:710D	$s:4AF5	5550	600	2500	#6C6BBB	<script>	[0, 3072, 0]	0
+$s:710D	$s:496F	-7437	2748	-1500	#6C6BBB	<script>	[0, 1024, 0]	0
+$s:710D	$s:4970	-7437	2748	-2750	#6C6BBB	<script>	[0, 1024, 0]	0
+$s:710D	$s:4971	-7437	1750	-1500	#6C6BBB	<script>	[0, 1024, 0]	0
+$s:710D	$s:057A	-5408	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:057B	-5280	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:057C	-5152	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:057D	-5024	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:057E	-4166	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:057F	-4038	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:0580	-3750	874	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:0581	-3622	874	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:0582	-3494	874	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:058A	4450	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:058B	4578	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:058A	2450	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:058B	2578	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:FD26	-6250	1400	-2500	#6C6BBB	<script>	[0, 1024, 0]	0
+$s:710D	$s:FD27	5272	1400	-3025	#6C6BBB	<script>	[0, -512, 0]	0
+$s:710D	$s:FD26	-6250	1400	-2500	#6C6BBB	<script>	[0, 1024, 0]	0
+$s:710D	$s:FD27	5272	1400	-3025	#6C6BBB	<script>	[0, -512, 0]	0
+$s:710D	$s:8217	-2100	2700	-5000	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:8218	-750	2700	-5000	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:8219	600	2700	-5000	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:D9A7	5550	1200	-900	#6C6BBB	<script>	[0, 0, 0]	0
+$s:710D	$s:D9A8	5550	1200	-2087	#6C6BBB	<script>	[0, 0, 0]	0
+DOOR	$s:8ADE	-750	0	5500	#8BCF66	<script>	500	0
+DOOR	$s:8ADF	-750	-2500	5500	#8BCF66	<script>	500	0
+DOOR	$s:EC55	-750	0	15500	#8BCF66	<script>	500	0
+DOOR	$s:EC54	3000	-1500	-15750	#8BCF66	<script>	500	0
+ITEM	$s:F71C	4500	0	-3750	#929D77	<script>		0
+ITEM	$s:F71A	-7000	0	-3500	#929D77	<script>		0
+ITEM	$s:F71B	4500	0	-1500	#929D77	<script>		0
+ITEM	$s:F71C	4500	0	-3750	#929D77	<script>		0
+ITEM	$s:F71D	5000	0	3250	#929D77	<script>		0
+ITEM	$s:EEBA	4500	-1500	-11250	#929D77	<script>		0
+ITEM	$s:EEBB	4500	-1500	-10500	#929D77	<script>		0
+ITEM	$s:EEBC	4500	-1500	-9750	#929D77	<script>		0
+WALL	$s:B3FA	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+WALL	$s:0973	4800	0	-5250	#6DE680	<script>	[0, 2048, 0]	1
+WALL	$s:0973	2800	0	-5250	#6DE680	<script>	[0, 2048, 0]	1
+WALL	$s:734B	0	0	0	#6DE680	<script>	[0, 0, 0]	1
+$s:710D	$s:4AF3	5550	600	500	#6C6BBB	<script>	[0, 3072, 0]	1
+$s:710D	$s:4AF4	5550	600	1500	#6C6BBB	<script>	[0, 3072, 0]	1
+$s:710D	$s:4AF5	5550	600	2500	#6C6BBB	<script>	[0, 3072, 0]	1
+$s:710D	$s:496F	-7437	2748	-1500	#6C6BBB	<script>	[0, 1024, 0]	1
+$s:710D	$s:4970	-7437	2748	-2750	#6C6BBB	<script>	[0, 1024, 0]	1
+$s:710D	$s:4971	-7437	1750	-1500	#6C6BBB	<script>	[0, 1024, 0]	1
+$s:710D	$s:057A	-5408	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:057B	-5280	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:057C	-5152	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:057D	-5024	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:057E	-4166	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:057F	-4038	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:0580	-3750	874	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:0581	-3622	874	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:0582	-3494	874	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:058A	4450	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:058B	4578	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:058A	2450	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:058B	2578	2000	-4685	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:FD26	-6250	1400	-2500	#6C6BBB	<script>	[0, 1024, 0]	1
+$s:710D	$s:FD27	5272	1400	-3025	#6C6BBB	<script>	[0, -512, 0]	1
+$s:710D	$s:FD26	-6250	1400	-2500	#6C6BBB	<script>	[0, 1024, 0]	1
+$s:710D	$s:FD27	5272	1400	-3025	#6C6BBB	<script>	[0, -512, 0]	1
+$s:710D	$s:8217	-2100	2700	-5000	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:8218	-750	2700	-5000	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:8219	600	2700	-5000	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:D9A7	5550	1200	-900	#6C6BBB	<script>	[0, 0, 0]	1
+$s:710D	$s:D9A8	5550	1200	-2087	#6C6BBB	<script>	[0, 0, 0]	1
+DOOR	$s:8ADE	-750	0	5500	#8BCF66	<script>	500	1
+DOOR	$s:8ADF	-750	-2500	5500	#8BCF66	<script>	500	1
+DOOR	$s:EC55	-750	0	15500	#8BCF66	<script>	500	1
+DOOR	$s:EC54	3000	-1500	-15750	#8BCF66	<script>	500	1
+WALL	$s:B3FA	0	0	0	#6DE680	<script>	[0, 0, 0]	1

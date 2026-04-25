@@ -1,0 +1,10 @@
+WALL	$s:B355	0	4000	0	#6DE680	<script>		0
+WALL	$s:B354	0	0	0	#6DE680	<script>		0
+WALL	$s:B353	0	-4000	0	#6DE680	<script>		0
+WALL	$s:B356	0	-8000	0	#6DE680	<script>		0
+DOOR	$s:59E3	500	0	2250	#8BCF66	<script>	[0, 0, 0]	0
+WALL	$s:B355	0	4000	0	#6DE680	<script>		1
+WALL	$s:B354	0	0	0	#6DE680	<script>		1
+WALL	$s:B353	0	-4000	0	#6DE680	<script>		1
+WALL	$s:B356	0	-8000	0	#6DE680	<script>		1
+DOOR	$s:59E3	500	0	2250	#8BCF66	<script>	[0, 0, 0]	1

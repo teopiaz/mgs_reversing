@@ -1,0 +1,26 @@
+[
+  {
+    "type": "$s:D2F6",
+    "instance": "$s:5947",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "s": [
+        "TITLEEE",
+        "sub_5F77",
+        "DEMO ALL",
+        "sub_17BE",
+        "SOUND TEST",
+        "sub_63A9",
+        "CODEC",
+        "sub_1234"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#84AAD7",
+    "source": "scenerio"
+  }
+]

@@ -1,0 +1,28 @@
+MERYL72	$s:95F2	8500	0	-6500	#7AF476	sub_FAFA	["b:6", "b:6"]	0
+MERYL72	$s:95F2	8500	0	-6500	#7AF476	sub_FAFA	["b:6", "b:6"]	0
+WALL	$s:D124	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+WALL	$s:D1F2	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+WALL	$s:C926	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+WALL	$s:1A2C	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+WALL	$s:19AE	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+WALL	$s:C9F4	0	0	0	#6DE680	<script>	[0, 0, 0]	0
+MERYL72	$s:95F2	8500	0	-6500	#7AF476	<script>	["b:6", "b:6"]	0
+MERYL72	$s:95F2	8500	0	-6500	#7AF476	<script>	["b:6", "b:6"]	0
+DYNWALL	$s:AACE	-8500	0	12750	#B06DCD	<script>		0
+DYNWALL	$s:AACF	7500	0	-10750	#B06DCD	<script>		0
+$s:81EA	$s:78AF	-2500	4000	-9000	#8F696C	<script>		0
+BLINK_TX	$s:A115	375	3385	11000	#A8F983	<script>		0
+BLINK_TX	$s:A116	6875	3585	-9625	#A8F983	<script>		0
+ASIOTOKUN	$s:6509	1	0	0	#A5995D	<script>		0
+DOOR	$s:50EA	-8500	0	12625	#8BCF66	<script>	[0, 0, 0]	0
+DOOR	PCX_DOOR2	9000	0	-10625	#8BCF66	<script>	[0, 0, 0]	0
+ITEM	$s:EEBA	11500	0	13000	#929D77	<script>		0
+ITEM	$s:EEBB	-11500	0	-9750	#929D77	<script>		0
+ITEM	$s:EEBC	-3000	0	5500	#929D77	<script>		0
+ITEM	$s:EEBD	6000	0	3500	#929D77	<script>		0
+ITEM	$s:EEBE	1000	0	-11500	#929D77	<script>		0
+ITEM	$s:EEBF	3250	0	7000	#929D77	<script>		0
+ITEM	$s:EEC0	6000	0	6500	#929D77	<script>		0
+ITEM	$s:EEC1	9000	0	5000	#929D77	<script>		0
+ITEM	$s:EEC2	6500	0	-7500	#929D77	<script>		0
+ITEM	$s:EEC3	-1500	0	6500	#929D77	<script>		0

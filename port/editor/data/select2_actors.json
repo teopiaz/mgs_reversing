@@ -1,0 +1,36 @@
+[
+  {
+    "type": "$s:D2F6",
+    "instance": "$s:291D",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "s": [
+        "S05A",
+        "sub_AB0D",
+        "S06A",
+        "sub_AB2D",
+        "S07A",
+        "sub_AB4D",
+        "S07B",
+        "sub_AB4E",
+        "S08A",
+        "sub_AB6D",
+        "S08B",
+        "sub_AB6E",
+        "S08C",
+        "sub_AB6F",
+        "S09A",
+        "sub_AB8D",
+        "RETURN",
+        "sub_70CF"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#84AAD7",
+    "source": "scenerio"
+  }
+]
