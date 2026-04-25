@@ -5,14 +5,33 @@ program that the runtime loads, parses and runs on stage entry.
 
 ## What's in here
 
+### Reference
+
 | File                                | Contents                                              |
 |-------------------------------------|-------------------------------------------------------|
 | [01-syntax.md](01-syntax.md)        | Text syntax (our `.gcl` dialect): procs, blocks, options, literals |
 | [02-variables.md](02-variables.md)  | Variable storage classes, save-persistence, game-state flags       |
 | [03-expressions.md](03-expressions.md) | Operators, precedence, unary/binary forms                       |
 | [04-commands.md](04-commands.md)    | All 28 commands, each with signature + real examples              |
-| [05-cookbook.md](05-cookbook.md)    | Annotated walk-throughs of real scenarios                         |
-| [06-binary-format.md](06-binary-format.md) | `.gcx` bytecode layout (for tool writers)                  |
+| [10-procs-and-args.md](10-procs-and-args.md) | Procs, `argN`, return, dispatcher patterns               |
+
+### Subsystems
+
+| File                                | Contents                                              |
+|-------------------------------------|-------------------------------------------------------|
+| [07-triggers-and-events.md](07-triggers-and-events.md) | `trap` / `ntrap`, HZD zones, full event hash table |
+| [09-stages-and-loading.md](09-stages-and-loading.md)   | Stage lifecycle, `load`, `restart`, scenerio vs demo |
+| [11-save-state.md](11-save-state.md)                   | `varsave`, save snapshot layers, codec memory        |
+| [12-mesg-protocol.md](12-mesg-protocol.md)             | `mesg` payloads, common event-hash semantics         |
+
+### Practical
+
+| File                                | Contents                                              |
+|-------------------------------------|-------------------------------------------------------|
+| [05-cookbook.md](05-cookbook.md)    | Annotated walk-throughs of real scenarios            |
+| [08-known-ids.md](08-known-ids.md)  | Stage / chara / event hash catalog                   |
+| [13-debugging.md](13-debugging.md)  | Log markers, common errors, round-trip workflow      |
+| [06-binary-format.md](06-binary-format.md) | `.gcx` bytecode layout (for tool writers)     |
 
 ## Quick mental model
 

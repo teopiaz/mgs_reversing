@@ -177,6 +177,8 @@ CharacterEntry MainCharacterEntries[] = {
 GCL (Game Command Language) is a bytecode scripting language embedded in stage data.
 It controls actor spawning, cutscene flow, variable state, and event triggers.
 
+More information about GCL can be found in the [GCL Reference](./gcl/00-gcl-scripting.md).
+
 ### 3.2 Bytecode Format
 
 GCL bytecode is a compact binary encoding:
