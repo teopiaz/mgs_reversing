@@ -31,7 +31,7 @@ _TOKEN_RE = re.compile(
     r"""
     [ \t]*(?:                                       # horizontal ws only
         (?P<COMMENT>\#[^\n]*)                      # '#' line comment
-      | (?P<CONT>\\\n)                              # backslash newline
+      | (?P<CONT>\\[ \t]*(?:\#[^\n]*)?\n)           # backslash + (optional ws + comment) + newline
       | (?P<NEWLINE>\n)                             # significant newline
       | (?P<M_STR>m"(?:[^"\\]|\\.)*")               # m"..." MGS-encoded string
       | (?P<STR>"(?:[^"\\]|\\.)*")                  # "..." ASCII string
@@ -40,6 +40,7 @@ _TOKEN_RE = re.compile(
       | (?P<BYTE>b:\d+)                             # b:N byte literal (positive only; negation is unary)
       | (?P<SD>sd:[0-9A-Fa-f]+)                     # sd:XXXXXXXX
       | (?P<TAB>t:[0-9A-Fa-f]+)                     # t:XXXXXXXX
+      | (?P<NAMEREF>&[A-Za-z_][A-Za-z_0-9]*)         # &NAME symbolic constant (mgs_names table)
       | (?P<PROCREF>sub_[0-9A-Fa-f]+)               # sub_XXXX (proc ref)
       | (?P<ARG>arg\d+)                             # argN
       | (?P<HEX>0x[0-9A-Fa-f]+)                     # 0xNNNN
@@ -600,6 +601,18 @@ class Parser:
         if k == "PROCREF":
             self.eat()
             return GclNode({GclCode.PROC.name: int(text[4:], 16)})
+
+        if k == "NAMEREF":
+            from mgs_names import NAME_TO_HASH
+            self.eat()
+            ident = text[1:]                      # strip leading &
+            if ident not in NAME_TO_HASH:
+                raise SyntaxError(
+                    f"unknown symbolic name '&{ident}' at offset {tok.pos} — "
+                    "add it to port/gcl_tools/mgs_names.py or use the raw "
+                    "hash literal `$s:XXXX` instead"
+                )
+            return GclNode({GclCode.STR_ID.name: NAME_TO_HASH[ident]})
 
         if k == "ARG":
             self.eat()

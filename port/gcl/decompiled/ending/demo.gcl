@@ -15,7 +15,7 @@ proc sub_8CD4 {
 proc sub_8D0A {
     eval($f:000001 = b:0)
     load "rank" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -141,7 +141,7 @@ proc sub_AD2D {
 
 proc sub_B789 {
     load "roll" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -168,24 +168,24 @@ script {
     }
     call(sub_860B)
     call(sub_3001)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:59f2
         -l $s:59f2
         -h $s:59f2 0
         -z 0
     map \
-        -a $s:7df9
-    chara $s:73ea $s:f810 \
+        -a &HASH_MAIN
+    chara &SPHERE $s:f810 \
         -m $s:ce61
         -y 68
         -s 0
         -c 128 128 128
-    chara $s:02c4 $s:cd3a
+    chara &ASIATOKUN $s:cd3a
     if ($w:00000A == 292) {
         map \
-            -c $s:7df9
+            -c &HASH_MAIN
             -u
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         eval($w:00000A = 293)
@@ -204,9 +204,9 @@ script {
         }
     } elseif ($w:00000A == 293) {
         map \
-            -c $s:7df9
+            -c &HASH_MAIN
             -u
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         eval($w:00000A = 294)
@@ -231,13 +231,13 @@ script {
             -r 0
         if ($b:0003AC == b:0) {
             eval($b:0003AC = b:1)
-            chara $s:3453 $s:22b4 \
+            chara &MOVIE $s:22b4 \
                 -i 30
                 -o 30
                 -p sub_AD2D
         } elseif ($b:0003AC == b:1) {
             eval($b:0003AC = b:2)
-            chara $s:3453 $s:ee52 \
+            chara &MOVIE $s:ee52 \
                 -i 30
                 -o 30
                 -p sub_AD2D

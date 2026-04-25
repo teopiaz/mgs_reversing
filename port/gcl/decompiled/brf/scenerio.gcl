@@ -4,7 +4,7 @@
 proc sub_DF2A {
     eval($f:000001 = b:0)
     load "title" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -43,9 +43,9 @@ proc sub_1199 {
 
 script {
     map \
-        -d $s:7df9 $s:96a7
+        -d &HASH_MAIN &STAGE_brf
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     chara $s:93b6 $s:93b6 \
         -v t:000003CC t:00000C2F t:00000C98 t:00000E56 t:00001A5D t:00001B3D t:00001D22 t:000005B9 t:00000692 t:00000815 t:00000A64 t:00000F56 t:00000FF4 t:00001225 t:000013E6 t:0000155B t:00000007 t:000017C3 t:00001ED9
         -l $f:070047

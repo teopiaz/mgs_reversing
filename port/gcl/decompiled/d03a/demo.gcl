@@ -15,7 +15,7 @@ proc sub_8CD4 {
 proc sub_BF91 {
     eval($f:000001 = b:0)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -135,22 +135,22 @@ script {
     }
     call(sub_860B)
     map \
-        -d $s:7df9 $s:c6c1
+        -d &HASH_MAIN $s:c6c1
     map \
-        -a $s:7df9
-    trap $s:73d2 $s:14c9 $s:14c9 {
+        -a &HASH_MAIN
+    trap $s:73d2 &HASH_TRAP_ALL &HASH_TRAP_ALL {
         mesg arg2 arg1 arg3
     }
 
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     map \
-        -s $s:7df9
+        -s &HASH_MAIN
     light \
         -d 0 0 0
         -c 50 55 65
         -a 10 40 35
-    chara $s:7a05 $s:6eca \
+    chara &CINEMA $s:6eca \
         -t 30000
     chara $s:f5c5 $s:358c \
         -m b:0
@@ -158,13 +158,13 @@ script {
         -r 300 200
         -v 0 0 0 0 0 0
         -n b:8
-    chara $s:b997 $s:d843 \
+    chara &DOOR $s:d843 \
         -p 6000 0 -2250
         -d 0 0 0
         -m $s:6c15
         -w 1500
         -r -2000
-    chara $s:b997 $s:d844 \
+    chara &DOOR $s:d844 \
         -p 9500 0 -2250
         -d 0 0 0
         -m $s:6c15
@@ -173,7 +173,7 @@ script {
     if ($w:00000A < b:215) {
         eval($w:00000A = b:214)
         eval($w:00000A = b:215)
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
         demo \
             -e

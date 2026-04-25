@@ -5,7 +5,7 @@ proc sub_8A37 {
     pad \
         -r
     call(sub_83DA)
-    chara $s:a12e $s:9119 \
+    chara &FADEIO $s:9119 \
         -m 0
         -s 1
     sound \
@@ -14,7 +14,7 @@ proc sub_8A37 {
         -t 22
         -e {
         load "abst" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -187,7 +187,7 @@ script {
             -c 14085 t:060401A4 b:1
             -p sub_8A37
     }
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:933d
         -l $s:933d
         -h $s:933d 0

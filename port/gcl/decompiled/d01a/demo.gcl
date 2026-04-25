@@ -20,7 +20,7 @@ proc sub_BD7F {
     eval($w:000002 = 1024)
     eval($w:000004 = b:0)
     load "s01a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -42,38 +42,38 @@ proc sub_AD2D {
 script {
     call(sub_200D)
     map \
-        -d $s:7df9 $s:c681
+        -d &HASH_MAIN $s:c681
     map \
-        -a $s:7df9
-    chara $s:7a05 $s:6eca \
+        -a &HASH_MAIN
+    chara &CINEMA $s:6eca \
         -t 30000
-    chara $s:73ea $s:f810 \
+    chara &SPHERE $s:f810 \
         -m $s:c681
         -y -50
         -s 4
         -c 30 35 56
-    chara $s:18e3 $s:4692 \
+    chara &SNOW $s:4692 \
         -l -5000 0 -5000
         -h 5000 5000 5000
         -s 50 -20 0
         -w 50 -20 -50
         -n 256
-    chara $s:32e5 $s:aef1 \
+    chara &EMITTER $s:aef1 \
         -p 7000 8000 -15000 8000 8000 -17500 -7000 8000 -15000 -8000 8000 -17500
-    chara $s:32e5 $s:aef2 \
+    chara &EMITTER $s:aef2 \
         -p 11000 3500 -2000 13000 3500 10000 -12000 2500 -6000
-    chara $s:32e5 $s:aef3 \
+    chara &EMITTER $s:aef3 \
         -p -13000 2500 -4000 -13000 2500 2000
-    chara $s:170c $s:bb75 -2500 500 -500
-    chara $s:170c $s:bb77 -6000 500 10500
-    chara $s:170c $s:bb78 -5500 500 13500
-    chara $s:170c $s:bb79 -2000 500 14500
-    chara $s:170c $s:bb7a 3000 500 14500
-    chara $s:170c $s:bb7b -1500 500 -3000
-    chara $s:170c $s:bb7c 1500 500 -3000
-    chara $s:170c $s:bb7d 5000 500 0
-    chara $s:170c $s:bb94 -9500 500 -12500
-    chara $s:30ce $s:5ba4 \
+    chara &SMOKE $s:bb75 -2500 500 -500
+    chara &SMOKE $s:bb77 -6000 500 10500
+    chara &SMOKE $s:bb78 -5500 500 13500
+    chara &SMOKE $s:bb79 -2000 500 14500
+    chara &SMOKE $s:bb7a 3000 500 14500
+    chara &SMOKE $s:bb7b -1500 500 -3000
+    chara &SMOKE $s:bb7c 1500 500 -3000
+    chara &SMOKE $s:bb7d 5000 500 0
+    chara &SMOKE $s:bb94 -9500 500 -12500
+    chara &PATO_LAMP $s:5ba4 \
         -p -10750 3000 18900
         -d 0 2048 0
         -w -1 -1 250 -1

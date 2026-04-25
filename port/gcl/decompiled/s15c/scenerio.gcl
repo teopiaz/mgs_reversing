@@ -15,7 +15,7 @@ proc sub_71CD {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s14e" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -27,14 +27,14 @@ proc sub_E5CD {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s15b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_E1A8 {
     eval($f:000001 = b:0)
     load "d03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -509,7 +509,7 @@ proc sub_8205 {
 }
 
 proc sub_8B32 {
-    chara $s:51c6 $s:85d4 \
+    chara &CAT_IN $s:85d4 \
         -c 3970 1888 -9375 2930 1169 -6887
         -t 30000
 }
@@ -538,8 +538,8 @@ proc sub_9E63 {
         -l 1
     pad \
         -r
-    mesg $s:21ca $s:937a 5 -1 -1 0 64
-    chara $s:7a05 $s:6eca \
+    mesg &SNAKE &HASH_MOTION 5 -1 -1 0 64
+    chara &CINEMA $s:6eca \
         -t 30000
         -e 1
     chara $s:711f $s:3239 \
@@ -564,7 +564,7 @@ proc sub_EE8D {
 
 proc sub_13CC {
     eval($w:00000A = b:213)
-    chara $s:7a05 $s:6eca \
+    chara &CINEMA $s:6eca \
         -t 30000
     demo \
         -e
@@ -579,7 +579,7 @@ proc sub_13CE {
     eval($w:800012 = 1124)
     eval($w:800014 = -(5737))
     eval($w:000002 = b:0)
-    chara $s:7a05 $s:6eca \
+    chara &CINEMA $s:6eca \
         -t 30000
         -e 1
     demo \
@@ -685,7 +685,7 @@ proc sub_2DEB {
     func \
         -v 12250 0 11500
     if ($w:80000A == b:0 && $w:800028 == b:0 && $f:06026E == b:1 && $f:07026E == b:1 || $f:000290 == b:1) {
-        chara $s:8767 $s:13a6 \
+        chara &ITEM $s:13a6 \
             -p 12250 0 11500
             -b b:3
             -i b:3
@@ -697,7 +697,7 @@ proc sub_2DEB {
     func \
         -v -12250 0 -500
     if ($w:80000A == b:0 && $w:800028 == b:0 && $f:06026E == b:1 && $f:07026E == b:1 || $f:000290 == b:1) {
-        chara $s:8767 $s:13a7 \
+        chara &ITEM $s:13a7 \
             -p -12250 0 -500
             -b b:3
             -i b:3
@@ -709,7 +709,7 @@ proc sub_2DEB {
     func \
         -v -12250 0 5500
     if ($w:80000A == b:0 && $w:80002A == b:0 && $f:04039E == b:1 && $f:05039E == b:1 || $f:000290 == b:1) {
-        chara $s:8767 $s:eebd \
+        chara &ITEM $s:eebd \
             -p -12250 0 5500
             -b b:3
             -i b:4
@@ -721,7 +721,7 @@ proc sub_2DEB {
     func \
         -v 12250 0 -500
     if ($w:80000A == b:0 && $w:80002A == b:0 && $f:04039E == b:1 && $f:05039E == b:1 || $f:000290 == b:1) {
-        chara $s:8767 $s:eebe \
+        chara &ITEM $s:eebe \
             -p 12250 0 -500
             -b b:3
             -i b:4
@@ -771,8 +771,8 @@ proc sub_AA35 {
         -h $w:000428
         -n sub_EE8D
         -i sub_8205
-    ntrap $s:233b $s:21ca \
-        -m $s:0dd2
+    ntrap $s:233b &SNAKE \
+        -m &HASH_ENTER
         -i
         -e {
         if (arg7 == b:0 && $w:80001E == b:17) {
@@ -782,17 +782,17 @@ proc sub_AA35 {
         }
         mesg $s:50ea $s:1aaa arg2 arg6 15
     }
-    ntrap $s:233b $s:21ca \
-        -m $s:d5cc
+    ntrap $s:233b &SNAKE \
+        -m &HASH_LEAVE
         -i
         -e {
         if (arg7 == b:0) {
-            mesg $s:0d77 $s:0e4e $s:0e6f
+            mesg $s:0d77 &HASH_ON $s:0e6f
         }
-        mesg $s:50ea $s:d5cc arg2 arg6 15
+        mesg $s:50ea &HASH_LEAVE arg2 arg6 15
     }
-    ntrap $s:233c $s:21ca \
-        -m $s:0dd2
+    ntrap $s:233c &SNAKE \
+        -m &HASH_ENTER
         -i
         -e {
         if (arg7 == b:0 && $w:80001E == b:17) {
@@ -800,21 +800,21 @@ proc sub_AA35 {
             sound \
                 -e b:0 b:63 b:35
         }
-        mesg $s:50eb $s:1aaa arg2 arg6 15
+        mesg &PCX_DOOR2 $s:1aaa arg2 arg6 15
     }
-    ntrap $s:233c $s:21ca \
-        -m $s:d5cc
+    ntrap $s:233c &SNAKE \
+        -m &HASH_LEAVE
         -i
         -e {
         if (arg7 == b:0) {
-            mesg $s:0d78 $s:0e4e $s:0e6f
+            mesg $s:0d78 &HASH_ON $s:0e6f
         }
-        mesg $s:50eb $s:d5cc arg2 arg6 15
+        mesg &PCX_DOOR2 &HASH_LEAVE arg2 arg6 15
     }
     eval($f:000290 = b:1)
     call(sub_2DEB)
     if ($f:05026E == b:0) {
-        chara $s:8767 $s:13a5 \
+        chara &ITEM $s:13a5 \
             -p 12250 0 -8500
             -h 450
             -b b:4
@@ -826,21 +826,21 @@ proc sub_AA35 {
 }
 
 proc sub_AF25 {
-    ntrap $s:2f2d $s:21ca \
-        -m $s:0dd2
+    ntrap $s:2f2d &SNAKE \
+        -m &HASH_ENTER
         -c
         -e {
         if (arg7 == b:2) {
-            mesg $s:15a9 $s:3223
+            mesg $s:15a9 &HASH_KILL
         } else {
             eval($f:030290 = b:0)
             pad \
                 -r
-            mesg $s:21ca $s:70fb 0 0 14000 500
+            mesg &SNAKE &HASH_RUN_MOVE 0 0 14000 500
             call(sub_83DA)
             sound \
                 -x sd:01FFFF0B
-            chara $s:a12e $s:1f8b \
+            chara &FADEIO $s:1f8b \
                 -m 0
                 -s 15
             delay \
@@ -848,21 +848,21 @@ proc sub_AF25 {
                 -p sub_71CD
         }
     }
-    ntrap $s:2f4a $s:21ca \
-        -m $s:0dd2
+    ntrap $s:2f4a &SNAKE \
+        -m &HASH_ENTER
         -c
         -e {
         if (arg7 == b:2) {
-            mesg $s:15a9 $s:3223
+            mesg $s:15a9 &HASH_KILL
         } else {
             eval($f:030290 = b:0)
             pad \
                 -r
-            mesg $s:21ca $s:70fb 0 0 -11000 500
+            mesg &SNAKE &HASH_RUN_MOVE 0 0 -11000 500
             call(sub_83DA)
             sound \
                 -x sd:01FFFF0B
-            chara $s:a12e $s:1f8b \
+            chara &FADEIO $s:1f8b \
                 -m 0
                 -s 15
             delay \
@@ -870,13 +870,13 @@ proc sub_AF25 {
                 -p sub_E5CD
         }
     }
-    ntrap $s:233b $s:21ca \
-        -m $s:0dd2
+    ntrap $s:233b &SNAKE \
+        -m &HASH_ENTER
         -i
         -e {
         if ($w:80006C >= b:6 && $w:80001E == b:17) {
-            mesg $s:50ea $s:0dd2 arg2 arg6 15
-            mesg $s:0d77 $s:0e4e $s:4878
+            mesg $s:50ea &HASH_ENTER arg2 arg6 15
+            mesg $s:0d77 &HASH_ON $s:4878
         } else {
             if (arg7 == b:0 && $w:80001E == b:17) {
                 mesg $s:0d77 $s:bcd2 $s:0061
@@ -885,66 +885,66 @@ proc sub_AF25 {
             mesg $s:50ea $s:1aaa arg2 arg6 15
         }
     }
-    ntrap $s:233b $s:21ca \
-        -m $s:d5cc
+    ntrap $s:233b &SNAKE \
+        -m &HASH_LEAVE
         -i
         -e {
         if (arg7 == b:0) {
-            mesg $s:0d77 $s:0e4e $s:0e6f
+            mesg $s:0d77 &HASH_ON $s:0e6f
         }
-        mesg $s:50ea $s:d5cc arg2 arg6 15
+        mesg $s:50ea &HASH_LEAVE arg2 arg6 15
     }
-    ntrap $s:233c $s:21ca \
-        -m $s:0dd2
+    ntrap $s:233c &SNAKE \
+        -m &HASH_ENTER
         -i
         -e {
         if ($w:80006C >= b:7 && $w:80001E == b:17) {
-            mesg $s:50eb $s:0dd2 arg2 arg6 15
-            mesg $s:0d78 $s:0e4e $s:4878
+            mesg &PCX_DOOR2 &HASH_ENTER arg2 arg6 15
+            mesg $s:0d78 &HASH_ON $s:4878
         } else {
             if (arg7 == b:0 && $w:80001E == b:17) {
                 mesg $s:0d78 $s:bcd2 $s:0061
                 call(sub_186D)
             }
-            mesg $s:50eb $s:1aaa arg2 arg6 15
+            mesg &PCX_DOOR2 $s:1aaa arg2 arg6 15
         }
     }
-    ntrap $s:233c $s:21ca \
-        -m $s:d5cc
+    ntrap $s:233c &SNAKE \
+        -m &HASH_LEAVE
         -i
         -e {
         if (arg7 == b:0) {
-            mesg $s:0d78 $s:0e4e $s:0e6f
+            mesg $s:0d78 &HASH_ON $s:0e6f
         }
-        mesg $s:50eb $s:d5cc arg2 arg6 15
+        mesg &PCX_DOOR2 &HASH_LEAVE arg2 arg6 15
     }
-    ntrap $s:233b $s:21ca \
-        -m $s:14c9
+    ntrap $s:233b &SNAKE \
+        -m &HASH_TRAP_ALL
         -s 3
         -e {
-        if (arg3 == $s:0dd2) {
-            chara $s:b103 $s:aace \
+        if (arg3 == &HASH_ENTER) {
+            chara &DYNWALL $s:aace \
                 -p -2000 0 12625 2000 0 12625
                 -h 4500
                 -s 254
         } else {
-            mesg $s:aace $s:006b
+            mesg $s:aace &HASH_OFF2
         }
     }
-    ntrap $s:233c $s:21ca \
-        -m $s:14c9
+    ntrap $s:233c &SNAKE \
+        -m &HASH_TRAP_ALL
         -s 3
         -e {
-        if (arg3 == $s:0dd2) {
-            chara $s:b103 $s:aacf \
+        if (arg3 == &HASH_ENTER) {
+            chara &DYNWALL $s:aacf \
                 -p -2000 0 -9625 2000 0 -9625
                 -h 4500
                 -s 254
         } else {
-            mesg $s:aacf $s:006b
+            mesg $s:aacf &HASH_OFF2
         }
     }
-    chara $s:4e95 $s:4cea \
+    chara &BLOOD_CL $s:4cea \
         -c 96 0 0
         -u 0
         -r 0
@@ -955,8 +955,8 @@ proc sub_AF25 {
 
 proc sub_3575 {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1465 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1465 \
         -r b:0
         -b 'Z'
         -a 'S'
@@ -969,8 +969,8 @@ proc sub_3575 {
 
 proc sub_3576 {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1466 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1466 \
         -r b:1
         -b 'Z'
         -a 'S'
@@ -982,8 +982,8 @@ proc sub_3576 {
 
 proc sub_3577 {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1467 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1467 \
         -r b:2
         -b 'Z'
         -a 'S'
@@ -996,8 +996,8 @@ proc sub_3577 {
 
 proc sub_3578 {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1468 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1468 \
         -r b:3
         -b 'Z'
         -a 'S'
@@ -1009,8 +1009,8 @@ proc sub_3578 {
 
 proc sub_DF08 {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1468 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1468 \
         -r b:4
         -b 'Z'
         -a 'S'
@@ -1022,8 +1022,8 @@ proc sub_DF08 {
 
 proc sub_DF09 {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1468 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1468 \
         -r b:5
         -b 'Z'
         -a 'S'
@@ -1035,8 +1035,8 @@ proc sub_DF09 {
 
 proc sub_DF0A {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1468 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1468 \
         -r b:6
         -b 'Z'
         -a 'S'
@@ -1048,8 +1048,8 @@ proc sub_DF0A {
 
 proc sub_DF0B {
     map \
-        -a $s:7df9
-    chara $s:6e9a $s:1468 \
+        -a &HASH_MAIN
+    chara &WATCHER $s:1468 \
         -r b:7
         -b 'Z'
         -a 'S'
@@ -1102,7 +1102,7 @@ script {
     call(sub_860B)
     eval($b:0000AA = b:24)
     call(sub_248D)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:cb01
         -l $s:cb01
         -h $s:cb01 0
@@ -1113,14 +1113,14 @@ script {
         -s "- Warehouse -"
     call(sub_460A)
     map \
-        -a $s:7df9
-    chara $s:5a50 $s:12c5 \
+        -a &HASH_MAIN
+    chara &GAS_EFFECT $s:12c5 \
         -c 0 0 0 128 128 150
         -r 0
         -s 4096
         -w 0
         -b 1
-    mesg $s:12c5 $s:d182 4096
+    mesg $s:12c5 &HASH_ON2 4096
     if ($w:800002 <= b:0) {
         eval($w:000412 = 4000)
         eval($w:000414 = 6000)
@@ -1152,32 +1152,32 @@ script {
         eval($w:00041A = b:0)
     }
     if ($w:00000A < b:212) {
-        chara $s:cc45 $s:3dd3 \
+        chara &CONTAINER $s:3dd3 \
             -s b:1
             -c b:1
             -f sub_92A4
             -g sub_92A5
             -h sub_92A6
     } elseif ($w:00000A < b:219) {
-        chara $s:cc45 $s:3dd3 \
+        chara &CONTAINER $s:3dd3 \
             -s b:3
             -l $w:000292 $w:000294 $w:000296 $w:000298 $w:00029A $w:00029C $w:00029E $w:0002A0
             -m $w:0002A2 $w:0002A4 $w:0002A6 $w:0002A8 $w:0002AA $w:0002AC $w:0002AE $w:0002B0
             -n $w:0002B2 $w:0002B4 $w:0002B6 $w:0002B8
     } elseif ($w:00000A < b:242) {
-        chara $s:cc45 $s:3dd3 \
+        chara &CONTAINER $s:3dd3 \
             -s b:2
             -l $w:000292 $w:000294 $w:000296 $w:000298 $w:00029A $w:00029C $w:00029E $w:0002A0
             -m $w:0002A2 $w:0002A4 $w:0002A6 $w:0002A8 $w:0002AA $w:0002AC $w:0002AE $w:0002B0
             -n $w:0002B2 $w:0002B4 $w:0002B6 $w:0002B8
     } else {
-        chara $s:cc45 $s:3dd3 \
+        chara &CONTAINER $s:3dd3 \
             -s b:3
             -l $w:000292 $w:000294 $w:000296 $w:000298 $w:00029A $w:00029C $w:00029E $w:0002A0
             -m $w:0002A2 $w:0002A4 $w:0002A6 $w:0002A8 $w:0002AA $w:0002AC $w:0002AE $w:0002B0
             -n $w:0002B2 $w:0002B4 $w:0002B6 $w:0002B8
     }
-    chara $s:b997 $s:50ea \
+    chara &DOOR $s:50ea \
         -p 0 0 12500
         -d 0 0 0
         -m $s:6e33
@@ -1189,12 +1189,12 @@ script {
         -u 200
         -v 4000
         -e b:93 b:90
-    chara $s:1ad3 $s:0d77 -2250 1800 12250 0 2048 0 500 400 500 \
+    chara &LAMP $s:0d77 -2250 1800 12250 0 2048 0 500 400 500 \
         -S
         -I $s:0e6f
-        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
-        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
-    chara $s:b997 $s:50eb \
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 &HASH_LOOP 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 &HASH_LOOP 3
+    chara &DOOR &PCX_DOOR2 \
         -p 0 0 -9500
         -d 0 0 0
         -m $s:6e33
@@ -1206,14 +1206,14 @@ script {
         -u 200
         -v 4000
         -e b:93 b:90
-    chara $s:1ad3 $s:0d78 2250 1800 -9250 0 0 0 500 400 500 \
+    chara &LAMP $s:0d78 2250 1800 -9250 0 0 0 500 400 500 \
         -S
         -I $s:0e6f
-        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
-        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 &HASH_LOOP 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 &HASH_LOOP 3
     if ($w:00000A >= b:219) {
         if ($f:05026E == b:0) {
-            chara $s:8767 $s:13a5 \
+            chara &ITEM $s:13a5 \
                 -p 12250 0 -8500
                 -b b:4
                 -i b:13
@@ -1222,7 +1222,7 @@ script {
                 -e sub_793F
         }
         if ($f:06026E == b:0) {
-            chara $s:8767 $s:13a6 \
+            chara &ITEM $s:13a6 \
                 -p 12250 0 11500
                 -b b:3
                 -i b:3
@@ -1231,7 +1231,7 @@ script {
                 -e sub_7940
         }
         if ($f:07026E == b:0) {
-            chara $s:8767 $s:13a7 \
+            chara &ITEM $s:13a7 \
                 -p -12250 0 -500
                 -b b:3
                 -i b:3
@@ -1240,7 +1240,7 @@ script {
                 -e sub_7941
         }
         if ($f:04039E == b:0) {
-            chara $s:8767 $s:eebd \
+            chara &ITEM $s:eebd \
                 -p -12250 0 5500
                 -b b:3
                 -i b:4
@@ -1249,7 +1249,7 @@ script {
                 -e sub_7942
         }
         if ($f:05039E == b:0) {
-            chara $s:8767 $s:eebe \
+            chara &ITEM $s:eebe \
                 -p 12250 0 -500
                 -b b:3
                 -i b:4
@@ -1258,42 +1258,42 @@ script {
                 -e sub_7943
         }
     }
-    ntrap $s:4255 $s:21ca \
-        -m $s:14c9
+    ntrap $s:4255 &SNAKE \
+        -m &HASH_TRAP_ALL
         -c
         -e {
         call(sub_C044)
     }
-    ntrap $s:4256 $s:21ca \
-        -m $s:14c9
+    ntrap $s:4256 &SNAKE \
+        -m &HASH_TRAP_ALL
         -c
         -e {
         call(sub_C045)
         mesg $s:c356 1 arg3
     }
-    ntrap $s:4257 $s:21ca \
-        -m $s:14c9
+    ntrap $s:4257 &SNAKE \
+        -m &HASH_TRAP_ALL
         -c
         -e {
         call(sub_C046)
         mesg $s:c356 1 arg3
     }
-    ntrap $s:4258 $s:21ca \
-        -m $s:14c9
+    ntrap $s:4258 &SNAKE \
+        -m &HASH_TRAP_ALL
         -c
         -e {
         call(sub_C047)
         mesg $s:c356 1 arg3
     }
-    ntrap $s:4259 $s:21ca \
-        -m $s:14c9
+    ntrap $s:4259 &SNAKE \
+        -m &HASH_TRAP_ALL
         -s 5
         -e {
         call(sub_C048)
         mesg $s:c356 0 arg3
     }
-    ntrap $s:425a $s:21ca \
-        -m $s:14c9
+    ntrap $s:425a &SNAKE \
+        -m &HASH_TRAP_ALL
         -s 5
         -e {
         call(sub_C049)
@@ -1301,14 +1301,14 @@ script {
     }
     if ($w:00000A < b:210) {
         eval($w:00000A = b:210)
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:4
             -s -9000 4000 -6000 9000 7000 9000
             -i sub_3223
         call(sub_4CED)
-        mesg $s:50ea $s:0dd2
-        mesg $s:0d77 $s:0e4e $s:4878
-        chara $s:7a05 $s:6eca \
+        mesg $s:50ea &HASH_ENTER
+        mesg $s:0d77 &HASH_ON $s:4878
+        chara &CINEMA $s:6eca \
             -t 30000
         demo \
             -e
@@ -1318,12 +1318,12 @@ script {
         eval($f:030290 = b:1)
     } elseif ($w:00000A < b:211) {
         eval($w:00000A = b:211)
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:4
             -s -9000 4000 -6000 9000 7000 9000
             -i sub_3223
         call(sub_4CED)
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         if ($w:000060 == b:1) {
@@ -1345,7 +1345,7 @@ script {
         call(sub_AA35)
         eval($f:030290 = b:1)
     } elseif ($w:00000A < b:213) {
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:2
             -s -6000 4000 -9000 0 7000 10000
             -i sub_3223
@@ -1353,7 +1353,7 @@ script {
         call(sub_13CC)
         eval($f:030290 = b:1)
     } elseif ($w:00000A < b:217) {
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:2
             -s -6000 4000 -9000 0 7000 10000
             -i sub_3223
@@ -1374,85 +1374,85 @@ script {
                 -a
         }
         eval($f:030290 = b:1)
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:8
             -s -9000 4000 -6000 9000 7000 9000
             -i sub_3223
-        chara $s:ec77 $s:80d5 \
+        chara &WALL $s:80d5 \
             -p 2625 0 11000
             -d 0 144 0
             -m $s:d1cd
             -g b:0
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 3000 0 10000 2750 0 9750
             -h 800
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 2750 0 9750 2000 0 10250
             -h 800
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 2000 0 10250 2250 0 10500
             -h 800
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 2250 0 10500 3000 0 10000
             -h 800
             -s 208
-        chara $s:af6c $s:2e8c \
+        chara &DYNFLOOR $s:2e8c \
             -p 3000 675 10000 2750 675 9750 2000 675 10250 2250 675 10500
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 1750 0 11375 2000 0 12250
             -h 250
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 1750 0 11375 4000 0 12250
             -h 250
             -s 208
-        chara $s:af6c $s:2e8c \
+        chara &DYNFLOOR $s:2e8c \
             -p 1750 250 11375 2000 250 12250 4000 250 12250 4000 250 12250
-        ntrap $s:43a2 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a2 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 1024
             -s 1
             -e {
             call(sub_C191)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a3 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a3 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 0
             -s 1
             -e {
             call(sub_C192)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a4 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a4 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 3072
             -s 1
             -e {
             call(sub_C193)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a5 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a5 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 2048
             -s 1
             -e {
             call(sub_C194)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a6 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a6 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 1024
             -s 1
             -e {
             call(sub_C195)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a7 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a7 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 0 1024
             -s 1
             -e {
@@ -1462,85 +1462,85 @@ script {
         call(sub_F26E)
         call(sub_AF25)
     } elseif ($w:00000A < b:242) {
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:8
             -s -9000 4000 -6000 9000 7000 9000
             -i sub_3223
-        chara $s:ec77 $s:80d5 \
+        chara &WALL $s:80d5 \
             -p 2625 0 11000
             -d 0 144 0
             -m $s:d1cd
             -g b:0
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 3000 0 10000 2750 0 9750
             -h 800
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 2750 0 9750 2000 0 10250
             -h 800
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 2000 0 10250 2250 0 10500
             -h 800
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 2250 0 10500 3000 0 10000
             -h 800
             -s 208
-        chara $s:af6c $s:2e8c \
+        chara &DYNFLOOR $s:2e8c \
             -p 3000 675 10000 2750 675 9750 2000 675 10250 2250 675 10500
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 1750 0 11375 2000 0 12250
             -h 250
             -s 208
-        chara $s:b103 $s:2e8c \
+        chara &DYNWALL $s:2e8c \
             -p 1750 0 11375 4000 0 12250
             -h 250
             -s 208
-        chara $s:af6c $s:2e8c \
+        chara &DYNFLOOR $s:2e8c \
             -p 1750 250 11375 2000 250 12250 4000 250 12250 4000 250 12250
-        ntrap $s:43a2 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a2 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 1024
             -s 1
             -e {
             call(sub_C191)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a3 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a3 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 0
             -s 1
             -e {
             call(sub_C192)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a4 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a4 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 3072
             -s 1
             -e {
             call(sub_C193)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a5 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a5 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 2048
             -s 1
             -e {
             call(sub_C194)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a6 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a6 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 1024
             -s 1
             -e {
             call(sub_C195)
             mesg $s:c356 2 arg3
         }
-        ntrap $s:43a7 $s:21ca \
-            -m $s:14c9
+        ntrap $s:43a7 &SNAKE \
+            -m &HASH_TRAP_ALL
             -d 0 1024
             -s 1
             -e {
@@ -1550,20 +1550,20 @@ script {
         call(sub_F26E)
         call(sub_AF25)
     } else {
-        chara $s:8e60 $s:d17a \
+        chara &CROW $s:d17a \
             -n b:4
             -s -9000 4000 -6000 9000 7000 9000
             -i sub_3223
-        if ($s:800094 == $s:4b3c) {
+        if ($s:800094 == &STAGE_s15b) {
             if ($f:030435 == b:0) {
-                chara $s:c6d7 $s:23ef \
+                chara &COMMANDER $s:23ef \
                     -n sub_3575 sub_3576 sub_3577
                     -v -10500 0 1500 -3500 0 1500 3500 0 1500 10500 0 1000
                     -t b:0
                     -l $w:000412 $w:000414 $w:000416
                     -y $w:000418
             } else {
-                chara $s:c6d7 $s:23ef \
+                chara &COMMANDER $s:23ef \
                     -n sub_DF08 sub_DF09 sub_DF0A sub_DF0B
                     -v -10500 0 1500 -3500 0 1500 3500 0 1500 10500 0 1000
                     -t b:0
@@ -1572,14 +1572,14 @@ script {
             }
         } else {
             if ($f:030435 == b:0) {
-                chara $s:c6d7 $s:23ef \
+                chara &COMMANDER $s:23ef \
                     -n sub_3575 sub_3577 sub_3578
                     -v -10500 0 1500 -3500 0 1500 3500 0 1500 10500 0 1000
                     -t b:0
                     -l $w:000412 $w:000414 $w:000416
                     -y $w:000418
             } else {
-                chara $s:c6d7 $s:23ef \
+                chara &COMMANDER $s:23ef \
                     -n sub_DF08 sub_DF09 sub_DF0A sub_DF0B
                     -v -10500 0 1500 -3500 0 1500 3500 0 1500 10500 0 1000
                     -t b:0
@@ -1590,7 +1590,7 @@ script {
         call(sub_F26E)
         call(sub_AF25)
     }
-    trap $s:384b $s:21ca $s:14c9 {
+    trap $s:384b &SNAKE &HASH_TRAP_ALL {
         func \
             -p b:12 0 2500 1500 arg3
     }
@@ -1612,12 +1612,12 @@ script {
     call(sub_00F9)
     call(sub_E42A)
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     map \
-        -c $s:7df9
+        -c &HASH_MAIN
         -u
     call(sub_C044)
-    chara $s:a12e $s:1f8b \
+    chara &FADEIO $s:1f8b \
         -m 1
         -s 30
     if ($f:030290 == b:0) {
@@ -1627,14 +1627,14 @@ script {
     }
     if ($f:0701A3 == b:1) {
         eval($w:800020 = $w:000004)
-        chara $s:21ca $s:21ca \
+        chara &SNAKE &SNAKE \
             -p $w:800010 $w:800012 $w:800014
             -d 0 $w:000002 0
             -o $s:ed9e
-        chara $s:4170 $s:5e08 \
+        chara &BREATH $s:5e08 \
             -t 30
-        mesg $s:21ca $s:f9ad $s:80000E
-        chara $s:ec77 $s:3c55 \
+        mesg &SNAKE $s:f9ad $s:80000E
+        chara &WALL $s:3c55 \
             -p 0 0 0
             -d 0 0 0
             -t $b:00017B
@@ -1646,7 +1646,7 @@ script {
             -r b:39 b:0 b:0
             -x sd:FF000007
     } else {
-        chara $s:ec77 $s:6c3b \
+        chara &WALL $s:6c3b \
             -p 0 0 0
             -d 0 0 0
             -m $s:6f93
@@ -1654,7 +1654,7 @@ script {
         sound \
             -x sd:FF000007
     }
-    chara $s:92bc $s:77be \
+    chara &ASIOTOKUN $s:77be \
         -f 168 169 0 0 0 0 0 0
 }
 

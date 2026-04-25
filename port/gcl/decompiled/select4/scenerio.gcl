@@ -5,7 +5,7 @@ proc sub_D0BB {
     eval($b:000000 = b:128)
     eval($f:000001 = b:0)
     load "select" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -22,7 +22,7 @@ proc sub_1DFD {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
         -n
 }
@@ -35,7 +35,7 @@ proc sub_E5CD {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s15b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -48,7 +48,7 @@ proc sub_61D6 {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s16a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -60,7 +60,7 @@ proc sub_66CE {
     eval($w:000002 = b:2)
     eval($w:000004 = b:0)
     load "s16b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -72,7 +72,7 @@ proc sub_6AD6 {
     eval($w:000002 = 3072)
     eval($w:000004 = b:0)
     load "s16c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -84,7 +84,7 @@ proc sub_6EDE {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s16d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -98,11 +98,11 @@ proc sub_E2E6 {
     eval($w:000004 = b:0)
     if ($w:800006 == b:3) {
         load "s17ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s17a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -117,11 +117,11 @@ proc sub_45CF {
     eval($w:000004 = b:0)
     if ($f:000435 == b:0) {
         load "d18a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "d18ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -136,11 +136,11 @@ proc sub_E493 {
     eval($w:000004 = b:0)
     if ($f:000435 == b:0) {
         load "s19a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s19ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -150,11 +150,11 @@ proc sub_65E3 {
     eval($f:000001 = b:0)
     if ($f:000435 == b:0) {
         load "s20a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s20ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }

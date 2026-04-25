@@ -5,7 +5,7 @@ proc sub_8A37 {
     pad \
         -r
     call(sub_83DA)
-    chara $s:a12e $s:9119 \
+    chara &FADEIO $s:9119 \
         -m 0
         -s 1
     sound \
@@ -14,7 +14,7 @@ proc sub_8A37 {
         -t 22
         -e {
         load "abst" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -33,7 +33,7 @@ proc sub_8CD4 {
 proc sub_6ACD {
     eval($f:000001 = b:0)
     load "s04c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -41,12 +41,12 @@ proc sub_66CF {
     eval($f:000001 = b:0)
     if ($w:800006 == b:3) {
         load "s08br" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
             -n
     } else {
         load "s08b" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
             -n
     }
@@ -199,21 +199,21 @@ script {
     call(sub_860B)
     eval($b:0000AA = b:28)
     call(sub_24AF)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:cb23
         -l $s:cb23
         -h $s:cb23 0
         -z 0
     map \
-        -a $s:7df9
-    chara $s:ec77 $s:29d2 \
+        -a &HASH_MAIN
+    chara &WALL $s:29d2 \
         -p 0 0 0
         -d 0 0 0
         -m $s:6fa5
     if ($w:00000A == b:47) {
         eval($f:000067 = b:1)
         eval($w:00000A = b:48)
-        chara $s:7a05 $s:2feb \
+        chara &CINEMA $s:2feb \
             -t 30000
             -e 1
         demo \
@@ -224,7 +224,7 @@ script {
     } elseif ($w:00000A == b:95) {
         eval($f:000067 = b:1)
         eval($w:00000A = b:97)
-        chara $s:7a05 $s:2fec \
+        chara &CINEMA $s:2fec \
             -t 30000
             -e 1
         demo \
@@ -242,7 +242,7 @@ script {
             -c 14112 t:04020194 b:1
             -p sub_3AE5
     }
-    trap $s:8231 $s:21ca $s:0dd2 {
+    trap $s:8231 &SNAKE &HASH_ENTER {
         if ($w:00000A < b:227) {
             radio \
                 -c 14112 t:0101019A b:0
@@ -256,7 +256,7 @@ script {
         -c $s:80000E
         -u
     eval($w:800020 = $w:000004)
-    mesg $s:21ca $s:f9ad $s:80000E
+    mesg &SNAKE $s:f9ad $s:80000E
 }
 
 
