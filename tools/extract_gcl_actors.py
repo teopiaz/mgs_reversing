@@ -211,31 +211,37 @@ def find_chara_in_proc(proc_node, proc_name, src_text, offset_to_line, out):
     walk(script_stmts)
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--input",  required=True, help="path to scenerio.gcl")
-    ap.add_argument("--output", required=True, help="path to write JSON")
-    args = ap.parse_args()
-
-    src_path = Path(args.input)
+def parse_one(src_path: Path, source_tag: str, out_list):
     src_text = src_path.read_text()
     ast = parse(src_text)
     offset_to_line = build_line_index(src_text)
-    (void := offset_to_line)  # unused for now; kept for future click-through
-
-    out = []
-    if isinstance(ast, list):
-        top_level = ast
-    else:
-        top_level = [ast]
-
+    (void := offset_to_line)  # placeholder — keep for future click-through
+    top_level = ast if isinstance(ast, list) else [ast]
+    before = len(out_list)
     for node in top_level:
-        if not isinstance(node, dict):
-            continue
-        if "PROC_ID" in node:
+        if isinstance(node, dict) and "PROC_ID" in node:
             pid = node.get("PROC_ID")
             proc_name = f"sub_{pid:04X}" if isinstance(pid, int) else "<script>"
-            find_chara_in_proc(node, proc_name, src_text, offset_to_line, out)
+            find_chara_in_proc(node, proc_name, src_text, offset_to_line, out_list)
+    # Tag the new entries with their source.
+    for a in out_list[before:]:
+        a["source"] = source_tag
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--input",  required=True, action="append",
+                    help="path to scenerio.gcl or demo.gcl (may be repeated)")
+    ap.add_argument("--output", required=True, help="path to write JSON")
+    args = ap.parse_args()
+
+    out = []
+    for inp in args.input:
+        p = Path(inp)
+        if not p.is_file():
+            continue
+        tag = "demo" if p.name == "demo.gcl" else "scenerio"
+        parse_one(p, tag, out)
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -251,6 +257,7 @@ def main():
         x, y, z = a["pos"]
         rot = a.get("rot")
         rot_s = "" if rot is None else (rot if isinstance(rot, str) else json.dumps(rot))
+        from_demo = "1" if a.get("source") == "demo" else "0"
         rows.append("\t".join([
             a["type"] or "?",
             a["instance"] or "?",
@@ -258,6 +265,7 @@ def main():
             a["color"] or "#FFFFFF",
             a["proc"] or "?",
             rot_s,
+            from_demo,
         ]))
     tsv_path.write_text("\n".join(rows) + ("\n" if rows else ""))
 

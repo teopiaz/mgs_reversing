@@ -1,0 +1,35 @@
+[
+  {
+    "type": "DEMOSEL",
+    "instance": "DEMOSEL",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": "sub_7B85",
+    "flags": null,
+    "options": {
+      "e": [
+        "sub_1E05"
+      ],
+      "d": [
+        "sub_7B85"
+      ],
+      "g": [
+        "$b:000434",
+        "{8044}{8049}{8053}\uff23 \uff11 \u3092\u30bb{C223}\u30c8\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+        "{8044}{8049}{8053}\uff23 \uff11 \u3092\u30bb{C223}\u30c8\u3057{811F}{8149}",
+        "\u30b9\u30bf\u30fc\u30c8\u30dc\u30bf\u30f3\u3092{907B}\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+        "{811F}\u3060\u3044\u307e\u30c1{C207}{C223}\u30af{90CD}\u3067\u3059\u3002",
+        "  ",
+        "\u59cb\u3057\u3044\u30c7{C203}\u30b9\u30af{810C}\u30bb{C223}\u30c8\u3055{814C}\u3066\u3044\u307e{811B}{8153}\u3002",
+        "\u30e1\u30ea\u30eb\u5230",
+        "\u30aa\u30bf\u30b3\u30f3\u5230",
+        "\u30e1\u30ea\u30eb\u5230{B009}{9035}\u97f3{90D5}{D00A}",
+        "\u30aa\u30bf\u30b3\u30f3\u5230{B009}{9035}\u97f3{90D5}{D00A}"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#BFBEB5",
+    "source": "scenerio"
+  }
+]

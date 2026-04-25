@@ -1,0 +1,304 @@
+[
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "scenerio"
+  },
+  {
+    "type": "$s:F5C5",
+    "instance": "$s:358C",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": [
+      300,
+      200
+    ],
+    "flags": null,
+    "options": {
+      "m": [
+        "b:0"
+      ],
+      "c": [
+        6875,
+        0,
+        -6625,
+        7875,
+        0,
+        -6250
+      ],
+      "r": [
+        300,
+        200
+      ],
+      "v": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "n": [
+        "b:8"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#70B39E",
+    "source": "scenerio"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:D843",
+    "pos": [
+      6000,
+      0,
+      -2250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": -2000,
+    "flags": null,
+    "options": {
+      "p": [
+        6000,
+        0,
+        -2250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6C15"
+      ],
+      "w": [
+        1500
+      ],
+      "r": [
+        -2000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:D844",
+    "pos": [
+      9500,
+      0,
+      -2250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": -2000,
+    "flags": null,
+    "options": {
+      "p": [
+        9500,
+        0,
+        -2250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6C15"
+      ],
+      "w": [
+        1500
+      ],
+      "r": [
+        -2000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "scenerio"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "demo"
+  },
+  {
+    "type": "$s:F5C5",
+    "instance": "$s:358C",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": [
+      300,
+      200
+    ],
+    "flags": null,
+    "options": {
+      "m": [
+        "b:0"
+      ],
+      "c": [
+        6875,
+        0,
+        -6625,
+        7875,
+        0,
+        -6250
+      ],
+      "r": [
+        300,
+        200
+      ],
+      "v": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "n": [
+        "b:8"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#70B39E",
+    "source": "demo"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:D843",
+    "pos": [
+      6000,
+      0,
+      -2250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": -2000,
+    "flags": null,
+    "options": {
+      "p": [
+        6000,
+        0,
+        -2250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6C15"
+      ],
+      "w": [
+        1500
+      ],
+      "r": [
+        -2000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "demo"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:D844",
+    "pos": [
+      9500,
+      0,
+      -2250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": -2000,
+    "flags": null,
+    "options": {
+      "p": [
+        9500,
+        0,
+        -2250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6C15"
+      ],
+      "w": [
+        1500
+      ],
+      "r": [
+        -2000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "demo"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "demo"
+  }
+]

@@ -46,11 +46,11 @@ static char *strip_nl(char *s) {
 
 static void parse_tsv_line(char *line)
 {
-    /* Columns: type \t instance \t x \t y \t z \t color \t proc \t rot */
-    char *cols[8] = {0};
+    /* Columns: type \t instance \t x \t y \t z \t color \t proc \t rot \t from_demo */
+    char *cols[9] = {0};
     int n = 0;
     char *p = line;
-    while (n < 8) {
+    while (n < (int)(sizeof(cols)/sizeof(cols[0]))) {
         cols[n++] = p;
         char *t = strchr(p, '\t');
         if (!t) break;
@@ -73,6 +73,19 @@ static void parse_tsv_line(char *line)
     a->has_pos  = 1;
     a->color    = parse_color(cols[5]);
     if (cols[6]) strncpy(a->proc, cols[6], sizeof(a->proc) - 1);
+    /* Rotation column: "b:N" (preferred), or "[a, b, c]" (camera/searchlight
+       triplet — we just take the first), or empty. */
+    a->rot_b = -1;
+    if (cols[7] && cols[7][0]) {
+        const char *r = cols[7];
+        if (r[0] == 'b' && r[1] == ':') {
+            a->rot_b = atoi(r + 2) & 0xFF;
+        } else if (r[0] == '[') {
+            a->rot_b = atoi(r + 1) & 0xFF;
+        }
+    }
+    /* Eighth column (optional): "1" indicates the entry came from demo.gcl. */
+    a->from_demo = (cols[8] && cols[8][0] == '1') ? 1 : 0;
     g_actor_count++;
 }
 
@@ -123,6 +136,35 @@ static void cube_lines(int cx, int cy, int cz, int r,
     #undef LINE
 }
 
+extern int g_show_actor_rotations;
+
+static void rotation_arrow(int cx, int cy, int cz, int rot_b,
+                           const unsigned char col[3])
+{
+    /* PSX byte rotation: 0..255 maps to 0..2π around the Y axis (yaw on
+       horizontal plane). 0 = facing +Z. */
+    float angle = (float)rot_b * (6.2831853f / 256.0f);
+    float fx = sinf(angle), fz = cosf(angle);
+    int len = MARKER_R * 4;
+    int tip[3] = { cx + (int)(fx * len), cy, cz + (int)(fz * len) };
+    int o[3], t[3];
+    short cd = ed_render_clip_dist();
+    ed_world_to_eye(cx, cy, cz, o);
+    ed_world_to_eye(tip[0], tip[1], tip[2], t);
+    gl_submit_line3d(o, t, col, col, cd);
+    /* Two short tail strokes for an arrowhead, ~30° from the shaft. */
+    float ang_l = angle + 2.6f, ang_r = angle - 2.6f;
+    int hl[3] = { tip[0] + (int)(sinf(ang_l) * MARKER_R * 1.2f), cy,
+                  tip[2] + (int)(cosf(ang_l) * MARKER_R * 1.2f) };
+    int hr[3] = { tip[0] + (int)(sinf(ang_r) * MARKER_R * 1.2f), cy,
+                  tip[2] + (int)(cosf(ang_r) * MARKER_R * 1.2f) };
+    int eL[3], eR[3];
+    ed_world_to_eye(hl[0], hl[1], hl[2], eL);
+    ed_world_to_eye(hr[0], hr[1], hr[2], eR);
+    gl_submit_line3d(t, eL, col, col, cd);
+    gl_submit_line3d(t, eR, col, col, cd);
+}
+
 void ed_actors_render(void)
 {
     for (int i = 0; i < g_actor_count; i++) {
@@ -139,7 +181,68 @@ void ed_actors_render(void)
             r = (int)(MARKER_R * 1.6f);
         }
         cube_lines(a->pos[0], a->pos[1], a->pos[2], r, col);
+        if (g_show_actor_rotations && a->rot_b >= 0) {
+            rotation_arrow(a->pos[0], a->pos[1], a->pos[2], a->rot_b, col);
+        }
     }
+}
+
+/* Map actor type → KMD low-16-bit hash. Hand-curated for the obvious cases
+   (CAMERA, DOOR, ITEM, …); others fall back to the cube marker. The actual
+   cache id is composed as ('k'-'a' << 16) | hash, then we look it up via
+   the GV cache. */
+extern void *GV_GetCache(int id);
+extern int   GV_CacheID(int name, int ext);
+extern int   GV_CacheID2(const char *name, int ext);
+
+static int strcode_hash(const char *s)
+{
+    /* Mirrors port/gcl_tools/constants.py gv_strcode (5-bit rol + add). */
+    unsigned int h = 0;
+    while (*s) {
+        h = ((h << 5) | (h >> 11)) & 0xFFFF;
+        h = (h + (unsigned char)*s) & 0xFFFF;
+        s++;
+    }
+    return (int)h;
+}
+
+int ed_actor_kmd_for_type(const char *type, void **out_def)
+{
+    if (!type || !*type || !out_def) return 0;
+    static const struct { const char *type; const char *kmd_name; } table[] = {
+        /* The obvious ones — actor type maps directly to a KMD with the
+           same string-code hash. Add more here as they're discovered. */
+        { "CAMERA",       "camera"   },
+        { "CAMERA2",      "camera"   },
+        { "DOOR",         "door"     },
+        { "DOOR2",        "door2"    },
+        { "M_DOOR",       "door"     },
+        { "ITEM",         "item"     },
+        { "SEARCHLIGHT",  "slight"   },
+        { "WATCHER",      "zako"     },
+        { "COMMANDER",    "zako"     },
+        { NULL, NULL }
+    };
+    for (int i = 0; table[i].type; i++) {
+        if (strcmp(type, table[i].type) != 0) continue;
+        int id = GV_CacheID2(table[i].kmd_name, 'k');
+        void *p = GV_GetCache(id);
+        if (p) { *out_def = p; return 1; }
+    }
+    /* Last-ditch: try the type name itself, lower-cased. */
+    char lower[32];
+    int n = 0;
+    while (type[n] && n < (int)sizeof(lower) - 1) {
+        char c = type[n];
+        if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+        lower[n++] = c;
+    }
+    lower[n] = 0;
+    int id = GV_CacheID2(lower, 'k');
+    void *p = GV_GetCache(id);
+    if (p) { *out_def = p; return 1; }
+    return 0;
 }
 
 /* CPU ray vs. marker AABB picking. ray_origin/ray_dir are in world space.

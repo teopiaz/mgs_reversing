@@ -24,6 +24,10 @@ int g_show_cameras = 1;
 int g_show_zones   = 0;
 int g_show_routes  = 1;
 int g_show_actors  = 1;
+int g_show_axes    = 1;
+int g_show_actor_models    = 0;
+int g_show_actor_rotations = 1;
+int g_show_trap_labels     = 1;
 
 int g_sel_wall = -1, g_sel_floor = -1, g_sel_trap = -1;
 int g_sel_cam  = -1, g_sel_zone  = -1, g_sel_route = -1;
@@ -45,7 +49,60 @@ void ed_world_to_eye(const int wx, const int wy, const int wz, int eye[3])
     eye[2] = (m->m[2][0]*wx + m->m[2][1]*wy + m->m[2][2]*wz) / 4096 + m->t[2];
 }
 
-static void render_kmd_unlit(DG_DEF *def, int dist)
+/* World → 0..1 normalized screen. Returns 0 when behind near plane or
+   off-screen (caller should skip). Mirrors the math in TRI3D_VS. */
+int ed_world_to_screen(int wx, int wy, int wz, float *sx, float *sy)
+{
+    int eye[3];
+    ed_world_to_eye(wx, wy, wz, eye);
+    if (eye[2] < 4) return 0;
+    float ndc_x = (float)eye[0] * (float)s_clip_dist / (160.0f * (float)eye[2]);
+    float ndc_y = -(float)eye[1] * (float)s_clip_dist / (112.0f * (float)eye[2]);
+    if (ndc_x < -1.2f || ndc_x > 1.2f || ndc_y < -1.2f || ndc_y > 1.2f) return 0;
+    *sx = (ndc_x + 1.0f) * 0.5f;
+    *sy = (1.0f - ndc_y) * 0.5f;
+    return 1;
+}
+
+/* 0..1 screen → world-space ray. Inverse of ed_world_to_screen with eye-z
+   set to 1.0 for the direction vector. */
+extern EdCamera g_cam;
+void ed_screen_to_world_ray(float sx, float sy, float origin[3], float dir[3])
+{
+    float ndc_x = sx * 2.0f - 1.0f;
+    float ndc_y = 1.0f - sy * 2.0f;
+    float dist  = (float)s_clip_dist;
+    if (dist < 1.0f) dist = 1.0f;
+    float eye_dx = ndc_x * 160.0f / dist;
+    float eye_dy = -ndc_y * 112.0f / dist;
+    float eye_dz = 1.0f;
+    /* eye_inv rows are world basis vectors (right, down, forward). The
+       inverse rotation (eye → world) is the transpose, i.e. the columns. */
+    const MATRIX *m = &s_eye_inv;
+    dir[0] = (m->m[0][0]*eye_dx + m->m[1][0]*eye_dy + m->m[2][0]*eye_dz) / 4096.0f;
+    dir[1] = (m->m[0][1]*eye_dx + m->m[1][1]*eye_dy + m->m[2][1]*eye_dz) / 4096.0f;
+    dir[2] = (m->m[0][2]*eye_dx + m->m[1][2]*eye_dy + m->m[2][2]*eye_dz) / 4096.0f;
+    origin[0] = g_cam.pos[0];
+    origin[1] = g_cam.pos[1];
+    origin[2] = g_cam.pos[2];
+}
+
+static void render_world_axes(void)
+{
+    if (!g_show_axes) return;
+    const int L = 5000;
+    static const unsigned char R[3] = {255,  60,  60};
+    static const unsigned char G[3] = { 60, 255,  60};
+    static const unsigned char B[3] = { 60, 100, 255};
+    int o[3], a[3];
+    ed_world_to_eye(0, 0, 0, o);
+    ed_world_to_eye(L, 0, 0, a); gl_submit_line3d(o, a, R, R, s_clip_dist);
+    ed_world_to_eye(0, L, 0, a); gl_submit_line3d(o, a, G, G, s_clip_dist);
+    ed_world_to_eye(0, 0, L, a); gl_submit_line3d(o, a, B, B, s_clip_dist);
+}
+
+static void render_kmd_unlit(DG_DEF *def, int dist,
+                             int wx, int wy, int wz)
 {
     if (!def || def->n_models <= 0 || def->n_models > 256) return;
 
@@ -68,8 +125,9 @@ static void render_kmd_unlit(DG_DEF *def, int dist)
                            (vi >> 16) & 0x7F, (vi >> 24) & 0x7F };
             int eye[4][3];
             for (int k = 0; k < 4; k++) {
-                ed_world_to_eye(verts[idx[k]].vx, verts[idx[k]].vy,
-                                verts[idx[k]].vz, eye[k]);
+                ed_world_to_eye(verts[idx[k]].vx + wx,
+                                verts[idx[k]].vy + wy,
+                                verts[idx[k]].vz + wz, eye[k]);
             }
             /* Reject if entire face is behind near plane. */
             if (eye[0][2] < 1 && eye[1][2] < 1 && eye[2][2] < 1 && eye[3][2] < 1)
@@ -136,17 +194,38 @@ void ed_render_frame(void)
     s_eye_inv  = ch->eye_inv;
     s_clip_dist = ch->clip_distance;
 
-    /* 2. Map model. */
-    if (g_stage.loaded && g_stage.map_def) {
-        render_kmd_unlit((DG_DEF *)g_stage.map_def, s_clip_dist);
+    /* 2. Map geometry — every KMD the loader classified as map-sized. For
+       multi-room stages (e.g. s02a) this is several KMDs; rendering all
+       of them at world origin reconstructs the connected level. */
+    if (g_stage.loaded) {
+        for (int i = 0; i < g_stage.n_map_defs; i++) {
+            render_kmd_unlit((DG_DEF *)g_stage.map_defs[i], s_clip_dist, 0, 0, 0);
+        }
     }
 
-    /* 3. HZD wireframe overlay. */
+    /* 3. Optional actor-model render — uses ed_actor_kmd_for_type to look
+       up a KMD per actor type. Falls back to cube markers in ed_actors. */
+    if (g_show_actor_models) {
+        for (int i = 0; i < g_actor_count; i++) {
+            EdActor *a = &g_actors[i];
+            if (!a->has_pos) continue;
+            void *def = NULL;
+            if (ed_actor_kmd_for_type(a->type, &def) && def) {
+                render_kmd_unlit((DG_DEF *)def, s_clip_dist,
+                                 a->pos[0], a->pos[1], a->pos[2]);
+            }
+        }
+    }
+
+    /* 4. World axes gizmo. */
+    render_world_axes();
+
+    /* 5. HZD wireframe overlay. */
     if (g_stage.hzd_map) {
         ed_hzd_render();
     }
 
-    /* 4. Actor markers. */
+    /* 6. Actor markers (cubes + rotation arrows). */
     if (g_show_actors) {
         ed_actors_render();
     }

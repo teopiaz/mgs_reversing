@@ -1,0 +1,256 @@
+[
+  {
+    "type": "SPHERE",
+    "instance": "$s:F810",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        "$s:CE61"
+      ],
+      "y": [
+        68
+      ],
+      "s": [
+        0
+      ],
+      "c": [
+        128,
+        128,
+        128
+      ]
+    },
+    "proc": "<script>",
+    "color": "#99D88D",
+    "source": "scenerio"
+  },
+  {
+    "type": "ASIATOKUN",
+    "instance": "$s:CD3A",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {},
+    "proc": "<script>",
+    "color": "#6979B9",
+    "source": "scenerio"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ],
+      "e": [
+        1
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "scenerio"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ],
+      "e": [
+        1
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "scenerio"
+  },
+  {
+    "type": "MOVIE",
+    "instance": "$s:22B4",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "i": [
+        30
+      ],
+      "o": [
+        30
+      ],
+      "p": [
+        "sub_AD2D"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#A6CD8C",
+    "source": "scenerio"
+  },
+  {
+    "type": "MOVIE",
+    "instance": "$s:EE52",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "i": [
+        30
+      ],
+      "o": [
+        30
+      ],
+      "p": [
+        "sub_AD2D"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#A6CD8C",
+    "source": "scenerio"
+  },
+  {
+    "type": "SPHERE",
+    "instance": "$s:F810",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        "$s:CE61"
+      ],
+      "y": [
+        68
+      ],
+      "s": [
+        0
+      ],
+      "c": [
+        128,
+        128,
+        128
+      ]
+    },
+    "proc": "<script>",
+    "color": "#99D88D",
+    "source": "demo"
+  },
+  {
+    "type": "ASIATOKUN",
+    "instance": "$s:CD3A",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {},
+    "proc": "<script>",
+    "color": "#6979B9",
+    "source": "demo"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ],
+      "e": [
+        1
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "demo"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ],
+      "e": [
+        1
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "demo"
+  },
+  {
+    "type": "MOVIE",
+    "instance": "$s:22B4",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "i": [
+        30
+      ],
+      "o": [
+        30
+      ],
+      "p": [
+        "sub_AD2D"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#A6CD8C",
+    "source": "demo"
+  },
+  {
+    "type": "MOVIE",
+    "instance": "$s:EE52",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "i": [
+        30
+      ],
+      "o": [
+        30
+      ],
+      "p": [
+        "sub_AD2D"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#A6CD8C",
+    "source": "demo"
+  }
+]

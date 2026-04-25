@@ -1,0 +1,52 @@
+[
+  {
+    "type": "$s:D2F6",
+    "instance": "$s:291C",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "s": [
+        "TITLE",
+        "sub_5F77",
+        "D00A",
+        "sub_2A66",
+        "S00A",
+        "sub_AA6D",
+        "D01A",
+        "sub_2A86",
+        "S01A",
+        "sub_AA8D",
+        "S01A1",
+        "sub_51E6",
+        "S02A",
+        "sub_AAAD",
+        "S02B",
+        "sub_AAAE",
+        "S02C",
+        "sub_AAAF",
+        "S02D",
+        "sub_AAB0",
+        "S02E",
+        "sub_AAB1",
+        "S03A",
+        "sub_AACD",
+        "S03B",
+        "sub_AACE",
+        "S03C",
+        "sub_AACF",
+        "S04A",
+        "sub_AAED",
+        "S04B",
+        "sub_AAEE",
+        "RETURN",
+        "sub_70CF"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#84AAD7",
+    "source": "scenerio"
+  }
+]

@@ -1,0 +1,9 @@
+$s:9C6C	$s:EF26	0	0	0	#B666A4	<script>	[0, 0, 0]	0
+DRUMCAN	$s:D740	-3000	0	-3500	#9C779E	<script>	[0, 0, 0]	0
+DRUMCAN	$s:D740	-2000	0	-4000	#9C779E	<script>	[0, 0, 0]	0
+$s:B47A	$s:63BE	-4500	0	3000	#E68D6B	<script>	[0, 1024, 0]	0
+$s:B47A	$s:63BE	-4500	0	3000	#E68D6B	<script>	[0, 1024, 0]	0
+CAMERA2	$s:DD6D	4500	3500	-1500	#A4A7D3	<script>	[-10500, 0, 8000]	0
+ITEM	$s:A89B	10000	-1500	-2500	#929D77	<script>		0
+ITEM	$s:A89C	-6000	0	6500	#929D77	<script>		0
+ITEM	$s:A89D	17000	-1500	-4250	#929D77	<script>		0

@@ -167,3 +167,219 @@ void ed_hzd_render(void)
         }
     }
 }
+
+/*---------------------------------------------------------------------------*/
+/* Inspector helpers — flat-index walks over walls/floors/traps/cameras.     */
+/*---------------------------------------------------------------------------*/
+
+extern int ed_world_to_screen(int wx, int wy, int wz, float *sx, float *sy);
+
+static int trap_looks_like_camera(const HZD_TRG *t)
+{
+    int dx = t->cam.cam.x - t->cam.b1.x;
+    int dy = t->cam.cam.y - t->cam.b1.y;
+    int dz = t->cam.cam.z - t->cam.b1.z;
+    int orient_nz = (t->cam.orient.x | t->cam.orient.y | t->cam.orient.z) != 0;
+    return (dx | dy | dz) != 0 && orient_nz;
+}
+
+static void seg_center(const HZD_SEG *s, int *cx, int *cy, int *cz)
+{
+    *cx = (s->p1.x + s->p2.x) / 2;
+    *cy = (s->p1.y + s->p2.y) / 2;
+    *cz = (s->p1.z + s->p2.z) / 2;
+}
+
+static void aabb_center(const HZD_VEC *b1, const HZD_VEC *b2,
+                        int *cx, int *cy, int *cz)
+{
+    *cx = (b1->x + b2->x) / 2;
+    *cy = (b1->y + b2->y) / 2;
+    *cz = (b1->z + b2->z) / 2;
+}
+
+int ed_hzd_count_walls(void)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int n = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) n += m->groups[gi].n_walls;
+    return n;
+}
+
+int ed_hzd_count_floors(void)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int n = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) n += m->groups[gi].n_floors;
+    return n;
+}
+
+int ed_hzd_count_traps(void)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int n = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        for (int i = 0; i < m->groups[gi].n_triggers; i++)
+            if (!trap_looks_like_camera(&m->groups[gi].triggers[i])) n++;
+    }
+    return n;
+}
+
+int ed_hzd_count_cameras(void)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int n = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        for (int i = 0; i < m->groups[gi].n_triggers; i++)
+            if (trap_looks_like_camera(&m->groups[gi].triggers[i])) n++;
+    }
+    return n;
+}
+
+int ed_hzd_count_routes(void)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    return m ? m->n_routes : 0;
+}
+
+int ed_hzd_get_wall(int idx, EdHzdItem *out)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int seen = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        HZD_GRP *g = &m->groups[gi];
+        if (idx < seen + g->n_walls) {
+            HZD_SEG *s = &g->walls[idx - seen];
+            seg_center(s, &out->cx, &out->cy, &out->cz);
+            snprintf(out->tag, sizeof(out->tag), "wall %d (g%d)", idx, gi);
+            return 1;
+        }
+        seen += g->n_walls;
+    }
+    return 0;
+}
+
+int ed_hzd_get_floor(int idx, EdHzdItem *out)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int seen = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        HZD_GRP *g = &m->groups[gi];
+        if (idx < seen + g->n_floors) {
+            HZD_FLR *f = &g->floors[idx - seen];
+            out->cx = (f->p1.x + f->p3.x) / 2;
+            out->cy = (f->p1.y + f->p3.y) / 2;
+            out->cz = (f->p1.z + f->p3.z) / 2;
+            snprintf(out->tag, sizeof(out->tag), "floor %d (g%d)", idx, gi);
+            return 1;
+        }
+        seen += g->n_floors;
+    }
+    return 0;
+}
+
+int ed_hzd_get_trap(int idx, EdHzdItem *out)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int seen = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        HZD_GRP *g = &m->groups[gi];
+        for (int i = 0; i < g->n_triggers; i++) {
+            HZD_TRG *t = &g->triggers[i];
+            if (trap_looks_like_camera(t)) continue;
+            if (seen == idx) {
+                aabb_center(&t->trap.b1, &t->trap.b2,
+                            &out->cx, &out->cy, &out->cz);
+                int n = 0;
+                while (n < 12 && t->trap.name[n] && n < (int)sizeof(out->tag) - 1) {
+                    out->tag[n] = t->trap.name[n];
+                    n++;
+                }
+                out->tag[n] = 0;
+                if (!n) snprintf(out->tag, sizeof(out->tag), "trap %d", idx);
+                return 1;
+            }
+            seen++;
+        }
+    }
+    return 0;
+}
+
+int ed_hzd_get_camera(int idx, EdHzdItem *out)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int seen = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        HZD_GRP *g = &m->groups[gi];
+        for (int i = 0; i < g->n_triggers; i++) {
+            HZD_TRG *t = &g->triggers[i];
+            if (!trap_looks_like_camera(t)) continue;
+            if (seen == idx) {
+                out->cx = t->cam.cam.x;
+                out->cy = t->cam.cam.y;
+                out->cz = t->cam.cam.z;
+                snprintf(out->tag, sizeof(out->tag), "cam %d (g%d)", idx, gi);
+                return 1;
+            }
+            seen++;
+        }
+    }
+    return 0;
+}
+
+int ed_hzd_get_route(int idx, EdHzdItem *out)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m || idx < 0 || idx >= m->n_routes) return 0;
+    HZD_PAT *r = &m->routes[idx];
+    if (!r->points || r->n_points < 1) return 0;
+    out->cx = r->points[0].x;
+    out->cy = r->points[0].y;
+    out->cz = r->points[0].z;
+    snprintf(out->tag, sizeof(out->tag), "route %d (%dpts)", idx, r->n_points);
+    return 1;
+}
+
+int ed_hzd_collect_trap_labels(EdHzdLabel *out, int max)
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int n = 0;
+    int trap_idx = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        HZD_GRP *g = &m->groups[gi];
+        for (int i = 0; i < g->n_triggers; i++) {
+            HZD_TRG *t = &g->triggers[i];
+            if (trap_looks_like_camera(t)) continue;
+            int cx, cy, cz;
+            aabb_center(&t->trap.b1, &t->trap.b2, &cx, &cy, &cz);
+            float sx, sy;
+            if (ed_world_to_screen(cx, cy, cz, &sx, &sy)) {
+                if (n < max) {
+                    EdHzdLabel *L = &out[n++];
+                    int k = 0;
+                    while (k < 12 && t->trap.name[k] && k < (int)sizeof(L->name) - 1) {
+                        L->name[k] = t->trap.name[k];
+                        k++;
+                    }
+                    L->name[k] = 0;
+                    if (!k) snprintf(L->name, sizeof(L->name), "trap%d", trap_idx);
+                    L->sx = sx;
+                    L->sy = sy;
+                    L->group = gi;
+                    L->index = trap_idx;
+                }
+            }
+            trap_idx++;
+        }
+    }
+    return n;
+}
