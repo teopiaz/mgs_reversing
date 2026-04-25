@@ -14,11 +14,11 @@ proc sub_46CF {
     eval($w:000004 = b:0)
     if ($f:000435 == b:0) {
         load "d18a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "d18ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -367,9 +367,9 @@ proc sub_4CCA {
 
 proc sub_45D8 {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 261)
-    chara $s:a12e $s:1f8b \
+    chara &FADEIO $s:1f8b \
         -m 0
         -s 30
     delay \
@@ -381,7 +381,7 @@ proc sub_45D8 {
 
 proc sub_35FC {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 261)
     delay \
         -t 17
@@ -392,11 +392,11 @@ proc sub_35FC {
 
 proc sub_EAEE {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     pad \
         -r
     eval($w:00000A = 278)
-    chara $s:a12e $s:2170 \
+    chara &FADEIO $s:2170 \
         -m 0
         -s 15
     sound \
@@ -420,7 +420,7 @@ proc sub_D4AF {
     delay \
         -t 540
         -e {
-        mesg $s:7bf2 1
+        mesg &LIQUID 1
         call(sub_D4B0)
     }
 }
@@ -429,7 +429,7 @@ proc sub_D4B0 {
     delay \
         -t 2210
         -e {
-        mesg $s:7bf2 1
+        mesg &LIQUID 1
     }
 }
 
@@ -464,13 +464,13 @@ script {
         -g sub_9C2B
         -s "- Spply rte. -"
         -c sub_B623
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -h $s:cb61 0
         -k $s:cb61
         -l $s:cb61
         -z 0
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     if ($w:00000A <= 260) {
         sound \
             -n
@@ -484,29 +484,29 @@ script {
             -l 0
             -m 0
             -p 1
-        chara $s:6b6c $s:8f46 \
+        chara &B_SMOKE $s:8f46 \
             -p 1500 12100 2000
         chara $s:9093 $s:bf44 \
             -d 1 0 3
         delay \
             -t 150
             -e {
-            mesg $s:bf44 $s:3223
+            mesg $s:bf44 &HASH_KILL
         }
-        chara $s:7a05 $s:66fa \
+        chara &CINEMA $s:66fa \
             -t 30000
             -e 1
-        chara $s:41a3 $s:41a3 \
+        chara &WAKE &WAKE \
             -p $w:800010 $w:800012 $w:800014
             -d -440 $w:000002 0
             -b 300 640 400 400
         delay \
             -t 630
             -e {
-            mesg $s:41a3 $s:7e11 -100 3800 0
+            mesg &WAKE $s:7e11 -100 3800 0
         }
         if ($w:800004 & 256) {
-            chara $s:e97e $s:7bf2 \
+            chara &DEMODOLL &LIQUID \
                 -m $s:404f
                 -o $s:54f9
                 -r b:1
@@ -518,7 +518,7 @@ script {
                 -e sub_45D8
                 -z b:1
         } else {
-            chara $s:e97e $s:7bf2 \
+            chara &DEMODOLL &LIQUID \
                 -m $s:404f
                 -o $s:54f9
                 -r b:1
@@ -531,7 +531,7 @@ script {
                 -z b:1
         }
         call(sub_D4AF)
-        chara $s:b4e6 $s:6555 \
+        chara &DEMOCANCEL $s:6555 \
             -m 64
             -p sub_35FC
             -s 16
@@ -541,10 +541,10 @@ script {
             -j 0
         sound \
             -s b:1
-        chara $s:ec77 $s:95f2 \
+        chara &WALL $s:95f2 \
             -p 2800 12040 -5000
             -m $s:a96d
-        chara $s:ec77 $s:0894 \
+        chara &WALL $s:0894 \
             -p 3483 11810 -4300
             -m $s:ca34
         if ($b:0003AD < b:1) {
@@ -589,7 +589,7 @@ script {
             eval($b:000426 = b:32)
             eval($b:000427 = b:250)
         }
-        chara $s:7bf2 $s:7bf2 \
+        chara &LIQUID &LIQUID \
             -m $b:0003AE
             -v t:00000000 t:00000000 t:00000000 t:00000000 t:00000000 t:000095D2 t:000095D8 t:00000000 t:000095E6 t:00000000 t:00000000 t:00000000 t:00000000 t:00000000 t:000095FE t:000095F3 t:00000000 t:00000000 t:00000000
             -e sub_EAEE
@@ -602,12 +602,12 @@ script {
         eval($w:800014 = -(b:200))
         eval($w:000002 = 3072)
         eval($w:800020 = b:0)
-        chara $s:760e $s:21ca \
+        chara $s:760e &SNAKE \
             -p $w:800010 $w:800012 $w:800014
             -d 0 $w:000002 0
             -o $s:edfe
     } elseif ($w:00000A == 278) {
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
         demo \
             -e
@@ -638,11 +638,11 @@ script {
     sound \
         -b b:1 b:2
         -x sd:FF000007
-    mesg $s:21ca $s:f9ad $s:80000E
+    mesg &SNAKE $s:f9ad $s:80000E
     call(sub_4CCA)
     eval($w:800020 = $w:000004)
-    mesg $s:21ca $s:f9ad $s:80000E
-    chara $s:a12e $s:1f8b \
+    mesg &SNAKE $s:f9ad $s:80000E
+    chara &FADEIO $s:1f8b \
         -m 1
         -s 30
     call(sub_8F8C)

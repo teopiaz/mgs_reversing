@@ -15,7 +15,7 @@ proc sub_8CD4 {
 proc sub_EEBC {
     eval($f:000001 = b:0)
     load "s03d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -23,12 +23,12 @@ proc sub_66BF {
     eval($f:000001 = b:0)
     if ($w:800006 == b:3) {
         load "s08br" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
             -n
     } else {
         load "s08b" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
             -n
     }
@@ -165,7 +165,7 @@ script {
     call(sub_860B)
     eval($b:0000AA = b:26)
     call(sub_24AD)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:cb21
         -l $s:cb21
         -h $s:cb21 0
@@ -174,16 +174,16 @@ script {
         -k b:154 b:155 b:156
         -r b:39 b:0 b:0
         -x sd:FF000007
-    chara $s:92bc $s:6509 \
+    chara &ASIOTOKUN $s:6509 \
         -f 168 169 171 170 173 172 174 175
         -n 1
     eval($f:0401BE = b:0)
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     if ($w:00000A == b:21) {
         eval($w:00000A = b:22)
         eval($f:0401BE = b:1)
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         demo \
@@ -193,7 +193,7 @@ script {
     } elseif ($w:00000A == b:83) {
         eval($w:00000A = b:85)
         eval($f:0401BE = b:1)
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         demo \
@@ -206,7 +206,7 @@ script {
         eval($w:800010 = -(4000))
         eval($w:800014 = 9000)
         eval($w:000002 = 2048)
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         demo \
@@ -220,13 +220,13 @@ script {
         -c $s:80000E
         -u
     eval($w:800020 = $w:000004)
-    mesg $s:21ca $s:f9ad $s:80000E
+    mesg &SNAKE $s:f9ad $s:80000E
     eval($f:0402E7 = b:0)
     eval($f:0502E7 = b:0)
     eval($f:0602E7 = b:0)
     if ($w:00000A > b:97 && $f:0401BE == b:0) {
         if ($f:0303E9 == b:1) {
-            if ($s:800094 == $s:4b3c) {
+            if ($s:800094 == &STAGE_s15b) {
                 sound \
                     -b b:1 b:2
                     -n
@@ -236,10 +236,10 @@ script {
                     -n
             }
         }
-        chara $s:a12e $s:1f8b \
+        chara &FADEIO $s:1f8b \
             -m 1
             -s 30
-        chara $s:21ca $s:21ca \
+        chara &SNAKE &SNAKE \
             -p $w:800010 $w:800012 $w:800014
             -d 0 $w:000002 0
             -o $s:edbe

@@ -10,7 +10,7 @@ proc sub_FDE3 {
     eval($w:800074 = -(b:1))
     eval($w:000002 = 2048)
     load "s11i" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -p 4000 -16500 12000
         -s b:1
 }
@@ -307,7 +307,7 @@ proc sub_1E04 {
 proc sub_139A {
     pad \
         -r
-    chara $s:a12e $s:139a \
+    chara &FADEIO $s:139a \
         -m 0
         -s 18
     menu \
@@ -317,7 +317,7 @@ proc sub_139A {
 }
 
 proc sub_2FD2 {
-    chara $s:a12e $s:2fd2 \
+    chara &FADEIO $s:2fd2 \
         -m 1
         -s 18
 }
@@ -338,42 +338,42 @@ proc sub_06A3 {
 proc sub_F043 {
     camera \
         -s b:5 b:1 b:0 b:0 -2902 -9902 -11041 -4933 -14102 -13747
-    mesg $s:c356 5 $s:0dd2
+    mesg $s:c356 5 &HASH_ENTER
     delay \
         -t 24
         -e {
-        mesg $s:c356 5 $s:d5cc
+        mesg $s:c356 5 &HASH_LEAVE
         camera \
             -s b:6 b:1 b:0 b:0 -4949 -10665 -5608 -4696 -16893 -13924
-        mesg $s:c356 6 $s:0dd2
+        mesg $s:c356 6 &HASH_ENTER
     }
     delay \
         -t 64
         -e {
-        mesg $s:c356 6 $s:d5cc
+        mesg $s:c356 6 &HASH_LEAVE
         camera \
             -s b:5 b:1 b:0 b:0 -5975 -15725 -14438 -4828 -15584 -11570
-        mesg $s:c356 5 $s:0dd2
+        mesg $s:c356 5 &HASH_ENTER
     }
 }
 
 proc sub_0873 {
-    mesg $s:c356 6 $s:d5cc
+    mesg $s:c356 6 &HASH_LEAVE
     camera \
         -s b:5 b:1 b:2 b:0 265 16260 3516 -684 16260 -13215
-    mesg $s:c356 5 $s:0dd2
+    mesg $s:c356 5 &HASH_ENTER
 }
 
 proc sub_0874 {
-    mesg $s:c356 5 $s:d5cc
+    mesg $s:c356 5 &HASH_LEAVE
     camera \
         -s b:6 b:1 b:2 b:0 -13611 16492 -4903 -5091 20441 -8711
-    mesg $s:c356 6 $s:0dd2
+    mesg $s:c356 6 &HASH_ENTER
 }
 
 proc sub_0875 {
-    mesg $s:c356 5 $s:d5cc
-    mesg $s:c356 6 $s:d5cc
+    mesg $s:c356 5 &HASH_LEAVE
+    mesg $s:c356 6 &HASH_LEAVE
 }
 
 proc sub_9C2B {
@@ -385,7 +385,7 @@ proc sub_9C2B {
 proc sub_B965 {
     sound \
         -x sd:01FFFF0B
-    chara $s:a12e $s:1f8b \
+    chara &FADEIO $s:1f8b \
         -m 0
         -s 30
     delay \
@@ -412,16 +412,16 @@ script {
         -b b:1 b:2
         -s b:2
         -k b:154 b:155 b:0
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:ca84
         -l $s:ca84
         -h $s:ca84 0
         -z 0
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     menu \
         -r 0
-    chara $s:b997 $s:50ea \
+    chara &DOOR $s:50ea \
         -p -5500 -16500 -14250
         -d 0 0 0
         -m $s:edf5
@@ -434,7 +434,7 @@ script {
         eval($w:800074 = b:1)
         eval($w:80001E = b:21)
         eval($w:80001C = -(b:1))
-        chara $s:bda8 $s:21ca \
+        chara &ROPE &SNAKE \
             -p $w:800010 $w:800012 $w:800014
             -d 0 $w:000002 0
             -r -3000 30000 -13500
@@ -459,133 +459,133 @@ script {
             -h 48 64 64 32 512 80 80
             -y 96 125 134 144
             -r b:3
-        trap $s:2ed1 $s:21ca $s:0dd2 {
+        trap $s:2ed1 &SNAKE &HASH_ENTER {
             call(sub_06A3)
         }
 
     } else {
         call(sub_2FD2)
-        chara $s:8b1a $s:21ca \
+        chara $s:8b1a &SNAKE \
             -p -4500 -12000 -14000
             -d 0 2048 0
             -c sub_F043
             -l -16500
             -e sub_B965
     }
-    chara $s:73ea $s:f810 \
+    chara &SPHERE $s:f810 \
         -m $s:ca84
         -y -128
         -c 30 35 56
         -s 4
-    chara $s:18e3 $s:806e \
+    chara &SNOW $s:806e \
         -l -5000 0 -5000
         -h 5000 5000 5000
         -s 200 -60 50
         -w 100 -40 100
         -n 256
         -c 2048
-    chara $s:c35f $s:2a32 \
+    chara &PIPE $s:2a32 \
         -t -6500 14000 -13800
         -p -6437 0 -13750
         -d 0 0 0
         -m $s:5a1e $s:5a1f
-    chara $s:c35f $s:2e32 \
+    chara &PIPE $s:2e32 \
         -t 4500 12000 -13800
         -p 4250 0 -13750
         -d 0 0 0
         -m $s:5a3e $s:5a3f
-    chara $s:76bc $s:456d \
+    chara &DSMOKE2 $s:456d \
         -s -6250 14000 -13800
         -e -1500 14000 -13800
         -i -1 48
         -b -6250 14000 -13500
         -x 36 54 64 74
         -d 278
-    chara $s:76bc $s:456e \
+    chara &DSMOKE2 $s:456e \
         -s 4250 12000 -13800
         -e -500 12000 -13800
         -i 96 84
         -b 4250 12000 -13500
         -x 36 54 64 74
         -d 198
-    chara $s:76bc $s:456f \
+    chara &DSMOKE2 $s:456f \
         -s -2250 7250 -13500
         -e 4000 7250 -13500
         -i 160 48
         -b -2250 7250 -13500
         -x 36 54 64 74
         -d 0
-    chara $s:76bc $s:4570 \
+    chara &DSMOKE2 $s:4570 \
         -s 3750 3750 -13500
         -e -4500 3750 -13500
         -i 160 32
         -b 3750 3750 -13500
         -x 36 54 64 74
         -d 0
-    chara $s:76bc $s:4571 \
+    chara &DSMOKE2 $s:4571 \
         -s -6250 5500 -13500
         -e -1500 5500 -13500
         -i -1 48
         -b -6250 5500 -13500
         -x 36 54 64 74
         -d 0
-    chara $s:76bc $s:4572 \
+    chara &DSMOKE2 $s:4572 \
         -s -4250 -5250 -13500
         -e 4500 -5250 -13500
         -i 160 24
         -b -4250 -5250 -13500
         -x 36 54 64 74
         -d 16
-    chara $s:76bc $s:de27 \
+    chara &DSMOKE2 $s:de27 \
         -s -4250 -2250 -13500
         -e 2500 -2250 -13500
         -i 160 32
         -b -4250 -2250 -13500
         -x 36 54 64 74
         -d 32
-    chara $s:76bc $s:4573 \
+    chara &DSMOKE2 $s:4573 \
         -s -6500 -3750 -13500
         -e -2500 2000 -13500
         -i 160 48
         -b -6500 -3750 -13500
         -x 36 54 64 74
         -d 64
-    chara $s:76bc $s:4574 \
+    chara &DSMOKE2 $s:4574 \
         -s 5500 -3750 -13500
         -e 1500 2000 -13500
         -i -1 48
         -b 5500 -3750 -13500
         -x 36 54 64 74
         -d 32
-    chara $s:76bc $s:4575 \
+    chara &DSMOKE2 $s:4575 \
         -s -6250 -8000 -13500
         -e 500 -8000 -13500
         -i 160 64
         -b -6250 -8000 -13500
         -x 36 54 64 74
         -d 0
-    chara $s:76bc $s:ca26 \
+    chara &DSMOKE2 $s:ca26 \
         -s 4250 -10500 -13500
         -e -4500 -10500 -13500
         -i -1 64
         -b 4250 -10500 -13500
         -x 36 54 64 74
         -d 16
-    chara $s:8767 $s:b173 \
+    chara &ITEM $s:b173 \
         -p 3500 10750 -13250
         -b b:4
         -i b:13
         -n 1
         -h 250
         -m "RATION"
-    chara $s:8767 $s:b174 \
+    chara &ITEM $s:b174 \
         -p -7250 3750 -13250
         -b b:4
         -i b:13
         -n 1
         -h 250
         -m "RATION"
-    trap $s:d4c8 $s:21ca $s:0dd2 {
+    trap $s:d4c8 &SNAKE &HASH_ENTER {
         mesg $s:7b5c $s:5a47 1
         if ($f:06002D == b:0) {
             mesg $s:7b5c $s:fffa 12000 14000
@@ -593,20 +593,20 @@ script {
         }
     }
 
-    trap $s:d4c9 $s:21ca $s:0dd2 {
-        mesg $s:18e3 $s:0e4e
+    trap $s:d4c9 &SNAKE &HASH_ENTER {
+        mesg &SNOW &HASH_ON
     }
 
-    trap $s:d4ca $s:21ca $s:0dd2 {
-        mesg $s:18e3 $s:0e4e
+    trap $s:d4ca &SNAKE &HASH_ENTER {
+        mesg &SNOW &HASH_ON
     }
 
-    trap $s:d4cb $s:21ca $s:0dd2 {
-        mesg $s:18e3 $s:c927
+    trap $s:d4cb &SNAKE &HASH_ENTER {
+        mesg &SNOW &HASH_OFF
     }
 
-    trap $s:d4cc $s:21ca $s:0dd2 {
-        mesg $s:18e3 $s:0e4e
+    trap $s:d4cc &SNAKE &HASH_ENTER {
+        mesg &SNOW &HASH_ON
     }
 
     mesg $s:9602 $s:bcd2 $s:0061
@@ -633,13 +633,13 @@ script {
     map \
         -c $s:80000E
         -u
-    mesg $s:21ca $s:f9ad $s:80000E
+    mesg &SNAKE $s:f9ad $s:80000E
     camera \
         -b -3500 -17000 -14000 2500 32000 22500
         -l -2500 -17000 -14000 1500 32000 22500
         -r 80 2048 0
         -t 16000
-    chara $s:92bc $s:77be \
+    chara &ASIOTOKUN $s:77be \
         -f 168 169 0 0 0 0 0 0
 }
 

@@ -5,7 +5,7 @@ proc sub_8A37 {
     pad \
         -r
     call(sub_83DA)
-    chara $s:a12e $s:9119 \
+    chara &FADEIO $s:9119 \
         -m 0
         -s 1
     sound \
@@ -14,7 +14,7 @@ proc sub_8A37 {
         -t 22
         -e {
         load "abst" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -162,29 +162,29 @@ script {
     }
     call(sub_860B)
     call(sub_48A0)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:e224
         -l $s:cdad
         -h $s:1b43 0
         -z 0
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     map \
-        -c $s:7df9
+        -c &HASH_MAIN
         -u
-    chara $s:ec77 $s:b355 \
+    chara &WALL $s:b355 \
         -p 0 4000 0
         -m $s:6793
-    chara $s:ec77 $s:b354 \
+    chara &WALL $s:b354 \
         -p 0 0 0
         -m $s:1b43
-    chara $s:ec77 $s:b353 \
+    chara &WALL $s:b353 \
         -p 0 -4000 0
         -m $s:1b3e
-    chara $s:ec77 $s:b356 \
+    chara &WALL $s:b356 \
         -p 0 -8000 0
         -m $s:1b3d
-    chara $s:b997 $s:59e3 \
+    chara &DOOR $s:59e3 \
         -p 500 0 2250
         -d 0 0 0
         -m $s:6e28
@@ -192,11 +192,11 @@ script {
         -w 1500
         -s 70
         -u 500
-    chara $s:1ad3 $s:a331 1750 1850 2500 0 0 0 500 500 0 \
+    chara &LAMP $s:a331 1750 1850 2500 0 0 0 500 500 0 \
         -I $s:729e
         -S
     if ($w:00000A == b:182) {
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
         demo \
             -e

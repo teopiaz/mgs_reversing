@@ -5,7 +5,7 @@ proc sub_D0BB {
     eval($b:000000 = b:128)
     eval($f:000001 = b:0)
     load "select" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -20,49 +20,49 @@ proc sub_70CF {
 proc sub_258F {
     eval($w:00004A = b:0)
     load "opening" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2590 {
     eval($w:00004A = b:1)
     load "opening" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2591 {
     eval($w:00004A = b:2)
     load "opening" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_298F {
     eval($w:00000A = b:1)
     load "d00a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2D8F {
     eval($w:00000A = b:7)
     load "d00a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_318F {
     eval($w:00000A = b:9)
     load "d01a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31CF {
     eval($w:00000A = b:13)
     load "d01a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -70,7 +70,7 @@ proc sub_259F {
     eval($f:02005D = b:1)
     eval($f:03005D = b:0)
     load "s02a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -78,7 +78,7 @@ proc sub_25A0 {
     eval($f:04005D = b:1)
     eval($f:05005D = b:0)
     load "s02a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -87,7 +87,7 @@ proc sub_299F {
     eval($f:07005D = b:0)
     eval($w:000062 = b:0)
     load "s02b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -96,42 +96,42 @@ proc sub_29A0 {
     eval($f:07005D = b:0)
     eval($w:000062 = b:1)
     load "s02b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_359F {
     eval($w:00000A = b:19)
     load "s03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_35A0 {
     eval($w:00000A = b:21)
     load "s03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_35A1 {
     eval($w:00000A = b:23)
     load "s03d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_35A2 {
     eval($w:00000A = b:23)
     load "s03d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_35A3 {
     eval($w:00000A = b:23)
     load "s03d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -139,7 +139,7 @@ proc sub_25AF {
     eval($w:00000A = b:27)
     eval($w:800022 = -(b:1))
     load "s03d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -147,42 +147,42 @@ proc sub_25B0 {
     eval($w:00000A = b:27)
     eval($w:800022 = b:1)
     load "s03d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_29AF {
     eval($w:00000A = b:29)
     load "s03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2DAF {
     eval($w:00000A = b:31)
     load "s03b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31AF {
     eval($w:00000A = b:32)
     load "s03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_25CF {
     eval($w:00000A = b:37)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2DCF {
     eval($w:00000A = b:39)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -190,210 +190,210 @@ proc sub_2DD0 {
     eval($f:000064 = b:1)
     eval($w:00000A = b:39)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_3A5E {
     eval($w:00000A = b:41)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31D1 {
     eval($w:00000A = b:41)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31D2 {
     eval($w:00000A = b:42)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31D3 {
     eval($w:00000A = b:44)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31D4 {
     eval($w:00000A = b:47)
     load "s16c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31D5 {
     eval($w:00000A = b:49)
     load "s04b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_25EF {
     eval($w:00000A = b:65)
     load "s05a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_29EF {
     eval($w:00000A = b:68)
     load "s05a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2DEF {
     eval($w:00000A = b:68)
     load "s05a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_21FF {
     eval($w:00000A = b:74)
     load "s08a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_25FF {
     eval($w:00000A = b:70)
     load "s08c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_29FF {
     eval($w:00000A = b:74)
     load "s08c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2DFF {
     eval($w:00000A = b:76)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_35FF {
     eval($w:00000A = b:78)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_260F {
     eval($w:00000A = b:82)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2610 {
     eval($w:00000A = b:82)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2611 {
     eval($w:00000A = b:83)
     load "s16a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2612 {
     eval($w:00000A = b:85)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2613 {
     eval($w:00000A = b:87)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2614 {
     eval($w:00000A = b:89)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2615 {
     eval($w:00000A = b:91)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2616 {
     eval($w:00000A = b:93)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2617 {
     eval($w:00000A = b:95)
     load "s16c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2618 {
     eval($w:00000A = b:97)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_264F {
     eval($w:00000A = b:102)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2650 {
     eval($w:00000A = b:103)
     load "s03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2651 {
     eval($w:00000A = b:105)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2652 {
     eval($w:00000A = b:107)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2653 {
     eval($w:00000A = b:109)
     load "s08b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -422,91 +422,91 @@ proc sub_2781 {
 proc sub_2782 {
     eval($w:00000A = b:120)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2F7F {
     eval($w:00000A = b:120)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_337F {
     eval($w:00000A = b:122)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_278F {
     eval($w:00000A = b:124)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2F8F {
     eval($w:00000A = b:126)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_37CF {
     eval($w:00000A = b:134)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_37D0 {
     eval($w:00000A = b:134)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_37D1 {
     eval($w:00000A = b:134)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_3B8F {
     eval($w:00000A = b:136)
     load "s07b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_279F {
     eval($w:00000A = b:138)
     load "s09a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2B9F {
     eval($w:00000A = b:143)
     load "s10a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2F9F {
     eval($w:00000A = b:146)
     load "s10a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_3F9F {
     eval($w:00000A = b:153)
     load "s10a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -516,7 +516,7 @@ proc sub_2BAF {
     eval($f:0100A9 = b:1)
     eval($w:00000A = b:157)
     load "s03b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -524,7 +524,7 @@ proc sub_27BF {
     eval($b:000065 = b:1)
     eval($w:00000A = b:0)
     load "s03c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -532,7 +532,7 @@ proc sub_37DF {
     eval($b:000066 = b:1)
     eval($f:020064 = b:0)
     load "s03c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -542,7 +542,7 @@ proc sub_2BCF {
     eval($w:800014 = 18000)
     eval($w:00000A = b:168)
     load "s10a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -552,7 +552,7 @@ proc sub_23DF {
     eval($w:800014 = 25661)
     eval($w:00000A = b:174)
     load "s11b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -562,7 +562,7 @@ proc sub_27DF {
     eval($w:800012 = 1300)
     eval($w:800014 = 15500)
     load "s11b" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -570,7 +570,7 @@ proc sub_27E0 {
     eval($w:800074 = -(b:1))
     eval($w:00000A = b:176)
     load "s11g" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -578,7 +578,7 @@ proc sub_27E1 {
     eval($w:800074 = b:1)
     eval($w:00000A = b:176)
     load "s11g" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -589,7 +589,7 @@ proc sub_27EF {
     eval($w:00000A = b:182)
     eval($f:010001 = b:1)
     load "d11c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -599,7 +599,7 @@ proc sub_2BEF {
     eval($w:800014 = -(6500))
     eval($w:00000A = b:184)
     load "s11h" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -607,7 +607,7 @@ proc sub_33EF {
     eval($w:00000A = b:187)
     eval($f:050047 = b:1)
     load "s11h" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -615,7 +615,7 @@ proc sub_2FFF {
     eval($w:00000A = b:198)
     eval($f:06005C = b:1)
     load "s12a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -623,21 +623,21 @@ proc sub_3000 {
     eval($w:00000A = b:203)
     eval($f:06005C = b:1)
     load "s12a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_280F {
     eval($w:00000A = b:207)
     load "s14e" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_257F {
     eval($w:00000A = b:210)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -645,7 +645,7 @@ proc sub_297F {
     eval($w:000060 = b:1)
     eval($w:00000A = b:210)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -653,28 +653,28 @@ proc sub_2980 {
     eval($w:000060 = b:0)
     eval($w:00000A = b:210)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_317F {
     eval($w:00000A = b:212)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_319F {
     eval($w:00000A = b:214)
     load "d03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_31BF {
     eval($w:00000A = b:216)
     load "s15a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -684,35 +684,35 @@ proc sub_398F {
     eval($w:800014 = 9000)
     eval($w:00000A = b:227)
     load "s16d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_39CF {
     eval($w:00000A = b:235)
     load "s16d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_345D {
     eval($w:00000A = b:239)
     load "s16d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2D9F {
     eval($w:00000A = b:241)
     load "s16d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_365D {
     eval($w:00000A = b:247)
     load "s16d" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -720,7 +720,7 @@ proc sub_B65D {
     eval($w:00000A = b:252)
     eval($f:030064 = b:0)
     load "d16e" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -728,7 +728,7 @@ proc sub_2DB0 {
     eval($w:00000A = b:252)
     eval($f:030064 = b:1)
     load "d16e" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -737,7 +737,7 @@ proc sub_29BF {
     eval($b:0003A5 = b:0)
     eval($f:050064 = b:1)
     load "s17a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -746,7 +746,7 @@ proc sub_2DBF {
     eval($b:0003A5 = b:1)
     eval($f:050064 = b:1)
     load "s17a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -755,7 +755,7 @@ proc sub_2DC0 {
     eval($b:0003A5 = b:2)
     eval($f:050064 = b:1)
     load "s17a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -764,7 +764,7 @@ proc sub_35BF {
     eval($b:0003A5 = b:3)
     eval($f:050064 = b:1)
     load "s17a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -772,56 +772,56 @@ proc sub_35C0 {
     eval($w:00000A = 258)
     eval($f:01005D = b:1)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_3E5D {
     eval($w:00000A = 261)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_629D {
     eval($w:00000A = 263)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_29F0 {
     eval($w:00000A = 265)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_E036 {
     eval($w:00000A = 267)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_29F1 {
     eval($w:00000A = 269)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2A0F {
     eval($w:00000A = 271)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_2A4F {
     eval($w:00000A = 275)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -829,7 +829,7 @@ proc sub_2DDF {
     eval($f:03005C = b:1)
     eval($w:00000A = 278)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -837,7 +837,7 @@ proc sub_31DF {
     eval($f:03005C = b:0)
     eval($w:00000A = 278)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -845,7 +845,7 @@ proc sub_321F {
     eval($f:03005C = b:0)
     eval($w:00000A = 281)
     load "d18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -853,7 +853,7 @@ proc sub_405D {
     eval($f:03005C = b:0)
     eval($w:00000A = 286)
     load "s20a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -861,7 +861,7 @@ proc sub_2A00 {
     eval($f:03005C = b:1)
     eval($w:00000A = 286)
     load "s20a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -869,7 +869,7 @@ proc sub_2A3F {
     eval($f:03005C = b:0)
     eval($w:00000A = 290)
     load "s20a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -878,7 +878,7 @@ proc sub_2A40 {
     eval($f:03005C = b:0)
     eval($f:060064 = b:1)
     load "ending" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -886,7 +886,7 @@ proc sub_2A5F {
     eval($f:03005C = b:1)
     eval($w:00000A = 290)
     load "s20a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -895,7 +895,7 @@ proc sub_2A60 {
     eval($f:03005C = b:1)
     eval($f:060064 = b:1)
     load "ending" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -903,7 +903,7 @@ proc sub_2A7F {
     eval($w:00000A = 293)
     eval($f:03005C = b:0)
     load "ending" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -911,7 +911,7 @@ proc sub_2A9F {
     eval($w:00000A = 293)
     eval($f:03005C = b:1)
     load "ending" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -919,7 +919,7 @@ proc sub_47D1 {
     eval($f:03005C = b:0)
     eval($f:060064 = b:1)
     load "ending" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 

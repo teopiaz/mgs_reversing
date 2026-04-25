@@ -54,9 +54,17 @@ def _op_precedence(node):
 
 
 class GclWriter:
-    def __init__(self, tree_data, fonts_size=0):
+    def __init__(self, tree_data, fonts_size=0, use_names=False):
         self.tree_data = tree_data
         self.fonts_size = fonts_size
+        self.use_names = use_names
+        self._name_table = None
+        if use_names:
+            try:
+                from mgs_names import HASH_TO_NAME
+                self._name_table = HASH_TO_NAME
+            except ImportError:
+                self._name_table = {}
 
     def render(self) -> str:
         out = []
@@ -104,6 +112,10 @@ class GclWriter:
             case GclCode.FLAG.name:
                 return "true" if v else "false"
             case GclCode.STR_ID.name:
+                if self._name_table is not None:
+                    name = self._name_table.get(v)
+                    if name is not None:
+                        return f"&{name}"
                 return f"$s:{v:04x}"
             case GclCode.STR.name:
                 # Prefix `m` when the string contains MGS-encoded 2-byte

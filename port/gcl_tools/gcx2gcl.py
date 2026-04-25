@@ -24,6 +24,9 @@ def main() -> int:
     ap.add_argument("--json", help="also dump the AST as JSON to this path")
     ap.add_argument("--trailing", help="write trailing font/data bytes here "
                                         "(pair with gcl2gcx.py --trailing)")
+    ap.add_argument("--names", action="store_true",
+                    help="emit &NAME symbolic constants for known hashes "
+                         "(see port/gcl_tools/mgs_names.py)")
     args = ap.parse_args()
 
     gcx = GcxData(args.input)
@@ -38,7 +41,8 @@ def main() -> int:
         tail = bytes(dec.gcx[dec.gcx.offset:dec.gcx.offset + dec.fonts_size])
         Path(args.trailing).write_bytes(tail)
 
-    text = GclWriter(dec.tree_data, fonts_size=dec.fonts_size).render()
+    text = GclWriter(dec.tree_data, fonts_size=dec.fonts_size,
+                     use_names=args.names).render()
     if args.output:
         Path(args.output).write_text(text, encoding="utf-8")
     else:

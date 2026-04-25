@@ -4,7 +4,7 @@
 proc sub_DF2A {
     eval($f:000001 = b:0)
     load "title" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -12,7 +12,7 @@ proc sub_B7ED {
     eval($b:000000 = b:128)
     eval($f:000001 = b:0)
     load "d00a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -109,12 +109,12 @@ proc sub_7B85 {
 }
 
 script {
-    eval($s:80000E = $s:7df9)
+    eval($s:80000E = &HASH_MAIN)
     map \
-        -d $s:7df9 $s:2a2f
+        -d &HASH_MAIN $s:2a2f
     map \
-        -a $s:7df9
-    chara $s:3686 $s:3686 \
+        -a &HASH_MAIN
+    chara &DEMOSEL &DEMOSEL \
         -e sub_1E05
         -d sub_7B85
         -g $b:000434 m"{8044}{8049}{8053}Ｃ １ をセ{C223}トしてください。" m"{8044}{8049}{8053}Ｃ １ をセ{C223}トし{811F}{8149}" m"スタートボタンを{907B}してください。" m"{811F}だいまチ{C207}{C223}ク{90CD}です。" "  " m"始しいデ{C203}スク{810C}セ{C223}トさ{814C}ていま{811B}{8153}。" m"メリル到" m"オタコン到" m"メリル到{B009}{9035}音{90D5}{D00A}" m"オタコン到{B009}{9035}音{90D5}{D00A}"

@@ -57,3 +57,8 @@ port/data/disc1/MGS/VOX.DAT
 port/data/disc1/MGS/ZMOVIE.STR
 port/mgs
 .DS_Store
+port/doc/html/
+port/ISO/
+.claude/settings.json
+port/imgui.ini
+sessions/session1.txt

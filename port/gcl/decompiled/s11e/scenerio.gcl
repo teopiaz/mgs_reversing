@@ -361,7 +361,7 @@ proc sub_A1A8 {
 proc sub_C682 {}
 
 proc sub_3576 {
-    chara $s:a60c $s:41e2 \
+    chara &ZAKO11E $s:41e2 \
         -r b:0
         -n b:2
         -o sub_C682
@@ -370,7 +370,7 @@ proc sub_3576 {
 }
 
 proc sub_3577 {
-    chara $s:a60c $s:41e3 \
+    chara &ZAKO11E $s:41e3 \
         -r b:1
         -n b:0
         -o sub_C682
@@ -379,7 +379,7 @@ proc sub_3577 {
 }
 
 proc sub_3578 {
-    chara $s:a60c $s:41e4 \
+    chara &ZAKO11E $s:41e4 \
         -r b:2
         -n b:11
         -o sub_C682
@@ -388,7 +388,7 @@ proc sub_3578 {
 }
 
 proc sub_3579 {
-    chara $s:a60c $s:41e5 \
+    chara &ZAKO11E $s:41e5 \
         -r b:3
         -n b:9
         -o sub_C682
@@ -411,7 +411,7 @@ proc sub_3E65 {
     if ($w:000094 > 1620) {
         eval($w:000094 = $w:800014 - 1000)
     }
-    chara $s:51c6 $s:9fe8 \
+    chara &CAT_IN $s:9fe8 \
         -c $w:000090 180 $w:000094 $w:800010 $w:800012 $w:800014
         -a 280
         -t 30000
@@ -433,7 +433,7 @@ proc sub_4ECB {
     pad \
         -r
     call(sub_83DA)
-    mesg $s:21ca $s:3238 0 -1 2
+    mesg &SNAKE &HASH_STANCE 0 -1 2
     delay \
         -t 60
         -e {
@@ -452,7 +452,7 @@ proc sub_4F84 {
     delay \
         -t 30
         -e {
-        chara $s:a12e $s:1f8b \
+        chara &FADEIO $s:1f8b \
             -m 0
             -s 30
         delay \
@@ -462,7 +462,7 @@ proc sub_4F84 {
 }
 
 proc sub_41C5 {
-    chara $s:fed1 $s:a83b b:50 b:30
+    chara &PADVIBRATE $s:a83b b:50 b:30
     delay \
         -t 32
         -e {
@@ -471,7 +471,7 @@ proc sub_41C5 {
 }
 
 proc sub_18C7 {
-    chara $s:7bc2 $s:8d1c \
+    chara &CAMERA_SHAKE $s:8d1c \
         -p 500 1000 100
         -r 1000
         -s 800
@@ -486,8 +486,8 @@ proc sub_18C7 {
 proc sub_E6A9 {
     rand 5
     if ($w:80000A == b:2) {
-        chara $s:fed1 $s:a83b b:100 b:10
-        chara $s:7bc2 $s:7e46 \
+        chara &PADVIBRATE $s:a83b b:100 b:10
+        chara &CAMERA_SHAKE $s:7e46 \
             -p 500 1000 100
             -r 2000
             -s 1800
@@ -513,13 +513,13 @@ script {
     system \
         -g sub_9C2B
         -s "- Comm twr B -"
-    mapdef $s:7df9 \
-        -k $s:ca85
-        -l $s:ca85
-        -h $s:ca85 0
+    mapdef &HASH_MAIN \
+        -k &HASH_POOL
+        -l &HASH_POOL
+        -h &HASH_POOL 0
         -z 0
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     if ($w:00000A < b:192) {
         eval($w:00000A = b:194)
         radio \
@@ -529,7 +529,7 @@ script {
         call(sub_18C7)
         call(sub_41C5)
         call(sub_E6A9)
-        chara $s:7a05 $s:66fa \
+        chara &CINEMA $s:66fa \
             -t 85
             -e 0
         if ($w:800002 <= b:0) {
@@ -545,7 +545,7 @@ script {
             eval($w:00041C = 960)
             eval($w:00041E = b:128)
         }
-        chara $s:5f0a $s:6355 \
+        chara &ZK11ECOM $s:6355 \
             -n sub_3576 sub_3577 sub_3578 sub_3579
             -v b:3 b:4
             -b t:00008A2D
@@ -576,29 +576,29 @@ script {
     map \
         -c $s:80000E
         -u
-    mesg $s:21ca $s:f9ad $s:80000E
+    mesg &SNAKE $s:f9ad $s:80000E
     camera \
         -s b:2 b:1 b:2 b:0 646 5799 1370 420 -1914 -726
-    mesg $s:c356 2 $s:0dd2
+    mesg $s:c356 2 &HASH_ENTER
     eval($w:800020 = $w:000004)
-    mesg $s:21ca $s:f9ad $s:80000E
-    chara $s:21ca $s:21ca \
+    mesg &SNAKE $s:f9ad $s:80000E
+    chara &SNAKE &SNAKE \
         -p $w:800010 $w:800012 $w:800014
         -d 0 $w:000002 0
         -r 64
-    chara $s:5a50 $s:12c5 \
+    chara &GAS_EFFECT $s:12c5 \
         -c 0 0 0 100 100 100
         -r 100
         -s 4096
         -w 0
         -b 2
-    mesg $s:12c5 $s:d182 4096
+    mesg $s:12c5 &HASH_ON2 4096
     sound \
         -s b:1
         -k b:154 b:155 b:0
         -r b:39 b:39 b:0
         -x sd:FF000007
-    chara $s:92bc $s:77be \
+    chara &ASIOTOKUN $s:77be \
         -f 168 169 170 171 172 173 174 175
 }
 

@@ -9,11 +9,11 @@ proc sub_AEA4 {
     eval($f:000001 = b:0)
     if ($f:000435 == b:0) {
         load "ending" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "endingr" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -43,7 +43,7 @@ proc sub_27B1 {
 script {
     eval($b:0000AA = b:31)
     call(sub_27ED)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:ce61
         -l $s:ce61
         -h $s:ce61 0
@@ -51,16 +51,16 @@ script {
     map \
         -b b:135 b:123 b:174
     map \
-        -a $s:7df9
-    chara $s:73ea $s:f810 \
+        -a &HASH_MAIN
+    chara &SPHERE $s:f810 \
         -m $s:ce61
         -y 68
         -s 0
         -c 128 128 128
     if ($w:00000A == 286) {
         map \
-            -s $s:7df9
-        chara $s:7a05 $s:6eca \
+            -s &HASH_MAIN
+        chara &CINEMA $s:6eca \
             -t 30000
         if ($f:03005C == b:0) {
             map \
@@ -79,17 +79,17 @@ script {
         }
     } elseif ($w:00000A == 288) {
         map \
-            -s $s:7df9
+            -s &HASH_MAIN
         map \
-            -c $s:7df9
+            -c &HASH_MAIN
         eval($w:00000A = 290)
         radio \
             -c 14085 t:060401BE b:1
             -p sub_AD2D
     } elseif ($w:00000A == 290) {
         map \
-            -s $s:7df9
-        chara $s:7a05 $s:6eca \
+            -s &HASH_MAIN
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         eval($w:00000A = 292)

@@ -4,7 +4,7 @@
 proc sub_B522 {
     eval($f:000001 = b:0)
     load "rank" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -125,11 +125,11 @@ proc sub_584F {
 }
 
 script {
-    eval($s:80000E = $s:7df9)
+    eval($s:80000E = &HASH_MAIN)
     map \
-        -d $s:7df9 $s:ca26
+        -d &HASH_MAIN $s:ca26
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     menu \
         -r 0
         -m 0
@@ -167,7 +167,7 @@ script {
                     -w 0
             }
         } elseif ($b:0003D7 == b:2) {
-            chara $s:3453 $s:ee52 \
+            chara &MOVIE $s:ee52 \
                 -p sub_C20E
         } elseif ($b:0003D7 == b:3) {
             delay \

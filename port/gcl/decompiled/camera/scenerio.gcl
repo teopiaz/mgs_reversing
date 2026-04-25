@@ -4,7 +4,7 @@
 proc sub_DF2A {
     eval($f:000001 = b:0)
     load "title" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -18,11 +18,11 @@ proc sub_1D3C {
 }
 
 script {
-    eval($s:80000E = $s:7df9)
+    eval($s:80000E = &HASH_MAIN)
     map \
-        -d $s:7df9 $s:eee9
+        -d &HASH_MAIN $s:eee9
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     chara $s:81c7 $s:81c7 \
         -e sub_1D3C m"変始到音を上７き保存しますか{C03F}"
     menu \

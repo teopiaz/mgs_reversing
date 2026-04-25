@@ -5,7 +5,7 @@ proc sub_D0BB {
     eval($b:000000 = b:128)
     eval($f:000001 = b:0)
     load "select" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -22,7 +22,7 @@ proc sub_BECD {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s05a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -35,7 +35,7 @@ proc sub_41BE {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s06a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -48,7 +48,7 @@ proc sub_C2BE {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s07a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:2
 }
 
@@ -60,11 +60,11 @@ proc sub_C7BE {
     eval($w:000002 = 2048)
     if ($f:000435 == b:0) {
         load "s07b" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s07br" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -78,7 +78,7 @@ proc sub_43BF {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s08a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:2
 }
 
@@ -91,11 +91,11 @@ proc sub_4CBF {
     eval($w:000004 = b:0)
     if ($w:800006 == b:3) {
         load "s08cr" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s08c" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -109,12 +109,12 @@ proc sub_1A2A {
     eval($w:000004 = b:0)
     if ($w:800006 == b:3) {
         load "s08br" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
             -n
     } else {
         load "s08b" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
             -n
     }
@@ -130,11 +130,11 @@ proc sub_C3C7 {
     eval($w:000004 = b:0)
     if ($f:000435 == b:0) {
         load "s09a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s09ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }

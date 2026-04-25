@@ -5,7 +5,7 @@ proc sub_8A37 {
     pad \
         -r
     call(sub_83DA)
-    chara $s:a12e $s:9119 \
+    chara &FADEIO $s:9119 \
         -m 0
         -s 1
     sound \
@@ -14,7 +14,7 @@ proc sub_8A37 {
         -t 22
         -e {
         load "abst" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -38,7 +38,7 @@ proc sub_6493 {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s18a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -51,7 +51,7 @@ proc sub_E493 {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s19a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -174,7 +174,7 @@ proc sub_860B {
 proc sub_53B1 {
     map \
         -s arg1
-    mesg $s:21ca $s:f9ad arg1
+    mesg &SNAKE $s:f9ad arg1
     call(sub_4CCA)
 }
 
@@ -243,7 +243,7 @@ proc sub_1E04 {
 }
 
 proc sub_EF70 {
-    chara $s:a12e $s:1f8b \
+    chara &FADEIO $s:1f8b \
         -m 0
         -s 30
     delay \
@@ -255,9 +255,9 @@ proc sub_EF70 {
 
 proc sub_913B {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 263)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
     demo \
         -e
@@ -268,9 +268,9 @@ proc sub_913B {
 
 proc sub_913C {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 265)
-    chara $s:3453 $s:e80c \
+    chara &MOVIE $s:e80c \
         -i 30
         -o 30
         -p sub_1E04
@@ -278,9 +278,9 @@ proc sub_913C {
 
 proc sub_913D {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 267)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
     demo \
         -e
@@ -291,9 +291,9 @@ proc sub_913D {
 
 proc sub_913E {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 269)
-    chara $s:3453 $s:9cd7 \
+    chara &MOVIE $s:9cd7 \
         -i 30
         -o 30
         -p sub_1E04
@@ -301,9 +301,9 @@ proc sub_913E {
 
 proc sub_913F {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 271)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
     demo \
         -e
@@ -314,9 +314,9 @@ proc sub_913F {
 
 proc sub_9140 {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 273)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
         -e 1
     demo \
@@ -328,7 +328,7 @@ proc sub_9140 {
 
 proc sub_9141 {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 275)
     radio \
         -c 14085 t:050301B3 b:1
@@ -337,9 +337,9 @@ proc sub_9141 {
 
 proc sub_9142 {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 277)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
         -e 1
     demo \
@@ -351,9 +351,9 @@ proc sub_9142 {
 
 proc sub_915A {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 279)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
     demo \
         -e
@@ -364,7 +364,7 @@ proc sub_915A {
 
 proc sub_915B {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 281)
     radio \
         -c 14112 t:020101BB b:1
@@ -373,8 +373,8 @@ proc sub_915B {
 
 proc sub_915C {
     map \
-        -a $s:7df9
-    chara $s:7a05 $s:66fa \
+        -a &HASH_MAIN
+    chara &CINEMA $s:66fa \
         -t 30000
     demo \
         -e
@@ -390,9 +390,9 @@ proc sub_FCF7 {
 
 proc sub_915E {
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     eval($w:00000A = 279)
-    chara $s:7a05 $s:66fa \
+    chara &CINEMA $s:66fa \
         -t 30000
     demo \
         -e
@@ -405,7 +405,7 @@ proc sub_D4B0 {
     delay \
         -t 2210
         -e {
-        mesg $s:7bf2 1
+        mesg &LIQUID 1
     }
 }
 
@@ -418,16 +418,16 @@ script {
     }
     call(sub_860B)
     call(sub_24ED)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -h $s:cb61 0
         -k $s:cb61
         -l $s:cb61
         -z 0
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     if ($w:00000A == 258 && $f:01005D == b:1) {
         eval($w:00000A = 259)
-        chara $s:7a05 $s:66fa \
+        chara &CINEMA $s:66fa \
             -t 30000
         demo \
             -e
@@ -479,7 +479,7 @@ script {
         -a $s:80000E
     call(sub_53B1, $s:80000E)
     eval($w:800020 = $w:000004)
-    mesg $s:21ca $s:f9ad $s:80000E
+    mesg &SNAKE $s:f9ad $s:80000E
     call(sub_8F8C)
     call(sub_83DA)
 }
