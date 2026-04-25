@@ -254,6 +254,17 @@ void FS_CdStageFileInit(void *buffer, int sector)
     /* Already initialized in FS_StartDaemon */
 }
 
+/* Editor accessors — expose the parsed STAGE.DIR table without making the
+   internal struct public. Names are 8 chars, NUL-padded; the buffer returned
+   here points into stage_table and is valid for the program's lifetime. */
+int port_fs_stage_count(void) { return stage_count; }
+
+const char *port_fs_stage_name(int idx)
+{
+    if (idx < 0 || idx >= stage_count) return NULL;
+    return stage_table[idx].name;   /* not NUL-terminated past 8 chars */
+}
+
 /*---------------------------------------------------------------------------*/
 /* Stage loading — simplified direct read                                    */
 /*---------------------------------------------------------------------------*/
@@ -272,6 +283,23 @@ static PortStageInfo port_stage_info;
    overlay (Other tab) to show the current stage without hooking the overlay
    loader. Not cleared on unload -- it keeps showing the most recent name. */
 char port_current_stage[16] = {0};
+
+/* Editor stage-switch helper. Frees the GV_NORMAL_MEMORY allocation made by
+   FS_LoadStageRequest (~1 MiB per stage, would otherwise exhaust the 2 MiB
+   pool after two loads) and clears the cached info so a follow-up
+   FS_LoadStageRequest starts fresh. Cache entries that pointed into the
+   freed buffer must be zeroed by the caller (see ed_loader). */
+void port_fs_unload_stage(void)
+{
+    if (port_stage_info.loaded && port_stage_info.buffer) {
+        GV_FreeMemory(GV_NORMAL_MEMORY, port_stage_info.buffer);
+    }
+    port_stage_info.loaded = 0;
+    port_stage_info.buffer = NULL;
+    port_stage_info.datacnf = NULL;
+    port_stage_info.size = 0;
+    port_current_stage[0] = 0;
+}
 
 void *FS_LoadStageRequest(const char *dirname)
 {

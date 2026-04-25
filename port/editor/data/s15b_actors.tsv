@@ -1,0 +1,58 @@
+ENV_SOUND	$s:4443	-6500	-6500	-800	#B975EF	<script>	7000	0
+ENV_SOUND	$s:4444	-6500	-6500	-800	#B975EF	<script>	7000	0
+ENV_SOUND	$s:4445	-6500	-6500	-800	#B975EF	<script>	7000	0
+ENV_SOUND	$s:4446	-6500	-6500	-800	#B975EF	<script>	7000	0
+$s:A9C5	$s:DD6E	-8000	3500	3000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	2500	3000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	2500	2000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	3500	1000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	4000	0	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	2500	0	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	3500	-1000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	2500	-2000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	3000	-3000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	4000	-3000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	2500	-4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-8000	3500	-4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	8750	8500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	9500	8500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	10250	8500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	3000	2500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	2500	3500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	4000	3000	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	5000	2500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	5500	3500	6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-7000	3000	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-6000	3500	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-6000	2500	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-5000	3500	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-4000	3000	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-3000	4000	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6E	-3000	3500	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD70	-2000	2500	4000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-7000	4000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-6000	3000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-5000	4000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-4000	3000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	-5000	2500	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD70	1000	6000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD70	2000	6000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD70	3000	6000	-6000	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	11000	5000	-5500	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	11000	6000	-4500	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	11000	7000	-3500	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	11000	8000	-2500	#C595BB	<script>	[0, 0, 0]	0
+$s:A9C5	$s:DD6F	11000	9000	-1500	#C595BB	<script>	[0, 0, 0]	0
+DYNWALL	$s:AACE	-2000	0	18500	#B06DCD	<script>		0
+DOOR	$s:244E	0	0	18250	#8BCF66	<script>	0	0
+DYNWALL	$s:AACF	-500	0	-6500	#B06DCD	<script>		0
+DOOR	$s:246E	0	2000	-6250	#8BCF66	<script>	0	0
+ITEM	$s:13AA	-1800	0	16500	#929D77	<script>		0
+ITEM	$s:13A6	0	0	8000	#929D77	<script>		0
+ITEM	$s:13A7	-500	2000	-4500	#929D77	<script>		0
+ITEM	$s:13A8	9500	6000	2000	#929D77	<script>		0
+ITEM	$s:13A9	9500	6000	3500	#929D77	<script>		0
+ITEM	$s:13AA	9500	6000	5000	#929D77	<script>		0
+ITEM	$s:EEDA	8500	6000	5000	#929D77	<script>		0
+DMYFLOOR	$s:7159	-1000	0	8500	#758E90	<script>	-750	0
+DMYFLOOR	$s:715A	-1000	0	11000	#758E90	<script>	-650	0

@@ -1,0 +1,394 @@
+[
+  {
+    "type": "WALL",
+    "instance": "$s:B355",
+    "pos": [
+      0,
+      4000,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        4000,
+        0
+      ],
+      "m": [
+        "$s:6793"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "scenerio"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B354",
+    "pos": [
+      0,
+      0,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:1B43"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "scenerio"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B353",
+    "pos": [
+      0,
+      -4000,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        -4000,
+        0
+      ],
+      "m": [
+        "$s:1B3E"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "scenerio"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B356",
+    "pos": [
+      0,
+      -8000,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        -8000,
+        0
+      ],
+      "m": [
+        "$s:1B3D"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "scenerio"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:59E3",
+    "pos": [
+      500,
+      0,
+      2250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        500,
+        0,
+        2250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6E28"
+      ],
+      "t": [
+        "b:2"
+      ],
+      "w": [
+        1500
+      ],
+      "s": [
+        70
+      ],
+      "u": [
+        500
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:A331",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:729E"
+      ],
+      "S": []
+    },
+    "proc": "<script>",
+    "color": "#9A915E",
+    "source": "scenerio"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "scenerio"
+  },
+  {
+    "type": "FADEIO",
+    "instance": "$s:9119",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        0
+      ],
+      "s": [
+        1
+      ]
+    },
+    "proc": "sub_8A37",
+    "color": "#B074A0",
+    "source": "demo"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B355",
+    "pos": [
+      0,
+      4000,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        4000,
+        0
+      ],
+      "m": [
+        "$s:6793"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "demo"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B354",
+    "pos": [
+      0,
+      0,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:1B43"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "demo"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B353",
+    "pos": [
+      0,
+      -4000,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        -4000,
+        0
+      ],
+      "m": [
+        "$s:1B3E"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "demo"
+  },
+  {
+    "type": "WALL",
+    "instance": "$s:B356",
+    "pos": [
+      0,
+      -8000,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        -8000,
+        0
+      ],
+      "m": [
+        "$s:1B3D"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#6DE680",
+    "source": "demo"
+  },
+  {
+    "type": "DOOR",
+    "instance": "$s:59E3",
+    "pos": [
+      500,
+      0,
+      2250
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        500,
+        0,
+        2250
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6E28"
+      ],
+      "t": [
+        "b:2"
+      ],
+      "w": [
+        1500
+      ],
+      "s": [
+        70
+      ],
+      "u": [
+        500
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "demo"
+  },
+  {
+    "type": "LAMP",
+    "instance": "$s:A331",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "I": [
+        "$s:729E"
+      ],
+      "S": []
+    },
+    "proc": "<script>",
+    "color": "#9A915E",
+    "source": "demo"
+  },
+  {
+    "type": "CINEMA",
+    "instance": "$s:6ECA",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        30000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#E8F4DB",
+    "source": "demo"
+  }
+]

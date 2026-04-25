@@ -1,0 +1,20 @@
+[
+  {
+    "type": "$s:81C7",
+    "instance": "$s:81C7",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "e": [
+        "sub_1D3C",
+        "\u5909\u59cb\u5230\u97f3\u3092\u4e0a\uff17\u304d\u4fdd\u5b58\u3057\u307e\u3059\u304b{C03F}"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8F685C",
+    "source": "scenerio"
+  }
+]

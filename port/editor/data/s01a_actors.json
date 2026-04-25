@@ -50,7 +50,8 @@
       ]
     },
     "proc": "sub_1907",
-    "color": "#A3A48E"
+    "color": "#A3A48E",
+    "source": "scenerio"
   },
   {
     "type": "WATCHER",
@@ -96,7 +97,8 @@
       ]
     },
     "proc": "sub_7ECB",
-    "color": "#8B999A"
+    "color": "#8B999A",
+    "source": "scenerio"
   },
   {
     "type": "WATCHER",
@@ -142,7 +144,8 @@
       ]
     },
     "proc": "sub_7ECB",
-    "color": "#8B999A"
+    "color": "#8B999A",
+    "source": "scenerio"
   },
   {
     "type": "WATCHER",
@@ -185,7 +188,8 @@
       ]
     },
     "proc": "sub_7ECC",
-    "color": "#8B999A"
+    "color": "#8B999A",
+    "source": "scenerio"
   },
   {
     "type": "WATCHER",
@@ -225,7 +229,8 @@
       ]
     },
     "proc": "sub_7ECD",
-    "color": "#8B999A"
+    "color": "#8B999A",
+    "source": "scenerio"
   },
   {
     "type": "SEARCHLIGHT",
@@ -280,7 +285,8 @@
       ]
     },
     "proc": "sub_A22F",
-    "color": "#FB90A2"
+    "color": "#FB90A2",
+    "source": "scenerio"
   },
   {
     "type": "SEARCHLIGHT",
@@ -332,7 +338,8 @@
       ]
     },
     "proc": "sub_A230",
-    "color": "#FB90A2"
+    "color": "#FB90A2",
+    "source": "scenerio"
   },
   {
     "type": "CAMERA",
@@ -378,7 +385,8 @@
       ]
     },
     "proc": "sub_8B69",
-    "color": "#B2F6A1"
+    "color": "#B2F6A1",
+    "source": "scenerio"
   },
   {
     "type": "CAMERA",
@@ -421,7 +429,8 @@
       ]
     },
     "proc": "sub_8B6A",
-    "color": "#B2F6A1"
+    "color": "#B2F6A1",
+    "source": "scenerio"
   },
   {
     "type": "CAMERA",
@@ -464,7 +473,8 @@
       ]
     },
     "proc": "sub_8B6B",
-    "color": "#B2F6A1"
+    "color": "#B2F6A1",
+    "source": "scenerio"
   },
   {
     "type": "CAMERA",
@@ -510,7 +520,8 @@
       ]
     },
     "proc": "sub_8B6C",
-    "color": "#B2F6A1"
+    "color": "#B2F6A1",
+    "source": "scenerio"
   },
   {
     "type": "COMMANDER",
@@ -563,7 +574,8 @@
       ]
     },
     "proc": "sub_1908",
-    "color": "#A3A48E"
+    "color": "#A3A48E",
+    "source": "scenerio"
   },
   {
     "type": "WATCHER",
@@ -600,7 +612,8 @@
       ]
     },
     "proc": "sub_7ECE",
-    "color": "#8B999A"
+    "color": "#8B999A",
+    "source": "scenerio"
   },
   {
     "type": "COMMANDER",
@@ -652,7 +665,8 @@
       ]
     },
     "proc": "sub_1909",
-    "color": "#A3A48E"
+    "color": "#A3A48E",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -671,7 +685,8 @@
       ]
     },
     "proc": "sub_C2FE",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "DYNWALL",
@@ -702,7 +717,8 @@
       ]
     },
     "proc": "sub_2BAB",
-    "color": "#B06DCD"
+    "color": "#B06DCD",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -721,7 +737,8 @@
       ]
     },
     "proc": "sub_A87E",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -740,7 +757,8 @@
       ]
     },
     "proc": "sub_AC00",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -759,7 +777,8 @@
       ]
     },
     "proc": "sub_3B72",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -778,7 +797,8 @@
       ]
     },
     "proc": "sub_D4FD",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -797,7 +817,8 @@
       ]
     },
     "proc": "sub_C521",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "DEMODOLL",
@@ -837,7 +858,8 @@
       ]
     },
     "proc": "sub_C521",
-    "color": "#96C77C"
+    "color": "#96C77C",
+    "source": "scenerio"
   },
   {
     "type": "DEMODOLL",
@@ -877,7 +899,8 @@
       ]
     },
     "proc": "sub_C521",
-    "color": "#96C77C"
+    "color": "#96C77C",
+    "source": "scenerio"
   },
   {
     "type": "DEMODOLL",
@@ -917,7 +940,8 @@
       ]
     },
     "proc": "sub_C521",
-    "color": "#96C77C"
+    "color": "#96C77C",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -936,7 +960,8 @@
       ]
     },
     "proc": "sub_CED0",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -948,7 +973,8 @@
     "flags": null,
     "options": {},
     "proc": "sub_CED0",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -960,7 +986,8 @@
     "flags": null,
     "options": {},
     "proc": "sub_CED0",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "BLINK_TX",
@@ -997,7 +1024,8 @@
       ]
     },
     "proc": "sub_CED0",
-    "color": "#A8F983"
+    "color": "#A8F983",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -1016,7 +1044,8 @@
       ]
     },
     "proc": "sub_4751",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1035,7 +1064,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1068,7 +1098,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1101,7 +1132,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1134,7 +1166,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1167,7 +1200,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1200,7 +1234,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1233,7 +1268,8 @@
       ]
     },
     "proc": "sub_3D10",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1252,7 +1288,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1271,7 +1308,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1290,7 +1328,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -1309,7 +1348,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1328,7 +1368,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -1340,7 +1381,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -1352,7 +1394,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "CAMERA_SHAKE",
@@ -1383,7 +1426,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#BBF9B6"
+    "color": "#BBF9B6",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1402,7 +1446,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "DEMOCANCEL",
@@ -1424,7 +1469,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#DD8F85"
+    "color": "#DD8F85",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1443,7 +1489,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "PADDEMO",
@@ -1466,7 +1513,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#95798A"
+    "color": "#95798A",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -1485,7 +1533,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "CINEMA",
@@ -1504,7 +1553,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#E8F4DB"
+    "color": "#E8F4DB",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1537,7 +1587,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1564,7 +1615,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -1583,7 +1635,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "$s:AEFB",
@@ -1599,7 +1652,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#C961BD"
+    "color": "#C961BD",
+    "source": "scenerio"
   },
   {
     "type": "CAT_IN",
@@ -1626,7 +1680,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#A9E0E0"
+    "color": "#A9E0E0",
+    "source": "scenerio"
   },
   {
     "type": "FADEIO",
@@ -1645,7 +1700,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#B074A0"
+    "color": "#B074A0",
+    "source": "scenerio"
   },
   {
     "type": "$s:AEFB",
@@ -1661,7 +1717,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#C961BD"
+    "color": "#C961BD",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -1673,7 +1730,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -1685,7 +1743,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -1697,7 +1756,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "PADVIBRATE",
@@ -1709,7 +1769,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#8165DA"
+    "color": "#8165DA",
+    "source": "scenerio"
   },
   {
     "type": "SNOW",
@@ -1745,7 +1806,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#8D7277"
+    "color": "#8D7277",
+    "source": "scenerio"
   },
   {
     "type": "SMOKE",
@@ -1757,7 +1819,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#B2A4A9"
+    "color": "#B2A4A9",
+    "source": "scenerio"
   },
   {
     "type": "SMOKE",
@@ -1769,7 +1832,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#B2A4A9"
+    "color": "#B2A4A9",
+    "source": "scenerio"
   },
   {
     "type": "SMOKE",
@@ -1781,7 +1845,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#B2A4A9"
+    "color": "#B2A4A9",
+    "source": "scenerio"
   },
   {
     "type": "SPHERE",
@@ -1808,7 +1873,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#99D88D"
+    "color": "#99D88D",
+    "source": "scenerio"
   },
   {
     "type": "WALL",
@@ -1842,7 +1908,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#6DE680"
+    "color": "#6DE680",
+    "source": "scenerio"
   },
   {
     "type": "GAS_EFFECT",
@@ -1872,7 +1939,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#647FB3"
+    "color": "#647FB3",
+    "source": "scenerio"
   },
   {
     "type": "ASIATOKUN",
@@ -1884,7 +1952,8 @@
     "flags": null,
     "options": {},
     "proc": "<script>",
-    "color": "#6979B9"
+    "color": "#6979B9",
+    "source": "scenerio"
   },
   {
     "type": "ENV_SOUND",
@@ -1924,7 +1993,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#B975EF"
+    "color": "#B975EF",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -1993,7 +2063,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2062,7 +2133,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2131,7 +2203,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2200,7 +2273,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2237,7 +2311,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2306,7 +2381,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2375,7 +2451,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2412,7 +2489,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2479,7 +2557,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2516,7 +2595,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2553,7 +2633,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2590,7 +2671,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2627,7 +2709,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2664,7 +2747,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2701,7 +2785,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "ITEM",
@@ -2738,7 +2823,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#929D77"
+    "color": "#929D77",
+    "source": "scenerio"
   },
   {
     "type": "$s:CB3A",
@@ -2759,7 +2845,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#668378"
+    "color": "#668378",
+    "source": "scenerio"
   },
   {
     "type": "ASIOTOKUN",
@@ -2827,7 +2914,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#A5995D"
+    "color": "#A5995D",
+    "source": "scenerio"
   },
   {
     "type": "SNAKE",
@@ -2857,7 +2945,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#D0A1C6"
+    "color": "#D0A1C6",
+    "source": "scenerio"
   },
   {
     "type": "BREATH",
@@ -2873,7 +2962,8 @@
       ]
     },
     "proc": "<script>",
-    "color": "#83A8A0"
+    "color": "#83A8A0",
+    "source": "scenerio"
   },
   {
     "type": "MOTIONSE",
@@ -2902,6 +2992,7 @@
       ]
     },
     "proc": "<script>",
-    "color": "#8F7EC6"
+    "color": "#8F7EC6",
+    "source": "scenerio"
   }
 ]

@@ -1,0 +1,68 @@
+[
+  {
+    "type": "$s:F722",
+    "instance": "$s:F722",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "e": [
+        "sub_1F7C",
+        "{8044}{8049}{8053}\uff23 \uff12 \u3092\u30bb{C223}\u30c8\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+        "\u30b9\u30bf\u30fc\u30c8\u30dc\u30bf\u30f3\u3092{907B}\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+        "{8044}{8049}{8053}\uff23 \uff12 \u3092\u30bb{C223}\u30c8\u3057{811F}{8149}",
+        "{811F}\u3060\u3044\u307e\u30c1{C207}{C223}\u30af{90CD}\u3067\u3059\u3002",
+        "  ",
+        "\u59cb\u3057\u3044\u30c7{C203}\u30b9\u30af{810C}\u30bb{C223}\u30c8\u3055{814C}\u3066\u3044\u307e{811B}{8153}\u3002"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#708AFA",
+    "source": "scenerio"
+  },
+  {
+    "type": "FADEIO",
+    "instance": "$s:9119",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "m": [
+        0
+      ],
+      "s": [
+        1
+      ]
+    },
+    "proc": "sub_8A37",
+    "color": "#B074A0",
+    "source": "demo"
+  },
+  {
+    "type": "$s:F722",
+    "instance": "$s:F722",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "e": [
+        "sub_1F7C",
+        "{8044}{8049}{8053}\uff23 \uff12 \u3092\u30bb{C223}\u30c8\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+        "\u30b9\u30bf\u30fc\u30c8\u30dc\u30bf\u30f3\u3092{907B}\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+        "{8044}{8049}{8053}\uff23 \uff12 \u3092\u30bb{C223}\u30c8\u3057{811F}{8149}",
+        "{811F}\u3060\u3044\u307e\u30c1{C207}{C223}\u30af{90CD}\u3067\u3059\u3002",
+        "  ",
+        "\u59cb\u3057\u3044\u30c7{C203}\u30b9\u30af{810C}\u30bb{C223}\u30c8\u3055{814C}\u3066\u3044\u307e{811B}{8153}\u3002"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#708AFA",
+    "source": "demo"
+  }
+]
