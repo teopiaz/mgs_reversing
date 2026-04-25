@@ -136,6 +136,7 @@
         { "include": "#variable" },
         { "include": "#hashed-string" },
         { "include": "#stack-arg" },
+        { "include": "#name-reference" },
         { "include": "#proc-reference" },
         { "include": "#typed-literal" },
         { "include": "#numeric" },
@@ -230,6 +231,15 @@
     "proc-reference": {
       "name": "entity.name.function.gcl",
       "match": "\\bsub_[0-9A-Fa-f]+\\b"
+    },
+
+    "name-reference": {
+      "comment": "&NAME — symbolic constant resolved via mgs_names.py to a STR_ID hash",
+      "match": "(&)([A-Za-z_][A-Za-z_0-9]*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.constant.gcl" },
+        "2": { "name": "constant.other.named-id.gcl" }
+      }
     },
 
     "typed-literal": {

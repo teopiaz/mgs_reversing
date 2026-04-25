@@ -10,11 +10,11 @@ proc sub_65E3 {
     eval($f:000001 = b:0)
     if ($f:000435 == b:0) {
         load "s20a" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     } else {
         load "s20ar" \
-            -m $s:7df9
+            -m &HASH_MAIN
             -s b:1
     }
 }
@@ -349,7 +349,7 @@ script {
     eval($b:0000AA = b:31)
     call(sub_250E)
     map \
-        -d $s:7df9 $s:0659
+        -d &HASH_MAIN $s:0659
     system \
         -g sub_9C2B
         -s "- Esc route -"
@@ -362,7 +362,7 @@ script {
         -b -30000 0 -30000 30000 12000 30000
     camera \
         -t 3000
-    chara $s:d6fb $s:a648 \
+    chara &FOG $s:a648 \
         -s 40
         -e 20
     if ($f:03005C == b:0) {
@@ -390,10 +390,10 @@ script {
             -r b:39 b:39 b:0
             -x sd:FF000009
     }
-    chara $s:a12e $s:1f8b \
+    chara &FADEIO $s:1f8b \
         -m 1
         -s 30
-    chara $s:eced $s:4888 \
+    chara &COUNTDOWN $s:4888 \
         -t $w:0001EC
 }
 

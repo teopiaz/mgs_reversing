@@ -4,14 +4,14 @@
 proc sub_17BE {
     eval($f:000001 = b:0)
     load "selectd" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
 proc sub_DF2A {
     eval($f:000001 = b:0)
     load "title" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 

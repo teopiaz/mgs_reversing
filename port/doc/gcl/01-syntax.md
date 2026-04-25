@@ -65,6 +65,7 @@ The backslash isn't required — subsequent lines that start with `-X`
 | `sd:01010855` | SD_CODE     | 4-byte opaque (`0x09 XX XX XX XX`) |
 | `t:00005678`  | TABLE       | 4-byte reference to VOX/DMO/RADIO.DAT (`0x0A XX XX XX XX`) |
 | `$s:abcd`     | STR_ID      | 2-byte hashed name (`0x06 AB CD`) — see [02-variables.md](02-variables.md#str_id-literals) |
+| `&NAME`       | STR_ID      | symbolic constant — looked up in [mgs_names.py](../../gcl_tools/mgs_names.py) and emitted as the same `0x06` opcode. Identical bytecode to `$s:abcd`, just easier to read |
 
 Negative values in expression context use `-(N)` parens to force the
 runtime's `NEGATE` operator form (different bytecode than a direct

@@ -9,6 +9,35 @@ for the canonical list.
 > `python3 port/gcl_tools/constants.py` (the `gv_strcode()` function),
 > or grep `port/gcl_tools/mgs_chars.py` for the rotate-left algorithm.
 
+## Using `&NAME` symbols in source
+
+Instead of `$s:21ca` everywhere, the parser accepts a `&NAME` form
+that resolves through [mgs_names.py](../../gcl_tools/mgs_names.py):
+
+```gcl
+chara &SNAKE &SNAKE                       # was: $s:21ca $s:21ca
+mesg arg1 &HASH_ON                        # was: $s:0e4e
+trap $s:c776 &SNAKE &HASH_ENTER { ... }   # was: ... $s:21ca $s:0dd2
+load "s01a" -m &HASH_MAIN -s 1            # was: -m $s:7df9
+```
+
+`&NAME` and `$s:XXXX` compile to byte-identical bytecode (a 2-byte
+`STR_ID` literal). Use whichever you find clearer per call site.
+
+To **decompile** with names, pass `--names`:
+
+```bash
+python3 gcx2gcl.py disc.gcx -o file.gcl --trailing file.tail --names
+```
+
+Without `--names`, `$s:XXXX` is emitted (default — identical to
+pre-existing behaviour, fully round-trip safe).
+
+Unknown names raise a parse error rather than silently falling back to
+`gv_strcode(NAME)` — that prevents typos from compiling to a different
+hash. To register a new name, add it to
+[mgs_names.py](../../gcl_tools/mgs_names.py).
+
 ---
 
 ## Stages (`load "..."` arg / map area names)

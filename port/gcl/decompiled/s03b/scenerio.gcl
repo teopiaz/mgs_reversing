@@ -13,7 +13,7 @@ proc sub_BFC4 {
     eval($w:000002 = 2048)
     eval($w:000004 = b:0)
     load "s03a" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -25,7 +25,7 @@ proc sub_C7C4 {
     eval($w:000002 = b:0)
     eval($w:000004 = b:0)
     load "s03c" \
-        -m $s:7df9
+        -m &HASH_MAIN
         -s b:1
 }
 
@@ -171,7 +171,7 @@ proc sub_49C9 {
 }
 
 proc sub_50C0 {
-    mesg $s:ced3 $s:9a1f
+    mesg $s:ced3 &HASH_START
     mesg $s:ced3 $s:a3ac -2835 723 -2580 195 1736 1518
     mesg $s:ced3 $s:a86d -1 -1
     delay \
@@ -367,7 +367,7 @@ proc sub_8286 {
 }
 
 proc sub_8287 {
-    mesg $s:ced3 $s:9a1f
+    mesg $s:ced3 &HASH_START
     delay \
         -t 1
         -e {
@@ -474,7 +474,7 @@ proc sub_8289 {
 }
 
 proc sub_828A {
-    mesg $s:ced3 $s:9a1f
+    mesg $s:ced3 &HASH_START
     mesg $s:ced3 $s:a3ac -2756 1342 -1687 -2484 2428 1414
     mesg $s:ced3 $s:a86d -1 -1
     delay \
@@ -539,7 +539,7 @@ proc sub_828A {
 }
 
 proc sub_828B {
-    mesg $s:ced3 $s:9a1f
+    mesg $s:ced3 &HASH_START
     mesg $s:ced3 $s:a3ac -3589 1639 -1001 -2324 802 -2301
     mesg $s:ced3 $s:a86d -1 -1
     delay \
@@ -646,7 +646,7 @@ proc sub_828B {
 }
 
 proc sub_828C {
-    mesg $s:ced3 $s:9a1f
+    mesg $s:ced3 &HASH_START
     mesg $s:ced3 $s:a3ac -3456 803 -2340 -2671 1918 -631
     mesg $s:ced3 $s:a86d -1 -1
     delay \
@@ -826,7 +826,7 @@ proc sub_50E0 {
 }
 
 proc sub_D713 {
-    chara $s:a12e $s:139a \
+    chara &FADEIO $s:139a \
         -m 0
         -s 30
     menu \
@@ -836,7 +836,7 @@ proc sub_D713 {
 }
 
 proc sub_24A1 {
-    chara $s:a12e $s:2fd2 \
+    chara &FADEIO $s:2fd2 \
         -m 1
         -s 30
 }
@@ -875,43 +875,43 @@ proc sub_322C {
     if (arg1 == b:0) {
         foreach 2 4 5 6 \
             -d {
-            mesg $s:c356 arg1 $s:d5cc
+            mesg $s:c356 arg1 &HASH_LEAVE
         }
         call(sub_C461)
-        mesg $s:c356 1 $s:0dd2
+        mesg $s:c356 1 &HASH_ENTER
     } elseif (arg1 == b:1 || arg1 == b:6) {
         call(sub_C462)
-        mesg $s:c356 2 $s:0dd2
+        mesg $s:c356 2 &HASH_ENTER
     } elseif (arg1 == b:2 || arg1 == b:7) {
         call(sub_C463)
-        mesg $s:c356 4 $s:0dd2
+        mesg $s:c356 4 &HASH_ENTER
     } elseif (arg1 == b:3) {
         call(sub_C464)
-        mesg $s:c356 5 $s:0dd2
+        mesg $s:c356 5 &HASH_ENTER
     } elseif (arg1 == b:4) {
         call(sub_C465)
-        mesg $s:c356 6 $s:0dd2
+        mesg $s:c356 6 &HASH_ENTER
     } elseif (arg1 == b:5) {
         foreach 2 4 5 6 \
             -d {
-            mesg $s:c356 arg1 $s:d5cc
+            mesg $s:c356 arg1 &HASH_LEAVE
         }
         call(sub_C461)
-        mesg $s:c356 1 $s:0dd2
+        mesg $s:c356 1 &HASH_ENTER
     } elseif (arg1 == b:11) {
         foreach 1 2 4 5 6 \
             -d {
-            mesg $s:c356 arg1 $s:d5cc
+            mesg $s:c356 arg1 &HASH_LEAVE
         }
         call(sub_8C89)
-        mesg $s:c356 5 $s:0dd2
+        mesg $s:c356 5 &HASH_ENTER
     }
 }
 
 proc sub_45B8 {
     foreach 1 2 4 5 6 \
         -d {
-        mesg $s:c356 arg1 $s:d5cc
+        mesg $s:c356 arg1 &HASH_LEAVE
     }
 }
 
@@ -960,7 +960,7 @@ proc sub_FB91 {
     map \
         -c arg1
         -u
-    mesg $s:21ca $s:f9ad arg1
+    mesg &SNAKE $s:f9ad arg1
     camera \
         -b -6500 0 -7500 7500 6000 9500
         -l -6500 0 -7500 7500 6000 9500
@@ -972,97 +972,97 @@ proc sub_FB91 {
 proc sub_521C {
     if ($w:800002 <= b:0) {
         if ($b:000065 == b:0) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 64 72 80
-            mesg $s:21ca $s:f999 184 240 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 64 72 80
+            mesg &SNAKE $s:f999 184 240 272
         } elseif ($b:000065 == b:1) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 64 72 80
-            mesg $s:21ca $s:f999 184 240 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 64 72 80
+            mesg &SNAKE $s:f999 184 240 272
         } elseif ($b:000065 == b:2) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 72 80 88
-            mesg $s:21ca $s:f999 184 240 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 72 80 88
+            mesg &SNAKE $s:f999 184 240 272
         } else {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 72 80 88
-            mesg $s:21ca $s:f999 184 240 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 72 80 88
+            mesg &SNAKE $s:f999 184 240 272
         }
     } elseif ($w:800002 == b:1) {
         if ($b:000065 == b:0) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 64 72 80
-            mesg $s:21ca $s:f999 216 248 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 64 72 80
+            mesg &SNAKE $s:f999 216 248 272
         } elseif ($b:000065 == b:1) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 64 72 80
-            mesg $s:21ca $s:f999 216 248 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 64 72 80
+            mesg &SNAKE $s:f999 216 248 272
         } elseif ($b:000065 == b:2) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 72 80 88
-            mesg $s:21ca $s:f999 216 248 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 72 80 88
+            mesg &SNAKE $s:f999 216 248 272
         } else {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 72 80 88
-            mesg $s:21ca $s:f999 216 248 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 72 80 88
+            mesg &SNAKE $s:f999 216 248 272
         }
     } elseif ($w:800002 == b:2) {
         if ($b:000065 == b:0) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 70 78 86
-            mesg $s:21ca $s:f999 232 264 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 70 78 86
+            mesg &SNAKE $s:f999 232 264 272
         } elseif ($b:000065 == b:1) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 70 78 86
-            mesg $s:21ca $s:f999 232 264 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 70 78 86
+            mesg &SNAKE $s:f999 232 264 272
         } elseif ($b:000065 == b:2) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 78 86 94
-            mesg $s:21ca $s:f999 232 264 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 78 86 94
+            mesg &SNAKE $s:f999 232 264 272
         } else {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 78 86 94
-            mesg $s:21ca $s:f999 232 264 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 78 86 94
+            mesg &SNAKE $s:f999 232 264 272
         }
     } else {
         if ($b:000065 == b:0) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 78 86 88
-            mesg $s:21ca $s:f999 248 272 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 78 86 88
+            mesg &SNAKE $s:f999 248 272 272
         } elseif ($b:000065 == b:1) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 78 86 88
-            mesg $s:21ca $s:f999 248 272 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 78 86 88
+            mesg &SNAKE $s:f999 248 272 272
         } elseif ($b:000065 == b:2) {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 88 88 88
-            mesg $s:21ca $s:f999 248 272 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 88 88 88
+            mesg &SNAKE $s:f999 248 272 272
         } else {
-            mesg $s:21ca $s:e530 3
-            mesg $s:21ca $s:fe25 8
-            mesg $s:21ca $s:e314 88 88 88
-            mesg $s:21ca $s:f999 248 272 272
+            mesg &SNAKE $s:e530 3
+            mesg &SNAKE $s:fe25 8
+            mesg &SNAKE $s:e314 88 88 88
+            mesg &SNAKE $s:f999 248 272 272
         }
     }
 }
 
 proc sub_7197 {
-    chara $s:e608 $s:21ca \
+    chara $s:e608 &SNAKE \
         -p $w:800010 $w:800012 $w:800014
         -d -760 0 0
         -m $b:0000AB
@@ -1079,7 +1079,7 @@ proc sub_7197 {
 }
 
 proc sub_1018 {
-    chara $s:050c $s:09fb \
+    chara &REVOLVER03 $s:09fb \
         -p -2808 1100 -1197
         -d 0 1800 0
         -c $b:000065
@@ -1102,13 +1102,13 @@ proc sub_6733 {}
 
 script {
     call(sub_204E)
-    mapdef $s:7df9 \
+    mapdef &HASH_MAIN \
         -k $s:c6c2
         -l $s:c6c2
         -h $s:c6c2 0
         -z 0
     map \
-        -a $s:7df9
+        -a &HASH_MAIN
     system \
         -g sub_9C2B
         -c sub_2631
@@ -1131,7 +1131,7 @@ script {
                 -n 1
         }
     }
-    chara $s:b997 $s:3a1e \
+    chara &DOOR $s:3a1e \
         -p 4500 0 -125
         -d 0 0 0
         -m $s:ec15
@@ -1140,7 +1140,7 @@ script {
         -s 200
         -e b:91 b:88
         -u 375
-    chara $s:b997 $s:a996 \
+    chara &DOOR $s:a996 \
         -p -4000 0 1875
         -d 0 2048 0
         -m $s:ec14
@@ -1149,17 +1149,17 @@ script {
         -s 200
         -u 500
         -e b:91 b:88
-    chara $s:1ad3 $s:8a34 -5750 1800 1750 0 2048 0 500 400 0 \
+    chara &LAMP $s:8a34 -5750 1800 1750 0 2048 0 500 400 0 \
         -I $s:0e6f
         -S
-        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
-        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
-    chara $s:1ad3 $s:8a34 -5750 1800 2000 0 0 0 500 400 0 \
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 &HASH_LOOP 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 &HASH_LOOP 3
+    chara &LAMP $s:8a34 -5750 1800 2000 0 0 0 500 400 0 \
         -I $s:0e6f
         -S
-        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
-        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
-    chara $s:b997 $s:7f91 \
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 &HASH_LOOP 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 &HASH_LOOP 3
+    chara &DOOR $s:7f91 \
         -p 4250 0 -4500
         -d 0 1024 0
         -m $s:ec13
@@ -1168,12 +1168,12 @@ script {
         -s 200
         -e b:91 b:88
         -u 250
-    chara $s:1ad3 $s:8dc0 4000 1800 -4250 0 3072 0 500 400 500 \
+    chara &LAMP $s:8dc0 4000 1800 -4250 0 3072 0 500 400 500 \
         -I $s:0e6f
         -S
-        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
-        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
-    chara $s:b997 $s:1493 \
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 &HASH_LOOP 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 &HASH_LOOP 3
+    chara &DOOR $s:1493 \
         -p 2875 0 7000
         -d 0 3072 0
         -m $s:ec16
@@ -1189,10 +1189,10 @@ script {
     }
     if ($w:00000A == b:31) {
         map \
-            -c $s:7df9
+            -c &HASH_MAIN
             -u
         eval($w:00000A = b:32)
-        chara $s:7a05 $s:6eca \
+        chara &CINEMA $s:6eca \
             -t 30000
             -e 1
         demo \
@@ -1203,10 +1203,10 @@ script {
     } elseif ($w:00000A < b:163 && $w:00000A >= b:157) {
         if ($f:0100A9 == b:1) {
             map \
-                -c $s:7df9
+                -c &HASH_MAIN
                 -u
             eval($f:0100A9 = b:0)
-            chara $s:7a05 $s:d97e \
+            chara &CINEMA $s:d97e \
                 -t 30000
                 -e 1
             demo \
@@ -1215,12 +1215,12 @@ script {
                 -p sub_1108
         } else {
             if ($b:000065 == b:0) {
-                call(sub_FB91, $s:7df9)
+                call(sub_FB91, &HASH_MAIN)
             } else {
                 delay \
                     -t 10
                     -e {
-                    call(sub_FB91, $s:7df9)
+                    call(sub_FB91, &HASH_MAIN)
                 }
             }
             sound \
@@ -1229,7 +1229,7 @@ script {
             eval($w:80001E = -(b:1))
             if ($b:000065 == b:0) {
                 if ($f:010064 == b:0) {
-                    chara $s:e608 $s:21ca \
+                    chara $s:e608 &SNAKE \
                         -p $w:800010 $w:800012 $w:800014
                         -d 0 0 0
                         -m b:0
@@ -1239,16 +1239,16 @@ script {
                         -v t:000062FE t:00006342 t:0000635C t:0000626C t:00006377 t:000063FD t:00006478
                         -n sub_521C
                         -f $f:0303E5
-                    chara $s:e97e $s:7bf2 \
+                    chara &DEMODOLL &LIQUID \
                         -m $s:5c54
                         -o $s:c118
                         -r b:0
-                    chara $s:e97e $s:09fb \
+                    chara &DEMODOLL $s:09fb \
                         -m $s:beaa
                         -o $s:2a3a
                         -r b:1
                         -k 7
-                    chara $s:e97e $s:962c \
+                    chara &DEMODOLL &WOLF2 \
                         -m $s:3a29
                         -o $s:773b
                         -r b:2
@@ -1264,7 +1264,7 @@ script {
                 call(sub_7197)
                 call(sub_1018)
             }
-            chara $s:2a21 $s:2a21 \
+            chara &BED &BED \
                 -p -2000 1062 -3750
                 -d 0 0 0
                 -m $s:ed73
