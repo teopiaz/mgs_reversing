@@ -78,6 +78,13 @@ static GLuint g_tri3d_prog  = 0;
 static GLint  g_tri3d_u_half_screen = -1;
 static GLint  g_tri3d_u_near_far    = -1;
 
+/* Editor wireframe overlay (world-space lines). Reuses g_tri3d_prog. */
+static GL3DVert *g_line3d_buf   = NULL;
+static size_t    g_line3d_count = 0;
+static size_t    g_line3d_cap   = 0;
+static GLuint    g_line3d_vao   = 0;
+static GLuint    g_line3d_vbo   = 0;
+
 /* Stored by port_ClearImage; applied as glClearColor in gl_renderer_present. */
 static float g_clear_rgb[3] = {0.0f, 0.0f, 0.0f};
 static int   g_codec_mode   = 0;
@@ -585,6 +592,38 @@ int gl_renderer_init(void *window_)
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    /* line3d: separate VAO/VBO, same vertex format, drawn with GL_LINES. */
+    glGenVertexArrays(1, &g_line3d_vao);
+    glGenBuffers(1, &g_line3d_vbo);
+    glBindVertexArray(g_line3d_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, g_line3d_vbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, pos));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, dist));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, uv));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, face_z));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, s, (void *)offsetof(GL3DVert, rgba));
+    glEnableVertexAttribArray(5);
+    glVertexAttribIPointer(5, 4, GL_UNSIGNED_SHORT, s, (void *)offsetof(GL3DVert, tpage));
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, normal));
+    for (int c = 0; c < 3; c++) {
+        glEnableVertexAttribArray(7 + c);
+        glVertexAttribPointer(7 + c, 3, GL_FLOAT, GL_FALSE, s,
+            (void *)(offsetof(GL3DVert, lightDir) + c * 3 * sizeof(float)));
+        glEnableVertexAttribArray(10 + c);
+        glVertexAttribPointer(10 + c, 3, GL_FLOAT, GL_FALSE, s,
+            (void *)(offsetof(GL3DVert, lightColor) + c * 3 * sizeof(float)));
+    }
+    glEnableVertexAttribArray(13);
+    glVertexAttribPointer(13, 3, GL_FLOAT, GL_FALSE, s, (void *)offsetof(GL3DVert, ambient));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     /* 2D semi-trans pipeline. */
     g_tri2d_prog = link_program(TRI2D_VS, TRI2D_FS);
     if (!g_tri2d_prog) {
@@ -689,9 +728,14 @@ void gl_renderer_shutdown(void)
     if (g_tri3d_prog) glDeleteProgram(g_tri3d_prog);
     if (g_tri3d_vbo)  glDeleteBuffers(1, &g_tri3d_vbo);
     if (g_tri3d_vao)  glDeleteVertexArrays(1, &g_tri3d_vao);
+    if (g_line3d_vbo) glDeleteBuffers(1, &g_line3d_vbo);
+    if (g_line3d_vao) glDeleteVertexArrays(1, &g_line3d_vao);
     free(g_tri3d_buf);
+    free(g_line3d_buf);
     g_tri3d_buf = NULL;
+    g_line3d_buf = NULL;
     g_tri3d_cap = g_tri3d_count = 0;
+    g_line3d_cap = g_line3d_count = 0;
     if (g_tri2d_prog)  glDeleteProgram(g_tri2d_prog);
     if (g_tri2d_vbo)   glDeleteBuffers(1, &g_tri2d_vbo);
     if (g_tri2d_vao)   glDeleteVertexArrays(1, &g_tri2d_vao);
@@ -767,7 +811,11 @@ void gl_renderer_set_widescreen(int on)
     printf("[gl] widescreen=%d, FBO %dx%d\n", g_widescreen, g_fbo_w, g_fbo_h);
 }
 
-void gl_renderer_begin_3d(void) { if (g_enabled) g_tri3d_count = 0; }
+void gl_renderer_begin_3d(void) {
+    if (!g_enabled) return;
+    g_tri3d_count = 0;
+    g_line3d_count = 0;
+}
 void gl_renderer_begin_2d(void) {
     if (!g_enabled) return;
     g_tri2d_count    = 0;
@@ -854,6 +902,32 @@ void gl_submit_tri3d(
     pack_vert(&g_tri3d_buf[g_tri3d_count++], a, uv_a, col_a, na, light, dist, face_z, tpage, clut, flags);
     pack_vert(&g_tri3d_buf[g_tri3d_count++], b, uv_b, col_b, nb, light, dist, face_z, tpage, clut, flags);
     pack_vert(&g_tri3d_buf[g_tri3d_count++], c, uv_c, col_c, nc, light, dist, face_z, tpage, clut, flags);
+}
+
+static void line3d_reserve(size_t extra)
+{
+    if (g_line3d_count + extra <= g_line3d_cap) return;
+    size_t ncap = g_line3d_cap ? g_line3d_cap * 2 : 1024;
+    while (ncap < g_line3d_count + extra) ncap *= 2;
+    g_line3d_buf = (GL3DVert *)realloc(g_line3d_buf, ncap * sizeof(GL3DVert));
+    g_line3d_cap = ncap;
+}
+
+void gl_submit_line3d(
+    const int eye_a[3], const int eye_b[3],
+    const unsigned char col_a[3], const unsigned char col_b[3],
+    int dist)
+{
+    if (!g_enabled) return;
+    line3d_reserve(2);
+    int uv0[2] = {0, 0};
+    /* Untextured (flags=0); face_z = avg eye-z so it sorts roughly correctly
+       even though depth-test handles it on the GPU. */
+    int face_z = (eye_a[2] + eye_b[2]) / 2;
+    pack_vert(&g_line3d_buf[g_line3d_count++], eye_a, uv0, col_a, NULL, NULL,
+              dist, face_z, 0, 0, 0);
+    pack_vert(&g_line3d_buf[g_line3d_count++], eye_b, uv0, col_b, NULL, NULL,
+              dist, face_z, 0, 0, 0);
 }
 
 static void tri2d_bg_reserve(size_t extra)
@@ -1270,6 +1344,35 @@ void gl_renderer_present(void)
         glDisable(GL_DEPTH_CLAMP);
         glBlendEquation(GL_FUNC_ADD);
 
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    /* --- Editor wireframe overlay (world-space lines) ------------------- */
+    if (!debug_view && !g_codec_mode && g_line3d_count > 0) {
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_DEPTH_CLAMP);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_BLEND);
+        glDepthMask(GL_TRUE);
+
+        glBindVertexArray(g_line3d_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, g_line3d_vbo);
+        glBufferData(GL_ARRAY_BUFFER,
+                     (GLsizeiptr)(g_line3d_count * sizeof(GL3DVert)),
+                     g_line3d_buf, GL_STREAM_DRAW);
+
+        glUseProgram(g_tri3d_prog);
+        glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
+        glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
+        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"), 1);
+        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"), 0);
+        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"), 0);
+
+        glLineWidth(1.5f);
+        glDrawArrays(GL_LINES, 0, (GLsizei)g_line3d_count);
+
+        glDisable(GL_DEPTH_CLAMP);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
     }

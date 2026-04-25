@@ -143,6 +143,15 @@ void gl_submit_line(
     const unsigned char col_a[3], const unsigned char col_b[3],
     unsigned short flags);
 
+/* World-space (post-camera-transform) line, for editor wireframe overlays.
+ * Eye-space coords match gl_submit_tri3d. dist is the same H register value.
+ * Color is per-vertex RGB; alpha forced to 255. The line draws after the 3D
+ * tri pass with depth test still enabled so it occludes correctly. */
+void gl_submit_line3d(
+    const int eye_a[3], const int eye_b[3],
+    const unsigned char col_a[3], const unsigned char col_b[3],
+    int dist);
+
 #ifdef __cplusplus
 }
 #endif
