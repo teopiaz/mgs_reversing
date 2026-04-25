@@ -1,0 +1,343 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "GCL",
+  "scopeName": "source.gcl",
+  "fileTypes": ["gcl"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#proc-decl" },
+    { "include": "#script-decl" },
+    { "include": "#statement" }
+  ],
+  "repository": {
+
+    "comment": {
+      "name": "comment.line.number-sign.gcl",
+      "match": "#.*$"
+    },
+
+    "proc-decl": {
+      "begin": "^\\s*(proc)\\s+(sub_[0-9A-Fa-f]+)",
+      "beginCaptures": {
+        "1": { "name": "storage.type.proc.gcl" },
+        "2": { "name": "entity.name.function.gcl" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#block" }
+      ]
+    },
+
+    "script-decl": {
+      "begin": "^\\s*(script)\\b",
+      "beginCaptures": {
+        "1": { "name": "storage.type.script.gcl" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#block" }
+      ]
+    },
+
+    "block": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.block.begin.gcl" } },
+      "endCaptures":   { "0": { "name": "punctuation.section.block.end.gcl"   } },
+      "patterns": [
+        { "include": "#statement" }
+      ]
+    },
+
+    "statement": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#line-continuation" },
+        { "include": "#if-statement" },
+        { "include": "#eval-statement" },
+        { "include": "#call-statement" },
+        { "include": "#return-statement" },
+        { "include": "#command-statement" },
+        { "include": "#expression" }
+      ]
+    },
+
+    "line-continuation": {
+      "name": "punctuation.separator.continuation.gcl",
+      "match": "\\\\[ \\t]*(?:#.*)?$"
+    },
+
+    "if-statement": {
+      "begin": "\\b(if|elseif)\\b\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.conditional.gcl" },
+        "2": { "name": "punctuation.section.parens.begin.gcl" }
+      },
+      "end": "\\)",
+      "endCaptures": { "0": { "name": "punctuation.section.parens.end.gcl" } },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "eval-statement": {
+      "begin": "\\b(eval)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.eval.gcl" },
+        "2": { "name": "punctuation.section.parens.begin.gcl" }
+      },
+      "end": "\\)",
+      "endCaptures": { "0": { "name": "punctuation.section.parens.end.gcl" } },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "call-statement": {
+      "begin": "\\b(call)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.call.gcl" },
+        "2": { "name": "punctuation.section.parens.begin.gcl" }
+      },
+      "end": "\\)",
+      "endCaptures": { "0": { "name": "punctuation.section.parens.end.gcl" } },
+      "patterns": [
+        {
+          "name": "entity.name.function.gcl",
+          "match": "\\bsub_[0-9A-Fa-f]+\\b"
+        },
+        { "include": "#expression" },
+        {
+          "name": "punctuation.separator.comma.gcl",
+          "match": ","
+        }
+      ]
+    },
+
+    "return-statement": {
+      "name": "keyword.control.flow.gcl",
+      "match": "\\b(return|foreach)\\b"
+    },
+
+    "command-statement": {
+      "match": "^\\s*(load|map|mapdef|camera|light|chara|mesg|trap|ntrap|delay|pad|sound|radio|menu|rand|demo|restart|start|varsave|system|func|print|jimaku|demodebug)\\b",
+      "captures": {
+        "1": { "name": "support.function.command.gcl" }
+      }
+    },
+
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#line-continuation" },
+        { "include": "#string-mgs" },
+        { "include": "#string-ascii" },
+        { "include": "#char-literal" },
+        { "include": "#variable" },
+        { "include": "#hashed-string" },
+        { "include": "#stack-arg" },
+        { "include": "#proc-reference" },
+        { "include": "#typed-literal" },
+        { "include": "#numeric" },
+        { "include": "#boolean" },
+        { "include": "#nested-block" },
+        { "include": "#dash-option" },
+        { "include": "#operator" },
+        { "include": "#parens" },
+        { "include": "#commands-keyword" },
+        { "include": "#identifier-as-hashname" }
+      ]
+    },
+
+    "nested-block": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.block.begin.gcl" } },
+      "endCaptures":   { "0": { "name": "punctuation.section.block.end.gcl"   } },
+      "patterns": [
+        { "include": "#statement" }
+      ]
+    },
+
+    "string-mgs": {
+      "name": "string.quoted.double.mgs.gcl",
+      "begin": "(m)(\")",
+      "beginCaptures": {
+        "1": { "name": "storage.modifier.mgs-string.gcl" },
+        "2": { "name": "punctuation.definition.string.begin.gcl" }
+      },
+      "end": "\"",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.gcl" } },
+      "patterns": [
+        {
+          "name": "constant.numeric.glyph-code.gcl",
+          "match": "\\{[0-9A-Fa-f]{4}\\}"
+        },
+        {
+          "name": "constant.character.escape.hex.gcl",
+          "match": "\\\\x[0-9A-Fa-f]{2}"
+        },
+        {
+          "name": "constant.character.escape.gcl",
+          "match": "\\\\."
+        }
+      ]
+    },
+
+    "string-ascii": {
+      "name": "string.quoted.double.gcl",
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.gcl" } },
+      "end": "\"",
+      "endCaptures":   { "0": { "name": "punctuation.definition.string.end.gcl"   } },
+      "patterns": [
+        {
+          "name": "constant.character.escape.hex.gcl",
+          "match": "\\\\x[0-9A-Fa-f]{2}"
+        },
+        {
+          "name": "constant.character.escape.gcl",
+          "match": "\\\\."
+        }
+      ]
+    },
+
+    "char-literal": {
+      "name": "string.quoted.single.gcl",
+      "match": "'(?:\\\\.|[^'\\\\])'"
+    },
+
+    "variable": {
+      "match": "(\\$)([wbfscp])(:)([0-9A-Fa-f]+)",
+      "captures": {
+        "1": { "name": "punctuation.definition.variable.gcl" },
+        "2": { "name": "storage.type.variable.gcl" },
+        "3": { "name": "punctuation.separator.variable.gcl" },
+        "4": { "name": "constant.numeric.address.gcl" }
+      }
+    },
+
+    "hashed-string": {
+      "comment": "$s:XXXX with exactly 4 hex digits is overloaded as a STR_ID literal — same regex as variable but the writer/reader treats them by length.",
+      "match": "\\$s:[0-9A-Fa-f]{4}\\b"
+    },
+
+    "stack-arg": {
+      "name": "variable.parameter.stack.gcl",
+      "match": "\\barg\\d+\\b"
+    },
+
+    "proc-reference": {
+      "name": "entity.name.function.gcl",
+      "match": "\\bsub_[0-9A-Fa-f]+\\b"
+    },
+
+    "typed-literal": {
+      "patterns": [
+        {
+          "comment": "BYTE literal: b:N",
+          "match": "\\b(b)(:)(\\d+)\\b",
+          "captures": {
+            "1": { "name": "storage.type.byte.gcl" },
+            "2": { "name": "punctuation.separator.type.gcl" },
+            "3": { "name": "constant.numeric.byte.gcl" }
+          }
+        },
+        {
+          "comment": "TABLE reference: t:NNNNNNNN (vox/dmo/radio.dat offset)",
+          "match": "\\b(t)(:)([0-9A-Fa-f]+)\\b",
+          "captures": {
+            "1": { "name": "storage.type.table.gcl" },
+            "2": { "name": "punctuation.separator.type.gcl" },
+            "3": { "name": "constant.numeric.table.gcl" }
+          }
+        },
+        {
+          "comment": "SD code: sd:NNNNNNNN (sound dispatch opcode)",
+          "match": "\\b(sd)(:)([0-9A-Fa-f]+)\\b",
+          "captures": {
+            "1": { "name": "storage.type.sound.gcl" },
+            "2": { "name": "punctuation.separator.type.gcl" },
+            "3": { "name": "constant.numeric.sound.gcl" }
+          }
+        }
+      ]
+    },
+
+    "numeric": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.gcl",
+          "match": "\\b0x[0-9A-Fa-f]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.gcl",
+          "match": "(?<![A-Za-z_])-?\\d+\\b"
+        }
+      ]
+    },
+
+    "boolean": {
+      "name": "constant.language.boolean.gcl",
+      "match": "\\b(true|false)\\b"
+    },
+
+    "dash-option": {
+      "comment": "Command options like -m, -e. -!X marks NULL_SIZE. Anchored with a fixed-width whitespace lookbehind (works in both Oniguruma and standard regex).",
+      "match": "(?<=\\s)(-!?)([A-Za-z])(?=\\s|$)",
+      "captures": {
+        "1": { "name": "punctuation.definition.option.gcl" },
+        "2": { "name": "variable.parameter.option.gcl" }
+      }
+    },
+
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.gcl",
+          "match": "(?<![=!<>])=(?!=)"
+        },
+        {
+          "name": "keyword.operator.logical.gcl",
+          "match": "&&|\\|\\||!(?!=)"
+        },
+        {
+          "name": "keyword.operator.comparison.gcl",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.bitwise.gcl",
+          "match": "[&|^~]"
+        },
+        {
+          "name": "keyword.operator.arithmetic.gcl",
+          "match": "[+\\-*/%]"
+        }
+      ]
+    },
+
+    "parens": {
+      "begin": "\\(",
+      "end": "\\)",
+      "beginCaptures": { "0": { "name": "punctuation.section.parens.begin.gcl" } },
+      "endCaptures":   { "0": { "name": "punctuation.section.parens.end.gcl"   } },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "commands-keyword": {
+      "comment": "Commands appearing inside expressions/blocks (not at line start).",
+      "match": "\\b(if|elseif|else|eval|call|return|foreach|load|map|mapdef|camera|light|chara|mesg|trap|ntrap|delay|pad|sound|radio|menu|rand|demo|restart|start|varsave|system|func|print|jimaku|demodebug)\\b",
+      "captures": {
+        "1": { "name": "support.function.command.gcl" }
+      }
+    },
+
+    "identifier-as-hashname": {
+      "comment": "Bare identifiers in expressions become STR_ID(GV_StrCode(name)).",
+      "name": "variable.other.hashname.gcl",
+      "match": "\\b[A-Za-z_][A-Za-z_0-9]*\\b"
+    }
+  }
+}
