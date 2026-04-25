@@ -1,0 +1,36 @@
+{
+  "name": "vscode-gcl",
+  "displayName": "MGS GCL",
+  "description": "Syntax highlighting for the MGS1 Game Command Language (.gcl)",
+  "version": "0.1.0",
+  "publisher": "mgs-port",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "gcl",
+        "aliases": [
+          "GCL",
+          "Game Command Language",
+          "gcl"
+        ],
+        "extensions": [
+          ".gcl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "gcl",
+        "scopeName": "source.gcl",
+        "path": "./syntaxes/gcl.tmLanguage.json"
+      }
+    ]
+  }
+}
