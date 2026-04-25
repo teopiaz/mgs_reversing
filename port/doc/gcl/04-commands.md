@@ -59,16 +59,186 @@ currently selected area.
 
 ### `camera` — camera control
 
+The single most option-heavy command in the language, and the one you'll
+edit most often when authoring cutscenes. Handler:
+[GM_Command_camera](../../../source/game/script.c#L70). Internal state
+is a global `GM_Camera` (`GM_CAMERA` struct) plus an array of up to 8
+preset `CAMERA` slots (`GM_CameraList[]`).
+
+#### Option summary
+
+| Option         | Args                                          | Effect                                                  |
+|----------------|------------------------------------------------|---------------------------------------------------------|
+| `-s id m1 m2 m3 px py pz tx ty tz [alert]` | 10–11 ints | **Set** preset slot `id` (0..7) — primary use of the command |
+| `-b minX minY minZ maxX maxY maxZ`         | 6 ints     | **Bounds**: AABB clamping the camera *position*  |
+| `-l minX minY minZ maxX maxY maxZ`         | 6 ints     | **Limits**: AABB clamping the camera *look-at target* |
+| `-r yaw pitch roll`                        | 3 ints     | **Rotate**: explicit Euler rotation                     |
+| `-t track`                                 | 1 int      | **Track**: zoom / dolly distance                        |
+| `-a mask`                                  | 1 int      | **Alert mask** for the global camera                    |
+| `-e`                                        | flag       | Targets the *secondary* slot of `-b` / `-l` (0 = primary, 1 = secondary) |
+| `-p`                                        | flag       | Sets the slot's `field_13_param_p` flag (modifies `pos.pad`) when paired with `-s` |
+| `-c 0\|1`                                  | 1 int      | Toggles `GAME_FLAG_BIT_07` ("camera change" — used during cuts) |
+
+> **Heads-up:** older surveys of the corpus (running `grep` for
+> `^\s*-X` after `camera`) will list `-d/-f/-k/-m/-n/-v/-x` too — those
+> belong to *child* commands nested inside `camera` blocks (other
+> commands invoked under the same trap body). The actual `camera`
+> handler reads only the 9 options above.
+
+#### `-s` — set a preset slot
+
 ```gcl
-camera \
-    -p 0 -3000 -1000       # position
-    -t 0 0 0               # target
-    -m 2                   # mode
+camera -s <id> <mode> <interp> <look> <px py pz> <tx ty tz> [alert]
 ```
 
-Options like `-a/-b/-c/-d/-e/-f/-k/-l/-m/-n/-p/-r/-s/-t/-v/-x` tune
-position, target, mode, field of view, cuts. Look at any cutscene
-`demo.gcl` for dense examples (e.g. `d00a/demo.gcl`).
+The 4 mode bytes select how the slot is interpreted later:
+
+| Mode arg | Field             | Common values | Meaning                                     |
+|----------|-------------------|---------------|---------------------------------------------|
+| `<mode>`  | `field_10_param1` | `1` `2` other | `1` → flag `0x10` ("first-person-ish"), `2` → flag `0x8` ("look-only"), other → flag `0x4` (default) |
+| `<interp>`| `field_11_param2` | `0`–`5`       | Interpolation bucket — index into `dword_80010C60`. `0` = instant cut; higher values = slower lerps |
+| `<look>`  | `field_12_param3` | `0` `1` `2`   | How `pos` and `trg` are interpreted (table below) |
+| `<param_p>` | `field_13_param_p` | `0` `1`     | Shadow-pad bit; just leave at `0` unless emulating a vanilla scene |
+
+The `<look>` parameter:
+
+| `<look>` | Camera placement                                                                |
+|----------|----------------------------------------------------------------------------------|
+| `0`      | "Look-at": `eye = pos`, `center = trg`, Euler angles computed from the look vector |
+| `1`      | "Eye + rotate": `eye = pos`, `rotate = trg.xy0`, `track = trg.z`                  |
+| `2`      | "Target + rotate": `center = pos`, `rotate = trg.xy0`, `track = trg.z`            |
+
+The trailing `[alert]` integer is optional (defaults to 0) — it's the
+alert-mask passed through `GM_CameraSetAlertMask`. When the high bit of
+the mask is set, the slot becomes "alert-only" — only used while the
+guard system is in alert state.
+
+Most slot uses are mode `0` or `1` with interp `0`/`1` and look `0` /
+`1` / `2`. Real corpus distribution from
+[port/gcl/decompiled/](../../gcl/decompiled/):
+
+```gcl
+# Look-at, slow cut, target-relative rotation:
+camera -s b:1 b:1 b:2 b:0 -11788 5095 -3104 -11891 1941 -4056
+
+# Direct look-at, fast cut, eye-fixed rotation:
+camera -s b:1 b:0 b:0 b:0 3806 -1879 12511 1020 2048 4500
+
+# Higher-priority slot (mode 4) with alert-mask 3:
+camera -s b:4 b:1 b:2 b:0 16412 1459 -1458 12421 1785 -2323 3
+```
+
+The shorthand decompiler form `-!s` (with the bang) marks an alternate
+encoding where the size byte is zero — round-trip-only quirk; you can
+safely write `-s` in fresh scripts. See
+[01-syntax.md](01-syntax.md#options-dash-flags).
+
+#### `-b` / `-l` — clamp boxes
+
+```gcl
+camera -b -16000 -16000 -15000 16000 16000 28000     # position bounds
+camera -l -16000 -16000 -15000 16000 16000 27500     # target limits
+```
+
+Each takes two `SVECTOR` triples: `minX minY minZ maxX maxY maxZ`.
+The camera's eye gets clamped inside `-b`'s box; the look-at target
+gets clamped inside `-l`'s. Pair them and the camera glides along the
+intersection.
+
+`-e` switches between the two storage slots:
+
+```gcl
+camera \
+    -b -10000 0 0 10000 5000 5000      # primary bounds (slot 0)
+camera \
+    -e \
+    -b -20000 0 0 20000 8000 8000      # secondary bounds (slot 1)
+```
+
+The runtime can pick either slot at runtime via internal mode flags —
+typical use is "tighter bounds during alerts, looser otherwise".
+
+#### `-r` / `-t` — rotation and zoom
+
+```gcl
+camera \
+    -r 640 2048 0       # yaw=640, pitch=2048, roll=0
+    -t 8000             # zoom 8000
+```
+
+These set `GM_CameraRotateSave` and `GM_CameraTrackOrg/Save`
+respectively (handled by `GM_CameraSetRotation` / `GM_CameraSetTrack`).
+Useful for cutscenes that need a precise framing without going through
+a slot.
+
+Yaw/pitch are 12-bit fixed (4096 = full revolution); track is in world
+units (the camera's distance from the look-at point). Common ranges:
+
+- yaw: 0..4095 (a full circle)
+- pitch: 1024..3072 (looking slightly up/down — extremes flip the view)
+- track: 2500..10000 (close-up to wide shot)
+
+#### `-c` — cinematic-cut flag
+
+```gcl
+camera -c 1     # set GAME_FLAG_BIT_07 (camera will hard-cut next frame)
+camera -c 0     # clear the bit
+```
+
+Used right before / after a cut to suppress the normal interpolation.
+You'll see this paired with `-s` in cutscene chains where each shot is
+a fresh camera setup.
+
+#### `-a` — alert mask
+
+```gcl
+camera -a 0xFF    # all alert slots active
+camera -a 0       # clear
+```
+
+Sets `GM_Camera.alert_mask` directly. A bit `i` in the mask permits
+slot `i` to take effect when the alert system fires. Vanilla rarely
+sets this from script — most alert routing is per-slot via `-s`'s
+trailing `[alert]` integer.
+
+#### Putting it together
+
+A typical "alert reaction" pattern:
+
+```gcl
+proc sub_alert_camera {
+    sound \
+        -x sd:FF000008                    # alarm SFX
+    camera \
+        -b -13000 -16000 -8000 16000 9000 16000      # tighten bounds
+        -l -10400 -16000 -16000 16000 9000 16000     # tighten look box
+        -r 640 2048 0                                  # face the alert dir
+        -t 8000                                        # zoom out
+    mesg $s:18e3 $s:0e4e                  # turn snow on
+    mesg $s:ca70 $s:0dd2                  # tell wall actor "enter"
+}
+```
+
+Or a slot-switch from a zone trap:
+
+```gcl
+ntrap $s:dad1 $s:21ca \
+    -m $s:14c9
+    -c
+    -e {
+    camera \
+        -e
+        -b -6000 0 0 6000 10000 14500
+        -l -1300 0 4783 1300 10000 11572
+        -s b:1 b:0 b:1 b:0 0 0 0 614 2048 10000
+    mesg $s:c356 1 arg3            # notify the camera commander
+}
+```
+
+Both patterns appear dozens of times across
+[port/gcl/decompiled/](../../gcl/decompiled/); cutscenes in
+`d00a/demo.gcl`, `d01a/demo.gcl`, and `s11i/scenerio.gcl` are dense
+camera-command labs to read for ideas.
 
 ### `light` — directional / ambient lighting
 
