@@ -1,0 +1,181 @@
+# GCL decompiler output (port/gcl_tools)
+# 12 top-level block(s)
+
+proc sub_DF2A {
+    eval($f:000001 = b:0)
+    load "title" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_B7AC {
+    eval($f:000001 = b:0)
+    load "titlep" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_B79D {
+    eval($f:000001 = b:0)
+    load "titlea" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_83DA {
+    menu \
+        -r 0
+        -m 0
+        -l 0
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_306E {
+    light \
+        -d 10 -41 30
+    light \
+        -c 16 50 60
+    light \
+        -a 16 50 60
+}
+
+proc sub_306F {
+    light \
+        -d 10 -41 30
+    light \
+        -c 16 50 60
+    light \
+        -a 16 50 60
+}
+
+proc sub_3070 {
+    light \
+        -d 10 -41 -30
+    light \
+        -c 16 50 60
+    light \
+        -a 16 50 60
+}
+
+proc sub_AD2D {
+    restart
+}
+
+proc sub_5306 {
+    eval($b:000049 = b:1)
+    if ($f:0002CC == b:1) {
+        call(sub_B7AC)
+    } elseif ($f:000387 == b:1) {
+        call(sub_B79D)
+    } else {
+        call(sub_DF2A)
+    }
+}
+
+proc sub_7192 {
+    eval($b:000049 = b:2)
+    if ($f:0002CC == b:1) {
+        call(sub_B7AC)
+    } elseif ($f:000387 == b:1) {
+        call(sub_B79D)
+    } else {
+        call(sub_DF2A)
+    }
+}
+
+script {
+    if ($w:00004A == b:0) {
+        call(sub_306E)
+        mapdef $s:7df9 \
+            -k $s:d82d
+            -l $s:19bb
+            -h $s:d82d 0
+        map \
+            -a $s:7df9
+        eval($w:00004A = b:1)
+        chara $s:7a05 $s:6eca \
+            -t 30000
+        chara $s:30ce $s:956b \
+            -p -31000 -31000 -31000
+            -d 0 0 0
+            -w 250 -1 -1 -1
+        chara $s:8e45 $s:d6c9 \
+            -b -18000 -18000 -18000 18000 18000 18000
+            -c b:82 b:82 b:128
+        chara $s:8e45 $s:d6c9 \
+            -b -30000 18000 -30000 -18000 30000 -18000
+            -c b:82 b:82 b:128
+        chara $s:6865 $s:2d9e \
+            -n 1
+            -t $s:94cf
+            -w $s:cc22
+            -s -4
+        if ($f:000387 == b:1) {
+            demo \
+                -e
+                -f "s0101a0e.dmo"
+                -s t:FFFFFFFF
+                -p sub_AD2D
+        } else {
+            demo \
+                -e
+                -f "s0101a0.dmo"
+                -s t:00000000
+                -p sub_AD2D
+        }
+    } elseif ($w:00004A == b:1) {
+        call(sub_306F)
+        mapdef $s:7df9 \
+            -k $s:d82d
+            -l $s:19bc
+            -h $s:d82d 0
+        map \
+            -a $s:7df9
+        eval($w:00004A = b:2)
+        chara $s:7a05 $s:6eca \
+            -t 30000
+            -e 1
+        chara $s:8e45 $s:d6c9 \
+            -b -32000 -32000 -32000 32000 20000 32000
+            -c b:82 b:100 b:128
+        chara $s:6865 $s:2d9e \
+            -n 1
+            -t $s:3d17
+            -w $s:cc22
+            -s -1
+        demo \
+            -e
+            -f "s0101a1.dmo"
+            -s t:00000C8A
+            -p sub_AD2D
+    } elseif ($w:00004A == b:2) {
+        call(sub_3070)
+        mapdef $s:7df9 \
+            -k $s:d82d
+            -l $s:19bd
+            -h $s:d82d 0
+        map \
+            -a $s:7df9
+        chara $s:7a05 $s:6eca \
+            -t 30000
+            -e 1
+        chara $s:8e45 $s:d6c9 \
+            -b -30000 -30000 -30000 30000 30000 30000
+            -c b:82 b:128 b:110
+        demo \
+            -e
+            -f "s0101a2.dmo"
+            -s t:00000F51
+            -p sub_5306
+    }
+    chara $s:b4e6 $s:6555 \
+        -p sub_7192
+    map \
+        -c $s:7df9
+}
+
+
+# Trailing data: 5 bytes (font/extra)

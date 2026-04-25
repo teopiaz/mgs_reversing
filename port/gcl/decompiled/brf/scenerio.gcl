@@ -1,0 +1,66 @@
+# GCL decompiler output (port/gcl_tools)
+# 6 top-level block(s)
+
+proc sub_DF2A {
+    eval($f:000001 = b:0)
+    load "title" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_1D3C {
+    eval($f:070047 = arg1)
+    eval($f:00004C = arg2)
+    eval($b:000049 = b:6)
+    call(sub_DF2A)
+}
+
+proc sub_1198 {
+    eval($f:01004C = arg1)
+    eval($f:02004C = arg2)
+    eval($f:03004C = arg3)
+    eval($f:04004C = arg4)
+    eval($f:05004C = arg5)
+    eval($f:06004C = arg6)
+    eval($f:07004C = arg7)
+    eval($f:00004D = arg8)
+}
+
+proc sub_1199 {
+    eval($f:01004D = arg1)
+    eval($f:02004D = arg2)
+    eval($f:03004D = arg3)
+    eval($f:04004D = arg4)
+    eval($f:05004D = arg5)
+    eval($f:06004D = arg6)
+    eval($f:07004D = arg7)
+    eval($f:00004E = arg8)
+}
+
+script {
+    map \
+        -d $s:7df9 $s:96a7
+    map \
+        -a $s:7df9
+    chara $s:93b6 $s:93b6 \
+        -v t:000003CC t:00000C2F t:00000C98 t:00000E56 t:00001A5D t:00001B3D t:00001D22 t:000005B9 t:00000692 t:00000815 t:00000A64 t:00000F56 t:00000FF4 t:00001225 t:000013E6 t:0000155B t:00000007 t:000017C3 t:00001ED9
+        -l $f:070047
+        -z $f:00004C
+        -f $f:01004C $f:02004C $f:03004C $f:04004C $f:05004C $f:06004C $f:07004C $f:00004D $f:01004D $f:02004D $f:03004D $f:04004D $f:05004D $f:06004D $f:07004D $f:00004E
+        -g sub_1198
+        -h sub_1199
+        -e sub_1D3C
+    menu \
+        -r 0
+    map \
+        -a $s:80000E
+    map \
+        -s $s:80000E
+}
+
+
+# Trailing data: 4 bytes (font/extra)

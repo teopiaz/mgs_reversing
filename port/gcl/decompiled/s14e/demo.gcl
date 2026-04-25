@@ -1,0 +1,212 @@
+# GCL decompiler output (port/gcl_tools)
+# 9 top-level block(s)
+
+proc sub_8A37 {
+    pad \
+        -r
+    call(sub_83DA)
+    chara $s:a12e $s:9119 \
+        -m 0
+        -s 1
+    sound \
+        -x sd:01FFFF0A
+    delay \
+        -t 22
+        -e {
+        load "abst" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_83DA {
+    menu \
+        -r 0
+        -m 0
+        -l 0
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_CCE3 {
+    if (b:20 < $w:80006E && $w:80006E <= b:60 && !($f:050001)) {
+        if (!($f:0300F8)) {
+            radio \
+                -c 14048 t:01010855 b:0
+            eval($f:050001 = b:1)
+        }
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif (b:0 < $w:80006E && $w:80006E <= b:20 && !($f:060001)) {
+        if (!($f:0300F8)) {
+            radio \
+                -c 14085 t:01010366 b:0
+            eval($f:060001 = b:1)
+        }
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif ($w:80006E < b:0 && !($f:070001)) {
+        eval($f:0703E5 = b:1)
+        delay \
+            -t 170
+            -e {
+            eval($f:070001 = b:1)
+            radio \
+                -c 14085 t:01010177 b:0
+            delay \
+                -t 30
+                -e {
+                call(sub_CCE3)
+            }
+        }
+    } elseif ($w:80006E < b:0 && $w:0003EA < b:60) {
+        eval($w:0003EA = $w:0003EA + b:1)
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif ($w:0003EA == b:60) {
+        eval($f:0003E8 = b:1)
+        eval($w:0003EA = b:255)
+    } else {
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    }
+}
+
+proc sub_1C8A {
+    if ($w:800082 == b:0) {
+        if ($b:00000C == b:1) {
+            eval($b:00000D = b:1)
+        } elseif ($b:00000C == b:2) {
+            eval($b:00000D = b:2)
+        }
+        eval($b:00000C = b:0)
+    } elseif ($w:800082 == b:2) {
+        if ($b:00000C == b:0) {
+            eval($b:00000D = b:3)
+        } elseif ($b:00000C == b:1) {
+            eval($b:00000D = b:4)
+        }
+        eval($b:00000C = b:2)
+    } elseif ($w:800082 == b:1) {
+        if ($b:00000C == b:0) {
+            eval($b:00000D = b:5)
+        } elseif ($b:00000C == b:2) {
+            eval($b:00000D = b:6)
+        }
+        eval($b:00000C = b:1)
+    }
+    delay \
+        -t 30
+        -p sub_1C8A
+}
+
+proc sub_860B {
+    if ($w:00000E <= b:0) {
+        radio \
+            -m 14180 "clear"
+    }
+    if ($w:000010 <= b:0) {
+        radio \
+            -m 14152 "clear"
+    }
+    if ($w:000012 <= b:0) {
+        radio \
+            -m 14112 "clear"
+    }
+    if (!($f:05023D)) {
+        radio \
+            -m 14048 "clear"
+    }
+    if ($w:0001F0 <= b:0) {
+        radio \
+            -m 14015 "clear"
+    }
+}
+
+proc sub_C2C4 {
+    sound \
+        -x sd:FF000007
+    sound \
+        -b b:1 b:2
+        -k b:154 b:155 b:0
+        -r b:39 b:39 b:0
+    radio \
+        -c 14180 t:02010187 b:1
+        -p sub_2AF0
+}
+
+proc sub_2AF0 {
+    eval($w:00000A = b:209)
+    call(sub_8A37)
+}
+
+script {
+    if ($w:00000A < b:237 && $f:01004E && ($w:80006E > b:0 || $f:0703E5 && $w:0003EA <= b:60)) {
+        call(sub_CCE3)
+    }
+    if (b:238 <= $w:00000A && $w:00000A < b:249) {
+        call(sub_1C8A)
+    }
+    call(sub_860B)
+    if ($w:00000A == b:208) {
+        call(sub_C2C4)
+    } elseif ($w:00000A == b:243) {
+        sound \
+            -x sd:FF000007
+        sound \
+            -b b:1 b:2
+            -k b:154 b:155 b:0
+            -r b:39 b:39 b:0
+        eval($w:00000A = b:244)
+        radio \
+            -c 14180 t:0302019F b:1
+            -p sub_8A37
+    } elseif ($w:00000A == b:245) {
+        sound \
+            -x sd:FF000007
+        sound \
+            -b b:1 b:2
+            -k b:154 b:155 b:0
+            -r b:39 b:39 b:0
+        eval($w:00000A = b:246)
+        radio \
+            -c 14085 t:060401A4 b:1
+            -p sub_8A37
+    }
+    mapdef $s:7df9 \
+        -k $s:933d
+        -l $s:933d
+        -h $s:933d 0
+        -d 64 12
+    mapdef $s:fb09 \
+        -k $s:973d
+        -l $s:973d
+        -h $s:973d 0
+        -d 64 12
+    mapdef $s:fb0a \
+        -k $s:9b3d
+        -l $s:9b3d
+        -h $s:9b3d 0
+        -d 64 12
+    mapdef $s:474d \
+        -k $s:cae4
+        -l $s:cae4
+        -h $s:cae4 0
+}
+
+
+# Trailing data: 4 bytes (font/extra)

@@ -1,0 +1,130 @@
+# GCL decompiler output (port/gcl_tools)
+# 7 top-level block(s)
+
+proc sub_DF2A {
+    eval($f:000001 = b:0)
+    load "title" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_B7ED {
+    eval($b:000000 = b:128)
+    eval($f:000001 = b:0)
+    load "d00a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_C8CF {
+    eval($b:000000 = b:128)
+    eval($w:80001C = -(b:1))
+    eval($w:80001E = -(b:1))
+    if ($w:800002 == b:3) {
+        eval($w:80007A = b:1)
+    } else {
+        eval($w:80007A = b:2)
+    }
+    eval($w:000044 = b:1)
+    eval($w:800018 = 256)
+    eval($w:800016 = 256)
+    eval($w:800036 = b:25)
+    eval($w:800042 = b:4)
+    eval($w:80003A = b:8)
+    eval($w:800044 = b:3)
+    eval($w:800046 = b:3)
+    eval($w:80007E = b:3)
+    if ($f:0002CC == b:1) {
+        eval($w:80003C = b:12)
+    }
+    eval($w:800022 = -(b:1))
+    eval($w:800024 = -(b:1))
+    eval($w:800026 = -(b:1))
+    eval($w:800028 = -(b:1))
+    eval($w:80002A = -(b:1))
+    eval($w:80002C = -(b:1))
+    eval($w:80002E = -(b:1))
+    eval($w:800030 = -(b:1))
+    eval($w:800032 = -(b:1))
+    eval($w:800034 = -(b:1))
+    eval($w:80007C = b:0)
+    eval($w:80007E = b:0)
+    eval($w:80004A = b:1)
+    eval($w:80004C = b:1)
+    eval($w:80004E = -(b:1))
+    eval($w:800050 = -(b:1))
+    eval($w:800052 = -(b:1))
+    eval($w:800054 = -(b:1))
+    eval($w:800056 = -(b:1))
+    eval($w:800058 = -(b:1))
+    eval($w:80005A = -(b:1))
+    eval($w:80005C = -(b:1))
+    eval($w:80005E = -(b:1))
+    eval($w:800060 = -(b:1))
+    eval($w:800062 = -(b:1))
+    eval($w:800064 = -(b:1))
+    eval($w:800066 = -(b:1))
+    eval($w:800068 = -(b:1))
+    eval($w:80006A = -(b:1))
+    eval($w:80006C = -(b:1))
+    eval($w:80006E = -(b:1))
+    eval($w:800070 = -(b:1))
+    eval($w:800072 = -(b:1))
+    eval($w:800074 = -(b:1))
+    eval($w:800076 = -(b:1))
+    eval($w:800078 = -(b:1))
+    eval($w:800080 = b:0)
+    eval($w:800082 = b:0)
+    eval($w:800084 = b:0)
+    eval($w:800086 = 9000)
+    eval($w:800088 = -(9000))
+    eval($w:80008A = b:0)
+    eval($w:80008E = b:0)
+    eval($w:800090 = -(7200))
+    eval($w:80008C = 360)
+}
+
+proc sub_1E05 {
+    eval($b:000049 = b:7)
+    eval($f:020435 = b:0)
+    call(sub_DF2A)
+}
+
+proc sub_7B85 {
+    start \
+        -v
+    eval($f:020435 = b:1)
+    start \
+        -d b:1
+    call(sub_C8CF)
+    eval($w:00000A = b:1)
+    eval($f:03005C = arg1)
+    eval($w:800000 = arg2)
+    eval($b:000434 = arg3)
+    call(sub_B7ED)
+}
+
+script {
+    eval($s:80000E = $s:7df9)
+    map \
+        -d $s:7df9 $s:2a2f
+    map \
+        -a $s:7df9
+    chara $s:3686 $s:3686 \
+        -e sub_1E05
+        -d sub_7B85
+        -g $b:000434 m"{8044}{8049}{8053}Ｃ １ をセ{C223}トしてください。" m"{8044}{8049}{8053}Ｃ １ をセ{C223}トし{811F}{8149}" m"スタートボタンを{907B}してください。" m"{811F}だいまチ{C207}{C223}ク{90CD}です。" "  " m"始しいデ{C203}スク{810C}セ{C223}トさ{814C}ていま{811B}{8153}。" m"メリル到" m"オタコン到" m"メリル到{B009}{9035}音{90D5}{D00A}" m"オタコン到{B009}{9035}音{90D5}{D00A}"
+    menu \
+        -r 0
+    map \
+        -a $s:80000E
+    map \
+        -s $s:80000E
+}
+
+
+# Trailing data: 114 bytes (font/extra)

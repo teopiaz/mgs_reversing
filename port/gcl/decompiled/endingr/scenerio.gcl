@@ -1,0 +1,305 @@
+# GCL decompiler output (port/gcl_tools)
+# 13 top-level block(s)
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_8D0A {
+    eval($f:000001 = b:0)
+    load "rank" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_3001 {
+    light \
+        -d -100 -200 100
+    light \
+        -c 90 80 55
+    light \
+        -a 70 70 85
+}
+
+proc sub_CCE3 {
+    if (b:20 < $w:80006E && $w:80006E <= b:60 && !($f:050001)) {
+        if (!($f:0300F8)) {
+            radio \
+                -c 14048 t:01010855 b:0
+            eval($f:050001 = b:1)
+        }
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif (b:0 < $w:80006E && $w:80006E <= b:20 && !($f:060001)) {
+        if (!($f:0300F8)) {
+            radio \
+                -c 14085 t:01010366 b:0
+            eval($f:060001 = b:1)
+        }
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif ($w:80006E < b:0 && !($f:070001)) {
+        eval($f:0703E5 = b:1)
+        delay \
+            -t 170
+            -e {
+            eval($f:070001 = b:1)
+            radio \
+                -c 14085 t:01010177 b:0
+            delay \
+                -t 30
+                -e {
+                call(sub_CCE3)
+            }
+        }
+    } elseif ($w:80006E < b:0 && $w:0003EA < b:60) {
+        eval($w:0003EA = $w:0003EA + b:1)
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif ($w:0003EA == b:60) {
+        eval($f:0003E8 = b:1)
+        eval($w:0003EA = b:255)
+    } else {
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    }
+}
+
+proc sub_1C8A {
+    if ($w:800082 == b:0) {
+        if ($b:00000C == b:1) {
+            eval($b:00000D = b:1)
+        } elseif ($b:00000C == b:2) {
+            eval($b:00000D = b:2)
+        }
+        eval($b:00000C = b:0)
+    } elseif ($w:800082 == b:2) {
+        if ($b:00000C == b:0) {
+            eval($b:00000D = b:3)
+        } elseif ($b:00000C == b:1) {
+            eval($b:00000D = b:4)
+        }
+        eval($b:00000C = b:2)
+    } elseif ($w:800082 == b:1) {
+        if ($b:00000C == b:0) {
+            eval($b:00000D = b:5)
+        } elseif ($b:00000C == b:2) {
+            eval($b:00000D = b:6)
+        }
+        eval($b:00000C = b:1)
+    }
+    delay \
+        -t 30
+        -p sub_1C8A
+}
+
+proc sub_860B {
+    if ($w:00000E <= b:0) {
+        radio \
+            -m 14180 "clear"
+    }
+    if ($w:000010 <= b:0) {
+        radio \
+            -m 14152 "clear"
+    }
+    if ($w:000012 <= b:0) {
+        radio \
+            -m 14112 "clear"
+    }
+    if (!($f:05023D)) {
+        radio \
+            -m 14048 "clear"
+    }
+    if ($w:0001F0 <= b:0) {
+        radio \
+            -m 14015 "clear"
+    }
+    if ($w:000462 <= b:0) {
+        radio \
+            -m 14007 "clear"
+    }
+}
+
+proc sub_8132 {
+    if ($f:0403F8) {
+        radio \
+            -a
+        radio \
+            -b 14007 t:24241506
+    }
+}
+
+proc sub_AD2D {
+    restart
+}
+
+proc sub_584F {
+    eval($w:800000 = $w:800000 + b:1)
+    if ($w:800000 > 9999) {
+        eval($w:800000 = 9999)
+    }
+    if ($f:03005C == b:1) {
+        if ($w:800006 == b:1) {
+            eval($w:800006 = b:3)
+        } elseif ($w:800006 == b:3) {
+            eval($w:800006 = b:5)
+        } elseif ($w:800006 == b:4) {
+            eval($w:800006 = b:6)
+        } else {
+            eval($w:800006 = b:2)
+        }
+    } else {
+        if ($w:00038C == b:2) {
+            eval($w:800006 = b:3)
+        } elseif ($w:800006 == b:3) {
+            eval($w:800006 = b:4)
+        } elseif ($w:800006 == b:5) {
+            eval($w:800006 = b:6)
+        } else {
+            eval($w:800006 = b:1)
+        }
+    }
+    if ($w:800002 == -(b:1)) {
+        eval($w:800000 = b:0)
+        eval($w:00038C = b:0)
+    }
+    restart
+}
+
+proc sub_B789 {
+    load "roll" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_0077 {
+    if (!($f:03005C)) {
+        sound \
+            -v t:00000000
+            -f sub_0078
+    }
+}
+
+proc sub_0078 {
+    sound \
+        -v t:00000000
+        -f sub_AD2D
+}
+
+script {
+    if ($w:00000A < b:237 && $f:01004E && ($w:80006E > b:0 || $f:0703E5 && $w:0003EA <= b:60)) {
+        call(sub_CCE3)
+    }
+    if (b:238 <= $w:00000A && $w:00000A < b:249) {
+        call(sub_1C8A)
+    }
+    call(sub_860B)
+    call(sub_3001)
+    mapdef $s:7df9 \
+        -k $s:59f2
+        -l $s:59f2
+        -h $s:59f2 0
+        -z 0
+    map \
+        -a $s:7df9
+    chara $s:73ea $s:f810 \
+        -m $s:ce61
+        -y 68
+        -s 0
+        -c 128 128 128
+    chara $s:02c4 $s:cd3a
+    if ($w:00000A == 292) {
+        map \
+            -c $s:7df9
+            -u
+        chara $s:7a05 $s:6eca \
+            -t 30000
+            -e 1
+        eval($w:00000A = 293)
+        if ($f:03005C == b:0) {
+            demo \
+                -e
+                -f "s2801c1.dmo"
+                -s t:FFFFFFFF
+                -p sub_AD2D
+        } else {
+            demo \
+                -e
+                -f "s2801d1.dmo"
+                -s t:FFFFFFFF
+                -p sub_AD2D
+        }
+    } elseif ($w:00000A == 293) {
+        map \
+            -c $s:7df9
+            -u
+        chara $s:7a05 $s:6eca \
+            -t 30000
+            -e 1
+        eval($w:00000A = 294)
+        eval($b:0003AC = b:0)
+        if ($f:03005C == b:0) {
+            demo \
+                -e
+                -f "s2801e0.dmo"
+                -s t:FFFFFFFF
+                -p sub_B789
+        } else {
+            demo \
+                -e
+                -f "s2801f0.dmo"
+                -s t:FFFFFFFF
+                -p sub_B789
+        }
+    } elseif ($w:00000A == 294) {
+        menu \
+            -m 0
+            -l 0
+            -r 0
+        if ($b:0003AC == b:0) {
+            eval($b:0003AC = b:1)
+            chara $s:3453 $s:22b4 \
+                -i 30
+                -o 30
+                -p sub_AD2D
+        } elseif ($b:0003AC == b:1) {
+            eval($b:0003AC = b:2)
+            chara $s:3453 $s:ee52 \
+                -i 30
+                -o 30
+                -p sub_AD2D
+        } elseif ($b:0003AC == b:2) {
+            eval($b:0003AC = b:3)
+            sound \
+                -v t:00000000
+                -f sub_0077
+        } elseif ($b:0003AC == b:3) {
+            eval($b:0003AC = b:4)
+            jimaku m"始到テロ{C223}プ「メタルギアソリ{C223}ド」ロゴ" \
+                -e sub_AD2D
+        } else {
+            menu \
+                -m 0
+                -l 0
+                -r 0
+            call(sub_584F)
+            eval($f:0401E8 = b:0)
+            call(sub_8D0A)
+        }
+    }
+}
+
+
+# Trailing data: 76 bytes (font/extra)
