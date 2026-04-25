@@ -1,0 +1,203 @@
+# GCL decompiler output (port/gcl_tools)
+# 10 top-level block(s)
+
+proc sub_B522 {
+    eval($f:000001 = b:0)
+    load "rank" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_C20E {
+    eval($b:0003D7 = $b:0003D7 + b:1)
+    delay \
+        -t 60
+        -e {
+        restart
+    }
+}
+
+proc sub_B8E4 {
+    sound \
+        -v t:00000000
+        -f sub_B8E5
+}
+
+proc sub_B8E5 {
+    if ($f:03005C == b:0) {
+        sound \
+            -v t:00000000
+            -f sub_B8E6
+    } else {
+        call(sub_B8E6)
+    }
+}
+
+proc sub_B8E6 {
+    sound \
+        -v t:00000000
+        -f sub_B8E7
+}
+
+proc sub_B8E7 {
+    delay \
+        -t 40
+        -e {
+        mesg $s:03fe $s:29b9
+    }
+}
+
+proc sub_7051 {
+    delay \
+        -t 32
+        -e {
+        chara $s:b757 $s:93ee \
+            -s m"1980始到、音{90A4}に{812F}終時車格{907E}二上の{8023}{804E}{902A}{90CB}器{810C}存階し{811F}。"
+            -t 95
+    }
+    delay \
+        -t 165
+        -e {
+        chara $s:b757 $s:93ee \
+            -s m"{811D}の{9082}渡{9051}{812F}ヒロシマ局{9030}{90A2}の{8023}{804E}100格{907E}救に出下する。"
+            -t 95
+    }
+    delay \
+        -t 335
+        -e {
+        chara $s:b757 $s:93ef \
+            -s m"1993始1拷にSTART2{810C}独{8130}{814C}{8023}{804E}アメリカ{C07F}ロシア{812F}"
+            -t 70
+    }
+    delay \
+        -t 430
+        -e {
+        chara $s:b757 $s:93ef \
+            -s m"房闘2000始12拷31各までに{8023}{804E}{90CC}{9A13}{902A}{9085}{90BA}の武{9094}部を"
+            -t 75
+    }
+    delay \
+        -t 530
+        -e {
+        chara $s:b757 $s:93ef \
+            -s m"{811D}{814C}{811E}{814C}3000{9007}3500{907E}に{8023}{804E}{9A16}{9043}する{90C6}に通{90B5}し{811F}。"
+            -t 75
+    }
+    delay \
+        -t 680
+        -e {
+        chara $s:b757 $s:93f0 \
+            -s m"しかし1998始信階、音{90A4}に{812F}な{810A}{8023}{804E}{9A19}格車死{907E}の{902A}{90CB}器{810C}存階している。"
+            -t 235
+    }
+}
+
+proc sub_584F {
+    eval($w:800000 = $w:800000 + b:1)
+    if ($w:800000 > 9999) {
+        eval($w:800000 = 9999)
+    }
+    if ($f:03005C == b:1) {
+        if ($w:800006 == b:0) {
+            eval($w:800006 = b:2)
+        } elseif ($w:800006 == b:1) {
+            eval($w:800006 = b:3)
+        } elseif ($w:800006 == b:3) {
+            eval($w:800006 = b:5)
+        } elseif ($w:800006 == b:4) {
+            eval($w:800006 = b:6)
+        }
+    } else {
+        if ($w:800006 == b:0) {
+            eval($w:800006 = b:1)
+        } elseif ($w:800006 == b:2) {
+            eval($w:800006 = b:3)
+        } elseif ($w:800006 == b:3) {
+            eval($w:800006 = b:4)
+        } elseif ($w:800006 == b:5) {
+            eval($w:800006 = b:6)
+        }
+    }
+}
+
+script {
+    eval($s:80000E = $s:7df9)
+    map \
+        -d $s:7df9 $s:ca26
+    map \
+        -a $s:7df9
+    menu \
+        -r 0
+        -m 0
+        -l 0
+    map \
+        -a $s:80000E
+    map \
+        -s $s:80000E
+    eval($b:0003EC = b:0)
+    if ($b:0003EC == b:0) {
+        if ($b:0003D7 == b:0) {
+            if (($w:800004 & 256) != b:0) {
+                chara $s:e75a $s:03fe \
+                    -t $s:b8b9
+                    -f 32
+                    -d 170
+                    -p sub_C20E
+            } else {
+                chara $s:e75a $s:03fe \
+                    -t $s:b8b9
+                    -f 32
+                    -d 249
+                    -p sub_C20E
+                call(sub_7051)
+            }
+        } elseif ($b:0003D7 == b:1) {
+            if ($w:800006 == b:3) {
+                chara $s:b789 $s:ebec \
+                    -p sub_C20E
+                    -w 0
+                    -v t:00000000
+            } else {
+                chara $s:b789 $s:22b4 \
+                    -p sub_C20E
+                    -w 0
+            }
+        } elseif ($b:0003D7 == b:2) {
+            chara $s:3453 $s:ee52 \
+                -p sub_C20E
+        } elseif ($b:0003D7 == b:3) {
+            delay \
+                -t 90
+                -e {
+                chara $s:e75a $s:03fe \
+                    -t $s:b8ba
+                    -d -1
+                    -p sub_C20E
+            }
+            delay \
+                -t 210
+                -p sub_B8E4
+        } elseif ($b:0003D7 == b:4) {
+            eval($b:0003D7 = b:0)
+            if ($w:800002 == -(b:1)) {
+                load "init" \
+                    -r b:0
+            } else {
+                call(sub_584F)
+                call(sub_B522)
+            }
+        }
+    } else {
+        chara $s:b789 $s:22b4 \
+            -p sub_C20E
+            -w 0
+            -d true
+    }
+}
+
+
+# Trailing data: 942 bytes (font/extra)

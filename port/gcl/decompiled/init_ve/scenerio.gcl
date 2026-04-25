@@ -1,0 +1,18 @@
+# GCL decompiler output (port/gcl_tools)
+# 2 top-level block(s)
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+script {
+    start \
+        -s
+        -f
+        -m
+    load "dummy" \
+        -r b:1
+}
+
+
+# Trailing data: 7 bytes (font/extra)

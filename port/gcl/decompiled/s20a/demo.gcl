@@ -1,0 +1,112 @@
+# GCL decompiler output (port/gcl_tools)
+# 8 top-level block(s)
+
+proc sub_83DA {
+    menu \
+        -r 0
+        -m 0
+        -l 0
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_AEA4 {
+    eval($f:000001 = b:0)
+    load "ending" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_27ED {
+    light \
+        -d 100 -150 -100
+    light \
+        -c 100 90 50
+    light \
+        -a 50 50 65
+}
+
+proc sub_AD2D {
+    restart
+}
+
+proc sub_AAA9 {
+    eval($w:00000A = 288)
+    restart
+}
+
+proc sub_27B1 {
+    call(sub_AEA4)
+}
+
+script {
+    eval($b:0000AA = b:31)
+    call(sub_27ED)
+    mapdef $s:7df9 \
+        -k $s:ce61
+        -l $s:ce61
+        -h $s:ce61 0
+        -z 0
+    map \
+        -b b:135 b:123 b:174
+    map \
+        -a $s:7df9
+    chara $s:73ea $s:f810 \
+        -m $s:ce61
+        -y 68
+        -s 0
+        -c 128 128 128
+    if ($w:00000A == 286) {
+        map \
+            -s $s:7df9
+        chara $s:7a05 $s:6eca \
+            -t 30000
+        if ($f:03005C == b:0) {
+            demo \
+                -e
+                -f "s2801a0.dmo"
+                -s t:FFFFFFFF
+                -p sub_AAA9
+        } else {
+            demo \
+                -e
+                -f "s2801a1.dmo"
+                -s t:FFFFFFFF
+                -p sub_AAA9
+        }
+    } elseif ($w:00000A == 288) {
+        map \
+            -s $s:7df9
+        map \
+            -c $s:7df9
+        eval($w:00000A = 290)
+        radio \
+            -c 14085 t:060401BE b:1
+            -p sub_AD2D
+    } elseif ($w:00000A == 290) {
+        map \
+            -s $s:7df9
+        chara $s:7a05 $s:6eca \
+            -t 30000
+            -e 1
+        eval($w:00000A = 292)
+        if ($f:03005C == b:0) {
+            demo \
+                -e
+                -f "s2801c0.dmo"
+                -s t:FFFFFFFF
+                -p sub_27B1
+        } else {
+            demo \
+                -e
+                -f "s2801d0.dmo"
+                -s t:FFFFFFFF
+                -p sub_27B1
+        }
+    }
+}
+
+
+# Trailing data: 5 bytes (font/extra)
