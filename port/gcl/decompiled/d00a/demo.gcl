@@ -1,0 +1,155 @@
+# GCL decompiler output (port/gcl_tools)
+# 7 top-level block(s)
+
+proc sub_83DA {
+    menu \
+        -r 0
+        -m 0
+        -l 0
+}
+
+proc sub_3C7F {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(3952))
+    eval($w:800012 = b:104)
+    eval($w:800014 = -(534))
+    eval($w:000002 = 1024)
+    eval($w:000004 = b:0)
+    load "s00a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_EE4B {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(3952))
+    eval($w:800012 = b:104)
+    eval($w:800014 = -(534))
+    eval($w:000002 = 1024)
+    eval($w:000004 = b:0)
+    load "s00aa" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_9FBB {
+    eval($f:000001 = b:0)
+    load "d01a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_1FED {
+    light \
+        -d 0 -1 0
+    light \
+        -c 35 35 35
+    light \
+        -a 51 51 51
+}
+
+script {
+    call(sub_1FED)
+    mapdef $s:7df9 \
+        -k $s:c661 $s:6da4
+        -l $s:c661
+        -h $s:c661 0
+        -z 0
+    map \
+        -a $s:7df9
+    chara $s:7a05 $s:6eca \
+        -t 30000
+    chara $s:8e45 $s:d6c9 \
+        -b -8750 -5000 -7500 9625 -1400 8750
+        -c b:74 b:128 b:84
+    chara $s:32e5 $s:2d07 \
+        -t $s:aef4
+        -s 800 800 1600 1600
+        -p -5130 3700 -21500 868 3700 -21500 7118 3700 -21500
+    chara $s:32e5 $s:2d07 \
+        -t $s:aef4
+        -s 800 800 1600 1600
+        -p -5130 3700 -17500 868 3700 -17500 7118 3700 -17500
+    chara $s:32e5 $s:2d07 \
+        -t $s:aef4
+        -s 800 800 1600 1600
+        -p -5130 3700 -13500 868 3700 -13500 7118 3700 -13500
+    chara $s:32e5 $s:2d07 \
+        -t $s:aef4
+        -s 800 800 1600 1600
+        -p -5130 3700 -9500 868 3700 -9500 7118 3700 -9500
+    chara $s:32e5 $s:2d07 \
+        -t $s:aef4
+        -s 800 800 1600 1600
+        -p 7164 -1650 -18190
+    chara $s:ec77 $s:d14a \
+        -p 0 0 0
+        -d 0 0 0
+        -m $s:6d44
+    chara $s:ec77 $s:c056 \
+        -p 0 0 0
+        -d 0 0 0
+        -m $s:6d45
+    chara $s:ec77 $s:c056 \
+        -p 0 0 0
+        -d 0 0 0
+        -m $s:6d46
+    chara $s:ba52 $s:790b \
+        -m $s:6d44
+        -a 1
+        -s 50
+    chara $s:ba52 $s:790b \
+        -m $s:6d45
+        -a 0
+        -s 70
+    chara $s:ba52 $s:790b \
+        -m $s:6d46
+        -a 1
+        -s 50
+    chara $s:30ce $s:5ba4 \
+        -p 3068 2954 -27000
+        -d 0 0 0
+        -w 200 -1 -1 -1
+    map \
+        -s $s:7df9
+    if ($w:00000A == b:1) {
+        eval($w:00000A = b:2)
+        if ($f:000387) {
+            demo \
+                -e
+                -f "s0102a0e.dmo"
+                -s t:FFFFFFFF
+                -p sub_EE4B
+        } else {
+            demo \
+                -e
+                -f "s0102a0.dmo"
+                -s t:00001441
+                -p sub_3C7F
+        }
+    } elseif ($w:00000A == b:7) {
+        eval($w:00000A = b:8)
+        mesg $s:5ba4 $s:418b
+        eval($w:00000A = b:9)
+        if ($f:000387) {
+            demo \
+                -e
+                -f "s0103a0e.dmo"
+                -s t:FFFFFFFF
+                -p sub_9FBB
+        } else {
+            demo \
+                -e
+                -f "s0103a0.dmo"
+                -s t:00001ABD
+                -p sub_9FBB
+        }
+    }
+}
+
+
+# Trailing data: 5 bytes (font/extra)

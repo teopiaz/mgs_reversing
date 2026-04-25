@@ -1,0 +1,223 @@
+# GCL decompiler output (port/gcl_tools)
+# 25 top-level block(s)
+
+proc sub_D0BB {
+    eval($b:000000 = b:128)
+    eval($f:000001 = b:0)
+    load "select" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_1DFD {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = 1104)
+    eval($w:800014 = 10750)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s15a" \
+        -m $s:7df9
+        -s b:1
+        -n
+}
+
+proc sub_E5CD {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(b:119))
+    eval($w:800012 = 1104)
+    eval($w:800014 = 17000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s15b" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_61D6 {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(4000))
+    eval($w:800012 = 1104)
+    eval($w:800014 = 26750)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s16a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_66CE {
+    eval($f:000001 = b:0)
+    eval($w:800010 = 10500)
+    eval($w:800012 = -(4204))
+    eval($w:800014 = -(3250))
+    eval($w:000002 = b:2)
+    eval($w:000004 = b:0)
+    load "s16b" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_6AD6 {
+    eval($f:000001 = b:0)
+    eval($w:800010 = 4700)
+    eval($w:800012 = 1104)
+    eval($w:800014 = -(10475))
+    eval($w:000002 = 3072)
+    eval($w:000004 = b:0)
+    load "s16c" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_6EDE {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(6800))
+    eval($w:800012 = 1900)
+    eval($w:800014 = 7900)
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s16d" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_E2E6 {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 378)
+    eval($w:800012 = 1104)
+    eval($w:800014 = 279)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    if ($w:800006 == b:3) {
+        load "s17ar" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s17a" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_45CF {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = b:0)
+    eval($w:800014 = b:0)
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    if ($f:000435 == b:0) {
+        load "d18a" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "d18ar" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_E493 {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = b:0)
+    eval($w:800014 = b:0)
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    if ($f:000435 == b:0) {
+        load "s19a" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s19ar" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_65E3 {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    if ($f:000435 == b:0) {
+        load "s20a" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s20ar" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_70CF {
+    call(sub_D0BB)
+}
+
+proc sub_AF0D {
+    eval($w:00000A = b:209)
+    eval($w:000060 = b:0)
+    call(sub_1DFD)
+}
+
+proc sub_AF0E {
+    call(sub_E5CD)
+}
+
+proc sub_AF2D {
+    call(sub_61D6)
+}
+
+proc sub_AF2E {
+    call(sub_66CE)
+}
+
+proc sub_AF2F {
+    call(sub_6AD6)
+}
+
+proc sub_AF30 {
+    call(sub_6EDE)
+}
+
+proc sub_AF4D {
+    eval($w:00000A = b:253)
+    call(sub_E2E6)
+}
+
+proc sub_AF6D {
+    eval($w:00000A = 258)
+    eval($f:01005D = b:1)
+    call(sub_45CF)
+}
+
+proc sub_AF8D {
+    call(sub_E493)
+}
+
+proc sub_AF8E {
+    eval($f:03005C = b:1)
+    call(sub_E493)
+}
+
+proc sub_B26D {
+    eval($w:00000A = 286)
+    call(sub_65E3)
+}
+
+script {
+    chara $s:d2f6 $s:291f \
+        -s "S15A" sub_AF0D "S15B" sub_AF0E "S16A" sub_AF2D "S16B" sub_AF2E "S16C" sub_AF2F "S16D" sub_AF30 "S17A" sub_AF4D "S18A" sub_AF6D "S19A" sub_AF8D "S19B" sub_AF8E "S20A" sub_B26D "RETURN" sub_70CF
+}
+
+
+# Trailing data: 5 bytes (font/extra)

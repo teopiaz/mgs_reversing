@@ -1,0 +1,37 @@
+# GCL decompiler output (port/gcl_tools)
+# 4 top-level block(s)
+
+proc sub_DF2A {
+    eval($f:000001 = b:0)
+    load "title" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_1D3C {
+    eval($b:000049 = b:7)
+    call(sub_DF2A)
+}
+
+script {
+    eval($s:80000E = $s:7df9)
+    map \
+        -d $s:7df9 $s:eee9
+    map \
+        -a $s:7df9
+    chara $s:81c7 $s:81c7 \
+        -e sub_1D3C m"変始到音を上７き保存しますか{C03F}"
+    menu \
+        -r 0
+    map \
+        -a $s:80000E
+    map \
+        -s $s:80000E
+}
+
+
+# Trailing data: 112 bytes (font/extra)

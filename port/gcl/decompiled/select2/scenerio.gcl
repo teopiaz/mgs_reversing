@@ -1,0 +1,184 @@
+# GCL decompiler output (port/gcl_tools)
+# 20 top-level block(s)
+
+proc sub_D0BB {
+    eval($b:000000 = b:128)
+    eval($f:000001 = b:0)
+    load "select" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_BECD {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 3000)
+    eval($w:800012 = 1104)
+    eval($w:800014 = 25000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s05a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_41BE {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 7500)
+    eval($w:800012 = 4000)
+    eval($w:800014 = 22000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s06a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_C2BE {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = b:0)
+    eval($w:800014 = -(12000))
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s07a" \
+        -m $s:7df9
+        -s b:2
+}
+
+proc sub_C7BE {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(750))
+    eval($w:800012 = b:0)
+    eval($w:800014 = 14500)
+    eval($w:000002 = 2048)
+    if ($f:000435 == b:0) {
+        load "s07b" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s07br" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_43BF {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 2500)
+    eval($w:800012 = 1110)
+    eval($w:800014 = -(16700))
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s08a" \
+        -m $s:7df9
+        -s b:2
+}
+
+proc sub_4CBF {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(3125))
+    eval($w:800012 = 1057)
+    eval($w:800014 = 9746)
+    eval($w:000002 = 1024)
+    eval($w:000004 = b:0)
+    if ($w:800006 == b:3) {
+        load "s08cr" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s08c" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_1A2A {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(9500))
+    eval($w:800012 = b:0)
+    eval($w:800014 = 6000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    if ($w:800006 == b:3) {
+        load "s08br" \
+            -m $s:7df9
+            -s b:1
+            -n
+    } else {
+        load "s08b" \
+            -m $s:7df9
+            -s b:1
+            -n
+    }
+}
+
+proc sub_C3C7 {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(7620))
+    eval($w:800012 = 1104)
+    eval($w:800014 = 11197)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    if ($f:000435 == b:0) {
+        load "s09a" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s09ar" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_70CF {
+    call(sub_D0BB)
+}
+
+proc sub_AB0D {
+    call(sub_BECD)
+}
+
+proc sub_AB2D {
+    call(sub_41BE)
+}
+
+proc sub_AB4D {
+    call(sub_C2BE)
+}
+
+proc sub_AB4E {
+    call(sub_C7BE)
+}
+
+proc sub_AB6D {
+    call(sub_43BF)
+}
+
+proc sub_AB6F {
+    call(sub_4CBF)
+}
+
+proc sub_AB6E {
+    call(sub_1A2A)
+}
+
+proc sub_AB8D {
+    call(sub_C3C7)
+}
+
+script {
+    chara $s:d2f6 $s:291d \
+        -s "S05A" sub_AB0D "S06A" sub_AB2D "S07A" sub_AB4D "S07B" sub_AB4E "S08A" sub_AB6D "S08B" sub_AB6E "S08C" sub_AB6F "S09A" sub_AB8D "RETURN" sub_70CF
+}
+
+
+# Trailing data: 7 bytes (font/extra)

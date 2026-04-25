@@ -1,0 +1,434 @@
+# GCL decompiler output (port/gcl_tools)
+# 49 top-level block(s)
+
+proc sub_D0BB {
+    eval($b:000000 = b:128)
+    eval($f:000001 = b:0)
+    load "select" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_45CB {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = -(28988))
+    eval($w:800014 = 27000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    if ($f:000435 == b:0) {
+        load "s10a" \
+            -m $s:7df9
+            -s b:1
+    } else {
+        load "s10ar" \
+            -m $s:7df9
+            -s b:1
+    }
+}
+
+proc sub_DCCB {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 10750)
+    eval($w:800012 = -(26896))
+    eval($w:800014 = 4250)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s11a" \
+        -m $s:a9d5
+        -s b:1
+}
+
+proc sub_E1CB {
+    eval($f:000001 = b:0)
+    eval($w:000002 = b:0)
+    load "s11b" \
+        -m $s:7df9
+        -p -5000 0 24000
+        -s b:1
+}
+
+proc sub_F5CB {
+    eval($f:000001 = b:0)
+    eval($w:000002 = b:0)
+    load "s11g" \
+        -m $s:7df9
+        -p -5000 0 24000
+        -s b:1
+}
+
+proc sub_F1CB {
+    eval($f:000001 = b:0)
+    load "s11f" \
+        -m $s:7df9
+        -p -4500 -16500 -13000
+        -s b:1
+}
+
+proc sub_F9DB {
+    eval($f:000001 = b:0)
+    eval($w:000002 = 2048)
+    load "s11h" \
+        -m $s:7df9
+        -p -5500 0 -5000
+        -s b:1
+}
+
+proc sub_EDDB {
+    eval($f:000001 = b:0)
+    load "s11e" \
+        -m $s:7df9
+        -p 0 2500 0
+        -n
+        -s b:1
+}
+
+proc sub_FDE3 {
+    eval($f:000001 = b:0)
+    eval($w:800074 = -(b:1))
+    eval($w:000002 = 2048)
+    load "s11i" \
+        -m $s:7df9
+        -p 4000 -16500 12000
+        -s b:1
+}
+
+proc sub_E5EC {
+    eval($f:000001 = b:0)
+    eval($f:020001 = b:0)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = -(16250))
+    eval($w:800014 = b:0)
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s11c" \
+        -m $s:f1f0
+        -p 0 -15145 0
+        -s b:1
+}
+
+proc sub_E5FB {
+    eval($f:000001 = b:0)
+    load "s11c" \
+        -m $s:f1f2
+        -p -4000 24000 -3375
+        -s b:1
+}
+
+proc sub_E5FD {
+    eval($f:000001 = b:0)
+    load "s11c" \
+        -m $s:f1f0
+        -p -1452 -11292 -4930
+        -s b:1
+}
+
+proc sub_E9FB {
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(3000))
+    eval($w:800012 = 23000)
+    eval($w:800014 = -(13500))
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s11d" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_FDCB {
+    eval($f:000001 = b:0)
+    eval($w:000002 = 2048)
+    eval($f:030001 = b:1)
+    load "s11i" \
+        -m $s:7df9
+        -p 5000 -16500 12250
+        -s b:1
+}
+
+proc sub_5DDC {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(876))
+    eval($w:800012 = 1022)
+    eval($w:800014 = 22800)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s12a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_61DC {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(876))
+    eval($w:800012 = 1022)
+    eval($w:800014 = 22800)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s12b" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_65DC {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(876))
+    eval($w:800012 = 1022)
+    eval($w:800014 = 22800)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s12c" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_DECC {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 7724)
+    eval($w:800012 = 19536)
+    eval($w:800014 = 10932)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s13a" \
+        -m $s:4986
+        -s b:1
+}
+
+proc sub_5FCD {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(6000))
+    eval($w:800012 = b:0)
+    eval($w:800014 = 6000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s14a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_64E5 {
+    eval($f:000001 = b:0)
+    if ($s:000006 == $s:7fd4) {
+        eval($w:800010 = -(10500))
+        eval($w:800012 = 12000)
+        eval($w:800014 = 5000)
+        eval($w:000002 = 2048)
+        eval($w:000004 = b:0)
+    } else {
+        eval($w:800010 = b:0)
+        eval($w:800012 = -(8900))
+        eval($w:800014 = -(6000))
+        eval($w:000002 = b:0)
+        eval($w:000004 = b:0)
+    }
+    load "s14b" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_6CD5 {
+    eval($f:000001 = b:0)
+    if ($s:000006 == $s:7fd4) {
+        eval($w:800010 = b:0)
+        eval($w:800012 = b:0)
+        eval($w:800014 = b:0)
+        eval($w:000002 = 2048)
+        eval($w:000004 = b:0)
+    } else {
+        eval($w:800010 = b:0)
+        eval($w:800012 = b:0)
+        eval($w:800014 = b:0)
+        eval($w:000002 = b:0)
+        eval($w:000004 = b:0)
+    }
+    load "s14d" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_68E5 {
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = 11100)
+    eval($w:800014 = 5000)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s14c" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_6FCD {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($s:000008 = $s:2190)
+    eval($w:800010 = b:0)
+    eval($w:800012 = 1104)
+    eval($w:800014 = 12750)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s14e" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_71CD {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($s:000008 = $s:2b90)
+    eval($w:800010 = b:0)
+    eval($w:800012 = -(10000))
+    eval($w:800014 = -(6000))
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s14e" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_70CF {
+    call(sub_D0BB)
+}
+
+proc sub_AE6D {
+    eval($w:00000A = b:142)
+    eval($w:800034 = -(b:1))
+    eval($w:00005E = b:5)
+    eval($f:04005C == b:0)
+    call(sub_45CB)
+}
+
+proc sub_C2CA {
+    eval($w:00000A = b:150)
+    eval($f:04005C == b:0)
+    call(sub_45CB)
+}
+
+proc sub_59D0 {
+    eval($w:00000A = b:165)
+    call(sub_45CB)
+}
+
+proc sub_AE8D {
+    eval($f:020016 = b:0)
+    eval($w:00000A = b:157)
+    call(sub_DCCB)
+}
+
+proc sub_AE8E {
+    eval($w:800074 = b:1)
+    call(sub_E1CB)
+}
+
+proc sub_D207 {
+    eval($w:800074 = -(b:1))
+    call(sub_E1CB)
+}
+
+proc sub_AE93 {
+    call(sub_F5CB)
+}
+
+proc sub_AE95 {
+    eval($w:80002A = -(b:1))
+    eval($w:00000A = b:179)
+    call(sub_FDE3)
+}
+
+proc sub_62CC {
+    eval($w:80002A = -(b:1))
+    eval($w:00000A = b:179)
+    call(sub_FDCB)
+}
+
+proc sub_AE8F {
+    eval($w:00000A = b:183)
+    call(sub_E5FB)
+}
+
+proc sub_5A01 {
+    call(sub_E5FD)
+}
+
+proc sub_4ACB {
+    eval($f:060020 = b:1)
+    eval($w:00000A = b:195)
+    eval($f:050020 = b:1)
+    call(sub_E5EC)
+}
+
+proc sub_AE90 {
+    call(sub_E9FB)
+}
+
+proc sub_AE91 {
+    eval($w:00000A = b:191)
+    call(sub_EDDB)
+}
+
+proc sub_AE94 {
+    eval($f:05001A = b:1)
+    eval($w:00000A = b:184)
+    call(sub_F9DB)
+}
+
+proc sub_AEAD {
+    eval($f:05005C = b:0)
+    eval($w:00000A = b:196)
+    call(sub_5DDC)
+}
+
+proc sub_C2CB {
+    eval($f:05005C = b:0)
+    eval($w:00000A = b:204)
+    call(sub_5DDC)
+}
+
+proc sub_AEAE {
+    eval($f:07004E = b:1)
+    eval($f:05005C = b:0)
+    eval($f:06005C = b:1)
+    call(sub_61DC)
+}
+
+proc sub_AEAF {
+    eval($w:00000A = b:204)
+    call(sub_65DC)
+}
+
+proc sub_AECD {
+    eval($w:00000A = b:204)
+    eval($s:800094 = $s:4adc)
+    call(sub_DECC)
+}
+
+proc sub_DE65 {
+    eval($w:00000A = b:205)
+    eval($f:07005C = b:1)
+    call(sub_6FCD)
+}
+
+proc sub_DE66 {
+    eval($w:00000A = b:209)
+    eval($f:00005D = b:1)
+    call(sub_71CD)
+}
+
+script {
+    chara $s:d2f6 $s:291e \
+        -s "S10A" sub_AE6D "S10A_1" sub_C2CA "S10A_2" sub_59D0 "S11A" sub_AE8D "S11B" sub_AE8E "S11B2" sub_D207 "S11C" sub_AE8F "S11C1" sub_4ACB "S11C2" sub_5A01 "S11D" sub_AE90 "S11E" sub_AE91 "S11G" sub_AE93 "S11H" sub_AE94 "S11I" sub_AE95 "S11I2" sub_62CC "S12A" sub_AEAD "S12A_1" sub_C2CB "S12B" sub_AEAE "S12C" sub_AEAF "S13A" sub_AECD "S14E0" sub_DE65 "S14E1" sub_DE66 "RETURN" sub_70CF
+}
+
+
+# Trailing data: 4 bytes (font/extra)

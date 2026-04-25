@@ -1,0 +1,2086 @@
+# GCL decompiler output (port/gcl_tools)
+# 83 top-level block(s)
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_C2BD {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = -(1125))
+    eval($w:800012 = b:104)
+    eval($w:800014 = -(26750))
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s05a" \
+        -m $s:7df9
+        -s b:1
+}
+
+proc sub_C2BE {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = b:0)
+    eval($w:800012 = b:0)
+    eval($w:800014 = -(12000))
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s07a" \
+        -m $s:7df9
+        -s b:2
+}
+
+proc sub_43BF {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 2500)
+    eval($w:800012 = 1110)
+    eval($w:800014 = -(16700))
+    eval($w:000002 = b:0)
+    eval($w:000004 = b:0)
+    load "s08a" \
+        -m $s:7df9
+        -s b:2
+}
+
+proc sub_508E {
+    sound \
+        -e b:0 b:63 b:75
+    eval($f:000001 = b:0)
+    eval($w:000004 = b:1)
+    eval($w:80001E = b:2)
+    load "s01a" \
+        -m $s:7df9
+        -p -2136 2104 -5960
+        -s b:3
+}
+
+proc sub_D89E {
+    sound \
+        -e b:0 b:63 b:75
+    eval($f:000001 = b:0)
+    eval($w:000004 = b:1)
+    eval($w:80001E = b:4)
+    load "s12c" \
+        -m $s:7df9
+        -p -12636 3604 10040
+        -s b:3
+}
+
+proc sub_3353 {
+    if ($w:800002 < b:0) {
+        eval($w:000410 = b:3)
+    } elseif ($w:800002 == b:0) {
+        eval($w:000410 = b:3)
+    } elseif ($w:800002 == b:1) {
+        eval($w:000410 = b:5)
+    } elseif ($w:800002 == b:2) {
+        eval($w:000410 = b:7)
+    } else {
+        eval($w:000410 = 9999)
+    }
+    if (arg1 < b:128) {
+        eval($f:040001 = b:1)
+    } elseif ($w:800002 == b:3) {
+        eval($f:040001 = b:0)
+    } elseif (($b:000000 - arg1 + b:128 & b:127) >= $w:000410) {
+        eval($f:040001 = b:1)
+    } else {
+        eval($f:040001 = b:0)
+    }
+}
+
+proc sub_20AD {
+    light \
+        -d -80 100 -100
+    light \
+        -c 5 80 40
+    light \
+        -a 15 40 35
+}
+
+proc sub_FCC0 {
+    light \
+        -d -100 -100 -100
+    light \
+        -c 50 60 50
+    light \
+        -a 45 70 60
+}
+
+proc sub_CCE3 {
+    if (b:20 < $w:80006E && $w:80006E <= b:60 && !($f:050001)) {
+        if (!($f:0300F8)) {
+            radio \
+                -c 14048 t:01010855 b:0
+            eval($f:050001 = b:1)
+        }
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif (b:0 < $w:80006E && $w:80006E <= b:20 && !($f:060001)) {
+        if (!($f:0300F8)) {
+            radio \
+                -c 14085 t:01010366 b:0
+            eval($f:060001 = b:1)
+        }
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif ($w:80006E < b:0 && !($f:070001)) {
+        eval($f:0703E5 = b:1)
+        delay \
+            -t 170
+            -e {
+            eval($f:070001 = b:1)
+            radio \
+                -c 14085 t:01010177 b:0
+            delay \
+                -t 30
+                -e {
+                call(sub_CCE3)
+            }
+        }
+    } elseif ($w:80006E < b:0 && $w:0003EA < b:60) {
+        eval($w:0003EA = $w:0003EA + b:1)
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    } elseif ($w:0003EA == b:60) {
+        eval($f:0003E8 = b:1)
+        eval($w:0003EA = b:255)
+    } else {
+        delay \
+            -t 30
+            -e {
+            call(sub_CCE3)
+        }
+    }
+}
+
+proc sub_1C8A {
+    if ($w:800082 == b:0) {
+        if ($b:00000C == b:1) {
+            eval($b:00000D = b:1)
+        } elseif ($b:00000C == b:2) {
+            eval($b:00000D = b:2)
+        }
+        eval($b:00000C = b:0)
+    } elseif ($w:800082 == b:2) {
+        if ($b:00000C == b:0) {
+            eval($b:00000D = b:3)
+        } elseif ($b:00000C == b:1) {
+            eval($b:00000D = b:4)
+        }
+        eval($b:00000C = b:2)
+    } elseif ($w:800082 == b:1) {
+        if ($b:00000C == b:0) {
+            eval($b:00000D = b:5)
+        } elseif ($b:00000C == b:2) {
+            eval($b:00000D = b:6)
+        }
+        eval($b:00000C = b:1)
+    }
+    delay \
+        -t 30
+        -p sub_1C8A
+}
+
+proc sub_00F9 {
+    if ($w:00000A < b:50) {
+        radio \
+            -b 14180 t:05040241
+    } elseif (b:50 <= $w:00000A && $w:00000A < b:137) {
+        radio \
+            -b 14180 t:0C0C024A
+    } elseif (b:137 <= $w:00000A && $w:00000A < b:163) {
+        radio \
+            -b 14180 t:0E0E0262
+    } elseif (b:163 <= $w:00000A && $w:00000A < b:174) {
+        radio \
+            -b 14180 t:1010027E
+    } elseif (b:174 <= $w:00000A && $w:00000A < b:195) {} elseif (b:195 <= $w:00000A && $w:00000A < b:204) {
+        radio \
+            -b 14180 t:1010027E
+    } elseif (b:204 <= $w:00000A) {
+        radio \
+            -b 14180 t:1615029E
+    } else {}
+}
+
+proc sub_E42A {
+    if ($w:00000A < b:24) {
+        radio \
+            -b 14152 t:0E0A057F
+    } elseif (b:24 <= $w:00000A && $w:00000A < b:50) {
+        radio \
+            -b 14152 t:17140597
+    } elseif (b:50 <= $w:00000A && $w:00000A < b:111) {
+        radio \
+            -b 14152 t:181505C2
+    } elseif (b:111 <= $w:00000A && $w:00000A < b:137) {
+        radio \
+            -b 14152 t:1A1805EF
+    } elseif (b:137 <= $w:00000A && $w:00000A < b:160) {
+        radio \
+            -b 14152 t:16140621
+    } elseif (b:160 <= $w:00000A && $w:00000A < b:188) {
+        radio \
+            -b 14152 t:1B18064B
+    } elseif (b:188 <= $w:00000A && $w:00000A < b:237) {
+        radio \
+            -b 14152 t:1816067E
+    } elseif (b:237 <= $w:00000A) {
+        radio \
+            -b 14152 t:1B1906AC
+    } else {}
+}
+
+proc sub_860B {
+    if ($w:00000E <= b:0) {
+        radio \
+            -m 14180 "clear"
+    }
+    if ($w:000010 <= b:0) {
+        radio \
+            -m 14152 "clear"
+    }
+    if ($w:000012 <= b:0) {
+        radio \
+            -m 14112 "clear"
+    }
+    if (!($f:05023D)) {
+        radio \
+            -m 14048 "clear"
+    }
+    if ($w:0001F0 <= b:0) {
+        radio \
+            -m 14015 "clear"
+    }
+    if ($w:000462 <= b:0) {
+        radio \
+            -m 14007 "clear"
+    }
+}
+
+proc sub_8132 {
+    if ($f:0403F8) {
+        radio \
+            -a
+        radio \
+            -b 14007 t:24241506
+    }
+}
+
+proc sub_5A77 {
+    if ($w:00000A < b:137) {
+        radio \
+            -b 14085 t:19160387
+    } elseif (b:137 <= $w:00000A) {
+        radio \
+            -b 14085 t:171303B6
+    }
+}
+
+proc sub_DB13 {
+    if ($w:00000A < b:153) {
+        radio \
+            -b 14096 t:171700CC
+    } elseif (b:153 <= $w:00000A && $w:00000A < 279) {
+        radio \
+            -b 14096 t:141500FA
+    } else {
+        radio \
+            -b 14096 t:141500FA
+            -p sub_8132
+    }
+}
+
+proc sub_D977 {
+    delay \
+        -t 13
+        -e {
+        mesg $s:7858 $s:121f
+        sound \
+            -e b:0 b:63 b:96
+    }
+}
+
+proc sub_358E {
+    sound \
+        -x sd:01FFFF0B
+    sound \
+        -e b:0 b:63 b:100
+}
+
+proc sub_1C61 {
+    sound \
+        -x sd:FF0000FE
+}
+
+proc sub_49C9 {
+    if ($w:0002CA == b:1) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:000173B3
+    } elseif ($w:0002CA == b:2) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:00016DD2
+    } elseif ($w:0002CA == b:3) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:000172D4
+    } elseif ($w:0002CA == b:4) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:00016DD2
+    } elseif ($w:0002CA == b:5) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:00017410
+    } elseif ($w:0002CA == b:6) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:00016DD2
+    } elseif ($w:0002CA == b:7) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:0001734A
+    } elseif ($w:0002CA == b:9) {
+        eval($w:0002CA = b:0)
+        varsave $w:0002CA
+        sound \
+            -g t:000174E6
+    } elseif ($w:80001A & b:8 && $w:00000A < b:237) {
+        eval($w:80001A = b:0)
+        eval($f:060001 = b:0)
+        varsave $f:060001
+        sound \
+            -g t:00017547
+    } elseif (b:246 <= $w:00000A && $w:00000A < 275) {
+        rand 9
+        if ($w:0002C2 % b:9 == b:0) {
+            sound \
+                -g t:00016D04
+        } elseif ($w:0002C2 % b:9 == b:1) {
+            sound \
+                -g t:00016D6D
+        } elseif ($w:0002C2 % b:9 == b:2) {
+            sound \
+                -g t:00016DD2
+        } elseif ($w:0002C2 % b:9 == b:3) {
+            sound \
+                -g t:00016E37
+        } elseif ($w:0002C2 % b:9 == b:4) {
+            sound \
+                -g t:00016E9C
+        } elseif ($w:0002C2 % b:9 == b:5) {
+            sound \
+                -g t:00017058
+        } elseif ($w:0002C2 % b:9 == b:6) {
+            sound \
+                -g t:000170C1
+        } elseif ($w:0002C2 % b:9 == b:7) {
+            sound \
+                -g t:00017136
+        } else {
+            sound \
+                -g t:0001719F
+        }
+    } elseif (275 <= $w:00000A && $w:00000A < 285) {
+        rand 3
+        if ($w:0002C2 % b:3 == b:1) {
+            sound \
+                -g t:000170C1
+        } elseif ($w:0002C2 % b:3 == b:2) {
+            sound \
+                -g t:00017136
+        } else {
+            sound \
+                -g t:0001719F
+        }
+    } else {
+        rand 12
+        eval($w:0002C2 = $w:80000A)
+        if ($w:0002C2 % b:12 == b:0) {
+            sound \
+                -g t:00016D04
+        } elseif ($w:0002C2 % b:12 == b:1) {
+            sound \
+                -g t:00016D6D
+        } elseif ($w:0002C2 % b:12 == b:2) {
+            sound \
+                -g t:00016DD2
+        } elseif ($w:0002C2 % b:12 == b:3) {
+            sound \
+                -g t:00016E37
+        } elseif ($w:0002C2 % b:12 == b:4) {
+            sound \
+                -g t:00016E9C
+        } elseif ($w:0002C2 % b:12 == b:5) {
+            sound \
+                -g t:00016F01
+        } elseif ($w:0002C2 % b:12 == b:6) {
+            sound \
+                -g t:00016F7A
+        } elseif ($w:0002C2 % b:12 == b:7) {
+            sound \
+                -g t:00016FEF
+        } elseif ($w:0002C2 % b:12 == b:8) {
+            sound \
+                -g t:00017058
+        } elseif ($w:0002C2 % b:12 == b:9) {
+            sound \
+                -g t:000170C1
+        } elseif ($w:0002C2 % b:12 == b:10) {
+            sound \
+                -g t:00017136
+        } else {
+            sound \
+                -g t:0001719F
+        }
+    }
+}
+
+proc sub_7023 {
+    varsave $w:000044 $w:800018 $w:800016 $w:800036 $w:800038 $w:80003C $w:800048 $w:80003E $w:800042 $w:800040 $w:80003A $w:800044 $w:800046 $w:80007A $w:80007C $w:80007E
+}
+
+proc sub_8A53 {
+    eval($w:000044 = b:3)
+    eval($w:800018 = 384)
+    if ($w:800002 < b:0) {
+        eval($w:800036 = b:73)
+        eval($w:800038 = 999)
+        eval($w:80003C = b:12)
+        eval($w:800042 = b:8)
+        eval($w:800040 = b:8)
+        eval($w:80003A = b:16)
+        eval($w:800044 = b:9)
+        eval($w:800046 = b:9)
+        eval($w:80007A = b:3)
+        eval($w:80007E = b:3)
+    } elseif ($w:800002 == b:0) {
+        eval($w:800036 = b:73)
+        eval($w:800038 = b:151)
+        eval($w:80003C = b:12)
+        eval($w:800042 = b:8)
+        eval($w:800040 = b:8)
+        eval($w:80003A = b:16)
+        eval($w:800044 = b:9)
+        eval($w:800046 = b:9)
+        eval($w:80007A = b:3)
+        eval($w:80007E = b:3)
+    } elseif ($w:800002 == b:1) {
+        eval($w:800036 = b:73)
+        eval($w:800038 = b:151)
+        eval($w:80003C = b:12)
+        eval($w:800042 = b:8)
+        eval($w:800040 = b:8)
+        eval($w:80003A = b:16)
+        eval($w:800044 = b:9)
+        eval($w:800046 = b:9)
+        eval($w:80007A = b:3)
+        eval($w:80007E = b:3)
+    } elseif ($w:800002 == b:2) {
+        eval($w:800036 = b:73)
+        eval($w:800038 = b:151)
+        eval($w:80003C = b:12)
+        eval($w:800042 = b:8)
+        eval($w:800040 = b:8)
+        eval($w:80003A = b:16)
+        eval($w:800044 = b:9)
+        eval($w:800046 = b:9)
+        eval($w:80007A = b:2)
+        eval($w:80007E = b:3)
+    } else {
+        eval($w:800036 = b:73)
+        eval($w:800038 = b:151)
+        eval($w:80003C = b:12)
+        eval($w:800042 = b:8)
+        eval($w:800040 = b:8)
+        eval($w:80003A = b:16)
+        eval($w:800044 = b:9)
+        eval($w:800046 = b:9)
+        eval($w:80007A = b:1)
+        eval($w:80007E = b:3)
+    }
+    call(sub_7023)
+}
+
+proc sub_2631 {}
+
+proc sub_9C2B {
+    call(sub_49C9)
+}
+
+proc sub_8892 {
+    eval($w:0000FA = arg1)
+    if ($w:0000FA == b:2) {
+        if ($f:0300F8) {
+            if ($f:0003F8 == b:0) {
+                if ($f:04040D == b:0) {
+                    eval($f:0003F8 = b:1)
+                    chara $s:b103 $s:178c \
+                        -p 4500 0 2750 10500 0 2750
+                        -h 750
+                        -s 254
+                }
+            }
+        }
+    } elseif ($w:0000FA == b:0) {
+        eval($f:0003F8 = b:0)
+        eval($f:04040D = b:0)
+    }
+}
+
+proc sub_A90E {
+    camera \
+        -s b:2 b:1 b:1 b:0 8143 6103 15860 7134 881 9888
+}
+
+proc sub_A90F {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b 6000 -30000 4000 9000 30000 22000
+            -l 6500 -30000 5000 8500 30000 21000
+    } else {
+        camera \
+            -e
+            -b -10000 -30000 -30000 30000 30000 375
+            -l -10000 -30000 -30000 14000 30000 -125
+    }
+    camera \
+        -e
+        -s b:0 b:0 b:0 b:0 0 0 0 655 2048 8000
+    mesg $s:c356 0 arg1
+}
+
+proc sub_6D47 {
+    camera \
+        -b -10000 -30000 -30000 30000 10000 375
+        -l -10000 -30000 -30000 14000 10000 -125
+        -r 655 2048 0
+        -t 8000
+}
+
+proc sub_A98E {
+    camera \
+        -b -9000 5750 -15000 2250 30000 30000
+        -l -9000 5750 -14750 2250 30000 30000
+        -r 375 2048 0
+        -t 5750
+}
+
+proc sub_A98F {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b -9000 5700 -30000 30000 8000 30000
+            -l -9000 5700 -30000 2250 8000 30000
+    }
+    camera \
+        -e
+        -s b:1 b:0 b:1 b:2 0 0 0 150 2160 6000
+}
+
+proc sub_A990 {
+    camera \
+        -b 3790 10330 -30000 10500 10330 -20895
+        -l 3800 -30000 -27932 10500 5348 -21340
+        -r 290 2220 0
+        -t 8500
+}
+
+proc sub_6D4A {
+    camera \
+        -s b:1 b:1 b:1 b:0 7741 340 -17979 12378 1984 -25773
+}
+
+proc sub_6D4B {
+    camera \
+        -s b:1 b:1 b:1 b:0 11114 5204 -6333 11021 750 -6903
+}
+
+proc sub_6D4C {
+    camera \
+        -s b:1 b:1 b:1 b:0 11482 5169 -13052 11471 -2806 -13369
+}
+
+proc sub_6D4D {
+    camera \
+        -s b:2 b:1 b:1 b:0 8158 11915 -17352 9644 6275 -20599
+}
+
+proc sub_E3E7 {
+    camera \
+        -s b:2 b:1 b:0 b:0 4829 392 -13606 6041 2313 -18784
+}
+
+proc sub_E3E6 {
+    camera \
+        -s b:1 b:1 b:2 b:0 5910 3016 -13673 5977 1510 -18116
+}
+
+proc sub_6D4E {
+    camera \
+        -s b:2 b:1 b:1 b:0 -8326 4871 -1817 -10665 2462 -7609
+}
+
+proc sub_A91D {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b 1000 -30000 -30000 9750 3516 -17200
+            -l 1250 -30000 -30000 9250 3516 -17214
+    }
+    camera \
+        -e
+        -s b:1 b:0 b:0 b:2 0 0 0 190 2048 8000
+}
+
+proc sub_A91E {
+    camera \
+        -e
+        -b -5490 421 -30000 -5490 421 30000
+        -l -6833 1042 -30000 -6833 1042 30000
+        -s b:1 b:0 b:2 b:2 0 0 0 -120 2318 3400 3
+}
+
+proc sub_A920 {
+    camera \
+        -e
+        -b -6705 490 -30000 -6705 490 30000
+        -l -5364 1021 -30000 -5364 1021 30000
+        -s b:1 b:0 b:2 b:2 0 0 0 -140 1628 2500 3
+}
+
+proc sub_A921 {
+    camera \
+        -e
+        -b -2305 3475 -30000 -2305 3475 30000
+        -l -3920 506 -30000 -3920 506 30000
+        -s b:1 b:0 b:2 b:2 0 0 0 426 2328 4000 3
+}
+
+proc sub_A922 {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b 1000 -30000 -30000 9750 3516 -17200
+            -l 1250 -30000 -30000 9250 3516 -17214
+    }
+    camera \
+        -e
+        -s b:4 b:0 b:2 b:2 0 0 0 221 2048 8000 3
+}
+
+proc sub_A924 {
+    camera \
+        -e
+        -b -30000 11787 -13973 30000 11787 -13973
+        -l -30000 5413 -16035 2250 5413 -16035
+        -s b:4 b:0 b:2 b:2 0 0 0 820 2048 6700 3
+}
+
+proc sub_A926 {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b -30000 10246 -26138 30000 10246 -26138
+            -l -30000 5234 -27508 30000 5234 -27508
+    }
+    camera \
+        -e
+        -s b:4 b:0 b:2 b:2 0 0 0 850 2038 5200 3
+}
+
+proc sub_A93E {
+    camera \
+        -s b:1 b:1 b:1 b:0 -10875 5641 1126 -10693 1367 219
+}
+
+proc sub_A93F {
+    camera \
+        -s b:1 b:1 b:1 b:0 -5229 5319 816 -5241 -260 568
+}
+
+proc sub_A944 {
+    camera \
+        -e
+        -b -30000 -30000 -30000 30000 30000 30000
+        -l -30000 -30000 -30000 30000 30000 30000
+        -s b:4 b:0 b:2 b:0 11048 6485 -20756 837 1758 3000 3
+}
+
+proc sub_A945 {
+    camera \
+        -e
+        -s b:1 b:0 b:2 b:0 6723 9970 7719 876 2298 3000 3
+}
+
+proc sub_A946 {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b -9000 5700 -30000 30000 8000 30000
+            -l -9000 5700 -30000 2250 8000 30000
+    }
+    camera \
+        -e
+        -s b:5 b:0 b:2 b:0 0 0 0 1023 2230 5000 3
+}
+
+proc sub_A95D {
+    camera \
+        -e
+        -b -30000 -30000 -30000 30000 30000 30000
+        -l -30000 -30000 -30000 30000 30000 30000
+        -s b:4 b:0 b:2 b:0 9957 9385 -8275 840 1920 5250 3
+}
+
+proc sub_4444 {
+    if (arg1 == $s:0dd2) {
+        camera \
+            -e
+            -b -3900 -16000 -23500 -2800 16000 -21300
+            -l -3800 -16000 -23400 -2900 16000 -21400
+    }
+    camera \
+        -e
+        -s b:0 b:0 b:1 b:0 0 0 0 850 2048 6000
+}
+
+proc sub_91F8 {
+    camera \
+        -s b:1 b:1 b:1 b:0 -1720 6490 -16552 -2136 5495 -18113
+}
+
+proc sub_3575 {
+    map \
+        -a $s:7df9
+    if ($f:030435 == b:0) {
+        chara $s:6e9a $s:1465 \
+            -g b:255
+            -r b:10
+            -b 'G'
+            -n 0 30001 0
+            -y b:1
+            -f 7
+            -l 192
+    } else {
+        chara $s:6e9a $s:1465 \
+            -g b:255
+            -r b:14
+            -b 'G'
+            -n 0 30001 0
+            -y b:1
+            -f 7
+            -l 192
+    }
+}
+
+proc sub_3576 {
+    map \
+        -a $s:7df9
+    if ($f:030435 == b:0) {
+        chara $s:6e9a $s:1466 \
+            -g b:255
+            -r b:11
+            -b 'G'
+            -n 11300 1104 -20800
+            -s 227
+            -y b:1
+            -f 7
+            -l 192
+    } else {
+        chara $s:6e9a $s:1466 \
+            -g b:255
+            -r b:15
+            -b 'G'
+            -n 11300 1104 -20800
+            -s 227
+            -y b:1
+            -f 7
+            -l 192
+    }
+}
+
+proc sub_3577 {
+    map \
+        -a $s:7df9
+    chara $s:6e9a $s:1467 \
+        -g b:255
+        -r b:12
+        -b 'G'
+        -n -3500 5104 -18000
+        -s 227
+        -y b:1
+        -f 7
+        -l 192
+}
+
+proc sub_615C {
+    map \
+        -a $s:7df9
+    chara $s:6e90 $s:dd6d \
+        -l 4000
+        -w 224
+        -x 240
+        -p 1300 7000 -30300
+        -d 384 512 0
+}
+
+proc sub_615D {
+    map \
+        -a $s:7df9
+    chara $s:6e90 $s:dd6e \
+        -l 6000
+        -w 224
+        -x 240
+        -p 10125 3875 -10250
+        -d 384 3072 0
+}
+
+proc sub_F34F {
+    if ($f:0300F8) {
+        sound \
+            -e b:0 b:63 b:177
+        mesg $s:7626 $s:d182 50
+        mesg $s:e44a $s:6fe7
+        delay \
+            -t 2
+            -e {
+            mesg $s:e44a $s:faa5 1 1
+        }
+        delay \
+            -t 90
+            -e {
+            mesg $s:e44a $s:faa5 19200 9840
+        }
+        eval($f:07039E = b:1)
+        mesg $s:6c49 $s:418b
+        eval($f:04040D = b:1)
+        mesg $s:178c $s:006b
+    }
+}
+
+proc sub_92D6 {
+    mesg $s:7626 $s:006b 100
+    mesg $s:e44a $s:92e5
+    eval($f:07039E = b:0)
+    mesg $s:6c49 $s:3a02
+}
+
+proc sub_D713 {
+    pad \
+        -r
+    chara $s:a12e $s:139a \
+        -m 0
+        -s 30
+    menu \
+        -r 0
+        -m 0
+        -l 0
+}
+
+proc sub_24A1 {
+    pad \
+        -r
+    chara $s:a12e $s:2fd2 \
+        -m 1
+        -s 30
+    delay \
+        -t 32
+        -e {
+        pad \
+            -s
+    }
+}
+
+proc sub_78DB {
+    light \
+        -d 0 0 0
+        -a 0 0 0
+        -c 0 0 0
+}
+
+proc sub_28B6 {
+    call(sub_8A53)
+    delay \
+        -t 55
+        -e {
+        mesg $s:870a $s:d420
+        mesg $s:85d4 $s:3223
+        menu \
+            -r 1
+            -m 1
+        pad \
+            -s
+        varsave \
+            -a
+    }
+}
+
+proc sub_A7DE {
+    menu \
+        -r 0
+        -m 0
+        -l 0
+    pad \
+        -r
+    mesg $s:24de $s:d5cc
+    eval($b:000074 = b:0)
+    eval($b:000075 = b:0)
+    eval($f:05006E = b:1)
+    eval($w:800010 = 6464)
+    eval($w:800012 = 2104)
+    eval($w:800014 = -(18960))
+    chara $s:a12e $s:62fe \
+        -m 0
+        -s 30
+    delay \
+        -t 32
+        -e {
+        restart
+    }
+}
+
+proc sub_A87E {}
+
+proc sub_AC00 {
+    if ($w:00000A >= b:198) {
+        menu \
+            -r 0
+            -m 0
+            -l 0
+        pad \
+            -r
+        mesg $s:24de $s:d5cc
+        eval($b:000074 = b:0)
+        eval($b:000075 = b:2)
+        eval($f:05006E = b:1)
+        eval($w:800010 = 6464)
+        eval($w:800012 = 2104)
+        eval($w:800014 = -(18960))
+        chara $s:a12e $s:62fe \
+            -m 0
+            -s 30
+        delay \
+            -t 32
+            -e {
+            restart
+        }
+    }
+}
+
+proc sub_3B72 {
+    chara $s:a12e $s:62fe \
+        -m 0
+        -s 15
+    delay \
+        -t 17
+        -e {
+        restart
+    }
+}
+
+proc sub_D4FD {
+    chara $s:a12e $s:62fe \
+        -m 0
+        -s 30
+    sound \
+        -x sd:01FFFF0B
+    delay \
+        -t 32
+        -e {
+        restart
+    }
+}
+
+proc sub_34B3 {
+    eval($f:05006E = b:1)
+    eval($b:000074 = b:3)
+    sound \
+        -x sd:01FFFF0A
+    eval($f:0300F8 = b:0)
+    if ($f:07039E == b:1) {
+        mesg $s:7626 $s:006b 4096
+        mesg $s:e44a $s:92e5
+        eval($f:07039E = b:0)
+    }
+    delay \
+        -t 15
+        -p sub_508E
+}
+
+proc sub_1C26 {
+    eval($f:05006E = b:1)
+    eval($b:000074 = b:3)
+    sound \
+        -x sd:01FFFF0A
+    eval($f:0300F8 = b:0)
+    if ($f:07039E == b:1) {
+        mesg $s:7626 $s:006b 4096
+        mesg $s:e44a $s:92e5
+        eval($f:07039E = b:0)
+    }
+    delay \
+        -t 15
+        -p sub_D89E
+}
+
+proc sub_C521 {
+    chara $s:a12e $s:62fe \
+        -m 1
+        -s 15
+    if ($b:000075 == b:0) {
+        chara $s:e97e $s:fec0 \
+            -s t:00002A53 t:00002A5F
+            -o $s:3469
+            -w $s:4725
+            -m $s:96b6
+            -x 1 1 2 1 13 3
+            -r b:13
+            -e sub_3B72
+    } elseif ($b:000075 == b:1) {
+        chara $s:e97e $s:fec0 \
+            -s t:00002A53 t:00002A70
+            -o $s:3469
+            -w $s:4725
+            -m $s:96b6
+            -x 1 1 2 1 13 3
+            -r b:13
+            -e sub_3B72
+    } else {
+        chara $s:e97e $s:fec0 \
+            -s t:00002A53 t:00002A7E
+            -o $s:3469
+            -w $s:4725
+            -m $s:96b6
+            -x 1 2 2 1 13 3
+            -r b:13
+            -e sub_3B72
+    }
+    mesg $s:fec0 0
+    camera \
+        -s b:4 b:1 b:0 b:0 6698 2850 -21403 5798 1414 -19458
+    mesg $s:c356 4 $s:0dd2
+}
+
+proc sub_CED0 {
+    chara $s:a12e $s:62fe \
+        -m 1
+        -s 15
+    camera \
+        -s b:4 b:1 b:0 b:0 9614 4937 -26934 4497 5 -20083
+    mesg $s:c356 4 $s:0dd2
+    sound \
+        -v t:00002A8E
+        -f sub_D4FD
+    delay \
+        -t 115
+        -e {
+        chara $s:fed1 $s:922b b:127 b:2 b:0 b:8 b:127 b:2
+        chara $s:fed1 $s:a83b b:115 b:4 b:55 b:6 b:120 b:4 b:85 b:4 b:60 b:8 b:45 b:8
+    }
+    delay \
+        -t 40
+        -e {
+        chara $s:8185 $s:a3ab \
+            -t $s:aef2
+            -s 800 800 1600 1600
+            -p 5000 1500 -24100 7000 1500 -24100
+            -n b:1
+    }
+}
+
+proc sub_4751 {
+    chara $s:a12e $s:62fe \
+        -m 1
+        -s 15
+    camera \
+        -s b:4 b:1 b:0 b:0 5000 2565 -18503 7067 1094 -19666
+    mesg $s:c356 4 $s:0dd2
+    delay \
+        -t 60
+        -e {
+        eval($f:05006E = b:0)
+        if ($b:000075 == b:0) {
+            call(sub_34B3)
+        } else {
+            call(sub_1C26)
+        }
+    }
+}
+
+proc sub_816B {
+    eval($f:05006E = b:0)
+    eval($b:000074 = b:0)
+    menu \
+        -r 1
+        -m 1
+        -l 1
+    pad \
+        -s
+    mesg $s:c356 4 $s:d5cc
+    mesg $s:24de $s:0dd2
+    mesg $s:6eca $s:d420
+}
+
+proc sub_6A0E {
+    if ($f:0003AF == b:1) {
+        mesg $s:21ca $s:be0a 125 -1 -1 -1 384
+        delay \
+            -t 5
+            -g
+            -e {
+            func \
+                -s
+            chara $s:7bc2 $s:73fb \
+                -p $w:800010 $w:800012 $w:800014
+                -r 500
+                -s 1000
+                -l 10
+            sound \
+                -e b:0 b:63 b:18
+            chara $s:fed1 $s:922b b:127 b:1
+            chara $s:fed1 $s:a83b b:155 b:3
+        }
+        delay \
+            -t 40
+            -g
+            -e {
+            chara $s:7bc2 $s:73fb \
+                -p $w:800010 $w:800012 $w:800014
+                -r 500
+                -s 1250
+                -l 15
+            sound \
+                -e b:0 b:63 b:107
+            chara $s:a12e $s:62fe \
+                -m 2
+                -s 15
+        }
+    } else {
+        if ($w:80001E != b:2 && $w:80001E != b:3 && $w:80001E != b:4) {
+            mesg $s:21ca $s:be0a 4 -1 -1 -1 304
+            delay \
+                -t 8
+                -g
+                -e {
+                sound \
+                    -e b:0 b:63 b:18
+                chara $s:fed1 $s:922b b:127 b:1
+                chara $s:fed1 $s:a83b b:155 b:3
+            }
+            delay \
+                -t 55
+                -g
+                -e {
+                sound \
+                    -e b:0 b:63 b:107
+            }
+        } else {
+            mesg $s:21ca $s:be0a 5 -1 -1 -1 4400
+            delay \
+                -t 5
+                -g
+                -e {
+                sound \
+                    -e b:0 b:63 b:18
+                chara $s:fed1 $s:922b b:127 b:1
+                chara $s:fed1 $s:a83b b:155 b:3
+            }
+            delay \
+                -t 20
+                -g
+                -e {
+                sound \
+                    -e b:0 b:63 b:107
+            }
+        }
+    }
+}
+
+proc sub_F710 {}
+
+proc sub_23C5 {
+    call(sub_358E)
+    eval($w:000088 = arg1)
+    eval($f:030081 = b:1)
+    eval($f:0300F8 = b:0)
+    if ($f:07039E == b:1) {
+        mesg $s:7626 $s:006b 4096
+        mesg $s:e44a $s:92e5
+        eval($f:07039E = b:0)
+    }
+    call(sub_C2BE)
+}
+
+proc sub_23E5 {
+    call(sub_358E)
+    eval($w:000088 = arg1)
+    eval($f:030081 = b:1)
+    eval($f:0300F8 = b:0)
+    if ($f:07039E == b:1) {
+        mesg $s:7626 $s:006b 4096
+        mesg $s:e44a $s:92e5
+        eval($f:07039E = b:0)
+    }
+    call(sub_43BF)
+}
+
+proc sub_7453 {
+    if (arg1 == $s:0dd2) {
+        map \
+            -p $s:2abc
+    } else {
+        if ($f:0600F8 == b:0) {
+            map \
+                -m $s:2abc
+        }
+    }
+    mesg $s:7858 $s:8591 arg1
+}
+
+proc sub_AF4D {
+    menu \
+        -w b:0 b:1 b:2 b:3 b:4 b:5 b:6 b:7 b:9
+    menu \
+        -i b:18
+    pad \
+        -s
+    varsave $f:0700F8
+}
+
+script {
+    if ($w:00000A < b:237 && $f:01004E && ($w:80006E > b:0 || $f:0703E5 && $w:0003EA <= b:60)) {
+        call(sub_CCE3)
+    }
+    if (b:238 <= $w:00000A && $w:00000A < b:249) {
+        call(sub_1C8A)
+    }
+    call(sub_860B)
+    if ($f:05006E == b:1 && $b:000074 == b:2) {
+        call(sub_78DB)
+    } else {
+        call(sub_20AD)
+    }
+    mapdef $s:7df9 \
+        -k $s:c721
+        -l $s:c721
+        -h $s:c721 0
+        -z 0
+    call(sub_FCC0)
+    mapdef $s:2abc \
+        -k $s:6e03
+        -l $s:c721
+        -h $s:c721 0
+        -z 1
+    call(sub_20AD)
+    system \
+        -g sub_9C2B
+        -c sub_2631
+        -a sub_8892
+        -w sub_2631
+        -i sub_2631
+        -s "- Nuke Bldg 1 -"
+    if ($b:000074 != b:2) {
+        sound \
+            -b b:1 b:2
+    }
+    sound \
+        -k b:154 b:155 b:156
+        -r b:39 b:39 b:39
+        -x sd:FF000007
+    map \
+        -a $s:7df9
+    if ($w:800002 <= b:0) {
+        eval($w:000412 = 4000)
+        eval($w:000414 = 6000)
+        eval($w:000416 = 4000)
+        eval($w:000418 = 8000)
+    } elseif ($w:800002 == b:1) {
+        eval($w:000412 = 5000)
+        eval($w:000414 = 7000)
+        eval($w:000416 = 5000)
+        eval($w:000418 = 8000)
+    } elseif ($w:800002 == b:2) {
+        eval($w:000412 = 6000)
+        eval($w:000414 = 8000)
+        eval($w:000416 = 6000)
+        eval($w:000418 = 8000)
+    } else {
+        eval($w:000412 = 8000)
+        eval($w:000414 = 8000)
+        eval($w:000416 = 8000)
+        eval($w:000418 = 8000)
+    }
+    if ($w:800002 <= b:0) {
+        eval($w:00041A = 384)
+    } elseif ($w:800002 == b:1) {
+        eval($w:00041A = b:192)
+    } elseif ($w:800002 == b:2) {
+        eval($w:00041A = b:127)
+    } else {
+        eval($w:00041A = b:0)
+    }
+    if ($w:000044 < b:3) {
+        eval($w:80001C = -1)
+        if ($w:80001E == b:2 || $w:80001E == b:3 || $w:80001E == b:4) {
+            eval($w:80001E = -1)
+        }
+        chara $s:7a05 $s:870a \
+            -t 30000
+            -e 1
+        pad \
+            -r
+        menu \
+            -r 0
+            -m 0
+        delay \
+            -t 30
+            -e {
+            chara $s:711f $s:f9db \
+                -m 384
+                -e sub_28B6
+                -c 8
+                -l $w:00041A
+        }
+        chara $s:51c6 $s:85d4 \
+            -c 7721 7008 25072 7598 5279 21056
+            -a 280
+            -t 30000
+        mesg $s:21ca $s:937a 6 -1 -1 -1
+        varsave \
+            -a
+    }
+    if ($s:800094 != $s:473b) {
+        menu \
+            -w b:0 b:1 b:2 b:3 b:4 b:5 b:6 b:7 b:9
+        menu \
+            -i b:18
+    }
+    if ($s:800094 == $s:473b) {
+        if ($f:0403E5 == b:1) {
+            eval($f:0403E5 = b:0)
+            pad \
+                -r
+            sound \
+                -e b:0 b:63 b:191
+            call(sub_24A1)
+        }
+    }
+    if ($f:05006E == b:1) {
+        mesg $s:24de $s:d5cc
+        if ($b:000074 == b:0) {
+            eval($b:000074 = b:1)
+            chara $s:7a05 $s:6eca \
+                -t 30000
+                -e 1
+            menu \
+                -r 0
+                -m 0
+                -l 0
+            pad \
+                -r
+            call(sub_C521)
+        } elseif ($b:000074 == b:1) {
+            eval($b:000074 = b:2)
+            chara $s:7a05 $s:6eca \
+                -t 30000
+                -e 1
+            menu \
+                -r 0
+                -m 0
+                -l 0
+            pad \
+                -r
+            call(sub_CED0)
+        } elseif ($b:000074 == b:2) {
+            eval($b:000074 = b:3)
+            chara $s:7a05 $s:6eca \
+                -t 30000
+                -e 1
+            menu \
+                -r 0
+                -m 0
+                -l 0
+            pad \
+                -r
+            call(sub_4751)
+        } elseif ($b:000074 == b:3) {
+            sound \
+                -x sd:FF0000FE
+            chara $s:a12e $s:62fe \
+                -m 1
+                -s 30
+            chara $s:7a05 $s:6eca \
+                -t 30000
+                -e 1
+            eval($b:000074 = b:4)
+            menu \
+                -r 0
+                -m 0
+                -l 0
+            pad \
+                -r
+            camera \
+                -s b:4 b:1 b:0 b:0 5000 2565 -18503 7067 1094 -19666
+            mesg $s:c356 4 $s:0dd2
+            camera \
+                -s b:4 b:1 b:2 b:0 5000 2565 -18503 7067 1094 -19666
+            delay \
+                -t 60
+                -e {
+                chara $s:fed1 $s:922b b:127 b:2 b:0 b:8 b:127 b:2
+                chara $s:fed1 $s:a83b b:65 b:18 b:45 b:12 b:35 b:10 b:105 b:2
+            }
+            delay \
+                -t 70
+                -e {
+                chara $s:7bc2 $s:ef22 \
+                    -p 6464 2104 -18960
+                    -r 5000
+                    -s 512
+                    -l 15
+            }
+            sound \
+                -v t:00002AB2
+                -f sub_816B
+        }
+    }
+    ntrap $s:7947 $s:21ca \
+        -m $s:0dd2
+        -c
+        -e {
+        if (arg7 == b:2) {
+            mesg $s:15a9 $s:3223
+        } else {
+            pad \
+                -r
+            mesg $s:21ca $s:70fb 7500 4000 25250 500
+            sound \
+                -x sd:01FFFF0B
+            call(sub_D713)
+            delay \
+                -t 32
+                -p sub_C2BD
+            eval($f:0500F8 = b:0)
+        }
+    }
+    ntrap $s:bd02 $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_A90F, arg3)
+    }
+    ntrap $s:bd01 $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_A90E)
+        mesg $s:c356 2 arg3
+    }
+    ntrap $s:05e7 $s:21ca \
+        -m $s:0dd2
+        -c
+        -e {
+        call(sub_6D47)
+    }
+    ntrap $s:05ee $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_6D4E)
+        mesg $s:c356 2 arg3
+    }
+    ntrap $s:bd39 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A946, arg3)
+        mesg $s:c356 5 arg3
+    }
+    ntrap $s:bd81 $s:21ca \
+        -m $s:0dd2
+        -c
+        -e {
+        call(sub_A98E)
+    }
+    ntrap $s:bd82 $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_A98F, arg3)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd83 $s:21ca \
+        -m $s:0dd2
+        -c
+        -e {
+        call(sub_A990)
+    }
+    ntrap $s:05ea $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_6D4A)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:05eb $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_6D4B)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:05ec $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        call(sub_6D4C)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:05ed $s:21ca \
+        -c
+        -e {
+        call(sub_6D4D)
+        mesg $s:c356 2 arg3
+    }
+    ntrap $s:bd10 $s:21ca \
+        -c
+        -e {
+        call(sub_A91D, arg3)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd15 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A922, arg3)
+        mesg $s:c356 4 arg3
+    }
+    ntrap $s:4a9c $s:21ca \
+        -m $s:0dd2
+        -s 0
+        -d 2048 1023
+        -e {
+        call(sub_E3E7)
+        mesg $s:c356 2 $s:0dd2
+        mesg $s:24de $s:0dd2
+        mesg $s:21ca $s:937a 1 2048 -1 0 0
+        eval($b:000078 = (arg4 + 2500) / b:48)
+        delay \
+            -t 19
+            -e {
+            mesg $s:c356 2 $s:d5cc
+            sound \
+                -e $b:000078 b:63 b:28
+        }
+        chara $s:fed1 $s:922b b:0 b:13 b:127 b:1
+        chara $s:fed1 $s:a83b b:160 b:2 b:0 b:11 b:120 b:3
+    }
+    trap $s:18e6 $s:21ca $s:14c9 {
+        if ($f:05006E != b:1) {
+            if (arg3 == $s:0dd2) {
+                mesg $s:24de $s:d5cc
+            } else {
+                mesg $s:24de $s:0dd2
+            }
+        }
+    }
+
+    ntrap $s:4a9d $s:21ca \
+        -m $s:0dd2
+        -s 0
+        -d 0 1023
+        -e {
+        call(sub_E3E7)
+        mesg $s:c356 2 $s:0dd2
+        mesg $s:24de $s:d5cc
+        mesg $s:21ca $s:937a 2 0 -1 0 0
+        eval($b:000078 = (arg4 + 2500) / b:48)
+        delay \
+            -t 18
+            -e {
+            mesg $s:c356 2 $s:d5cc
+            sound \
+                -e $b:000078 b:63 b:28
+        }
+        chara $s:fed1 $s:922b b:0 b:13 b:127 b:2
+        chara $s:fed1 $s:a83b b:120 b:2 b:0 b:11 b:160 b:3
+    }
+    trap $s:5970 $s:21ca $s:14c9 {
+        call(sub_E3E6)
+        mesg $s:c356 1 arg3
+    }
+
+    ntrap $s:bd11 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A91E)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd13 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A920)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd14 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A921)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd17 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A924)
+        mesg $s:c356 4 arg3
+    }
+    ntrap $s:bd19 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A926, arg3)
+        mesg $s:c356 4 arg3
+    }
+    ntrap $s:bd31 $s:21ca \
+        -c
+        -e {
+        call(sub_A93E)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd32 $s:21ca \
+        -c
+        -e {
+        call(sub_A93F)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd37 $s:21ca \
+        -m $s:14c9
+        -s 5
+        -e {
+        call(sub_A944)
+        mesg $s:c356 4 arg3
+    }
+    ntrap $s:bd38 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A945)
+        mesg $s:c356 1 arg3
+    }
+    ntrap $s:bd50 $s:21ca \
+        -s 5
+        -e {
+        call(sub_A95D)
+        mesg $s:c356 4 arg3
+    }
+    trap $s:73d2 $s:21ca $s:14c9 {
+        if (arg3 == $s:0dd2) {
+            eval($f:0003AF = b:1)
+        } else {
+            eval($f:0003AF = b:0)
+        }
+    }
+
+    chara $s:5a50 $s:7626 \
+        -c 70 70 2 190 190 0
+        -w 200
+    chara $s:5d64 $s:e44a \
+        -o 19200 9840
+        -m 16
+        -r 32000
+        -e sub_6A0E
+    chara $s:30ce $s:6c49 \
+        -p 3250 4250 -16250 -11250 4250 250 3750 4250 1750 10250 4250 -27750
+        -d 0 1024 0 0 1024 0 0 2048 0 0 0 0
+        -w -1 250 -1 -1 -1 250 -1 -1 -1 -1 250 -1 250 -1 -1 -1
+        -s 176
+    mesg $s:6c49 $s:3a02
+    chara $s:ec77 $s:a2da \
+        -p 1000 4000 -21000
+        -d 0 0 0
+        -m $s:6da3
+    call(sub_3353, $b:0000F9)
+    if ($f:040001) {
+        chara $s:8767 $s:eeba \
+            -p 5300 4700 3500
+            -b b:4
+            -i b:13
+            -n 1
+            -m "RATION "
+            -x {
+            eval($b:0000F9 = $b:000000)
+        }
+    }
+    call(sub_3353, $b:0000FC)
+    if ($f:040001) {
+        chara $s:8767 $s:eebb \
+            -p -11050 0 1140
+            -b b:0
+            -i b:2
+            -n 4
+            -m "GRENADE * 4"
+            -x {
+            eval($b:0000FC = $b:000000)
+        }
+    }
+    call(sub_3353, $b:0000FD)
+    if ($f:040001) {
+        if ($w:800024 >= b:0) {
+            chara $s:8767 $s:eebc \
+                -p 11400 0 -24600
+                -b b:2
+                -i b:1
+                -n 25
+                -m "FA-MAS/BULLET * 25"
+                -x {
+                eval($b:0000FD = $b:000000)
+            }
+        }
+    }
+    call(sub_3353, $b:0000FE)
+    if ($f:040001) {
+        chara $s:8767 $s:eebd \
+            -p 1860 0 -23800
+            -b b:2
+            -i b:0
+            -n 12
+            -m "SOCOM/BULLET * 12"
+            -x {
+            eval($b:0000FE = $b:000000)
+        }
+    }
+    call(sub_3353, $b:0000FF)
+    if ($f:040001) {
+        chara $s:8767 $s:eebe \
+            -p -9250 0 -15500
+            -b b:0
+            -i b:8
+            -n 3
+            -m "CHAFF GRENADE * 3"
+            -x {
+            eval($b:0000FF = $b:000000)
+        }
+    }
+    call(sub_3353, $b:000100)
+    if ($f:040001) {
+        if ($w:800024 >= b:0) {
+            chara $s:8767 $s:eebf \
+                -p 11500 0 -7000
+                -b b:2
+                -i b:1
+                -n 25
+                -m "FA-MAS/BULLET * 25"
+                -x {
+                eval($b:000100 = $b:000000)
+            }
+        }
+    }
+    chara $s:03d9 $s:49cf \
+        -p 10500 0 2750
+        -d 0 2048 0
+        -m $s:6c43
+        -a b:1
+        -r -500
+        -o b:1
+        -s 20
+        -h 750
+        -e sub_F34F sub_92D6
+    chara $s:03d9 $s:3a1b \
+        -p 10500 4000 23500
+        -d 0 2048 0
+        -m $s:6c44
+        -a b:0
+        -r -500
+        -o b:0
+        -h 4000
+    chara $s:1ad3 $s:3520 4500 5800 22750 0 1024 0 500 400 500 \
+        -I $s:0e6f
+        -S
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
+    chara $s:1ad3 $s:a468 10500 5800 24250 0 1024 0 500 400 500 \
+        -I $s:0e6f
+        -S
+        -a $s:dd19 0 5 $s:dd19 $s:0e6f 5 $s:ca87 3
+        -b $s:dd19 0 5 $s:dd19 $s:4878 5 $s:ca87 3
+    chara $s:c6d7 $s:23ef \
+        -n sub_3577 sub_3576 sub_3575
+        -c sub_615C sub_615D
+        -v -500 0 -9000 11500 0 -25000 2500 0 -17500
+        -t b:2
+        -l $w:000412 $w:000414 $w:000416
+        -y $w:000418
+    ntrap $s:b1ab $s:21ca \
+        -m $s:0dd2
+        -i
+        -e {
+        if ($w:80006C >= b:3 && $w:80001E == b:17) {
+            if ($f:0500F8 == b:0) {
+                eval($f:0500F8 = b:1)
+                mesg $s:3a1b $s:418b
+                mesg $s:3520 $s:0e4e $s:4878
+                mesg $s:a468 $s:0e4e $s:4878
+            }
+        } else {
+            if (arg7 == b:0 && $w:80001E == b:17) {
+                mesg $s:3520 $s:bcd2 $s:0061
+                mesg $s:a468 $s:bcd2 $s:0061
+                sound \
+                    -e b:0 b:63 b:35
+            }
+        }
+    }
+    ntrap $s:b1ab $s:21ca \
+        -m $s:d5cc
+        -i
+        -e {
+        if (arg7 == b:0) {
+            mesg $s:3520 $s:0e4e $s:0e6f
+            mesg $s:a468 $s:0e4e $s:0e6f
+            if ($f:0500F8 == b:1) {
+                mesg $s:3a1b $s:3a02
+                eval($f:0500F8 = b:0)
+            }
+        }
+    }
+    ntrap $s:b1ab $s:21ca \
+        -m $s:14c9
+        -s 3
+        -e {
+        if (arg3 == $s:0dd2) {
+            chara $s:b103 $s:aace \
+                -p 4500 4000 23625 10500 4000 23625
+                -h 4500
+                -s 254
+        } else {
+            mesg $s:aace $s:006b
+        }
+    }
+    chara $s:cb3a $s:24de \
+        -t 210
+        -e sub_A7DE sub_A87E sub_AC00
+    chara $s:92bc $s:6509 \
+        -t $s:1456
+        -s 175 174
+        -f 169 168 171 170 173 172 175 174
+        -n 1
+    trap $s:2f1d $s:21ca $s:0dd2 {
+        delay \
+            -t 5
+            -e {
+            sound \
+                -e b:0 b:63 b:178
+        }
+    }
+
+    trap $s:c9c5 $s:21ca $s:14c9 {
+        func \
+            -p b:6 -5250 4500 -24750 arg3
+    }
+
+    trap $s:38aa $s:21ca $s:14c9 {
+        func \
+            -p b:41 -7500 500 -3000 arg3
+    }
+
+    trap $s:2694 $s:14c9 $s:14c9 {
+        if (arg2 == $s:21ca && arg3 == $s:0dd2) {
+            eval($f:0600F8 = b:1)
+        } elseif (arg2 == $s:21ca && arg3 == $s:d5cc) {
+            eval($f:0600F8 = b:0)
+        }
+        mesg $s:7858 arg3 arg2
+    }
+
+    ntrap $s:2694 $s:21ca \
+        -m $s:14c9
+        -c
+        -e {
+        if (arg3 == $s:0dd2) {
+            call(sub_4444, arg3)
+        } else {
+            call(sub_A98E)
+        }
+        mesg $s:c356 0 arg3
+    }
+    ntrap $s:7858 $s:21ca \
+        -m $s:0dd2
+        -d 3584 1024
+        -s 0
+        -e {
+        mesg $s:7858 $s:8d5c
+    }
+    ntrap $s:2d20 $s:21ca \
+        -m $s:0dd2
+        -d 2048
+        -b 0
+        -s 0
+        -e {
+        if ($w:0000FA != b:2) {
+            pad \
+                -r
+            mesg $s:21ca $s:89cb -2200 5114 -18550
+            call(sub_91F8)
+            mesg $s:c356 1 $s:0dd2
+            mesg $s:21ca $s:937a 0 2048 -1 -1
+            call(sub_D977)
+            delay \
+                -t 45
+                -e {
+                mesg $s:c356 1 $s:d5cc
+                pad \
+                    -s
+            }
+        } elseif ($w:0000FA == b:2) {
+            sound \
+                -e b:0 b:63 b:35
+        }
+    }
+    chara $s:e253 $s:7858 \
+        -p -4831 5456 -20000 0 2048 0 138 512 0 1000 $s:0b42
+        -b -2250 5850 -19000 0 0 0 500 500 0 500 $s:729e $s:8a6a
+        -n b:4
+        -c -4400 5500 -21500 0 4050 0 4200 3800
+        -e sub_F710 sub_23C5 sub_23E5
+        -f b:0
+        -r $s:fddf
+        -t $s:4990
+    chara $s:1ad3 $s:4990 -4762 5818 -20000 0 2048 0 250 137 250 \
+        -I $s:e29d
+        -S
+        -a $s:dd19 $s:5cac 1
+        -b $s:dd19 $s:3cb8 1
+        -c $s:dd19 $s:7d7c 5 $s:dd19 $s:e29d 5 $s:ca87 5
+    call(sub_FCC0)
+    chara $s:b997 $s:fddf \
+        -p -3500 4000 -19250
+        -d 0 0 0
+        -m $s:5a4d
+        -t b:2
+        -w 1000
+        -f sub_7453
+        -h 250
+        -e b:98 b:97
+    call(sub_20AD)
+    radio \
+        -b 14007 t:25250BC9
+    call(sub_860B)
+    call(sub_00F9)
+    call(sub_5A77)
+    call(sub_E42A)
+    call(sub_DB13)
+    if (b:52 <= $w:00000A && $w:00000A < b:107) {
+        radio \
+            -b 14015 t:0A080015
+    }
+    if (b:107 <= $w:00000A) {
+        radio \
+            -b 14112 t:1B1801DD
+    }
+    if (!($f:0400F6)) {
+        eval($f:0400F6 = b:1)
+    }
+    trap $s:d662 $s:21ca $s:14c9 {
+        radio \
+            -o arg3 14085 t:03020406
+    }
+
+    trap $s:1456 $s:21ca $s:14c9 {
+        radio \
+            -o arg3 14180 t:0202033C
+        radio \
+            -o arg3 14085 t:02010511
+        if (b:52 <= $w:00000A && $w:00000A < b:107) {
+            radio \
+                -o arg3 14015 t:07050029
+        }
+    }
+
+    trap $s:2fe4 $s:21ca $s:0dd2 {
+        eval($f:0300F8 = b:1)
+        eval($f:000101 = b:1)
+        radio \
+            -o arg3 14152 t:0E0A07ED
+        if (!($f:0700F8) && !($f:050037) && !($f:05006E)) {
+            pad \
+                -r
+            func \
+                -s
+            eval($w:000104 = $w:800014 - 800)
+            mesg $s:21ca $s:70fb $w:800010 $w:800012 $w:000104 100 0 -1
+            delay \
+                -t 30
+                -e {
+                radio \
+                    -c 14085 t:02010539 b:5
+                    -p sub_AF4D
+            }
+        } else {
+            menu \
+                -w b:0 b:1 b:2 b:3 b:4 b:5 b:6 b:7 b:9
+            menu \
+                -i b:18
+        }
+    }
+
+    trap $s:2fe4 $s:21ca $s:d5cc {
+        radio \
+            -o arg3 14152 t:0E0A07ED
+        radio \
+            -r
+        eval($f:0300F8 = b:0)
+        menu \
+            -w b:255
+        menu \
+            -i b:255
+        if ($f:07039E == b:1) {
+            mesg $s:7626 $s:006b 4096
+            mesg $s:e44a $s:92e5
+            eval($f:07039E = b:0)
+        }
+    }
+
+    map \
+        -a $s:80000E
+    call(sub_6D47)
+    map \
+        -c $s:80000E
+        -u
+    if ($f:030081 == b:1) {
+        map \
+            -p $s:2abc
+        call(sub_1C61)
+        mesg $s:7858 $s:2eab $w:000088
+        eval($f:030081 = b:0)
+        mesg $s:4990 $s:bcd2 $s:0063
+    }
+    eval($w:800020 = $w:000004)
+    mesg $s:21ca $s:f9ad $s:80000E
+    chara $s:21ca $s:21ca \
+        -p $w:800010 $w:800012 $w:800014
+        -d 0 $w:000002 0
+        -o $s:e9be
+    eval($b:0000AA = b:9)
+}
+
+
+# Trailing data: 5 bytes (font/extra)

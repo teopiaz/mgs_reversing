@@ -1,0 +1,43 @@
+# GCL decompiler output (port/gcl_tools)
+# 4 top-level block(s)
+
+proc sub_8CD4 {
+    eval($b:000000 = $b:000000 + b:1 | b:128)
+}
+
+proc sub_DECC {
+    call(sub_8CD4)
+    eval($f:000001 = b:0)
+    eval($w:800010 = 7724)
+    eval($w:800012 = 19536)
+    eval($w:800014 = 10932)
+    eval($w:000002 = 2048)
+    eval($w:000004 = b:0)
+    load "s13a" \
+        -m $s:4986
+        -s b:1
+}
+
+proc sub_1F7C {
+    eval($w:800008 = b:2)
+    call(sub_DECC)
+}
+
+script {
+    eval($s:80000E = $s:7df9)
+    map \
+        -d $s:7df9 $s:11f8
+    map \
+        -a $s:7df9
+    chara $s:f722 $s:f722 \
+        -e sub_1F7C m"{8044}{8049}{8053}Ｃ ２ をセ{C223}トしてください。" m"スタートボタンを{907B}してください。" m"{8044}{8049}{8053}Ｃ ２ をセ{C223}トし{811F}{8149}" m"{811F}だいまチ{C207}{C223}ク{90CD}です。" "  " m"始しいデ{C203}スク{810C}セ{C223}トさ{814C}ていま{811B}{8153}。"
+    menu \
+        -r 0
+    map \
+        -a $s:80000E
+    map \
+        -s $s:80000E
+}
+
+
+# Trailing data: 40 bytes (font/extra)
