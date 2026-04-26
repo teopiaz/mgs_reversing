@@ -17,7 +17,7 @@ A custom stage takes three files:
 | ---------------------- | ------------------------------------------------------ |
 | `<name>.obj` + `.mtl`  | Visual geometry and texture binding. Blender exports OBJ natively. |
 | `<name>.png`           | Diffuse texture, any size — quantised to 8-bit indexed and tiled into VRAM. |
-| `<name>_collision.obj` | Low-poly collision mesh. Triangles → HZD floors, OBJ `l` lines → HZD walls (vertical). Optional — falls back to a flat plane covering the visual mesh's XZ bbox. |
+| `<name>_collision.obj` | Low-poly collision mesh. Object naming drives wall/floor classification (see [Collision authoring](#collision-authoring) below). Optional — falls back to a flat plane covering the visual mesh's XZ bbox. |
 
 Recommended Blender flow:
 
@@ -109,6 +109,67 @@ Every module lives in `tools/stage_assets/`. They're intentionally
 narrow — one file, one format. See [06-asset-formats.md](06-asset-formats.md)
 for the byte layouts each writer produces.
 
+## Collision authoring
+
+The collision OBJ classifies each face as a **wall** or a **floor**
+based on the Blender object (`o name`) it belongs to:
+
+| Object name pattern    | Classification | Importer behaviour                            |
+| ---------------------- | -------------- | --------------------------------------------- |
+| `wall_*` / `wall*`     | wall           | Each face → one `HZD_SEG`. Bottom edge → `p1`/`p2`; vertical extent → wall height (used both by collision and by the soliton radar). |
+| Anything else (`floor`, `floor_*`, default unnamed) | floor | Each face → one `HZD_FLR` quad. |
+
+Comparison is case-insensitive on the `wall` prefix, so `Wall_Bunker`
+or `WALL_NORTH` work too.
+
+### Authoring walls in Blender
+
+Model each wall as a **vertical quad** inside a `wall_*` object:
+
+- Two verts on the floor plane (Y = 0).
+- Two verts at wall top (e.g. Y = 30 in your authoring units).
+- The face normal can point either way — the engine renders walls
+  from both sides anyway.
+
+The importer takes the two verts with the smallest |Y| as the
+bottom edge (the segment that appears on the radar minimap) and
+uses `(max_y − min_y)` as the per-wall height (the range that
+blocks Snake's collision box). Long walls are split into multiple
+quads; each becomes its own `HZD_SEG`.
+
+**Skipped faces.** Faces inside a `wall_*` object whose vertical
+extent is < 1 PSX unit are silently dropped. This is intentional —
+ceiling / roof quads commonly share the `wall_*` group with the
+surrounding walls (e.g. a bunker modelled as one `wall_room` object
+with a roof on top), and treating them as walls would emit
+zero-height segments that don't correspond to any real geometry.
+
+### Authoring floors
+
+Anything *not* in a `wall_*` object becomes floor geometry. Floors
+are emitted as `HZD_FLR` quads; the vertices' Y is preserved
+(walkable height comes from the floor surface, not a separate
+field).
+
+### Hand-authored fallback: `l` line primitives
+
+For OBJ files written by hand (no Blender involved), the legacy
+convention still works:
+
+```
+v -100 0 -100
+v  100 0 -100
+v -100 0  100
+...
+l 1 2          # one wall from vert 1 to vert 2
+l 2 3
+```
+
+`l` lines emit `HZD_SEG` walls with a default 3000-unit height. The
+demo cube (`port/editor/assets/s99a/s99a_collision2.obj`) shows the
+hand-authored shape; modern Blender-driven stages should prefer the
+`wall_*` object convention above.
+
 ## Limits and conventions
 
 - **Verts per model**: 128 (KMD's 7-bit indices). The KMD writer auto-
@@ -137,11 +198,11 @@ for the byte layouts each writer produces.
   KMD quad `(i0, i1, i2, i2)`.
 - **UV scale**: OBJ UVs in `[0, 1]` map to PSX 0..255 unsigned bytes,
   with `flip_v=True` (Blender's bottom-up V convention).
-- **HZD floors**: one per triangle in `<name>_collision.obj`.
-- **HZD walls**: one per OBJ `l` (line) primitive in the collision OBJ.
-  Author as `l v1 v2` between two corner vertices; PSX walls are always
-  perfectly vertical so the y component is just for visualization. A
-  polyline (`l v1 v2 v3 ...`) emits one wall per consecutive pair.
+- **HZD floors / walls**: classification driven by Blender object
+  name (see [Collision authoring](#collision-authoring) above).
+  `wall_*` objects emit one `HZD_SEG` per face (bottom edge); other
+  objects emit `HZD_FLR` quads. Hand-authored OBJs can also use `l`
+  line primitives for walls (legacy fallback).
 - **HZD triggers / camera zones / nav zones / patrol routes**: not
   generated yet — see [08-roadmap.md](08-roadmap.md).
 
