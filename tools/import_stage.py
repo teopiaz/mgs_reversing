@@ -80,14 +80,22 @@ def build_stage(name: str,
             ObjFace(verts=[(0, -1), (2, -1), (3, -1)], material=None),
         ]
     hzd_blob = write_hzd(collision, scale=scale)
-    from stage_assets.hzd_writer import is_wall_object  # noqa: E402
+    from stage_assets.hzd_writer import (    # noqa: E402
+        is_wall_object, is_trap_object, is_camera_object,
+    )
     poly_faces = collision.poly_faces if collision.poly_faces else collision.faces
-    n_floor_polys = sum(1 for f in poly_faces if not is_wall_object(f.object))
     n_wall_faces  = sum(1 for f in poly_faces if is_wall_object(f.object))
+    n_trap_groups = len({f.object for f in poly_faces if is_trap_object(f.object)})
+    n_cam_groups  = len({f.object for f in poly_faces if is_camera_object(f.object)})
+    n_floor_polys = sum(1 for f in poly_faces
+                        if not is_wall_object(f.object)
+                        and not is_trap_object(f.object)
+                        and not is_camera_object(f.object))
     n_wall_lines  = len(collision.lines)
     print(f"[import] hzd: {n_floor_polys} floor polys, "
           f"{n_wall_faces + n_wall_lines} walls "
-          f"(faces={n_wall_faces} lines={n_wall_lines})")
+          f"(faces={n_wall_faces} lines={n_wall_lines}), "
+          f"{n_trap_groups} traps, {n_cam_groups} cameras")
 
     # --- textures → custom PCX entries (one per material) --------------
     # MTL `map_Kd` entries take priority. The legacy --texture argument

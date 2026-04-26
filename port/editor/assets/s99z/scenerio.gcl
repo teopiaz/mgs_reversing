@@ -1,0 +1,134 @@
+# s99z — feature-test scenerio.
+#
+# Exercises every editor visualization + every Wave-2 authoring path
+# at once:
+#
+#   ITEM × 8  — every -i/-b combination so the item palette and the
+#               box_NN.kmd preview both hit each variant.
+#   WATCHER   — vision-cone overlay (-l 5000 + -r 0).
+#   trap_*    — two trigger volumes (alarm + door) emitted by the
+#               collision OBJ. Bound below to a no-op handler so the
+#               compiler accepts the binding.
+#   cam_*     — one camera zone in the collision OBJ; engine flips
+#               to behind-mode while Snake is inside.
+#
+# Stage hash 0x69D5 = gv_strcode("s99z"). Same hash is reused for the
+# KMD, HZD, and lighting-KMD so the importer can register them all
+# under one name.
+
+proc sub_99D1 {
+    light \
+        -d 100 -150 -100
+    light \
+        -c 100 90 50
+    light \
+        -a 50 50 65
+}
+
+# Reserved for future trap-event handlers. Empty body so the proc
+# table has a valid sub_ for `trap <name> sub_99DA` directives once
+# the runtime side is wired up.
+proc sub_99DA {
+}
+
+script {
+    call(sub_99D1)
+    mapdef &HASH_MAIN \
+        -k $s:69D5
+        -l $s:69D5
+        -h $s:69D5 0
+        -z 0
+    map \
+        -b b:50 b:50 b:80
+    map \
+        -a &HASH_MAIN
+    map \
+        -s &HASH_MAIN
+    chara &SNAKE &SNAKE \
+        -p $w:800010 $w:800012 $w:800014
+        -d 0 2048 0
+    chara &BREATH $s:6f8b \
+        -t 90
+    mesg &SNAKE $s:f9ad &HASH_MAIN
+
+    # ---- 8 ITEM actors arranged in a circle around the centre. -----
+    # Each one uses a different -b box variant (KMD_BOX_01..08) and
+    # a different -i pickup id so the editor's palette colors and
+    # KMD-preview both differ visibly.
+
+    chara &ITEM $s:99B1 \
+        -p -2000 1100  2000
+        -h 500
+        -b b:0
+        -i b:13
+        -n 1
+        -m "RATION"
+    chara &ITEM $s:99B2 \
+        -p     0 1100  2000
+        -h 500
+        -b b:1
+        -i b:0
+        -n 12
+        -m "SOCOM AMMO"
+    chara &ITEM $s:99B3 \
+        -p  2000 1100  2000
+        -h 500
+        -b b:2
+        -i b:5
+        -n 1
+        -m "NVG"
+    chara &ITEM $s:99B4 \
+        -p  2000 1100     0
+        -h 500
+        -b b:3
+        -i b:11
+        -n 1
+        -m "BANDANA"
+    chara &ITEM $s:99B5 \
+        -p  2000 1100 -2000
+        -h 500
+        -b b:4
+        -i b:7
+        -n 1
+        -m "GAS MASK"
+    chara &ITEM $s:99B6 \
+        -p     0 1100 -2000
+        -h 500
+        -b b:5
+        -i b:6
+        -n 1
+        -m "THERM-G"
+    chara &ITEM $s:99B7 \
+        -p -2000 1100 -2000
+        -h 500
+        -b b:6
+        -i b:8
+        -n 1
+        -m "BODY ARMOR"
+    chara &ITEM $s:99B8 \
+        -p -2000 1100     0
+        -h 500
+        -b b:7
+        -i b:17
+        -n 1
+        -m "PAL CARD"
+
+    # ---- one WATCHER guard for vision-cone testing. ----------------
+    # Positioned at the room centre, facing +Z (rot byte 0). Vision
+    # range 5000 PSX units → editor renders a wide green cone.
+    # Behaviour fields are minimal; without enemy code loaded the
+    # live game may not actually spawn this — the editor still picks
+    # it up via the JSON extractor.
+    chara &WATCHER $s:99C1 \
+        -n 0 0 0
+        -r b:0
+        -b 'P'
+        -a 'S'
+        -f 0
+        -l 5000
+
+    # The collision OBJ's `o trap_<name>` cubes already produced
+    # HZD_TRP records — visible in the editor's HZD tab. Wiring the
+    # GCL `trap` directive to a handler is queued for a later wave
+    # (the proc-binding side is intentionally inert here).
+}

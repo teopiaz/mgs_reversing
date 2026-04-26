@@ -1,0 +1,7 @@
+{
+  "name": "s99z",
+  "obj": "port/editor/assets/s99z/s99z.obj",
+  "texture": "port/editor/assets/s99z/s99z.png",
+  "collision": "port/editor/assets/s99z/s99z_collision.obj",
+  "scale": 100.0
+}
