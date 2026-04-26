@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #include "libgte.h"
 #include "libgpu.h"
 #include "libfs/libfs.h"
@@ -71,6 +72,12 @@ typedef struct {
 } DirEntry;
 
 static DirEntry stage_table[MAX_STAGES];
+/* Parallel array: when non-NULL the entry came from extra_stages/ (a
+   loose datacnf.bin on disk) and stage_table[i].offset is the sentinel
+   EXTRA_STAGE_SENTINEL. Synthesised at FS_StartDaemon time. */
+#define EXTRA_STAGE_SENTINEL 0x7FFFFFFF
+static char *extra_paths[MAX_STAGES];
+static long  extra_sizes[MAX_STAGES];
 static int      stage_count = 0;
 
 /* Required externs */
@@ -220,9 +227,66 @@ void FS_StartDaemon(void)
         FS_CdStageFileInit_port();
     }
 
+    /* Auto-discover loose datacnf.bin under extra_stages/ and append
+       synthetic stage entries. The editor's stage picker iterates the
+       same table so they appear in the dropdown. */
+    {
+        /* Search relative paths so both ./mgs (CWD=port) and ./editor/editor
+           (CWD=port/editor) find the same extra_stages directory. */
+        const char *roots[] = { "extra_stages", "../extra_stages",
+                                "../../extra_stages",
+                                "editor/extra_stages",
+                                "../editor/extra_stages", NULL };
+        for (const char **rp = roots; *rp; rp++) {
+            DIR *d = opendir(*rp);
+            if (!d) continue;
+            struct dirent *de;
+            while ((de = readdir(d)) && stage_count < MAX_STAGES) {
+                if (de->d_name[0] == '.') continue;
+                char path[512];
+                snprintf(path, sizeof(path), "%s/%s/datacnf.bin",
+                         *rp, de->d_name);
+                FILE *fp = fopen(path, "rb");
+                if (!fp) continue;
+                fseek(fp, 0, SEEK_END);
+                long sz = ftell(fp);
+                fclose(fp);
+                if (sz <= 0) continue;
+                int idx = stage_count++;
+                memset(stage_table[idx].name, 0, FS_DIRNAME_MAX);
+                int n = (int)strlen(de->d_name);
+                if (n > FS_DIRNAME_MAX) n = FS_DIRNAME_MAX;
+                memcpy(stage_table[idx].name, de->d_name, n);
+                stage_table[idx].offset = EXTRA_STAGE_SENTINEL;
+                extra_paths[idx] = strdup(path);
+                extra_sizes[idx] = sz;
+                printf("  [fs] +extra stage '%s' (%ld bytes)\n",
+                       de->d_name, sz);
+            }
+            closedir(d);
+            break;   /* first found root wins */
+        }
+    }
+
     FS_DiskNum = 0;
     printf("  [fs] FS_StartDaemon complete\n");
     fflush(stdout);
+}
+
+/* Read raw bytes from a stage source. For built-in stages the byte
+   offset is `sector * FS_SECTOR_SIZE` inside STAGE.DIR; for extra
+   stages we use the parallel `extra_paths[]` and read the loose file
+   directly. `idx` is the index into stage_table; `byte_offset` is the
+   read position within that stage's blob. */
+static int extra_stage_read(int idx, long byte_offset, int size, void *buf)
+{
+    if (idx < 0 || idx >= stage_count || !extra_paths[idx]) return -1;
+    FILE *fp = fopen(extra_paths[idx], "rb");
+    if (!fp) return -1;
+    if (fseek(fp, byte_offset, SEEK_SET) != 0) { fclose(fp); return -1; }
+    size_t got = fread(buf, 1, size, fp);
+    fclose(fp);
+    return (int)got;
 }
 
 static void FS_CdStageFileInit_port(void)
@@ -263,6 +327,15 @@ const char *port_fs_stage_name(int idx)
 {
     if (idx < 0 || idx >= stage_count) return NULL;
     return stage_table[idx].name;   /* not NUL-terminated past 8 chars */
+}
+
+/* True iff the stage at `idx` came from extra_stages/<name>/datacnf.bin
+   rather than the disc's STAGE.DIR. Used by the imgui debug menu so the
+   user can launch a custom stage with one click. */
+int port_fs_stage_is_extra(int idx)
+{
+    if (idx < 0 || idx >= stage_count) return 0;
+    return stage_table[idx].offset == EXTRA_STAGE_SENTINEL;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -314,11 +387,33 @@ void *FS_LoadStageRequest(const char *dirname)
         return &port_stage_info;
     }
 
-    printf("  [fs] Loading stage '%s' at sector %d...\n", dirname, sector);
+    /* Resolve which transport to read from. Built-in stages live inside
+       STAGE.DIR at `sector * 2048`; extra stages live in a loose
+       `extra_stages/<name>/datacnf.bin` and use the sentinel offset. */
+    int extra_idx = -1;
+    if (sector == EXTRA_STAGE_SENTINEL) {
+        for (int i = 0; i < stage_count; i++) {
+            if (stage_table[i].offset == EXTRA_STAGE_SENTINEL &&
+                strncmp(stage_table[i].name, dirname, FS_DIRNAME_MAX) == 0) {
+                extra_idx = i; break;
+            }
+        }
+        if (extra_idx < 0) {
+            port_stage_info.loaded = 0;
+            return &port_stage_info;
+        }
+        printf("  [fs] Loading extra stage '%s' from %s...\n",
+               dirname, extra_paths[extra_idx]);
+    } else {
+        printf("  [fs] Loading stage '%s' at sector %d...\n", dirname, sector);
+    }
 
     /* Read the DATACNF header (first sector) */
     unsigned char header[FS_SECTOR_SIZE];
-    stage_dir_read(header, sector, FS_SECTOR_SIZE);
+    if (extra_idx >= 0)
+        extra_stage_read(extra_idx, 0, FS_SECTOR_SIZE, header);
+    else
+        stage_dir_read(header, sector, FS_SECTOR_SIZE);
 
     DATACNF *cnf = (DATACNF *)header;
     int total_size = cnf->size * FS_SECTOR_SIZE;
@@ -334,7 +429,10 @@ void *FS_LoadStageRequest(const char *dirname)
         return &port_stage_info;
     }
 
-    stage_dir_read(buffer, sector, total_size);
+    if (extra_idx >= 0)
+        extra_stage_read(extra_idx, 0, total_size, buffer);
+    else
+        stage_dir_read(buffer, sector, total_size);
 
     port_stage_info.loaded = 1;
     port_stage_info.buffer = buffer;

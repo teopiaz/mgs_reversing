@@ -816,6 +816,34 @@ void gl_renderer_begin_3d(void) {
     g_tri3d_count = 0;
     g_line3d_count = 0;
 }
+
+void gl_renderer_stats(int *out_tri_verts, int *out_line_verts) {
+    if (out_tri_verts)  *out_tri_verts  = (int)g_tri3d_count;
+    if (out_line_verts) *out_line_verts = (int)g_line3d_count;
+}
+
+int gl_renderer_save_ppm(const char *path)
+{
+    if (!g_enabled || !path || !g_fbo) return -1;
+    int w = g_fbo_w, h = g_fbo_h;
+    unsigned char *buf = (unsigned char *)malloc((size_t)w * h * 3);
+    if (!buf) return -1;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, buf);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    FILE *f = fopen(path, "wb");
+    if (!f) { free(buf); return -1; }
+    fprintf(f, "P6\n%d %d\n255\n", w, h);
+    /* GL gives us bottom-up rows; flip vertically while writing. */
+    for (int y = h - 1; y >= 0; y--)
+        fwrite(buf + (size_t)y * w * 3, 1, (size_t)w * 3, f);
+    fclose(f);
+    free(buf);
+    return 0;
+}
 void gl_renderer_begin_2d(void) {
     if (!g_enabled) return;
     g_tri2d_count    = 0;

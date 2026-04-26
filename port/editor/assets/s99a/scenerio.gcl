@@ -1,0 +1,46 @@
+# Minimal playable scenerio for s99a — the open courtyard.
+#
+# Compiled to scenerio.gcx by tools/import_stage.py and packed into the
+# stage's datacnf.bin alongside the KMD/HZD/PCX. Kept deliberately
+# small: declare the map geometry, set up basic lighting, and let the
+# engine spawn Snake at GM_SnakePosX/Y/Z (= $w:800010..800014). Those
+# coords are inherited from whichever stage / launcher loaded us; the
+# port's --stage CLI flag pre-populates them with sensible defaults.
+#
+# Stage hash 0x6BBB = gv_strcode("s99a"). Same hash is used as the KMD,
+# HZD, and lighting-KMD id since import_stage.py registers them all
+# under the stage name.
+
+proc sub_BBB1 {
+    light \
+        -d 100 -150 -100
+    light \
+        -c 100 90 50
+    light \
+        -a 50 50 65
+}
+
+script {
+    call(sub_BBB1)
+    mapdef &HASH_MAIN \
+        -k $s:6BBB
+        -l $s:6BBB
+        -h $s:6BBB 0
+        -z 0
+    map \
+        -b b:50 b:50 b:80
+    map \
+        -a &HASH_MAIN
+    map \
+        -s &HASH_MAIN
+    chara &SNAKE &SNAKE \
+        -p $w:800010 $w:800012 $w:800014
+        -d 0 2048 0
+    chara &BREATH $s:6f8b \
+        -t 90
+    # HASH_MAP (0xf9ad) message — wires Snake to the current map; without
+    # this his sna_hzd binding is null and act() faults on the missing
+    # collision pointer. Sent by every real playable stage right after
+    # the chara &SNAKE directive. &HASH_MAIN is the map id from mapdef.
+    mesg &SNAKE $s:f9ad &HASH_MAIN
+}

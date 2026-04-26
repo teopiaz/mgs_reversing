@@ -1,4 +1,7 @@
 *.obj
+# Wavefront mesh OBJs for custom stage authoring are NOT compiler obj files —
+# they're hand-authored geometry consumed by tools/import_stage.py.
+!port/editor/assets/**/*.obj
 *.lib
 *.cpe
 *.exe

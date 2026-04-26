@@ -28,6 +28,18 @@ void ed_camera_default(void)
     g_cam.fov_scale = 1.0f;
 }
 
+void ed_camera_first_person(void)
+{
+    /* Player-eye preset: ~1500 units above ground (PSX -Y is up), looking
+       level forward (+Z). Useful for sanity-checking what the player sees. */
+    g_cam.pos[0] = 0.0f;
+    g_cam.pos[1] = -1500.0f;
+    g_cam.pos[2] = -3000.0f;
+    g_cam.yaw    = 0.0f;
+    g_cam.pitch  = 0.0f;
+    g_cam.fov_scale = 1.0f;
+}
+
 static void cam_basis(float fwd[3], float right[3], float down[3])
 {
     float cy = cosf(g_cam.yaw),   sy = sinf(g_cam.yaw);
