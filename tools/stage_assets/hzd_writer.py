@@ -56,6 +56,48 @@ def _vec(x: int, y: int, z: int, h: int = 0) -> bytes:
 WALL_DEFAULT_HEIGHT = 3000
 
 
+def is_wall_object(name: str | None) -> bool:
+    """True if a face's `o name` marks it as a collision wall.
+    Convention: any object whose name starts with `wall` (case-
+    insensitive, optionally followed by `_`/digits/etc.) becomes
+    HZD_SEG segments; everything else is treated as a floor."""
+    if not name:
+        return False
+    return name.lower().startswith("wall")
+
+
+def _face_to_wall_segment(face_verts_xyz):
+    """Convert a single face's vertices to (p1, p2, height) for HZD_SEG.
+
+    Walls in Blender are authored as vertical quads: two verts on the
+    floor (smallest |Y|, since Y=0 is the floor plane) and two at wall
+    height. We pick the bottom edge (the two verts closest to Y=0,
+    keeping their order in the face) as the segment endpoints, and use
+    the vertical extent of the face as the height.
+
+    Returns (p1, p2, h_pixels) or None if the face is degenerate (fewer
+    than 3 verts, the bottom edge collapses to a point, or the face is
+    horizontal — common for ceiling/roof quads that share a `wall_*`
+    object with the surrounding walls; we silently skip those rather
+    than emit fake floor-height walls.
+    """
+    if len(face_verts_xyz) < 3:
+        return None
+    # Vertical extent — face must span some Y range to be a wall.
+    ys = [v[1] for v in face_verts_xyz]
+    height = max(ys) - min(ys)
+    # Threshold of 1 PSX unit (= 0.01 OBJ unit at scale=100) — below
+    # that the face is effectively horizontal and not a wall.
+    if height < 1:
+        return None
+    # Sort verts by |y| ascending — first two are "on the floor".
+    by_y = sorted(face_verts_xyz, key=lambda v: abs(v[1]))
+    bottom = by_y[:2]
+    if bottom[0][0] == bottom[1][0] and bottom[0][2] == bottom[1][2]:
+        return None  # degenerate (both bottom verts coincide in xz)
+    return bottom[0], bottom[1], int(round(height))
+
+
 def _scaled_vert(pos, scale):
     x, y, z = pos
     sx = max(-32768, min(32767, int(round(x * scale))))
@@ -86,6 +128,10 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
     # an OBJ quad emits a single HZD_FLR with all four corners instead of
     # two degenerate triangles. Polygons with >4 verts are fan-split into
     # quads here — quad pieces use real p4, triangle pieces use p4=p3.
+    #
+    # Object-name routing: faces inside an `o wall_*` block become
+    # HZD_SEG walls (bottom edge of each face → segment, vertical extent
+    # → wall height). Everything else is treated as floors.
     poly_faces = collision.poly_faces if collision.poly_faces else collision.faces
     for face in poly_faces:
         n = len(face.verts)
@@ -97,8 +143,22 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
             sx, sy, sz = _scaled_vert(collision.positions[pi], scale)
             track_bounds(sx, sy, sz)
             all_p.append((sx, sy, sz))
-        # Emit quads for every (v0, vi, vi+1, vi+2) fan slice; if a slice
-        # has only three verts left at the end, emit it as a triangle.
+
+        if is_wall_object(face.object):
+            # Wall face → bottom edge becomes one HZD_SEG.
+            seg_data = _face_to_wall_segment(all_p)
+            if seg_data is None:
+                continue
+            p1, p2, h = seg_data
+            seg = bytearray()
+            seg += _vec(p1[0], p1[1], p1[2], h)
+            seg += _vec(p2[0], p2[1], p2[2], h)
+            walls.append(bytes(seg))
+            continue
+
+        # Floor face — emit quads for every (v0, vi, vi+1, vi+2) fan
+        # slice; if a slice has only three verts left at the end, emit
+        # it as a triangle.
         i = 1
         while i < n - 1:
             slice_verts = [all_p[0], all_p[i], all_p[i + 1]]
