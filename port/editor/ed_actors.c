@@ -565,12 +565,21 @@ void ed_actors_load(const char *path)
          * with the right box variant so the editor preview matches what
          * appears in-game. Falls back to the type lookup if the box
          * variant isn't cached. */
-        if (strcmp(a->type, "ITEM") == 0 && a->box_type >= 0) {
+        if (strcmp(a->type, "ITEM") == 0 &&
+            a->box_type >= 0 && a->box_type < 8) {
+            /* Engine maps -b b:N → KMD_BOX_01+N (N in 0..7). Anything
+             * outside that window comes from a malformed `chara ITEM`
+             * line and would resolve to nonsense in the cache. */
             char name[16];
             snprintf(name, sizeof(name), "box_%02d", a->box_type + 1);
             int id = GV_CacheID2(name, 'k');
             void *p = quiet_get_cache(id);
-            if (p) a->kmd_def = p;
+            /* Sanity-check: pointers from the cache should be real
+             * heap addresses. Anything in the bottom 64 KiB or unaligned
+             * is a stale/bogus tag — keep the type-fallback model
+             * instead so we don't crash render_kmd_unlit. */
+            if (p && (uintptr_t)p >= 0x10000 && ((uintptr_t)p & 3) == 0)
+                a->kmd_def = p;
         }
         if (a->kmd_def) with_model++;
     }

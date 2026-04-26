@@ -104,7 +104,11 @@ static void render_world_axes(void)
 static void render_kmd_unlit(DG_DEF *def, int dist,
                              int wx, int wy, int wz)
 {
-    if (!def || def->n_models <= 0 || def->n_models > 256) return;
+    /* Reject NULL and obviously-bogus tiny/unaligned pointers so a stale
+     * cache entry can't take down the editor. DG_DEFs come from FS-loaded
+     * blobs which are mmap'd — addresses well above the bottom 64 KiB. */
+    if (!def || (uintptr_t)def < 0x10000 || ((uintptr_t)def & 3)) return;
+    if (def->n_models <= 0 || def->n_models > 256) return;
 
     const unsigned char white[3] = {128, 128, 128};   /* neutral modulation */
     const int uv_zero[2] = {0, 0};
