@@ -77,6 +77,8 @@ static GLuint g_tri3d_vbo   = 0;
 static GLuint g_tri3d_prog  = 0;
 static GLint  g_tri3d_u_half_screen = -1;
 static GLint  g_tri3d_u_near_far    = -1;
+static GLint  g_tri3d_u_ortho       = -1;
+static GLint  g_tri3d_u_ortho_lrbt  = -1;
 
 /* Editor wireframe overlay (world-space lines). Reuses g_tri3d_prog. */
 static GL3DVert *g_line3d_buf   = NULL;
@@ -90,7 +92,22 @@ static float g_clear_rgb[3] = {0.0f, 0.0f, 0.0f};
 static int   g_codec_mode   = 0;
 
 /* Hi-res internal FBO. All GL rendering targets this; we blit it upscaled to
- * the window at the end of present via glBlitFramebuffer (linear filter). */
+ * the window at the end of present via glBlitFramebuffer (linear filter).
+ *
+ * Phase 2 of the editor's Hammer-style overhaul introduces multiple
+ * viewports — slot 0 is the legacy 3D textured view (used by the live
+ * game and the editor's 3D pane); slots 1..3 are the editor's Top /
+ * Front / Side ortho wireframe panes. Each has its own FBO + color +
+ * depth at potentially different sizes. The "active" slot is the one
+ * subsequent render calls target — switched via
+ * gl_renderer_set_active_viewport(). The g_fbo/g_fbo_color/etc. globals
+ * mirror the active slot so existing code that references them keeps
+ * working unchanged. */
+#define GL_MAX_VIEWPORTS 4
+typedef struct { GLuint fbo, color, depth; int w, h; } GLFbo;
+static GLFbo g_viewports[GL_MAX_VIEWPORTS] = {0};
+static int   g_active_vp = 0;
+
 static int    g_scale     = 4;
 static int    g_widescreen = 0;            /* 0 = 4:3 (320w), 1 = 16:9 Hor+ (400w) */
 static int    g_render_w   = 320;          /* internal render width, follows g_widescreen */
@@ -99,6 +116,13 @@ static int    g_fbo_h     = 224 * 4;
 static GLuint g_fbo       = 0;
 static GLuint g_fbo_color = 0;
 static GLuint g_fbo_depth = 0;
+
+/* Per-viewport projection/render mode. uOrtho=1 switches the vertex
+ * shader to orthographic projection; uWireframe=1 makes the rasterizer
+ * draw outlines only and the fragment shader emit a flat colour. */
+static int    g_vp_ortho[GL_MAX_VIEWPORTS]      = {0};
+static float  g_vp_ortho_lrbt[GL_MAX_VIEWPORTS][4] = {{0}};
+static int    g_vp_wireframe[GL_MAX_VIEWPORTS]  = {0};
 
 /* Debug visualisation flags -- read by gl_renderer_present / shaders. */
 int   gl_debug_wireframe      = 0;
@@ -222,7 +246,21 @@ static const char *TRI3D_VS =
     "flat out vec3 vAmbient;\n"
     "uniform vec2 uHalfScreen;           // (160, 112)\n"
     "uniform vec2 uNearFar;              // (near, far)\n"
+    "uniform int  uOrtho;                // 0 = perspective, 1 = orthographic\n"
+    "uniform vec4 uOrthoLRBT;            // (left, right, bottom, top) in eye-space units\n"
     "void main() {\n"
+    "  if (uOrtho != 0) {\n"
+    "    /* Orthographic: aPos is already eye-space; map LRBT to NDC linearly.\n"
+    "       Y is flipped (PSX +Y down convention shared with the persp path). */\n"
+    "    float l = uOrthoLRBT.x, r = uOrthoLRBT.y;\n"
+    "    float b = uOrthoLRBT.z, t = uOrthoLRBT.w;\n"
+    "    float nx = (aPos.x - l) / (r - l) * 2.0 - 1.0;\n"
+    "    float ny = (aPos.y - b) / (t - b) * 2.0 - 1.0;\n"
+    "    /* Squash Z into [-1,1] using uNearFar. eye Z >= 0 means in front. */\n"
+    "    float n  = uNearFar.x, f = uNearFar.y;\n"
+    "    float nz = (aPos.z - n) / (f - n) * 2.0 - 1.0;\n"
+    "    gl_Position = vec4(nx, -ny, nz, 1.0);\n"
+    "  } else {\n"
     "    float cz = aPos.z;\n"
     "    if (cz < 4.0) cz = 4.0;\n"
     "    float fz = aFaceZ;\n"
@@ -236,6 +274,7 @@ static const char *TRI3D_VS =
     "       -aPos.y * aDist / uHalfScreen.y,\n"
     "        z_ndc * cz,\n"
     "        cz);\n"
+    "  }\n"
     "    vUV         = aUV;\n"
     "    vCol        = aCol;\n"
     "    vTPage      = aTex.x;\n"
@@ -551,6 +590,8 @@ int gl_renderer_init(void *window_)
     }
     g_tri3d_u_half_screen = glGetUniformLocation(g_tri3d_prog, "uHalfScreen");
     g_tri3d_u_near_far    = glGetUniformLocation(g_tri3d_prog, "uNearFar");
+    g_tri3d_u_ortho       = glGetUniformLocation(g_tri3d_prog, "uOrtho");
+    g_tri3d_u_ortho_lrbt  = glGetUniformLocation(g_tri3d_prog, "uOrthoLRBT");
     glUseProgram(g_tri3d_prog);
     GLint u_tex3d = glGetUniformLocation(g_tri3d_prog, "uVRAM");
     glUniform1i(u_tex3d, 0);
@@ -716,6 +757,16 @@ int gl_renderer_init(void *window_)
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         printf("[gl] FBO %dx%d (PORT_GL_SCALE=%d)\n", g_fbo_w, g_fbo_h, n);
+
+        /* Slot 0 = the legacy 3D textured viewport. Slots 1..3 (Top /
+         * Front / Side ortho wireframe panes in the editor) are created
+         * lazily on first resize to keep startup cheap when running the
+         * live game (which only needs slot 0). */
+        g_viewports[0].fbo   = g_fbo;
+        g_viewports[0].color = g_fbo_color;
+        g_viewports[0].depth = g_fbo_depth;
+        g_viewports[0].w     = g_fbo_w;
+        g_viewports[0].h     = g_fbo_h;
     }
 
     g_enabled = 1;
@@ -789,26 +840,121 @@ void gl_renderer_set_scale(int n)
     printf("[gl] FBO resized to %dx%d (scale=%d)\n", g_fbo_w, g_fbo_h, g_scale);
 }
 
-void gl_renderer_resize_fbo(int w, int h)
+/* Lazily allocate FBO + color + depth for viewport idx if needed. */
+static void ensure_viewport(int idx, int w, int h)
+{
+    if (idx < 0 || idx >= GL_MAX_VIEWPORTS) return;
+    GLFbo *vp = &g_viewports[idx];
+    if (vp->fbo == 0) {
+        glGenFramebuffers(1, &vp->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, vp->fbo);
+        glGenTextures(1, &vp->color);
+        glBindTexture(GL_TEXTURE_2D, vp->color);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, vp->color, 0);
+        glGenRenderbuffers(1, &vp->depth);
+        glBindRenderbuffer(GL_RENDERBUFFER, vp->depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                                  GL_RENDERBUFFER, vp->depth);
+        vp->w = w; vp->h = h;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        return;
+    }
+    /* Already allocated — just resize if dims differ. */
+    if (w != vp->w || h != vp->h) {
+        glBindTexture(GL_TEXTURE_2D, vp->color);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glBindRenderbuffer(GL_RENDERBUFFER, vp->depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
+        vp->w = w; vp->h = h;
+    }
+}
+
+/* Switch which viewport subsequent rendering targets. The legacy globals
+ * g_fbo / g_fbo_color / g_fbo_w / g_fbo_h are mirrored from the slot so
+ * existing code paths continue to work. */
+void gl_renderer_set_active_viewport(int idx)
+{
+    if (!g_enabled) return;
+    if (idx < 0 || idx >= GL_MAX_VIEWPORTS) return;
+    g_active_vp = idx;
+    GLFbo *vp = &g_viewports[idx];
+    g_fbo       = vp->fbo;
+    g_fbo_color = vp->color;
+    g_fbo_depth = vp->depth;
+    g_fbo_w     = vp->w;
+    g_fbo_h     = vp->h;
+}
+
+int gl_renderer_get_active_viewport(void) { return g_active_vp; }
+
+void gl_renderer_resize_viewport(int idx, int w, int h)
 {
     if (!g_enabled) return;
     if (w < 1) w = 1;
     if (h < 1) h = 1;
-    if (w == g_fbo_w && h == g_fbo_h) return;
-    g_fbo_w = w;
-    g_fbo_h = h;
-    glBindTexture(GL_TEXTURE_2D, g_fbo_color);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glBindRenderbuffer(GL_RENDERBUFFER, g_fbo_depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
-                          g_fbo_w, g_fbo_h);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    ensure_viewport(idx, w, h);
+    if (idx == g_active_vp) {
+        g_fbo       = g_viewports[idx].fbo;
+        g_fbo_color = g_viewports[idx].color;
+        g_fbo_depth = g_viewports[idx].depth;
+        g_fbo_w     = g_viewports[idx].w;
+        g_fbo_h     = g_viewports[idx].h;
+    }
+}
+
+unsigned int gl_renderer_get_viewport_color(int idx)
+{
+    if (!g_enabled || idx < 0 || idx >= GL_MAX_VIEWPORTS) return 0;
+    return g_viewports[idx].color;
+}
+
+void gl_renderer_get_viewport_size(int idx, int *out_w, int *out_h)
+{
+    if (idx < 0 || idx >= GL_MAX_VIEWPORTS) {
+        if (out_w) *out_w = 0;
+        if (out_h) *out_h = 0;
+        return;
+    }
+    if (out_w) *out_w = g_viewports[idx].w;
+    if (out_h) *out_h = g_viewports[idx].h;
+}
+
+void gl_renderer_set_viewport_ortho(int idx, int on,
+                                    float l, float r, float b, float t)
+{
+    if (idx < 0 || idx >= GL_MAX_VIEWPORTS) return;
+    g_vp_ortho[idx] = on ? 1 : 0;
+    g_vp_ortho_lrbt[idx][0] = l;
+    g_vp_ortho_lrbt[idx][1] = r;
+    g_vp_ortho_lrbt[idx][2] = b;
+    g_vp_ortho_lrbt[idx][3] = t;
+}
+
+void gl_renderer_set_viewport_wireframe(int idx, int on)
+{
+    if (idx < 0 || idx >= GL_MAX_VIEWPORTS) return;
+    g_vp_wireframe[idx] = on ? 1 : 0;
+}
+
+/* Legacy single-FBO API — operates on viewport 0. */
+void gl_renderer_resize_fbo(int w, int h)
+{
+    gl_renderer_resize_viewport(0, w, h);
 }
 
 unsigned int gl_renderer_get_fbo_color(void)
 {
-    return g_enabled ? g_fbo_color : 0;
+    return g_enabled ? g_viewports[0].color : 0;
 }
 
 static int g_present_to_window = 1;
@@ -1295,8 +1441,10 @@ void gl_renderer_present(void)
     extern int port_vram_debug_view(void);
     int debug_view = port_vram_debug_view();
 
-    /* Apply wireframe polygon mode if the debug flag is set. Cleared later. */
-    if (gl_debug_wireframe)
+    /* Apply wireframe polygon mode if the debug flag or the active
+     * viewport's wireframe flag is set. Cleared later. */
+    int vp_wireframe = gl_debug_wireframe || g_vp_wireframe[g_active_vp];
+    if (vp_wireframe)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     /* --- Background 2D pass (sphere skybox) ---------------------------- */
@@ -1335,8 +1483,11 @@ void gl_renderer_present(void)
         glUseProgram(g_tri3d_prog);
         glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
         glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
+        /* Per-viewport projection: editor's ortho panes flip uOrtho on. */
+        glUniform1i(g_tri3d_u_ortho, g_vp_ortho[g_active_vp]);
+        glUniform4fv(g_tri3d_u_ortho_lrbt, 1, g_vp_ortho_lrbt[g_active_vp]);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"),
-                    gl_debug_no_textures ? 1 : 0);
+                    (gl_debug_no_textures || g_vp_wireframe[g_active_vp]) ? 1 : 0);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"),
                     gl_debug_face_id ? 1 : 0);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"),
@@ -1418,6 +1569,8 @@ void gl_renderer_present(void)
         glUseProgram(g_tri3d_prog);
         glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
         glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
+        glUniform1i(g_tri3d_u_ortho, g_vp_ortho[g_active_vp]);
+        glUniform4fv(g_tri3d_u_ortho_lrbt, 1, g_vp_ortho_lrbt[g_active_vp]);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"), 1);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"), 0);
         glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"), 0);
@@ -1440,7 +1593,7 @@ void gl_renderer_present(void)
     }
 
     /* Restore fill polygon mode so the overlay/blit pass isn't wireframed. */
-    if (gl_debug_wireframe)
+    if (vp_wireframe)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     /* --- VRAM debug overlay (only when explicitly enabled) ------------- */

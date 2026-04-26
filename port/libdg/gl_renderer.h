@@ -181,6 +181,38 @@ unsigned int gl_renderer_get_fbo_color(void);
  * to 0 (blit on); the editor sets it to 1 at startup. */
 void gl_renderer_set_present_to_window(int on);
 
+/* --- Multi-viewport rendering (Phase 2 of editor overhaul) ---------------
+ *
+ * Slot 0 is the legacy 3D textured viewport (and the live game's only
+ * viewport). Slots 1..3 are the editor's Top / Front / Side ortho
+ * wireframe panes. Each slot owns its own FBO + color attachment + depth
+ * renderbuffer at potentially different sizes.
+ *
+ * Render flow per frame for a viewport:
+ *   gl_renderer_resize_viewport(idx, w, h);
+ *   gl_renderer_set_active_viewport(idx);
+ *   gl_renderer_set_viewport_ortho(idx, on, l, r, b, t);   (set up once)
+ *   gl_renderer_set_viewport_wireframe(idx, on);           (set up once)
+ *   gl_renderer_begin_3d();
+ *   ... ed_render_frame() / scene submission ...
+ *   gl_renderer_present();
+ *
+ * The editor calls ImGui::Image(gl_renderer_get_viewport_color(idx), ...)
+ * inside the dockable panel for each viewport. */
+#define GL_VIEWPORT_3D       0
+#define GL_VIEWPORT_TOP      1
+#define GL_VIEWPORT_FRONT    2
+#define GL_VIEWPORT_SIDE     3
+
+void gl_renderer_set_active_viewport(int idx);
+int  gl_renderer_get_active_viewport(void);
+void gl_renderer_resize_viewport(int idx, int w, int h);
+void gl_renderer_get_viewport_size(int idx, int *out_w, int *out_h);
+unsigned int gl_renderer_get_viewport_color(int idx);
+void gl_renderer_set_viewport_ortho(int idx, int on,
+                                    float l, float r, float b, float t);
+void gl_renderer_set_viewport_wireframe(int idx, int on);
+
 #ifdef __cplusplus
 }
 #endif

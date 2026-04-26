@@ -182,30 +182,19 @@ static void render_kmd_unlit(DG_DEF *def, int dist,
     }
 }
 
-void ed_render_frame(void)
+/* Submit every renderable element of the loaded stage to the GL renderer,
+ * using whatever s_eye_inv / s_clip_dist were set by the calling viewport.
+ * Shared between the 3D perspective viewport and the Top/Front/Side ortho
+ * viewports — only the camera setup differs. */
+static void ed_render_scene(void)
 {
-    /* 1. Build view matrix via DG_LookAt — sets DG_Chanls[1].eye_inv to the
-       same convention the in-game camera uses. We then snapshot it so the
-       rest of the editor (HZD, actor markers) projects through the same
-       transform without re-deriving it. */
-    extern DG_CHANL DG_Chanls[3];
-    DG_CHANL *ch = &DG_Chanls[1];
-    ed_camera_build_eye_inv(ch);
-    s_eye_inv  = ch->eye_inv;
-    s_clip_dist = ch->clip_distance;
-
-    /* 2. Map geometry — every KMD the loader classified as map-sized. For
-       multi-room stages (e.g. s02a) this is several KMDs; rendering all
-       of them at world origin reconstructs the connected level. */
+    /* Map geometry — every KMD the loader classified as map-sized. */
     if (g_stage.loaded) {
         for (int i = 0; i < g_stage.n_map_defs; i++) {
             render_kmd_unlit((DG_DEF *)g_stage.map_defs[i], s_clip_dist, 0, 0, 0);
         }
     }
-
-    /* 3. Optional actor-model render — uses the kmd_def resolved at TSV
-       load time. NULL means we have no model for that actor type;
-       ed_actors_render falls back to a cube marker. */
+    /* Optional actor-model render. */
     if (g_show_actor_models) {
         for (int i = 0; i < g_actor_count; i++) {
             EdActor *a = &g_actors[i];
@@ -214,17 +203,32 @@ void ed_render_frame(void)
                              a->pos[0], a->pos[1], a->pos[2]);
         }
     }
-
-    /* 4. World axes gizmo. */
     render_world_axes();
+    if (g_stage.hzd_map)  ed_hzd_render();
+    if (g_show_actors)    ed_actors_render();
+}
 
-    /* 5. HZD wireframe overlay. */
-    if (g_stage.hzd_map) {
-        ed_hzd_render();
-    }
+void ed_render_frame(void)
+{
+    /* 3D perspective viewport. Builds eye_inv via DG_LookAt — matches the
+     * in-game camera convention so HZD, actor markers, and pick rays all
+     * project through the same transform. */
+    extern DG_CHANL DG_Chanls[3];
+    DG_CHANL *ch = &DG_Chanls[1];
+    ed_camera_build_eye_inv(ch);
+    s_eye_inv   = ch->eye_inv;
+    s_clip_dist = ch->clip_distance;
+    ed_render_scene();
+}
 
-    /* 6. Actor markers (cubes + rotation arrows). */
-    if (g_show_actors) {
-        ed_actors_render();
-    }
+/* Ortho viewport render entry point. The renderer must already be bound to
+ * the right viewport FBO and have ortho/wireframe modes enabled before this
+ * is called. The eye_inv we set here is hand-built (not via DG_LookAt) so
+ * we can pin one world axis to "depth" and have screen-X / screen-Y align
+ * with the remaining two. */
+void ed_render_frame_ortho(EdOrthoCam *cam, int viewport_w, int viewport_h)
+{
+    ed_camera_ortho_build_eye_inv(cam, &s_eye_inv);
+    s_clip_dist = 1024;     /* unused by the ortho shader path; safe default */
+    ed_render_scene();
 }
