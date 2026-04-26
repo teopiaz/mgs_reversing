@@ -39,7 +39,8 @@ def build_stage(name: str,
                 collision_path: Path | None,
                 output_dir: Path,
                 scale: float = 100.0,
-                bothface: bool = True):
+                bothface: bool = True,
+                flip_v: bool = True):
     print(f"[import] stage      : {name}")
     print(f"[import] visual obj : {obj_path}")
     print(f"[import] texture    : {png_path or '(none)'}")
@@ -54,7 +55,7 @@ def build_stage(name: str,
    # back-face culling silently drops half the triangles.
     kmd_flags = DG_MODEL_BOTHFACE if bothface else 0
     kmd_blob = write_kmd(visual, default_texture=name, scale=scale,
-                         flip_v=True, flags=kmd_flags)
+                         flip_v=flip_v, flags=kmd_flags)
 
     # --- collision mesh → HZD ------------------------------------------
     if collision_path and collision_path.is_file():
@@ -136,6 +137,21 @@ def build_stage(name: str,
         (kmd_hash, 'h', hzd_blob),
     ]
 
+    # Bundle item KMDs (box_01..box_08) into every custom stage. Without
+    # them `chara &ITEM ... -i b:13` (and any other item id) silently
+    # drops the actor — see source/game/item.c GetResources, which now
+    # NULL-guards a missing body.objs and returns -1. The blobs were
+    # extracted from the disc once via tools/extract_disc_assets.py.
+    bundled_dir = REPO / "tools" / "stage_assets" / "bundled"
+    for i in range(1, 9):
+        blob_path = bundled_dir / f"box_{i:02d}.kmd"
+        if not blob_path.is_file():
+            continue
+        h = gv_strcode(f"box_{i:02d}")
+        resident_entries.append((h, 'k', blob_path.read_bytes()))
+        print(f"[import] bundled  : box_{i:02d}.kmd "
+              f"(hash 0x{h:04X}, {blob_path.stat().st_size} B)")
+
     cache_blobs = [(gv_strcode("scenerio"), 'g', gcx_blob)]
     datacnf = build_datacnf(
         resident_dar = dar_archive(resident_entries),
@@ -192,6 +208,9 @@ def main():
                     help="multiply OBJ coords by this when baking to short16 PSX units")
     ap.add_argument("--no-bothface", action="store_true",
                     help="don't set DG_MODEL_BOTHFACE (only safe if the mesh winds CCW from outside)")
+    ap.add_argument("--no-flip-v", action="store_true",
+                    help="don't flip V on UV import (default flips because Blender's V=0 is bottom). "
+                         "Try this if textures appear vertically wrong on sub-rect (atlas) UVs.")
     ap.add_argument("--manifest", help="re-run from a manifest.json instead of CLI args")
     args = ap.parse_args()
 
@@ -214,7 +233,8 @@ def main():
     coll_path = Path(args.collision) if args.collision else None
 
     build_stage(name, obj_path, png_path, coll_path, out_dir,
-                scale=args.scale, bothface=not args.no_bothface)
+                scale=args.scale, bothface=not args.no_bothface,
+                flip_v=not args.no_flip_v)
 
 
 if __name__ == "__main__":

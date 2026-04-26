@@ -43,12 +43,18 @@ DEFAULT_TEXTURE_H  = 256
 
 # Multiple 256x256 8bpp textures pack across the y=256..511 page region.
 # Each one occupies 128 16-bit columns (256 8bpp pixels = 128 16-bit
-# words). 1024-wide VRAM ÷ 128 = 8 horizontal slots. CLUTs sit at y=240
-# and step 16 columns each (a 256-color CLUT is 16 16-bit words wide,
-# and PSX `clut = (cy<<6) | (cx>>4)` requires cx % 16 == 0).
+# words). 1024-wide VRAM ÷ 128 = 8 horizontal slots.
+#
+# CLUT layout: a 256-color CLUT is 256 16-bit pixels wide × 1 row tall.
+# Striding adjacent CLUTs by only 16 cx units (the older layout) made
+# every slot >= 1 overlap slot 0 by 240 pixels — so PCX uploads
+# clobbered each other and only slot 0 rendered correctly. We instead
+# give each CLUT its own row inside the y=224..255 safe band, starting
+# at cy=241 (the live game uses cy=240 for its font/menu CLUT).
 TEXTURE_SLOT_STRIDE_PX = 128       # 16-bit-pixel columns per 256x256 8bpp slot
-CLUT_SLOT_STRIDE_CX    = 16        # cx step per CLUT (cx must be % 16)
-MAX_TEXTURE_SLOTS      = 8         # 1024 / 128
+CLUT_SLOT_STRIDE_CY    = 1         # cy step per CLUT (one row per slot)
+MAX_TEXTURE_SLOTS      = 8         # 1024 / 128 horizontal; 14 vertical CLUT rows
+                                   # available (y=241..254) — plenty.
 
 
 def texture_slot(idx: int) -> tuple[int, int, int, int]:
@@ -60,8 +66,8 @@ def texture_slot(idx: int) -> tuple[int, int, int, int]:
         raise ValueError(f"texture slot {idx} out of range 0..{MAX_TEXTURE_SLOTS - 1}")
     px = DEFAULT_TEXTURE_PX + idx * TEXTURE_SLOT_STRIDE_PX
     py = DEFAULT_TEXTURE_PY
-    cx = DEFAULT_CLUT_CX + idx * CLUT_SLOT_STRIDE_CX
-    cy = DEFAULT_CLUT_CY
+    cx = DEFAULT_CLUT_CX
+    cy = DEFAULT_CLUT_CY + idx * CLUT_SLOT_STRIDE_CY
     return (px, py, cx, cy)
 
 # DG_MODEL_FLAGS — bit set in KMD_MDL_RAW.flags. From source/libdg/libdg.h.
