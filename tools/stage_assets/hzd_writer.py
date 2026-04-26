@@ -41,9 +41,19 @@ HZD_SEG_SIZE     = 2 * HZD_VEC_SIZE
 HZD_FLR_SIZE     = 6 * HZD_VEC_SIZE
 
 
-def _vec(x: int, y: int, z: int) -> bytes:
-    """Pack one HZD_VEC. Field order is (x, z, y, h) per fmt_hzd.h."""
-    return struct.pack("<hhhh", x, z, y, 0)
+def _vec(x: int, y: int, z: int, h: int = 0) -> bytes:
+    """Pack one HZD_VEC. Field order is (x, z, y, h) per fmt_hzd.h.
+    For wall endpoints, `h` is the wall-height delta — collide.c's
+    PointTestSegment_inline reads it to bound the wall vertically; with
+    h=0 the wall has zero height and never blocks anything."""
+    return struct.pack("<hhhh", x, z, y, h)
+
+
+# Default wall height (PSX units). Any actor whose vertical position is
+# in [wall.y, wall.y + WALL_DEFAULT_HEIGHT] gets blocked. 3000 covers
+# crouch/stand/jump ranges around the floor; bump if a stage has very
+# tall walls or vertical actors.
+WALL_DEFAULT_HEIGHT = 3000
 
 
 def _scaled_vert(pos, scale):
@@ -123,8 +133,13 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
         track_bounds(sx0, sy0, sz0)
         track_bounds(sx1, sy1, sz1)
         seg = bytearray()
-        seg += _vec(sx0, sy0, sz0)          # p1
-        seg += _vec(sx1, sy1, sz1)          # p2
+        # Endpoint y is the wall TOP, h is the wall-height delta (live
+        # game uses both to bound the wall vertically). Floor is at y=0
+        # in our authored stages; walls extend WALL_DEFAULT_HEIGHT
+        # downward in PSX +Y-down terms, which covers Snake's stance
+        # range at the floor.
+        seg += _vec(sx0, sy0, sz0, WALL_DEFAULT_HEIGHT)   # p1
+        seg += _vec(sx1, sy1, sz1, WALL_DEFAULT_HEIGHT)   # p2
         walls.append(bytes(seg))
 
     if not floors and not walls:
