@@ -789,6 +789,31 @@ void gl_renderer_set_scale(int n)
     printf("[gl] FBO resized to %dx%d (scale=%d)\n", g_fbo_w, g_fbo_h, g_scale);
 }
 
+void gl_renderer_resize_fbo(int w, int h)
+{
+    if (!g_enabled) return;
+    if (w < 1) w = 1;
+    if (h < 1) h = 1;
+    if (w == g_fbo_w && h == g_fbo_h) return;
+    g_fbo_w = w;
+    g_fbo_h = h;
+    glBindTexture(GL_TEXTURE_2D, g_fbo_color);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindRenderbuffer(GL_RENDERBUFFER, g_fbo_depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+                          g_fbo_w, g_fbo_h);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+}
+
+unsigned int gl_renderer_get_fbo_color(void)
+{
+    return g_enabled ? g_fbo_color : 0;
+}
+
+static int g_present_to_window = 1;
+void gl_renderer_set_present_to_window(int on) { g_present_to_window = on ? 1 : 0; }
+
 int gl_renderer_get_widescreen(void) { return g_widescreen; }
 
 void gl_renderer_set_widescreen(int on)
@@ -1439,15 +1464,20 @@ void gl_renderer_present(void)
        port_DrawOTag -> gl_renderer_begin_2d). */
 
     /* --- Upscale FBO -> window ----------------------------------------- */
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glViewport(0, 0, fb_w, fb_h);
-    glClearColor(0, 0, 0, 1);          /* letterbox bars */
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBlitFramebuffer(0, 0, g_fbo_w, g_fbo_h,
-                      vp_x, vp_y, vp_x + vp_w, vp_y + vp_h,
-                      GL_COLOR_BUFFER_BIT,
-                      gl_debug_blit_nearest ? GL_NEAREST : GL_LINEAR);
+    /* Editor docking mode skips this blit and shows the FBO via
+     * ImGui::Image inside a dockable "3D View" panel. The default
+     * framebuffer is left for ImGui to paint dockspace + windows over. */
+    if (g_present_to_window) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glViewport(0, 0, fb_w, fb_h);
+        glClearColor(0, 0, 0, 1);          /* letterbox bars */
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBlitFramebuffer(0, 0, g_fbo_w, g_fbo_h,
+                          vp_x, vp_y, vp_x + vp_w, vp_y + vp_h,
+                          GL_COLOR_BUFFER_BIT,
+                          gl_debug_blit_nearest ? GL_NEAREST : GL_LINEAR);
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     /* SwapWindow happens in port_render after ImGui draws. */
