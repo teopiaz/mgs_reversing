@@ -5,10 +5,12 @@ Reference: port/libhzd/hzd_loader.c (HZD_MAP_RAW + HZD_GRP_RAW packed
 the floor/wall arrays).
 
 Layout this writer emits:
-  HZD_MAP_RAW (24 B)
-  HZD_GRP_RAW (24 B)            ← single group, n_walls=W, n_floors=F
+  HZD_MAP_RAW (28 B)
+  HZD_GRP_RAW (24 B)            ← single group
   HZD_SEG[W]  (each = 2 × HZD_VEC = 2 × 8 B = 16 B)
+  walls_flags (W bytes, padded to 4)
   HZD_FLR[F]  (each = 6 × HZD_VEC = 6 × 8 B = 48 B)
+  HZD_TRG[T]  (each = 32 B; traps come first then cameras)
 
 HZD_VEC is `{short x, z, y, h}` — note the **z/y swap** vs. PSX SVECTOR
 (see port/editor/ed_hzd.c:14 where the editor reads the same layout).
@@ -17,6 +19,13 @@ Floors come from collision OBJ triangles. Walls come from collision OBJ
 `l` line primitives — each segment is a perfectly vertical wall (PSX
 HZD walls are always vertical, so the y component is just the floor
 level for visualization purposes).
+
+Trigger volumes (HZD_TRP) are authored as named OBJ groups whose name
+starts with `trap_`. Each `o trap_<name>` cube becomes one HZD_TRP with
+b1/b2 = AABB of the cube's vertices and `name = <name>` (truncated to
+12 characters; the engine's HZD_BIND wires the name to a GCL handler).
+This mirrors the floor / wall convention (`o wall_*` already routes to
+HZD_SEG) so a single collision OBJ describes the full hazard map.
 
 For each floor triangle (p0, p1, p2) we emit one HZD_FLR with:
   b1 = b2 = bbox of the triangle in HZD coords (used for broad-phase)
@@ -66,6 +75,28 @@ def is_wall_object(name: str | None) -> bool:
     return name.lower().startswith("wall")
 
 
+def is_trap_object(name: str | None) -> bool:
+    """True if a face's `o name` marks it as a trigger volume.
+    Convention: any object whose name starts with `trap_`
+    (case-insensitive) becomes one HZD_TRP record; the part after
+    the prefix is the trap name (truncated to 12 chars)."""
+    if not name:
+        return False
+    return name.lower().startswith("trap_") or name.lower() == "trap"
+
+
+def trap_name_from_object(name: str) -> str:
+    """Strip the `trap_` prefix and clamp to the 12-byte HZD_TRP name
+    field. Empty source name → "trap" (always-fire bind). Lowercase
+    so HZD_BIND lookups in GCL stay convention-consistent (engine
+    name_id uses GV_StrCode which is case-sensitive)."""
+    s = name
+    low = s.lower()
+    if low.startswith("trap_"):
+        s = s[5:]
+    return (s[:12] or "trap")
+
+
 def _face_to_wall_segment(face_verts_xyz):
     """Convert a single face's vertices to (p1, p2, height) for HZD_SEG.
 
@@ -108,10 +139,15 @@ def _scaled_vert(pos, scale):
 
 def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
     """Encode the collision mesh as an HZD blob with one floor per
-    triangle and one wall per OBJ `l` segment. Returns raw bytes ready
-    for the DAR archive."""
+    triangle, one wall per OBJ `l` segment, and one trigger volume per
+    `o trap_*` group. Returns raw bytes ready for the DAR archive."""
     floors = []
     walls = []
+    triggers = []
+    # Per-trap-name accumulators so multiple faces under the same
+    # `o trap_<name>` group merge into one AABB instead of producing
+    # one trigger per cube face.
+    trap_aabb = {}    # name -> [min_x, min_y, min_z, max_x, max_y, max_z]
     min_x = min_y = min_z =  1 << 30
     max_x = max_y = max_z = -(1 << 30)
 
@@ -154,6 +190,26 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
             seg += _vec(p1[0], p1[1], p1[2], h)
             seg += _vec(p2[0], p2[1], p2[2], h)
             walls.append(bytes(seg))
+            continue
+
+        if is_trap_object(face.object):
+            # Trap face → expand the running per-name AABB. Multiple
+            # faces under the same `o trap_<name>` group all merge into
+            # a single trigger volume, so a 6-face cube authored in
+            # Blender produces one record (not six).
+            tname = trap_name_from_object(face.object)
+            box = trap_aabb.get(tname)
+            for (x, y, z) in all_p:
+                if box is None:
+                    box = [x, y, z, x, y, z]
+                else:
+                    if x < box[0]: box[0] = x
+                    if y < box[1]: box[1] = y
+                    if z < box[2]: box[2] = z
+                    if x > box[3]: box[3] = x
+                    if y > box[4]: box[4] = y
+                    if z > box[5]: box[5] = z
+            trap_aabb[tname] = box
             continue
 
         # Floor face — emit quads for every (v0, vi, vi+1, vi+2) fan
@@ -202,7 +258,24 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
         seg += _vec(sx1, sy1, sz1, WALL_DEFAULT_HEIGHT)   # p2
         walls.append(bytes(seg))
 
-    if not floors and not walls:
+    # Materialise the accumulated per-name trigger AABBs into HZD_TRP
+    # records (32 B each). Engine layout: traps come first, cameras
+    # later (id2==0xFF marks cameras). For now we only emit traps; the
+    # camera authoring path will append after traps and bump the count.
+    for tname in sorted(trap_aabb):
+        bx0, by0, bz0, bx1, by1, bz1 = trap_aabb[tname]
+        rec = bytearray()
+        rec += _vec(bx0, by0, bz0)            # b1
+        rec += _vec(bx1, by1, bz1)            # b2
+        # name[12]: ASCII, NUL-padded. The runtime computes name_id from
+        # this in HZD_ProcessTraps, so we just leave name_id zero here.
+        nb = tname.encode("ascii", errors="replace")[:12]
+        rec += nb + b"\x00" * (12 - len(nb))
+        rec += struct.pack("<BB", 0, 0)       # id1 (group), id2 (=0 → trap)
+        rec += struct.pack("<H", 0)           # name_id (engine recomputes)
+        triggers.append(bytes(rec))
+
+    if not floors and not walls and not triggers:
         # Empty collision still needs a valid map. Use a tiny dummy.
         min_x = min_y = min_z = 0
         max_x = max_y = max_z = 0
@@ -216,16 +289,18 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
     walls_flags_blob = bytes(len(walls)) if walls else b""
     walls_flags_padded = walls_flags_blob + bytes((-len(walls_flags_blob)) & 3)
 
-    # Compute byte offsets. Walls come before floors so the HZD_SEG
-    # array sits closer to the header — matches the layout shipped on
-    # disc, though the offsets are explicit so order isn't load-bearing.
-    map_off    = 0
-    grp_off    = map_off + HZD_MAP_RAW_SIZE
-    walls_off  = grp_off + HZD_GRP_RAW_SIZE
+    # Compute byte offsets. Layout is walls → walls_flags → floors →
+    # triggers. Order isn't load-bearing (offsets are explicit) but
+    # matching disc-layout conventions makes the binary easier to
+    # diff-eyeball when troubleshooting.
+    map_off         = 0
+    grp_off         = map_off + HZD_MAP_RAW_SIZE
+    walls_off       = grp_off + HZD_GRP_RAW_SIZE
     walls_flags_off = walls_off + len(walls) * HZD_SEG_SIZE
-    floors_off = walls_flags_off + len(walls_flags_padded)
+    floors_off      = walls_flags_off + len(walls_flags_padded)
+    triggers_off    = floors_off + len(floors) * HZD_FLR_SIZE
 
-    # HZD_MAP_RAW (24 B).
+    # HZD_MAP_RAW (28 B).
     out = bytearray()
     out += struct.pack("<h", 2)                 # version (>=2 to skip the loader's warning)
     out += struct.pack("<hh", min_x, min_y)
@@ -238,13 +313,13 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
     out += struct.pack("<I", 0)                 # routes_off
 
     # HZD_GRP_RAW (24 B).
-    out += struct.pack("<h", 0)                 # n_triggers
+    out += struct.pack("<h", len(triggers))     # n_triggers
     out += struct.pack("<h", len(walls))        # n_walls
     out += struct.pack("<h", len(floors))       # n_floors
     out += struct.pack("<h", 0)                 # n_flat_walls
     out += struct.pack("<I", walls_off if walls else 0)
     out += struct.pack("<I", floors_off if floors else 0)
-    out += struct.pack("<I", 0)                 # triggers_off
+    out += struct.pack("<I", triggers_off if triggers else 0)
     out += struct.pack("<I", walls_flags_off if walls else 0)
 
     # HZD_SEG array (walls).
@@ -255,5 +330,8 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
     # HZD_FLR array (floors).
     for f in floors:
         out += f
+    # HZD_TRG array (triggers — traps, plus cameras once authored).
+    for t in triggers:
+        out += t
 
     return bytes(out)
