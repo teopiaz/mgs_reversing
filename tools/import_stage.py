@@ -240,9 +240,25 @@ def main():
     png_path  = Path(args.texture) if args.texture else None
     coll_path = Path(args.collision) if args.collision else None
 
-    build_stage(name, obj_path, png_path, coll_path, out_dir,
-                scale=args.scale, bothface=not args.no_bothface,
-                flip_v=not args.no_flip_v)
+    # GCL parse / lex errors carry a rendered "path:line:col + snippet"
+    # message via GclSyntaxError. Print just that and exit non-zero so
+    # the editor's Reimport button surfaces a single clear message
+    # instead of a Python traceback.
+    try:
+        from gcl_parser import GclSyntaxError       # type: ignore
+    except ImportError:
+        sys.path.insert(0, str(REPO / "port" / "gcl_tools"))
+        from gcl_parser import GclSyntaxError       # type: ignore
+    try:
+        build_stage(name, obj_path, png_path, coll_path, out_dir,
+                    scale=args.scale, bothface=not args.no_bothface,
+                    flip_v=not args.no_flip_v)
+    except GclSyntaxError as e:
+        # Flush the [import] progress lines we printed before the error so
+        # stdout and stderr don't interleave on the user's terminal.
+        sys.stdout.flush()
+        print(f"\n[import] GCL syntax error:\n{e}", file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == "__main__":
