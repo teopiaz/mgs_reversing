@@ -232,3 +232,72 @@ void ed_render_frame_ortho(EdOrthoCam *cam, int viewport_w, int viewport_h)
     s_clip_dist = 1024;     /* unused by the ortho shader path; safe default */
     ed_render_scene();
 }
+
+/* ---------------------------------------------------------------------------
+ * AABB sources for "Frame selection" (F key). Selection takes precedence;
+ * if nothing is selected we fall back to the union of every map KMD's
+ * embedded bbox so the user can quickly re-center on the whole stage.
+ * ------------------------------------------------------------------------- */
+
+int ed_compute_selection_aabb(float bmin[3], float bmax[3])
+{
+    /* Selected actor: pad ±1000 so the cube/model has visible context. */
+    if (g_actor_selected >= 0 && g_actor_selected < g_actor_count) {
+        EdActor *a = &g_actors[g_actor_selected];
+        if (a->has_pos) {
+            const float r = 1000.0f;
+            for (int k = 0; k < 3; k++) {
+                bmin[k] = (float)a->pos[k] - r;
+                bmax[k] = (float)a->pos[k] + r;
+            }
+            return 1;
+        }
+    }
+    /* HZD trap / camera. We only have centers via the inspector list API,
+     * so pad to a sensible viewing radius. */
+    EdHzdItem item;
+    if (g_sel_trap >= 0 && ed_hzd_get_trap(g_sel_trap, &item)) {
+        const float r = 1500.0f;
+        bmin[0] = item.cx - r; bmax[0] = item.cx + r;
+        bmin[1] = item.cy - r; bmax[1] = item.cy + r;
+        bmin[2] = item.cz - r; bmax[2] = item.cz + r;
+        return 1;
+    }
+    if (g_sel_cam >= 0 && ed_hzd_get_camera(g_sel_cam, &item)) {
+        const float r = 1500.0f;
+        bmin[0] = item.cx - r; bmax[0] = item.cx + r;
+        bmin[1] = item.cy - r; bmax[1] = item.cy + r;
+        bmin[2] = item.cz - r; bmax[2] = item.cz + r;
+        return 1;
+    }
+    return 0;
+}
+
+int ed_compute_stage_aabb(float bmin[3], float bmax[3])
+{
+    int got = 0;
+    for (int i = 0; i < g_stage.n_map_defs; i++) {
+        DG_DEF *d = (DG_DEF *)g_stage.map_defs[i];
+        if (!d) continue;
+        if (!got) {
+            bmin[0] = (float)d->min.vx; bmax[0] = (float)d->max.vx;
+            bmin[1] = (float)d->min.vy; bmax[1] = (float)d->max.vy;
+            bmin[2] = (float)d->min.vz; bmax[2] = (float)d->max.vz;
+            got = 1;
+        } else {
+            if ((float)d->min.vx < bmin[0]) bmin[0] = (float)d->min.vx;
+            if ((float)d->min.vy < bmin[1]) bmin[1] = (float)d->min.vy;
+            if ((float)d->min.vz < bmin[2]) bmin[2] = (float)d->min.vz;
+            if ((float)d->max.vx > bmax[0]) bmax[0] = (float)d->max.vx;
+            if ((float)d->max.vy > bmax[1]) bmax[1] = (float)d->max.vy;
+            if ((float)d->max.vz > bmax[2]) bmax[2] = (float)d->max.vz;
+        }
+    }
+    return got;
+}
+
+int ed_compute_active_aabb(float bmin[3], float bmax[3])
+{
+    if (ed_compute_selection_aabb(bmin, bmax)) return 1;
+    return ed_compute_stage_aabb(bmin, bmax);
+}

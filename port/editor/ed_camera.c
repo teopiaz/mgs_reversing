@@ -26,6 +26,11 @@ void ed_camera_default(void)
     g_cam.yaw    = 0.0f;
     g_cam.pitch  = -1.5f;
     g_cam.fov_scale = 1.0f;
+    g_cam.mode = ED_CAM_MODE_FLY;
+    g_cam.orbit_target[0] = 0.0f;
+    g_cam.orbit_target[1] = 0.0f;
+    g_cam.orbit_target[2] = 0.0f;
+    g_cam.orbit_dist = 5000.0f;
 }
 
 void ed_camera_first_person(void)
@@ -68,6 +73,23 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held)
     float speed = 4000.0f;       /* world units / second */
     if (keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT]) speed *= 4.0f;
     if (keys[SDL_SCANCODE_LCTRL]  || keys[SDL_SCANCODE_RCTRL])  speed *= 0.25f;
+    int alt_held = keys[SDL_SCANCODE_LALT] || keys[SDL_SCANCODE_RALT];
+
+    /* Edge-detect "fly mode + Alt+RMB" drag start so we can plant the orbit
+     * target one orbit_dist step in front of the camera. Without this, the
+     * very first Alt+RMB drag would snap the camera to whatever stale pivot
+     * was left over from a prior orbit/F-frame (or to world origin on a
+     * fresh launch). The flag re-arms when the drag ends. */
+    static int s_alt_rmb_active = 0;
+    if (rmb_held && alt_held && g_cam.mode == ED_CAM_MODE_FLY && !s_alt_rmb_active) {
+        if (g_cam.orbit_dist < 100.0f) g_cam.orbit_dist = 5000.0f;
+        float fwd[3], right[3], down[3];
+        cam_basis(fwd, right, down);
+        g_cam.orbit_target[0] = g_cam.pos[0] + fwd[0] * g_cam.orbit_dist;
+        g_cam.orbit_target[1] = g_cam.pos[1] + fwd[1] * g_cam.orbit_dist;
+        g_cam.orbit_target[2] = g_cam.pos[2] + fwd[2] * g_cam.orbit_dist;
+    }
+    s_alt_rmb_active = (rmb_held && alt_held) ? 1 : 0;
 
     if (rmb_held) {
         const float sens = 0.0035f;
@@ -75,6 +97,15 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held)
         g_cam.pitch += (float)mouse_dy * sens;
         if (g_cam.pitch >  1.55f) g_cam.pitch =  1.55f;
         if (g_cam.pitch < -1.55f) g_cam.pitch = -1.55f;
+        /* Orbit mode (or Alt-held in fly mode): RMB-drag rotates around the
+         * orbit target — re-derive pos from the new yaw/pitch each frame. */
+        if (g_cam.mode == ED_CAM_MODE_ORBIT || alt_held) {
+            float fwd[3], right[3], down[3];
+            cam_basis(fwd, right, down);
+            g_cam.pos[0] = g_cam.orbit_target[0] - fwd[0] * g_cam.orbit_dist;
+            g_cam.pos[1] = g_cam.orbit_target[1] - fwd[1] * g_cam.orbit_dist;
+            g_cam.pos[2] = g_cam.orbit_target[2] - fwd[2] * g_cam.orbit_dist;
+        }
     }
 
     /* Keyboard arrow rotation (no mouse needed) */
@@ -96,9 +127,119 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held)
     if (keys[SDL_SCANCODE_Q]) { move[1] -= 1.0f; }
     if (keys[SDL_SCANCODE_E]) { move[1] += 1.0f; }
 
-    g_cam.pos[0] += move[0] * speed * dt;
-    g_cam.pos[1] += move[1] * speed * dt;
-    g_cam.pos[2] += move[2] * speed * dt;
+    float dx = move[0] * speed * dt;
+    float dy = move[1] * speed * dt;
+    float dz = move[2] * speed * dt;
+    g_cam.pos[0] += dx;
+    g_cam.pos[1] += dy;
+    g_cam.pos[2] += dz;
+    /* In orbit mode, dragging the camera with WASD/QE drags the pivot too
+     * so the orbit relationship is preserved (camera stays at orbit_dist
+     * from target along the current view). Without this, WASD would push
+     * the camera into/away from a stationary target — confusing. */
+    if (g_cam.mode == ED_CAM_MODE_ORBIT) {
+        g_cam.orbit_target[0] += dx;
+        g_cam.orbit_target[1] += dy;
+        g_cam.orbit_target[2] += dz;
+    }
+}
+
+void ed_camera_set_mode(int mode)
+{
+    if (mode == ED_CAM_MODE_ORBIT && g_cam.mode != ED_CAM_MODE_ORBIT) {
+        /* Plant orbit_target one orbit_dist step in front of the camera so
+         * the user keeps the same view; subsequent rotation pivots around it. */
+        if (g_cam.orbit_dist < 100.0f) g_cam.orbit_dist = 5000.0f;
+        float fwd[3], right[3], down[3];
+        cam_basis(fwd, right, down);
+        g_cam.orbit_target[0] = g_cam.pos[0] + fwd[0] * g_cam.orbit_dist;
+        g_cam.orbit_target[1] = g_cam.pos[1] + fwd[1] * g_cam.orbit_dist;
+        g_cam.orbit_target[2] = g_cam.pos[2] + fwd[2] * g_cam.orbit_dist;
+    }
+    g_cam.mode = (mode == ED_CAM_MODE_ORBIT) ? ED_CAM_MODE_ORBIT : ED_CAM_MODE_FLY;
+}
+
+void ed_camera_orbit(int mouse_dx, int mouse_dy)
+{
+    /* Same sensitivity as the look-around RMB-drag. Caller is responsible
+     * for ensuring an orbit target exists (set_mode + frame_aabb both do). */
+    const float sens = 0.0035f;
+    g_cam.yaw   += (float)mouse_dx * sens;
+    g_cam.pitch += (float)mouse_dy * sens;
+    if (g_cam.pitch >  1.55f) g_cam.pitch =  1.55f;
+    if (g_cam.pitch < -1.55f) g_cam.pitch = -1.55f;
+    float fwd[3], right[3], down[3];
+    cam_basis(fwd, right, down);
+    g_cam.pos[0] = g_cam.orbit_target[0] - fwd[0] * g_cam.orbit_dist;
+    g_cam.pos[1] = g_cam.orbit_target[1] - fwd[1] * g_cam.orbit_dist;
+    g_cam.pos[2] = g_cam.orbit_target[2] - fwd[2] * g_cam.orbit_dist;
+}
+
+void ed_camera_zoom(float wheel_steps)
+{
+    if (g_cam.mode == ED_CAM_MODE_ORBIT) {
+        /* 15% per notch, clamp to keep the camera from collapsing onto the
+         * pivot or shooting off into space. */
+        float factor = powf(0.85f, wheel_steps);
+        g_cam.orbit_dist *= factor;
+        if (g_cam.orbit_dist < 100.0f)    g_cam.orbit_dist = 100.0f;
+        if (g_cam.orbit_dist > 200000.0f) g_cam.orbit_dist = 200000.0f;
+        float fwd[3], right[3], down[3];
+        cam_basis(fwd, right, down);
+        g_cam.pos[0] = g_cam.orbit_target[0] - fwd[0] * g_cam.orbit_dist;
+        g_cam.pos[1] = g_cam.orbit_target[1] - fwd[1] * g_cam.orbit_dist;
+        g_cam.pos[2] = g_cam.orbit_target[2] - fwd[2] * g_cam.orbit_dist;
+    } else {
+        /* Fly mode: dolly along the view direction. ~1500 units per notch
+         * (a few player heights) feels brisk without overshooting. */
+        float fwd[3], right[3], down[3];
+        cam_basis(fwd, right, down);
+        const float step = 1500.0f * wheel_steps;
+        g_cam.pos[0] += fwd[0] * step;
+        g_cam.pos[1] += fwd[1] * step;
+        g_cam.pos[2] += fwd[2] * step;
+    }
+}
+
+/* Reframe so the AABB fits comfortably inside the perspective view.
+ *
+ * The renderer projects with PSX H = ~300 for the in-game default, mapped
+ * through (eye.x * H / 160) and (eye.y * H / 112) to NDC. The smallest
+ * matching half-FOV is the vertical one (atan(112/H)). To fit a sphere of
+ * radius `r` inside the view, the camera must sit at  r / sin(half_fov)
+ * along its forward axis. We use the AABB's half-diagonal as `r` so the
+ * worst-case orientation still fits, and add a 20% margin. */
+void ed_camera_frame_aabb(const float bmin[3], const float bmax[3])
+{
+    float center[3] = { (bmin[0] + bmax[0]) * 0.5f,
+                        (bmin[1] + bmax[1]) * 0.5f,
+                        (bmin[2] + bmax[2]) * 0.5f };
+    float ext[3]    = { (bmax[0] - bmin[0]) * 0.5f,
+                        (bmax[1] - bmin[1]) * 0.5f,
+                        (bmax[2] - bmin[2]) * 0.5f };
+    float radius = sqrtf(ext[0]*ext[0] + ext[1]*ext[1] + ext[2]*ext[2]);
+    if (radius < 200.0f) radius = 200.0f;
+
+    float h = 300.0f * g_cam.fov_scale;
+    if (h < 1.0f) h = 1.0f;
+    float half_fov_y = atan2f(112.0f, h);
+    float dist = radius / sinf(half_fov_y) * 1.2f;
+    if (dist < 200.0f)    dist = 200.0f;
+    if (dist > 200000.0f) dist = 200000.0f;
+
+    g_cam.orbit_target[0] = center[0];
+    g_cam.orbit_target[1] = center[1];
+    g_cam.orbit_target[2] = center[2];
+    g_cam.orbit_dist      = dist;
+
+    /* Plant the camera looking at the AABB center along the current view
+     * direction. Both fly and orbit modes benefit — fly mode then continues
+     * with WASD as usual; orbit mode pivots around the AABB centroid. */
+    float fwd[3], right[3], down[3];
+    cam_basis(fwd, right, down);
+    g_cam.pos[0] = center[0] - fwd[0] * dist;
+    g_cam.pos[1] = center[1] - fwd[1] * dist;
+    g_cam.pos[2] = center[2] - fwd[2] * dist;
 }
 
 void ed_camera_focus(int wx, int wy, int wz, float distance)
@@ -258,4 +399,28 @@ void ed_camera_ortho_build_eye_inv(EdOrthoCam *cam, MATRIX *out)
     out->m[1][0] = m[1][0]; out->m[1][1] = m[1][1]; out->m[1][2] = m[1][2];
     out->m[2][0] = m[2][0]; out->m[2][1] = m[2][1]; out->m[2][2] = m[2][2];
     out->t[0] = t[0]; out->t[1] = t[1]; out->t[2] = t[2];
+}
+
+/* Reframe an ortho cam to fit the AABB in its plane. The two planar axes
+ * differ per pane; the third (depth) doesn't affect what's visible because
+ * the ortho projection ignores it for screen extents. */
+void ed_camera_ortho_frame_aabb(EdOrthoCam *cam,
+                                const float bmin[3], const float bmax[3])
+{
+    cam->center[0] = (bmin[0] + bmax[0]) * 0.5f;
+    cam->center[1] = (bmin[1] + bmax[1]) * 0.5f;
+    cam->center[2] = (bmin[2] + bmax[2]) * 0.5f;
+    float ex = (bmax[0] - bmin[0]) * 0.5f;
+    float ey = (bmax[1] - bmin[1]) * 0.5f;
+    float ez = (bmax[2] - bmin[2]) * 0.5f;
+    float h;
+    switch (cam->axis) {
+    case ED_ORTHO_TOP:   h = (ex > ez ? ex : ez); break; /* world XZ plane */
+    case ED_ORTHO_FRONT: h = (ex > ey ? ex : ey); break; /* world XY */
+    case ED_ORTHO_SIDE:  h = (ez > ey ? ez : ey); break; /* world YZ */
+    default:             h = 5000.0f;
+    }
+    if (h < 200.0f)    h = 200.0f;
+    cam->half_size = h * 1.1f;            /* 10% margin */
+    if (cam->half_size > 200000.0f) cam->half_size = 200000.0f;
 }
