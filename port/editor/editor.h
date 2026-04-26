@@ -48,8 +48,41 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held);
    gets centered in view from whatever angle the user is currently using. */
 void ed_camera_focus(int wx, int wy, int wz, float distance);
 
-/* ed_render.c */
+/* Hammer-style ortho camera (one per Top/Front/Side pane). The camera
+ * looks along a fixed world axis; `center` pans within the locked plane
+ * and `half_size` sets the orthographic half-width (zoom — smaller =
+ * more zoomed in). The eye_inv matrix needed by the GL renderer is
+ * built per-frame by ed_camera_build_ortho_eye_inv. */
+typedef enum { ED_ORTHO_TOP = 0, ED_ORTHO_FRONT, ED_ORTHO_SIDE } EdOrthoAxis;
+typedef struct {
+    float center[3];     /* world-space focus point */
+    float half_size;     /* world units from center to viewport edge (the smaller dim) */
+    EdOrthoAxis axis;
+} EdOrthoCam;
+
+extern EdOrthoCam g_top_cam;    /* looks down +Y (PSX) → world XZ plane visible */
+extern EdOrthoCam g_front_cam;  /* looks down +Z → world XY plane */
+extern EdOrthoCam g_side_cam;   /* looks down +X → world YZ plane */
+
+void ed_camera_ortho_default(EdOrthoCam *cam, EdOrthoAxis axis);
+void ed_camera_ortho_pan(EdOrthoCam *cam, int viewport_w, int viewport_h,
+                         int pixel_dx, int pixel_dy);
+void ed_camera_ortho_zoom(EdOrthoCam *cam, float wheel_steps);
+/* Compute eye-space (world * eye_inv / 4096 + t) bounds + matrix for an ortho cam. */
+void ed_camera_ortho_compute(EdOrthoCam *cam, int viewport_w, int viewport_h,
+                             float *out_lrbt /*[4] in eye coords*/);
+
+/* True iff the dockable "3D View" panel is hovered or focused (set by ed_ui). */
+int  ed_ui_3dview_active(void);
+/* Index of the ortho viewport hovered (1..3) or 0 if none. */
+int  ed_ui_ortho_active(void);
+
+/* ed_render.c — full multi-viewport draw. Renders 3D pane (slot 0)
+ * plus any of the ortho panes (slots 1..3) whose flag is enabled. */
 void ed_render_frame(void);
+/* Renders the same scene with an ortho camera; caller must bind the
+ * destination viewport FBO and enable ortho/wireframe in the GL renderer. */
+void ed_render_frame_ortho(EdOrthoCam *cam, int viewport_w, int viewport_h);
 
 /* ed_hzd.c */
 void ed_hzd_render(void);

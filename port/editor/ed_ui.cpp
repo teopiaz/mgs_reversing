@@ -24,8 +24,12 @@ extern int gl_debug_no_textures;
 /* True iff the dockable "3D View" panel is hovered or focused this frame.
  * Camera input gates on this so RMB-drag doesn't fight panel interaction. */
 static bool s_3dview_active = false;
+/* Index of the ortho pane (1=Top, 2=Front, 3=Side) currently hovered.
+ * 0 = none. Used by the ortho cam pan/zoom handlers. */
+static int  s_ortho_active = 0;
 
 extern "C" int ed_ui_3dview_active(void) { return s_3dview_active ? 1 : 0; }
+extern "C" int ed_ui_ortho_active(void)  { return s_ortho_active; }
 
 #include <ctime>
 
@@ -665,7 +669,7 @@ static void handle_global_shortcuts(void)
     if (ImGui::IsKeyPressed(ImGuiKey_G)) s_goto_open = true;
 }
 
-/* Dockable "3D View" panel: shows the rendered FBO via ImGui::Image, resizes
+/* Dockable "3D View" panel: shows viewport 0's FBO via ImGui::Image, resizes
  * the FBO to match the panel content region, and tracks hover/focus so the
  * camera input only fires when the user is interacting with this view. */
 static void draw_3dview_window(void)
@@ -677,9 +681,9 @@ static void draw_3dview_window(void)
     if (open) {
         ImVec2 sz = ImGui::GetContentRegionAvail();
         int iw = (int)sz.x, ih = (int)sz.y;
-        if (iw > 0 && ih > 0) gl_renderer_resize_fbo(iw, ih);
+        if (iw > 0 && ih > 0) gl_renderer_resize_viewport(GL_VIEWPORT_3D, iw, ih);
 
-        unsigned int tex = gl_renderer_get_fbo_color();
+        unsigned int tex = gl_renderer_get_viewport_color(GL_VIEWPORT_3D);
         if (tex && iw > 0 && ih > 0) {
             /* PSX FBO has +Y down; ImGui texture coords are top-left = (0,0)
              * but GL textures are bottom-left = (0,0). Flip V to display
@@ -696,19 +700,67 @@ static void draw_3dview_window(void)
     ImGui::PopStyleVar();
 }
 
-/* First-run dock layout: 3D View takes the centre, inspector docks to the
- * left. Run once when no imgui.ini is found (DockBuilder needs an empty
- * dock to stamp the layout). */
+/* Dockable ortho pane (Top / Front / Side). Same as the 3D View but renders
+ * an ortho wireframe and handles MMB-drag pan + wheel zoom directly. The
+ * matching ortho cam state is in g_top_cam / g_front_cam / g_side_cam. */
+static void draw_ortho_window(const char *title, int viewport_idx,
+                              EdOrthoCam *cam, int active_id)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(480, 360), ImGuiCond_FirstUseEver);
+    bool open = ImGui::Begin(title, NULL, ImGuiWindowFlags_NoCollapse);
+    if (open) {
+        ImVec2 sz = ImGui::GetContentRegionAvail();
+        int iw = (int)sz.x, ih = (int)sz.y;
+        if (iw > 0 && ih > 0) gl_renderer_resize_viewport(viewport_idx, iw, ih);
+
+        unsigned int tex = gl_renderer_get_viewport_color(viewport_idx);
+        if (tex && iw > 0 && ih > 0) {
+            ImGui::Image((ImTextureID)(intptr_t)tex,
+                         ImVec2((float)iw, (float)ih),
+                         ImVec2(0, 1), ImVec2(1, 0));
+        }
+
+        /* Hover-only input: MMB drag pans, wheel zooms. We use IsItemHovered
+         * after the Image() so the dock tab area doesn't trigger panning. */
+        bool img_hover = ImGui::IsItemHovered();
+        if (img_hover) {
+            s_ortho_active = active_id;
+            ImGuiIO &io = ImGui::GetIO();
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle, 0.0f)) {
+                ed_camera_ortho_pan(cam, iw, ih,
+                                    (int)io.MouseDelta.x,
+                                    (int)io.MouseDelta.y);
+            }
+            if (io.MouseWheel != 0.0f) {
+                ed_camera_ortho_zoom(cam, io.MouseWheel);
+            }
+        }
+    }
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+/* First-run dock layout: classic Hammer 4-pane grid in the centre + a
+ * narrow inspector strip on the left. Stamped once when no imgui.ini
+ * is found (DockBuilder needs an empty leaf node to split). */
 static void build_default_dock_layout(ImGuiID dock_id)
 {
     ImGui::DockBuilderRemoveNodeChildNodes(dock_id);
     ImGui::DockBuilderSetNodeSize(dock_id, ImGui::GetMainViewport()->Size);
 
-    ImGuiID left, center;
-    ImGui::DockBuilderSplitNode(dock_id, ImGuiDir_Left, 0.22f, &left, &center);
+    ImGuiID left, center, top_row, bot_row;
+    ImGuiID tl, tr, bl, br;
+    ImGui::DockBuilderSplitNode(dock_id, ImGuiDir_Left,  0.20f, &left,    &center);
+    ImGui::DockBuilderSplitNode(center,  ImGuiDir_Up,    0.50f, &top_row, &bot_row);
+    ImGui::DockBuilderSplitNode(top_row, ImGuiDir_Left,  0.50f, &tl,      &tr);
+    ImGui::DockBuilderSplitNode(bot_row, ImGuiDir_Left,  0.50f, &bl,      &br);
 
     ImGui::DockBuilderDockWindow("MGS Stage Editor", left);
-    ImGui::DockBuilderDockWindow("3D View", center);
+    ImGui::DockBuilderDockWindow("3D View",          tl);
+    ImGui::DockBuilderDockWindow("Top (XZ)",         tr);
+    ImGui::DockBuilderDockWindow("Front (XY)",       bl);
+    ImGui::DockBuilderDockWindow("Side (YZ)",        br);
     ImGui::DockBuilderFinish(dock_id);
 }
 
@@ -734,7 +786,13 @@ extern "C" void ed_ui_draw(void)
         dock_layout_built = true;
     }
 
+    /* Reset hover trackers each frame; per-window draw funcs re-set them. */
+    s_ortho_active = 0;
+
     draw_3dview_window();
+    draw_ortho_window("Top (XZ)",   GL_VIEWPORT_TOP,   &g_top_cam,   1);
+    draw_ortho_window("Front (XY)", GL_VIEWPORT_FRONT, &g_front_cam, 2);
+    draw_ortho_window("Side (YZ)",  GL_VIEWPORT_SIDE,  &g_side_cam,  3);
 
     draw_trap_labels();
     handle_viewport_pick();
