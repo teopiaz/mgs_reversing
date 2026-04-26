@@ -60,10 +60,21 @@ STATIC void GM_UpdateMapGroup( int preshade )
                 {
                     DG_SetFixedLight( NULL, 0 );
 
+#ifdef PORT_BUILD
+                    /* Port: skip preshade on a NULL lit. The original
+                       code calls DG_MakePreshade(obj, NULL, 0) which on
+                       64-bit ports NULL-derefs and aborts the rest of
+                       GM_UpdateMapGroup before HZD_CurrentGroup gets
+                       set, leaving the radar permanently blank. Real
+                       disc stages always ship a lit asset so the branch
+                       never fires there; custom stages (s99a) skip
+                       lights and the map renders unlit. */
+#else
                     if ( preshade )
                     {
                         DG_MakePreshade( objs[ 0 ], NULL, 0 );
                     }
+#endif
                 }
             }
 
