@@ -19,21 +19,6 @@ A custom stage takes three files:
 | `<name>.png`           | Diffuse texture, any size — quantised to 8-bit indexed and tiled into VRAM. |
 | `<name>_collision.obj` | Low-poly collision mesh. Triangles → HZD floors, OBJ `l` lines → HZD walls (vertical). Optional — falls back to a flat plane covering the visual mesh's XZ bbox. |
 
-### Coordinate convention
-
-Blender's default OBJ exporter writes `+X right, +Y up, +Z toward
-viewer` (right-handed). MGS PSX uses `+X right, +Y down, +Z forward`.
-The importer **auto-detects Blender-exported OBJs** (via the `# Blender`
-header that Blender writes on every export) and negates Y at parse
-time so callers always see PSX-convention coords. Author with +Y up
-in Blender as normal — walls extend upward in your scene, the
-importer handles the flip.
-
-Hand-authored OBJs (with the `# Blender` line removed or absent) are
-treated as already in PSX convention: walls go to negative Y to
-appear "up", floors at Y=0, etc. The original `s99a` demo is
-authored this way.
-
 Recommended Blender flow:
 
 1. Build the visual mesh in Blender. Apply all transforms before
