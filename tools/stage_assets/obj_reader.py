@@ -14,6 +14,7 @@ from pathlib import Path
 class ObjFace:
     verts: list           # list of (pos_idx, uv_idx) tuples after fan-triangulation
     material: str | None  # name from `usemtl`; None if untextured
+    object: str | None = None  # name from `o`; the wall/floor classifier reads this
 
 
 @dataclass
@@ -58,6 +59,7 @@ def parse_obj(path: Path) -> ObjMesh:
     """Parse an OBJ file. Triangulates polygons via fan from vertex 0."""
     mesh = ObjMesh()
     cur_mat = None
+    cur_obj = None
 
     for raw in path.read_text(errors="replace").splitlines():
         # Strip trailing inline comments before tokenising — Blender's
@@ -83,6 +85,11 @@ def parse_obj(path: Path) -> ObjMesh:
             mesh.materials.update(parse_mtl(mtl_path))
         elif kw == "usemtl" and len(toks) >= 2:
             cur_mat = toks[1]
+        elif kw == "o" and len(toks) >= 2:
+            # Object grouping. The collision pipeline keys on this to
+            # decide whether faces become walls (HZD_SEG) or floors
+            # (HZD_FLR) — see hzd_writer.is_wall_object().
+            cur_obj = toks[1]
         elif kw == "l" and len(toks) >= 3:
             # OBJ line primitive: `l v1 v2 [v3 ...]` is a polyline. Emit
             # one segment per consecutive vertex pair. Tokens may carry a
@@ -97,12 +104,14 @@ def parse_obj(path: Path) -> ObjMesh:
             verts = [_parse_face_vert(t) for t in toks[1:]]
             # Keep the original n-gon (consumers like hzd_writer want to
             # emit a real quad rather than two degenerate triangles).
-            mesh.poly_faces.append(ObjFace(verts=list(verts), material=cur_mat))
+            mesh.poly_faces.append(ObjFace(
+                verts=list(verts), material=cur_mat, object=cur_obj))
             # Fan-triangulate any polygon with >3 verts for consumers that
             # want triangles (kmd_writer).
             for i in range(1, len(verts) - 1):
                 mesh.faces.append(ObjFace(
                     verts=[verts[0], verts[i], verts[i + 1]],
                     material=cur_mat,
+                    object=cur_obj,
                 ))
     return mesh
