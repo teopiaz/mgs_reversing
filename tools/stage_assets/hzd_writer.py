@@ -97,6 +97,17 @@ def trap_name_from_object(name: str) -> str:
     return (s[:12] or "trap")
 
 
+def is_camera_object(name: str | None) -> bool:
+    """True if a face's `o name` marks it as a camera-zone trigger.
+    Convention: any object whose name starts with `cam_`. Inside the
+    HZD_TRG array, cameras follow the traps and are flagged by
+    `id2 == 0xFF`; the writer encodes that via orient.y's high byte
+    so the runtime's HZD_ProcessTraps loop terminates correctly."""
+    if not name:
+        return False
+    return name.lower().startswith("cam_") or name.lower() == "cam"
+
+
 def _face_to_wall_segment(face_verts_xyz):
     """Convert a single face's vertices to (p1, p2, height) for HZD_SEG.
 
@@ -144,10 +155,12 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
     floors = []
     walls = []
     triggers = []
-    # Per-trap-name accumulators so multiple faces under the same
-    # `o trap_<name>` group merge into one AABB instead of producing
-    # one trigger per cube face.
-    trap_aabb = {}    # name -> [min_x, min_y, min_z, max_x, max_y, max_z]
+    # Per-name AABB accumulators so multiple faces of the same volume
+    # merge into a single record. Trap and camera groups go into
+    # separate dicts because the engine layout puts traps first then
+    # cameras (id2==0xFF marks where cameras begin).
+    trap_aabb = {}    # trap-name → [min_x, min_y, min_z, max_x, max_y, max_z]
+    cam_aabb  = {}    # cam-name  → same
     min_x = min_y = min_z =  1 << 30
     max_x = max_y = max_z = -(1 << 30)
 
@@ -192,13 +205,16 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
             walls.append(bytes(seg))
             continue
 
-        if is_trap_object(face.object):
-            # Trap face → expand the running per-name AABB. Multiple
-            # faces under the same `o trap_<name>` group all merge into
-            # a single trigger volume, so a 6-face cube authored in
-            # Blender produces one record (not six).
-            tname = trap_name_from_object(face.object)
-            box = trap_aabb.get(tname)
+        if is_trap_object(face.object) or is_camera_object(face.object):
+            # Trap / camera face → expand the running per-name AABB.
+            # Multiple faces under the same `o trap_<name>` (or
+            # `o cam_<name>`) group merge into one trigger record.
+            is_cam = is_camera_object(face.object)
+            target = cam_aabb if is_cam else trap_aabb
+            tname  = (face.object[4:] if is_cam and face.object.lower().startswith("cam_")
+                      else trap_name_from_object(face.object))
+            tname  = tname[:12] or ("camera" if is_cam else "trap")
+            box = target.get(tname)
             for (x, y, z) in all_p:
                 if box is None:
                     box = [x, y, z, x, y, z]
@@ -209,7 +225,7 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
                     if x > box[3]: box[3] = x
                     if y > box[4]: box[4] = y
                     if z > box[5]: box[5] = z
-            trap_aabb[tname] = box
+            target[tname] = box
             continue
 
         # Floor face — emit quads for every (v0, vi, vi+1, vi+2) fan
@@ -258,10 +274,15 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
         seg += _vec(sx1, sy1, sz1, WALL_DEFAULT_HEIGHT)   # p2
         walls.append(bytes(seg))
 
-    # Materialise the accumulated per-name trigger AABBs into HZD_TRP
-    # records (32 B each). Engine layout: traps come first, cameras
-    # later (id2==0xFF marks cameras). For now we only emit traps; the
-    # camera authoring path will append after traps and bump the count.
+    # Materialise the accumulated per-name trigger AABBs. Engine
+    # convention (source/libhzd/hzdd.c HZD_GetMap):
+    #   triggers[0..n_traps-1]   = HZD_TRP (id2 != 0xFF)
+    #   triggers[n_traps..]      = HZD_CAM (id2 == 0xFF)
+    # In a HZD_CAM record there's no `id2` field — the byte at offset
+    # 29 is the high byte of orient.y. We force it to 0xFF by packing
+    # orient.y = -1, which keeps orient.y nonzero (so the editor's
+    # heuristic still recognises the record as a camera) and signals
+    # "camera record" to the engine's process-traps loop.
     for tname in sorted(trap_aabb):
         bx0, by0, bz0, bx1, by1, bz1 = trap_aabb[tname]
         rec = bytearray()
@@ -271,8 +292,22 @@ def write_hzd(collision: ObjMesh, scale: float = 100.0) -> bytes:
         # this in HZD_ProcessTraps, so we just leave name_id zero here.
         nb = tname.encode("ascii", errors="replace")[:12]
         rec += nb + b"\x00" * (12 - len(nb))
-        rec += struct.pack("<BB", 0, 0)       # id1 (group), id2 (=0 → trap)
+        rec += struct.pack("<BB", 0, 0)       # id1, id2 (=0 → trap)
         rec += struct.pack("<H", 0)           # name_id (engine recomputes)
+        triggers.append(bytes(rec))
+
+    for cname in sorted(cam_aabb):
+        bx0, by0, bz0, bx1, by1, bz1 = cam_aabb[cname]
+        cx, cy, cz = (bx0 + bx1) // 2, (by0 + by1) // 2, (bz0 + bz1) // 2
+        rec = bytearray()
+        rec += _vec(bx0, by0, bz0)                # b1
+        rec += _vec(bx1, by1, bz1)                # b2
+        rec += _vec(cx, cy, cz, 0)                # cam (position; defaults to AABB centre)
+        # orient: (0, 0, 0, 0) but orient.y forced to -1 (= 0xFFFF) so
+        # byte 29 (id2 in the trap view) is 0xFF — the loader's camera
+        # marker. The editor's trap_looks_like_camera() heuristic
+        # checks (cam != b1) AND (orient nonzero), both of which hold.
+        rec += struct.pack("<hhhh", 0, 0, -1, 0)  # orient.x, .z, .y, .h
         triggers.append(bytes(rec))
 
     if not floors and not walls and not triggers:
