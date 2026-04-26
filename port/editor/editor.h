@@ -75,6 +75,51 @@ int  ed_compute_selection_aabb(float bmin[3], float bmax[3]);
 int  ed_compute_stage_aabb(float bmin[3], float bmax[3]);
 int  ed_compute_active_aabb(float bmin[3], float bmax[3]);
 
+/* ---- Diagnostic stats (Info tab) ---------------------------------------- */
+typedef struct {
+    const char *name;     /* "PACKET0" / "PACKET1" / "NORMAL" */
+    int total;            /* heap end - heap start */
+    int used;             /* USED + VOIDED bytes */
+    int freed;            /* FREE bytes (named "freed" — `free` collides with libc) */
+    int max_free_block;   /* largest contiguous free run */
+    int n_units;          /* alloc-table entries in use */
+} EdHeapStat;
+typedef struct {
+    EdHeapStat heap[3];   /* PACKET0, PACKET1, NORMAL */
+    int total;            /* sum of heap[].total */
+    int used;             /* sum of heap[].used */
+    int freed;            /* sum of heap[].freed */
+} EdMemStats;
+
+typedef struct {
+    int n_textures;       /* DG_TEX records with .used != 0 */
+    int n_4bpp, n_8bpp, n_16bpp;
+    int vram_pixels;      /* sum of (w+1)*(h+1) over all active textures */
+    int vram_bytes;       /* same, weighted by bpp (4/8/16) */
+} EdTexStats;
+
+typedef struct {
+    int total;            /* g_actor_count */
+    int with_pos;
+    int with_model;       /* kmd_def resolved */
+    int with_rotation;    /* rot_b >= 0 */
+    int from_demo;
+    int from_scen;
+} EdActorStats;
+
+/* Scene-geometry stats — total faces / verts across all map KMDs. */
+typedef struct {
+    int n_kmds;
+    int n_models;         /* sum of DG_DEF.n_models */
+    int n_faces;
+    int n_vertices;
+} EdGeomStats;
+
+void ed_collect_memory_stats(EdMemStats *out);
+void ed_collect_texture_stats(EdTexStats *out);
+void ed_collect_actor_stats(EdActorStats *out);
+void ed_collect_geom_stats(EdGeomStats *out);
+
 /* Hammer-style ortho camera (one per Top/Front/Side pane). The camera
  * looks along a fixed world axis; `center` pans within the locked plane
  * and `half_size` sets the orthographic half-width (zoom — smaller =
