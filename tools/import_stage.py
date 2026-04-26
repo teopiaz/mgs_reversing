@@ -158,6 +158,26 @@ def build_stage(name: str,
     }
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
+    # --- editor actor TSV/JSON ----------------------------------------
+    # If the asset dir has a hand-authored scenerio.gcl, run the
+    # standard extractor so the editor's actor list / ed_actors_pick
+    # cube markers see custom-stage entities. Without this the editor
+    # silently shows zero actors for any `extra_stages/<name>/` stage.
+    if scenerio_path.is_file():
+        try:
+            from extract_gcl_actors import extract  # type: ignore
+        except ImportError:
+            sys.path.insert(0, str(REPO / "tools"))
+            from extract_gcl_actors import extract  # type: ignore
+        editor_data_dir = REPO / "port" / "editor" / "data"
+        editor_data_dir.mkdir(parents=True, exist_ok=True)
+        json_out = editor_data_dir / f"{name}_actors.json"
+        try:
+            extract(scenerio_path, json_out)
+            print(f"[import] actors: wrote {json_out.name} (+ .tsv)")
+        except Exception as e:                       # noqa: BLE001
+            print(f"[import] actors: extractor failed ({e}); editor list will be empty")
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])

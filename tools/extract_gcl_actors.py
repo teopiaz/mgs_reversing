@@ -228,27 +228,29 @@ def parse_one(src_path: Path, source_tag: str, out_list):
         a["source"] = source_tag
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--input",  required=True, action="append",
-                    help="path to scenerio.gcl or demo.gcl (may be repeated)")
-    ap.add_argument("--output", required=True, help="path to write JSON")
-    args = ap.parse_args()
+def extract(inputs, output_json):
+    """Library entry point: walk every GCL in `inputs` (Path or list of
+    Paths) and write the JSON + companion TSV the editor reads.
 
+    Returns (n_entries, n_spatial). Used by tools/import_stage.py to
+    populate `port/editor/data/<stage>_actors.{json,tsv}` for custom
+    stages."""
+    if isinstance(inputs, (str, Path)):
+        inputs = [inputs]
     out = []
-    for inp in args.input:
+    for inp in inputs:
         p = Path(inp)
         if not p.is_file():
             continue
         tag = "demo" if p.name == "demo.gcl" else "scenerio"
         parse_one(p, tag, out)
 
-    out_path = Path(args.output)
+    out_path = Path(output_json)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2))
 
     # Companion TSV the C editor reads. One row per spatial actor.
-    # Columns: type, instance, x, y, z, color, proc, rot
+    # Columns: type, instance, x, y, z, color, proc, rot, from_demo
     tsv_path = out_path.with_suffix(".tsv")
     rows = []
     for a in out:
@@ -268,10 +270,21 @@ def main():
             from_demo,
         ]))
     tsv_path.write_text("\n".join(rows) + ("\n" if rows else ""))
+    n_spatial = len(rows)
+    return len(out), n_spatial
 
-    spatial = sum(1 for a in out if not a["non_spatial"])
-    print(f"extracted {len(out)} chara entries ({spatial} spatial) -> {out_path}")
-    print(f"editor TSV ({len(rows)} rows) -> {tsv_path}")
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--input",  required=True, action="append",
+                    help="path to scenerio.gcl or demo.gcl (may be repeated)")
+    ap.add_argument("--output", required=True, help="path to write JSON")
+    args = ap.parse_args()
+
+    n_total, n_spatial = extract(args.input, args.output)
+    out_path = Path(args.output)
+    print(f"extracted {n_total} chara entries ({n_spatial} spatial) -> {out_path}")
+    print(f"editor TSV ({n_spatial} rows) -> {out_path.with_suffix('.tsv')}")
 
 
 if __name__ == "__main__":
