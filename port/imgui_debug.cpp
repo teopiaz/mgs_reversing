@@ -561,6 +561,65 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             if (ImGui::BeginTabItem("Stage")) {
                 ImGui::Text("Stage: %s",
                             port_current_stage[0] ? port_current_stage : "(none)");
+
+                /* Custom-stage launcher. Lists every stage discovered under
+                   extra_stages/ (port/editor/extra_stages, etc.) and lets
+                   the user load it as if a GCL `load "<name>"` had run.
+                   Only meaningful once the engine reaches the select menu
+                   — by then init/title have set up the Snake actor's
+                   dependencies, so jumping directly to s99a actually
+                   works (the --stage CLI flag tried to skip too much
+                   init and crashed sna_act). */
+                if (ImGui::CollapsingHeader("Custom stage launcher",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                    extern int   port_fs_stage_count(void);
+                    extern const char *port_fs_stage_name(int idx);
+                    extern int   port_fs_stage_is_extra(int idx);
+                    extern int   GV_StrCode(const char *);
+                    extern void  GM_SetArea(int hash, const char *name);
+                    extern int   GM_LoadRequest;
+                    extern short linkvarbuf[];
+                    /* linkvarbuf indices (linkvar.h):
+                         6=GM_CurrentStageFlag  7=GM_CurrentMapFlag
+                         8=GM_SnakePosX         9=GM_SnakePosY  10=GM_SnakePosZ */
+                    static int sx = 0, sy = 0, sz = 8000;
+                    int spawn[3] = { sx, sy, sz };
+                    if (ImGui::InputInt3("Spawn (X Y Z)", spawn)) {
+                        sx = spawn[0]; sy = spawn[1]; sz = spawn[2];
+                    }
+
+                    int n = port_fs_stage_count();
+                    int found_any = 0;
+                    for (int i = 0; i < n; i++) {
+                        if (!port_fs_stage_is_extra(i)) continue;
+                        found_any = 1;
+                        const char *raw = port_fs_stage_name(i);
+                        char name[16] = {0};
+                        for (int c = 0; c < 8 && raw[c]; c++) name[c] = raw[c];
+                        char label[32];
+                        snprintf(label, sizeof(label), "Load %s", name);
+
+                        if (ImGui::Button(label)) {
+                            int hash = GV_StrCode(name);
+                            linkvarbuf[6] = (short)hash;          /* GM_CurrentStageFlag */
+                            linkvarbuf[7] = (short)GV_StrCode("main"); /* GM_CurrentMapFlag = HASH_MAIN */
+                            linkvarbuf[8] = (short)sx;
+                            linkvarbuf[9] = (short)sy;
+                            linkvarbuf[10] = (short)sz;
+                            GM_SetArea(hash, name);
+                            /* 0x91 = high-priority load (0x80) | save var (0x10) | load (1),
+                               matching what `load "name" -s b:1` compiles to. */
+                            GM_LoadRequest = 0x91;
+                            printf("[port] imgui: loading custom stage '%s' "
+                                   "spawn=(%d,%d,%d)\n", name, sx, sy, sz);
+                        }
+                    }
+                    if (!found_any) {
+                        ImGui::TextDisabled("(no extra_stages found)");
+                    }
+                }
+                ImGui::Separator();
+
                 if (ImGui::Button("Dump lighting state to stderr")) {
                     port_light_dump_request = 1;
                 }

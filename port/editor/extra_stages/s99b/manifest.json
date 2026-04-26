@@ -1,0 +1,7 @@
+{
+  "name": "s99b",
+  "obj": "port/editor/assets/s99b/s99b.obj",
+  "texture": "port/editor/assets/s99b/s99b.png",
+  "collision": "port/editor/assets/s99b/s99b_collision.obj",
+  "scale": 100.0
+}

@@ -1,0 +1,5 @@
+newmtl s99a_ground
+map_Kd s99a.png
+
+newmtl s99a_wall
+map_Kd s99a_wall.png

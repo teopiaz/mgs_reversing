@@ -203,17 +203,15 @@ void ed_render_frame(void)
         }
     }
 
-    /* 3. Optional actor-model render — uses ed_actor_kmd_for_type to look
-       up a KMD per actor type. Falls back to cube markers in ed_actors. */
+    /* 3. Optional actor-model render — uses the kmd_def resolved at TSV
+       load time. NULL means we have no model for that actor type;
+       ed_actors_render falls back to a cube marker. */
     if (g_show_actor_models) {
         for (int i = 0; i < g_actor_count; i++) {
             EdActor *a = &g_actors[i];
-            if (!a->has_pos) continue;
-            void *def = NULL;
-            if (ed_actor_kmd_for_type(a->type, &def) && def) {
-                render_kmd_unlit((DG_DEF *)def, s_clip_dist,
-                                 a->pos[0], a->pos[1], a->pos[2]);
-            }
+            if (!a->has_pos || !a->kmd_def) continue;
+            render_kmd_unlit((DG_DEF *)a->kmd_def, s_clip_dist,
+                             a->pos[0], a->pos[1], a->pos[2]);
         }
     }
 
