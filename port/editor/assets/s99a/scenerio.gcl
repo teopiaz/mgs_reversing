@@ -53,7 +53,7 @@ script {
     # -m "..."   : on-screen name when picked up
     # The instance hash $s:99a1 just needs to be unique within the stage.
     chara &ITEM $s:99a1 \
-        -p -158 1079 3411
+        -p 100 1100 1500
         -h 500
         -b b:4
         -i b:13
