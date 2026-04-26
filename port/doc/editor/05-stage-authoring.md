@@ -118,10 +118,12 @@ based on the Blender object (`o name`) it belongs to:
 | ---------------------- | -------------- | --------------------------------------------- |
 | `wall_*` / `wall*`     | wall           | Each face → one `HZD_SEG`. Bottom edge → `p1`/`p2`; vertical extent → wall height (used both by collision and by the soliton radar). |
 | `trap_<name>`          | trigger volume | All faces in the group → one `HZD_TRP`. AABB of the group's verts → `b1` / `b2`; `<name>` (≤ 12 chars) goes into the trap's name field. Bind it from GCL with `HZD_BIND` to fire a handler when an actor enters. |
+| `cam_<name>`           | camera zone    | All faces in the group → one `HZD_CAM`. AABB of the verts → `b1` / `b2`; camera position defaults to the AABB centre. Engine switches to "behind mode" through this camera while Snake is inside the volume. |
 | Anything else (`floor`, `floor_*`, default unnamed) | floor | Each face → one `HZD_FLR` quad. |
 
-Comparison is case-insensitive on the `wall` and `trap_` prefixes, so
-`Wall_Bunker`, `WALL_NORTH`, or `Trap_Alarm` all work.
+Comparison is case-insensitive on the `wall`, `trap_`, and `cam_`
+prefixes, so `Wall_Bunker`, `WALL_NORTH`, `Trap_Alarm`, or `Cam_North`
+all work.
 
 ### Authoring walls in Blender
 
@@ -183,6 +185,31 @@ Without a `bind`, the trap volume still exists but does nothing
 when entered. The editor's `HZD` tab lists every emitted trigger
 with its name and AABB so you can spot-check placement before
 running the engine.
+
+### Authoring camera zones (`cam_*`)
+
+Camera-zone volumes switch the engine into "behind mode" using a
+fixed framing while Snake is inside the AABB:
+
+```
+o cam_north
+v -3000 0  6000
+v  3000 0  6000
+v  3000 0 12000
+v -3000 0 12000
+...                 # extrude up to make a box
+```
+
+The cube's AABB drives both the activation volume and the camera
+position (centre of the box). The orientation is left at a
+sentinel default — the engine encodes "this record is a camera"
+in the high byte of `orient.y`, so a follow-up sidecar JSON will
+let you tweak yaw/pitch without breaking the marker.
+
+Cameras and traps share the same `HZD_TRG[]` array on disc; the
+runtime detects them by `id2 == 0xFF`. The writer takes care of
+that automatically — emit any number of `o cam_<name>` groups in
+the same collision OBJ alongside `trap_*` and `wall_*`.
 
 ### Hand-authored fallback: `l` line primitives
 
