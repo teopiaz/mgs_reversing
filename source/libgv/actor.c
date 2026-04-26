@@ -155,8 +155,10 @@ void GV_DumpActorSystem( void )
 #include <signal.h>
 static sigjmp_buf actor_jmp;
 static volatile sig_atomic_t actor_in_handler = 0;
-static void actor_crash_handler(int sig) {
-    (void)sig;
+static volatile void *actor_last_fault_addr = NULL;
+static void actor_crash_handler_si(int sig, siginfo_t *info, void *ucontext) {
+    (void)sig; (void)ucontext;
+    if (info) actor_last_fault_addr = info->si_addr;
     if (actor_in_handler) siglongjmp(actor_jmp, 1);
 }
 
@@ -166,7 +168,9 @@ void GV_ExecActorSystem( void )
     int    i, pause;
 
 #ifdef PORT_BUILD
-    struct sigaction sa = {.sa_handler = actor_crash_handler, .sa_flags = 0};
+    struct sigaction sa = {0};
+    sa.sa_sigaction = actor_crash_handler_si;
+    sa.sa_flags = SA_SIGINFO;
     struct sigaction old_segv, old_bus;
     sigaction(SIGSEGV, &sa, &old_segv);
     sigaction(SIGBUS, &sa, &old_bus);
@@ -197,9 +201,24 @@ void GV_ExecActorSystem( void )
                     }
                     else
                     {
-                        fprintf(stderr, "[actor] crash in %s (act=%p)\n",
-                                this->filename ? this->filename : "?",
-                                (void *)act);
+                        /* Throttle: print at most once per (filename, fnptr)
+                           pair so a stuck-faulting actor doesn't drown the log.
+                           Includes the fault address (via SA_SIGINFO) to make
+                           NULL-deref bugs easier to bisect. */
+                        static struct { const char *file; void *fn; } seen[32] = {0};
+                        void *fn = (void *)act;
+                        const char *file = this->filename ? this->filename : "?";
+                        int already = 0;
+                        for (int i = 0; i < 32 && seen[i].fn; i++) {
+                            if (seen[i].fn == fn && seen[i].file == file) { already = 1; break; }
+                        }
+                        if (!already) {
+                            for (int i = 0; i < 32; i++) {
+                                if (!seen[i].fn) { seen[i].fn = fn; seen[i].file = file; break; }
+                            }
+                            fprintf(stderr, "[actor] crash in %s (act=%p) fault_addr=%p - suppressing further\n",
+                                    file, fn, (void *)actor_last_fault_addr);
+                        }
                     }
                     actor_in_handler = 0;
 #else

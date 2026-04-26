@@ -12,7 +12,48 @@ extern "C" {
 #include "editor.h"
 void port_vram_toggle_debug(void);
 int  port_vram_debug_view(void);
+void gl_renderer_stats(int *out_tri_verts, int *out_line_verts);
+int  gl_renderer_save_ppm(const char *path);
+extern int gl_debug_wireframe;
+extern int gl_debug_skip_lines;
+extern int gl_debug_no_textures;
 }
+
+#include <ctime>
+
+/* Stage picker state. */
+static int  s_combo_idx = -1;
+static char s_filter[32] = {0};
+
+/* Camera bookmarks. Slot 0..3 stores pos+yaw+pitch+fov. */
+struct CamBookmark { float pos[3]; float yaw, pitch, fov; bool used; };
+static CamBookmark s_bookmarks[4] = {};
+
+static void save_bookmark(int i)
+{
+    s_bookmarks[i].pos[0] = g_cam.pos[0];
+    s_bookmarks[i].pos[1] = g_cam.pos[1];
+    s_bookmarks[i].pos[2] = g_cam.pos[2];
+    s_bookmarks[i].yaw    = g_cam.yaw;
+    s_bookmarks[i].pitch  = g_cam.pitch;
+    s_bookmarks[i].fov    = g_cam.fov_scale;
+    s_bookmarks[i].used   = true;
+}
+
+static void load_bookmark(int i)
+{
+    if (!s_bookmarks[i].used) return;
+    g_cam.pos[0]    = s_bookmarks[i].pos[0];
+    g_cam.pos[1]    = s_bookmarks[i].pos[1];
+    g_cam.pos[2]    = s_bookmarks[i].pos[2];
+    g_cam.yaw       = s_bookmarks[i].yaw;
+    g_cam.pitch     = s_bookmarks[i].pitch;
+    g_cam.fov_scale = s_bookmarks[i].fov;
+}
+
+static int s_goto_xyz[3] = {0, 0, 0};
+
+static bool s_show_help = false;
 
 static bool s_initialized = false;
 
@@ -82,24 +123,62 @@ static bool stricontains(const char *hay, const char *needle)
     return false;
 }
 
-static void inspector_actors(void)
+/* Actor display mode. 0 = hidden, 1 = cube markers, 2 = real KMD model
+   when available (cube fallback otherwise). g_show_actors stays on in both
+   modes so actors without a resolved KMD still show as a cube — the
+   curated type→KMD table only covers a handful of cases. */
+static int s_actor_mode = 1;
+
+static void apply_actor_mode(void)
 {
-    if (!ImGui::CollapsingHeader("Actors", ImGuiTreeNodeFlags_DefaultOpen))
-        return;
-    ImGui::Checkbox("Markers",   (bool *)&g_show_actors);    ImGui::SameLine();
-    ImGui::Checkbox("Models",    (bool *)&g_show_actor_models); ImGui::SameLine();
-    ImGui::Checkbox("Rotations", (bool *)&g_show_actor_rotations);
-    ImGui::InputText("filter##actors", s_actor_filter, sizeof(s_actor_filter));
-    ImGui::Text("%d spatial actors", g_actor_count);
-    if (ImGui::BeginTable("actors", 6, ImGuiTableFlags_RowBg |
+    g_show_actors       = (s_actor_mode != 0) ? 1 : 0;
+    g_show_actor_models = (s_actor_mode == 2) ? 1 : 0;
+}
+
+static void tab_actors(void)
+{
+    apply_actor_mode();
+
+    /* Display mode + rotation arrows on one row. */
+    const char *modes[] = { "Hidden", "Cubes", "Models" };
+    ImGui::SetNextItemWidth(110);
+    if (ImGui::Combo("display", &s_actor_mode, modes, 3)) apply_actor_mode();
+    ImGui::SameLine();
+    ImGui::Checkbox("rotations", (bool *)&g_show_actor_rotations);
+
+    /* Filter + reload + save on one row. */
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputTextWithHint("##filter", "filter type...", s_actor_filter, sizeof(s_actor_filter));
+    ImGui::SameLine();
+    char tsv_path[64];
+    std::snprintf(tsv_path, sizeof(tsv_path), "data/%s_actors.tsv",
+                  g_stage.stage_name);
+    if (ImGui::Button("Reload##actors")) ed_actors_load(tsv_path);
+    ImGui::SameLine();
+    if (g_actors_dirty) {
+        if (ImGui::Button("Save*")) ed_actors_save(tsv_path);
+    } else {
+        ImGui::BeginDisabled();
+        ImGui::Button("Save");
+        ImGui::EndDisabled();
+    }
+    ImGui::SameLine();
+    int visible = 0;
+    for (int i = 0; i < g_actor_count; i++) {
+        if (!s_actor_filter[0] || stricontains(g_actors[i].type, s_actor_filter))
+            visible++;
+    }
+    ImGui::Text("(%d / %d)%s", visible, g_actor_count,
+                g_actors_dirty ? "  unsaved" : "");
+
+    if (ImGui::BeginTable("actors", 4, ImGuiTableFlags_RowBg |
             ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_ScrollY,
-            ImVec2(0, 240))) {
-        ImGui::TableSetupColumn("Type");
-        ImGui::TableSetupColumn("Inst");
-        ImGui::TableSetupColumn("Pos");
-        ImGui::TableSetupColumn("Proc");
-        ImGui::TableSetupColumn("Rot");
-        ImGui::TableSetupColumn("Src");
+            ImVec2(0, 0))) {
+        ImGui::TableSetupColumn("Type",   ImGuiTableColumnFlags_WidthStretch, 1.4f);
+        ImGui::TableSetupColumn("Inst",   ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("Pos",    ImGuiTableColumnFlags_WidthStretch, 2.0f);
+        ImGui::TableSetupColumn("Src",    ImGuiTableColumnFlags_WidthFixed,   38);
+        ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
         for (int i = 0; i < g_actor_count; i++) {
             EdActor *a = &g_actors[i];
@@ -120,11 +199,6 @@ static void inspector_actors(void)
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("%d %d %d", a->pos[0], a->pos[1], a->pos[2]);
             ImGui::TableSetColumnIndex(3);
-            ImGui::TextUnformatted(a->proc);
-            ImGui::TableSetColumnIndex(4);
-            if (a->rot_b >= 0) ImGui::Text("b:%d", a->rot_b);
-            else                ImGui::TextDisabled("-");
-            ImGui::TableSetColumnIndex(5);
             ImGui::TextUnformatted(a->from_demo ? "demo" : "scen");
         }
         ImGui::EndTable();
@@ -165,97 +239,46 @@ static void hzd_list_table(const char *label, int *selected_idx,
     ImGui::TreePop();
 }
 
-static void inspector_hzd_layers(void)
+static void tab_hzd(void)
 {
-    if (!ImGui::CollapsingHeader("HZD overlay", ImGuiTreeNodeFlags_DefaultOpen))
-        return;
-    ImGui::Checkbox("Walls",   (bool *)&g_show_walls);   ImGui::SameLine();
-    ImGui::Checkbox("Floors",  (bool *)&g_show_floors);  ImGui::SameLine();
-    ImGui::Checkbox("Traps",   (bool *)&g_show_traps);
-    ImGui::Checkbox("Cameras", (bool *)&g_show_cameras); ImGui::SameLine();
-    ImGui::Checkbox("Zones",   (bool *)&g_show_zones);   ImGui::SameLine();
-    ImGui::Checkbox("Routes",  (bool *)&g_show_routes);
-    ImGui::Checkbox("Trap labels", (bool *)&g_show_trap_labels);
+    /* All visibility toggles in a tight grid. Trap labels grouped here too
+       since it's a HZD-driven overlay. */
+    ImGui::Checkbox("walls",   (bool *)&g_show_walls);   ImGui::SameLine();
+    ImGui::Checkbox("floors",  (bool *)&g_show_floors);  ImGui::SameLine();
+    ImGui::Checkbox("traps",   (bool *)&g_show_traps);   ImGui::SameLine();
+    ImGui::Checkbox("cameras", (bool *)&g_show_cameras);
+    ImGui::Checkbox("zones",   (bool *)&g_show_zones);   ImGui::SameLine();
+    ImGui::Checkbox("routes",  (bool *)&g_show_routes);  ImGui::SameLine();
+    ImGui::Checkbox("labels",  (bool *)&g_show_trap_labels);
+    ImGui::Separator();
 
-    hzd_list_table("Walls##list",   &g_sel_wall,   ed_hzd_count_walls,   ed_hzd_get_wall);
-    hzd_list_table("Floors##list",  &g_sel_floor,  ed_hzd_count_floors,  ed_hzd_get_floor);
-    hzd_list_table("Traps##list",   &g_sel_trap,   ed_hzd_count_traps,   ed_hzd_get_trap);
-    hzd_list_table("Cameras##list", &g_sel_cam,    ed_hzd_count_cameras, ed_hzd_get_camera);
-    hzd_list_table("Routes##list",  &g_sel_route,  ed_hzd_count_routes,  ed_hzd_get_route);
+    hzd_list_table("walls##list",   &g_sel_wall,   ed_hzd_count_walls,   ed_hzd_get_wall);
+    hzd_list_table("floors##list",  &g_sel_floor,  ed_hzd_count_floors,  ed_hzd_get_floor);
+    hzd_list_table("traps##list",   &g_sel_trap,   ed_hzd_count_traps,   ed_hzd_get_trap);
+    hzd_list_table("cameras##list", &g_sel_cam,    ed_hzd_count_cameras, ed_hzd_get_camera);
+    hzd_list_table("routes##list",  &g_sel_route,  ed_hzd_count_routes,  ed_hzd_get_route);
 }
 
-static void inspector_stage_meta(void)
+/* Combined Scene tab — stage picker + view toggles + cache table. The
+   stage picker is the most-used widget so it goes at the very top. */
+static void tab_scene(void)
 {
-    if (!ImGui::CollapsingHeader("Stage data"))
-        return;
-    EdStageEntry entries[256];
-    int n = ed_stage_collect_entries(entries, 256);
-    ImGui::Text("%d cache entries", n);
-    if (ImGui::BeginTable("stage_meta", 3, ImGuiTableFlags_RowBg |
-            ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_ScrollY,
-            ImVec2(0, 200))) {
-        ImGui::TableSetupColumn("Ext");
-        ImGui::TableSetupColumn("ID");
-        ImGui::TableSetupColumn("Name hash");
-        ImGui::TableHeadersRow();
-        for (int i = 0; i < n; i++) {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0); ImGui::Text("%c", entries[i].ext);
-            ImGui::TableSetColumnIndex(1); ImGui::Text("0x%X", entries[i].id);
-            ImGui::TableSetColumnIndex(2); ImGui::Text("0x%04X", entries[i].id & 0xFFFF);
-        }
-        ImGui::EndTable();
-    }
-}
-
-static void inspector_view_options(void)
-{
-    if (!ImGui::CollapsingHeader("View"))
-        return;
-    ImGui::Checkbox("World axes", (bool *)&g_show_axes);
-    bool vram_dbg = port_vram_debug_view() != 0;
-    if (ImGui::Checkbox("VRAM viewer", &vram_dbg))
-        port_vram_toggle_debug();
-}
-
-static void inspector_camera(void)
-{
-    if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-        return;
-    ImGui::Text("Pos:   %.0f  %.0f  %.0f", g_cam.pos[0], g_cam.pos[1], g_cam.pos[2]);
-    ImGui::Text("Yaw:   %.3f rad   Pitch: %.3f rad", g_cam.yaw, g_cam.pitch);
-    ImGui::SliderFloat("FOV scale", &g_cam.fov_scale, 0.3f, 4.0f, "%.2f");
-    if (ImGui::Button("Reset (Home)")) {
-        ed_camera_default();
-    }
-    ImGui::TextDisabled("WASD: move | Q/E: up/down | RMB+drag: look | arrows: rotate");
-    ImGui::TextDisabled("Shift: 4× speed | Ctrl: 0.25× speed");
-}
-
-/* Stage picker. The combo lists every entry from STAGE.DIR; switching
-   triggers ed_load_stage which frees the previous buffer, wipes the GV
-   cache and VRAM, then re-runs FS_LoadStageRequest. */
-static int s_combo_idx = -1;     /* index in port_fs stage list */
-static char s_filter[32] = {0};
-
-static void inspector_stage_picker(void)
-{
+    /* Stage picker (logic unchanged; visuals tightened). */
     int total = ed_stage_count();
-
-    /* Sync combo index to the currently-loaded stage if it shifted. */
     if (s_combo_idx < 0 || s_combo_idx >= total) {
         for (int i = 0; i < total; i++) {
             const char *n = ed_stage_name(i);
             if (n && std::strncmp(n, g_stage.stage_name, 8) == 0) {
-                s_combo_idx = i;
-                break;
+                s_combo_idx = i; break;
             }
         }
     }
-
-    ImGui::InputText("filter", s_filter, sizeof(s_filter));
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputTextWithHint("##stagefilter", "filter stage...", s_filter, sizeof(s_filter));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120);
     const char *preview = (s_combo_idx >= 0) ? ed_stage_name(s_combo_idx) : "<none>";
-    if (ImGui::BeginCombo("stage", preview)) {
+    if (ImGui::BeginCombo("##stagecombo", preview)) {
         for (int i = 0; i < total; i++) {
             const char *n = ed_stage_name(i);
             if (!n) continue;
@@ -273,10 +296,258 @@ static void inspector_stage_picker(void)
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Reload")) {
+    if (ImGui::Button("Reload##stage"))
         ed_load_stage(g_stage.stage_name);
+
+    /* Reimport button — only shown when the current stage came from
+       extra_stages/<name>/manifest.json. Shells out to the Python
+       importer with the stored args, then reloads the stage. */
+    {
+        char manifest_path[128];
+        std::snprintf(manifest_path, sizeof(manifest_path),
+                      "extra_stages/%s/manifest.json", g_stage.stage_name);
+        FILE *mf = std::fopen(manifest_path, "r");
+        if (mf) {
+            std::fclose(mf);
+            ImGui::SameLine();
+            if (ImGui::Button("Reimport")) {
+                char cmd[512];
+                std::snprintf(cmd, sizeof(cmd),
+                    "cd ../.. && python3 tools/import_stage.py "
+                    "--manifest port/editor/extra_stages/%s/manifest.json",
+                    g_stage.stage_name);
+                int rc = system(cmd);
+                if (rc == 0) ed_load_stage(g_stage.stage_name);
+                else std::fprintf(stderr, "editor: reimport failed (rc=%d)\n", rc);
+            }
+        }
+    }
+    ImGui::Separator();
+
+    /* Render toggles. */
+    ImGui::Checkbox("axes",       (bool *)&g_show_axes);          ImGui::SameLine();
+    ImGui::Checkbox("wireframe",  (bool *)&gl_debug_wireframe);   ImGui::SameLine();
+    ImGui::Checkbox("untextured", (bool *)&gl_debug_no_textures);
+    bool vram_dbg = port_vram_debug_view() != 0;
+    if (ImGui::Checkbox("VRAM viewer", &vram_dbg))
+        port_vram_toggle_debug();
+    ImGui::Separator();
+
+    /* Compact cache-entry list (collapsed by default; rarely needed). */
+    if (ImGui::CollapsingHeader("Cache entries")) {
+        EdStageEntry entries[256];
+        int n = ed_stage_collect_entries(entries, 256);
+        ImGui::Text("%d entries", n);
+        if (ImGui::BeginTable("stage_meta", 3, ImGuiTableFlags_RowBg |
+                ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_ScrollY,
+                ImVec2(0, 200))) {
+            ImGui::TableSetupColumn("Ext", ImGuiTableColumnFlags_WidthFixed, 30);
+            ImGui::TableSetupColumn("ID");
+            ImGui::TableSetupColumn("Name hash");
+            ImGui::TableHeadersRow();
+            for (int i = 0; i < n; i++) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0); ImGui::Text("%c", entries[i].ext);
+                ImGui::TableSetColumnIndex(1); ImGui::Text("0x%X", entries[i].id);
+                ImGui::TableSetColumnIndex(2); ImGui::Text("0x%04X", entries[i].id & 0xFFFF);
+            }
+            ImGui::EndTable();
+        }
     }
 }
+
+/* Cast the mouse cursor as a world ray and intersect with the y=0 plane
+   (PSX ground level). Returns 1 if the ray hits, 0 if parallel/behind. */
+static int mouse_world_at_ground(int *wx, int *wy, int *wz)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0) return 0;
+    float sx = io.MousePos.x / io.DisplaySize.x;
+    float sy = io.MousePos.y / io.DisplaySize.y;
+    float origin[3], dir[3];
+    ed_screen_to_world_ray(sx, sy, origin, dir);
+    if (dir[1] < 1e-4f && dir[1] > -1e-4f) return 0;
+    float t = -origin[1] / dir[1];   /* y=0 plane */
+    if (t < 0) return 0;
+    *wx = (int)(origin[0] + t * dir[0]);
+    *wy = 0;
+    *wz = (int)(origin[2] + t * dir[2]);
+    return 1;
+}
+
+static void tab_camera(void)
+{
+    /* State readout. */
+    ImGui::Text("pos   %.0f  %.0f  %.0f", g_cam.pos[0], g_cam.pos[1], g_cam.pos[2]);
+    ImGui::Text("yaw   %.1f°    pitch %.1f°",
+                g_cam.yaw * 57.2958f, g_cam.pitch * 57.2958f);
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("FOV", &g_cam.fov_scale, 0.3f, 4.0f, "%.2f");
+
+    /* Presets. */
+    if (ImGui::Button("Top-down")) ed_camera_default();
+    ImGui::SameLine();
+    if (ImGui::Button("First-person")) ed_camera_first_person();
+    ImGui::SameLine();
+    if (ImGui::Button("Screenshot")) {
+        char ts[64];
+        std::time_t now = std::time(NULL);
+        std::strftime(ts, sizeof(ts), "%Y%m%d-%H%M%S", std::localtime(&now));
+        char path[96];
+        std::snprintf(path, sizeof(path), "screenshot-%s-%s.ppm",
+                      g_stage.stage_name, ts);
+        if (gl_renderer_save_ppm(path) == 0)
+            std::printf("editor: wrote %s\n", path);
+    }
+
+    /* Goto. */
+    ImGui::Separator();
+    ImGui::PushItemWidth(70);
+    ImGui::InputInt("##gx", &s_goto_xyz[0], 0); ImGui::SameLine();
+    ImGui::InputInt("##gy", &s_goto_xyz[1], 0); ImGui::SameLine();
+    ImGui::InputInt("##gz", &s_goto_xyz[2], 0); ImGui::SameLine();
+    ImGui::PopItemWidth();
+    if (ImGui::Button("Goto"))
+        ed_camera_focus(s_goto_xyz[0], s_goto_xyz[1], s_goto_xyz[2], 5000.0f);
+    int wx, wy, wz;
+    if (mouse_world_at_ground(&wx, &wy, &wz)) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%d %d %d)", wx, wy, wz);
+    }
+
+    /* Bookmarks: one row of 4. Left-click loads, right-click saves. */
+    ImGui::Separator();
+    ImGui::TextUnformatted("Bookmarks:"); ImGui::SameLine();
+    for (int b = 0; b < 4; b++) {
+        char id[8];
+        std::snprintf(id, sizeof(id), "%d##bm", b + 1);
+        if (!s_bookmarks[b].used) ImGui::BeginDisabled();
+        if (ImGui::Button(id)) load_bookmark(b);
+        if (!s_bookmarks[b].used) ImGui::EndDisabled();
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+            save_bookmark(b);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(s_bookmarks[b].used
+                ? "left-click: load   |   right-click: overwrite"
+                : "right-click: save current view");
+        }
+        if (b < 3) ImGui::SameLine();
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("?##help")) s_show_help = !s_show_help;
+}
+
+/* Floating "Selected" card, only shown while something is selected.
+   Position + rotation are editable and feed back into g_actors[] live —
+   the marker moves as the user types. */
+static void draw_selected_card(void)
+{
+    if (g_actor_selected < 0 || g_actor_selected >= g_actor_count) return;
+    EdActor *a = &g_actors[g_actor_selected];
+
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 290, 10),
+                            ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(280, 0), ImGuiCond_FirstUseEver);
+    ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize |
+                             ImGuiWindowFlags_NoCollapse;
+    bool open = true;
+    if (ImGui::Begin("Selected", &open, flags)) {
+        ImU32 col = IM_COL32((a->color >> 16) & 0xFF,
+                             (a->color >>  8) & 0xFF,
+                             (a->color >>  0) & 0xFF, 255);
+        ImGui::ColorButton("##swatch", ImColor(col), ImGuiColorEditFlags_NoTooltip,
+                           ImVec2(14, 14));
+        ImGui::SameLine();
+        ImGui::TextUnformatted(a->type);
+        ImGui::Text("inst   %s", a->instance);
+        ImGui::Text("from   %s   proc %s",
+                    a->from_demo ? "demo" : "scen", a->proc);
+        ImGui::Text("model  %s", a->kmd_def ? "yes" : "-");
+        ImGui::Separator();
+
+        /* Editable position. InputInt3 returns true on any change. */
+        if (ImGui::InputInt3("pos", a->pos)) g_actors_dirty = 1;
+
+        /* Editable rotation (toggleable: actor may have none). */
+        bool has_rot = a->rot_b >= 0;
+        if (ImGui::Checkbox("##has_rot", &has_rot)) {
+            a->rot_b = has_rot ? 0 : -1;
+            g_actors_dirty = 1;
+        }
+        ImGui::SameLine();
+        if (a->rot_b >= 0) {
+            int r = a->rot_b;
+            char buf[24];
+            std::snprintf(buf, sizeof(buf), "b:%d (%.0f°)",
+                          r, r * 360.0f / 256.0f);
+            if (ImGui::SliderInt("rot", &r, 0, 255, buf)) {
+                a->rot_b = r & 0xFF;
+                g_actors_dirty = 1;
+            }
+        } else {
+            ImGui::TextDisabled("rot    -");
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Focus"))
+            ed_camera_focus(a->pos[0], a->pos[1], a->pos[2], 5000.0f);
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) g_actor_selected = -1;
+    }
+    ImGui::End();
+    if (!open) g_actor_selected = -1;
+}
+
+/* Tab / Shift-Tab cycles through the (filtered) actor list. Wraps around. */
+static void handle_actor_cycle(void)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) return;
+    bool fwd  = ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyShift;
+    bool back = ImGui::IsKeyPressed(ImGuiKey_Tab) &&  io.KeyShift;
+    if (!fwd && !back) return;
+
+    int n = g_actor_count;
+    if (n <= 0) return;
+
+    int start = g_actor_selected;
+    int dir = fwd ? 1 : -1;
+    for (int step = 0; step < n; step++) {
+        start = (start + dir + n) % n;
+        EdActor *a = &g_actors[start];
+        if (s_actor_filter[0] && !stricontains(a->type, s_actor_filter)) continue;
+        g_actor_selected = start;
+        if (a->has_pos)
+            ed_camera_focus(a->pos[0], a->pos[1], a->pos[2], 5000.0f);
+        return;
+    }
+}
+
+static void draw_help_window(void)
+{
+    if (!s_show_help) return;
+    ImGui::SetNextWindowPos(ImVec2(440, 30), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(380, 240), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Keybindings", &s_show_help)) {
+        ImGui::TextUnformatted(
+            "WASD / QE        move / up-down\n"
+            "RMB + drag       look\n"
+            "arrows           rotate\n"
+            "Shift / Ctrl     4× / 0.25× speed\n"
+            "Home             top-down view\n"
+            "click in 3D      pick actor / HZD entity\n"
+            "Tab / Shift-Tab  cycle actors\n"
+            "G                goto coordinate\n"
+            "F1               toggle this window\n"
+            "Esc              quit\n"
+            "F11 / Alt-Enter  fullscreen\n"
+            "RMB on bookmark  save current view");
+    }
+    ImGui::End();
+}
+
+/* (s_combo_idx / s_filter declared at the top of the file alongside the
+   other inspector state.) */
 
 /* Floating overlay drawn on the background draw list — sits behind the
    inspector window so it doesn't intercept clicks. */
@@ -299,7 +570,8 @@ static void draw_trap_labels(void)
 }
 
 /* Click anywhere in the viewport (i.e. not on an ImGui window) to pick the
-   closest actor marker. Uses ed_screen_to_world_ray + ed_actors_pick_ray. */
+   closest actor marker. Falls back to picking HZD traps/cameras if no
+   actor is hit, so any selectable entity in the world responds to clicks. */
 static void handle_viewport_pick(void)
 {
     ImGuiIO &io = ImGui::GetIO();
@@ -310,13 +582,74 @@ static void handle_viewport_pick(void)
     float sy = io.MousePos.y / io.DisplaySize.y;
     float origin[3], dir[3];
     ed_screen_to_world_ray(sx, sy, origin, dir);
-    int hit = ed_actors_pick_ray(origin, dir);
-    if (hit >= 0) {
-        g_actor_selected = hit;
-        EdActor *a = &g_actors[hit];
+
+    int actor = ed_actors_pick_ray(origin, dir);
+    if (actor >= 0) {
+        g_actor_selected = actor;
+        EdActor *a = &g_actors[actor];
         if (a->has_pos)
             ed_camera_focus(a->pos[0], a->pos[1], a->pos[2], 5000.0f);
+        return;
     }
+    /* No actor under the cursor — try HZD traps + cameras. */
+    int kind = ed_hzd_pick_ray(origin, dir);
+    if (kind > 0) {
+        EdHzdItem item;
+        bool ok = (kind == 1)
+                ? ed_hzd_get_trap(g_sel_trap, &item)
+                : ed_hzd_get_camera(g_sel_cam, &item);
+        if (ok) ed_camera_focus(item.cx, item.cy, item.cz, 5000.0f);
+    }
+}
+
+/* Goto modal — opened by 'G' anywhere in the editor (when ImGui isn't
+   eating keystrokes). Three int inputs, Enter applies, Esc cancels. */
+static bool s_goto_open = false;
+
+static void draw_goto_modal(void)
+{
+    if (s_goto_open) {
+        ImGui::OpenPopup("Goto coord");
+        s_goto_open = false;
+    }
+    ImGui::SetNextWindowSize(ImVec2(280, 0), ImGuiCond_FirstUseEver);
+    if (ImGui::BeginPopupModal("Goto coord", NULL,
+            ImGuiWindowFlags_AlwaysAutoResize)) {
+        bool apply = false;
+        ImGui::PushItemWidth(70);
+        if (ImGui::InputInt("##gx", &s_goto_xyz[0], 0,
+                ImGuiInputTextFlags_EnterReturnsTrue)) apply = true;
+        ImGui::SameLine();
+        if (ImGui::InputInt("##gy", &s_goto_xyz[1], 0,
+                ImGuiInputTextFlags_EnterReturnsTrue)) apply = true;
+        ImGui::SameLine();
+        if (ImGui::InputInt("##gz", &s_goto_xyz[2], 0,
+                ImGuiInputTextFlags_EnterReturnsTrue)) apply = true;
+        ImGui::PopItemWidth();
+        /* Cursor-coord shortcut button. */
+        int wx, wy, wz;
+        if (mouse_world_at_ground(&wx, &wy, &wz)) {
+            if (ImGui::Button("from cursor")) {
+                s_goto_xyz[0] = wx; s_goto_xyz[1] = wy; s_goto_xyz[2] = wz;
+            }
+            ImGui::SameLine();
+        }
+        if (ImGui::Button("Goto") || apply) {
+            ed_camera_focus(s_goto_xyz[0], s_goto_xyz[1], s_goto_xyz[2], 5000.0f);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+}
+
+static void handle_global_shortcuts(void)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) return;
+    if (ImGui::IsKeyPressed(ImGuiKey_G)) s_goto_open = true;
 }
 
 extern "C" void ed_ui_draw(void)
@@ -325,24 +658,38 @@ extern "C" void ed_ui_draw(void)
 
     draw_trap_labels();
     handle_viewport_pick();
+    handle_actor_cycle();
+    handle_global_shortcuts();
+    if (ImGui::IsKeyPressed(ImGuiKey_F1) && !ImGui::GetIO().WantCaptureKeyboard)
+        s_show_help = !s_show_help;
+    draw_help_window();
+    draw_goto_modal();
+    draw_selected_card();
 
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(420, 720), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(380, 560), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("MGS Stage Editor")) {
-        ImGui::Text("Stage: %s%s", g_stage.stage_name,
-                    g_stage.loaded ? "" : " (not loaded)");
-        ImGui::SameLine();
+        /* Compact status line: stage + perf counters + cursor coord. */
         ImGuiIO &io = ImGui::GetIO();
-        ImGui::Text("  |  %.1f fps", io.Framerate);
-        ImGui::Separator();
+        int tv = 0, lv = 0;
+        gl_renderer_stats(&tv, &lv);
+        ImGui::Text("%s%s   %.0f fps   %dt %dl",
+                    g_stage.stage_name,
+                    g_stage.loaded ? "" : " (none)",
+                    io.Framerate, tv / 3, lv / 2);
+        int wx, wy, wz;
+        if (mouse_world_at_ground(&wx, &wy, &wz))
+            ImGui::TextDisabled("cursor: %d %d %d", wx, wy, wz);
+        else
+            ImGui::TextDisabled("cursor: -");
 
-        inspector_stage_picker();
-        ImGui::Separator();
-        inspector_view_options();
-        inspector_camera();
-        inspector_hzd_layers();
-        inspector_actors();
-        inspector_stage_meta();
+        if (ImGui::BeginTabBar("##tabs")) {
+            if (ImGui::BeginTabItem("Scene"))   { tab_scene();   ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Camera"))  { tab_camera();  ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Actors"))  { tab_actors();  ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("HZD"))     { tab_hzd();     ImGui::EndTabItem(); }
+            ImGui::EndTabBar();
+        }
     }
     ImGui::End();
 }

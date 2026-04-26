@@ -239,6 +239,16 @@ int HZD_GetAddress( HZD_HDL *hzd, SVECTOR *pos, int address )
     HZD_ZON *zone1, *zone2;
     int      z1, z2, near;
 
+#ifdef PORT_BUILD
+    /* Stages authored without nav zones (n_zones == 0) leave zones=NULL.
+       The original code would still walk into &zones[z1] and dereference
+       it; on PSX that's harmless garbage memory, on 64-bit it traps with
+       NULL+0x4 (= the HZD_ZON.y field offset). Return the HZD_NO_ZONE
+       sentinel so callers know there's no zone match. */
+    if ( !hzd || !hzd->def || hzd->def->n_zones == 0 || !hzd->def->zones )
+        return HZD_Address( HZD_NO_ZONE, HZD_NO_ZONE );
+#endif
+
     z1 = HZD_Zone1( address );
     z2 = HZD_Zone2( address );
 

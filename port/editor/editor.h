@@ -41,6 +41,7 @@ typedef struct {
 extern EdCamera g_cam;
 
 void ed_camera_default(void);
+void ed_camera_first_person(void);
 void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held);
 /* Move the camera so the given world point sits `distance` units ahead of
    it along the current forward axis. Yaw/pitch are preserved — the actor
@@ -64,6 +65,7 @@ typedef struct {
     uint32_t color;         /* derived RGB for marker (0xRRGGBB00) */
     int      rot_b;         /* "b:N" rotation, 0..255 = 0..360°. -1 if absent. */
     int      from_demo;     /* 1 if entry came from demo.gcl, 0 if scenerio. */
+    void    *kmd_def;       /* DG_DEF * resolved at load. NULL = no model. */
 } EdActor;
 
 extern EdActor *g_actors;
@@ -71,8 +73,13 @@ extern int      g_actor_count;
 extern int      g_actor_selected; /* -1 if none */
 
 void ed_actors_load(const char *json_path);
+int  ed_actors_save(const char *tsv_path);    /* rewrites TSV; 0 on success */
 void ed_actors_render(void);
 int  ed_actors_pick_ray(const float ray_origin[3], const float ray_dir[3]);
+
+/* Tracks unsaved edits to the in-memory actor list. UI shows a "*" marker
+   when set; cleared on save and on stage reload. */
+extern int g_actors_dirty;
 
 /* ed_ui.cpp */
 void ed_ui_init(void *sdl_window);
@@ -145,6 +152,10 @@ int  ed_stage_collect_entries(EdStageEntry *out, int max);
 /* Actor → KMD lookup. If a model is found, returns non-zero and writes a
    pointer to its DG_DEF in *out_def. Otherwise the cube marker is used. */
 int  ed_actor_kmd_for_type(const char *type, void **out_def);
+
+/* World-space ray vs HZD trap / camera AABBs. On hit, sets the matching
+   g_sel_* index, returns 1 (kind: 1=trap, 2=camera). 0 if no hit. */
+int  ed_hzd_pick_ray(const float ray_origin[3], const float ray_dir[3]);
 
 #ifdef __cplusplus
 }

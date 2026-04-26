@@ -34,6 +34,51 @@ static SDL_Renderer *g_renderer;
 bool                 g_running;  /* non-static: test_server.c may set it false to quit */
 const char          *port_argv0 = NULL;  /* used by imgui Restart button */
 
+/* Auto-load hook: when PORT_AUTOLOAD_STAGE=<name> is set, watch for the
+   engine to settle on the select menu (load complete, current stage ==
+   "select") and then synthesise the same load that the imgui "Custom
+   stage launcher" button would do. Used for headless smoke tests. */
+static void port_autoload_tick(void)
+{
+    static int   armed = 0;          /* 0=idle, 1=armed and waiting, 2=fired */
+    static int   fire_at_frame = 0;
+    static int   frame = 0;
+    frame++;
+
+    if (armed >= 2) return;
+
+    const char *env = getenv("PORT_AUTOLOAD_STAGE");
+    if (!env || !*env) return;
+
+    extern char  port_current_stage[16];
+    extern int   GM_LoadComplete;
+    extern int   GV_StrCode(const char *);
+    extern void  GM_SetArea(int hash, const char *name);
+    extern int   GM_LoadRequest;
+    extern short linkvarbuf[];
+
+    if (armed == 0
+        && strcmp(port_current_stage, "select") == 0
+        && GM_LoadComplete) {
+        armed = 1;
+        fire_at_frame = frame + 120;     /* ~2s settle time */
+        printf("[port] auto-load armed for '%s' at frame %d (current=%d)\n",
+               env, fire_at_frame, frame);
+    }
+    if (armed == 1 && frame >= fire_at_frame) {
+        armed = 2;
+        int hash = GV_StrCode(env);
+        linkvarbuf[6]  = (short)hash;                  /* GM_CurrentStageFlag */
+        linkvarbuf[7]  = (short)GV_StrCode("main");    /* GM_CurrentMapFlag */
+        linkvarbuf[8]  = 0;                             /* GM_SnakePosX */
+        linkvarbuf[9]  = 0;                             /* GM_SnakePosY */
+        linkvarbuf[10] = 8000;                          /* GM_SnakePosZ */
+        GM_SetArea(hash, env);
+        GM_LoadRequest = 0x91;
+        printf("[port] auto-load: firing load '%s' (frame %d)\n", env, frame);
+    }
+}
+
 static int port_init(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0)
@@ -262,6 +307,7 @@ int main(int argc, char *argv[])
             /* Game logic + sound at 30fps (every other frame) */
             if ((frame_counter & 1) == 0) {
                 game_tick();
+                port_autoload_tick();
             }
 
             /* Rendering at 60fps (every frame) */

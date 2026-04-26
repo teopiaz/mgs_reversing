@@ -152,6 +152,16 @@ void gl_submit_line3d(
     const unsigned char col_a[3], const unsigned char col_b[3],
     int dist);
 
+/* Editor stats overlay. Returns the per-frame submitted vertex counts
+ * (triangles are 3 verts each; lines 2 each). Cleared each frame at
+ * gl_renderer_begin_3d. */
+void gl_renderer_stats(int *out_tri_verts, int *out_line_verts);
+
+/* Save the hi-res FBO contents as a P6 PPM at `path`. Returns 0 on success.
+ * Lives next to the renderer because we need the FBO color attachment + its
+ * dimensions, which are private to gl_renderer.c. */
+int gl_renderer_save_ppm(const char *path);
+
 #ifdef __cplusplus
 }
 #endif

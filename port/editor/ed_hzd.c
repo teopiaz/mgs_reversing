@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
 
 #include "libgte.h"
 #include "fmt_hzd.h"
@@ -124,8 +126,45 @@ void ed_hzd_render(void)
                     int x0=t->cam.b1.x, y0=t->cam.b1.y, z0=t->cam.b1.z;
                     int x1=t->cam.b2.x, y1=t->cam.b2.y, z1=t->cam.b2.z;
                     aabb_world(x0,y0,z0, x1,y1,z1, c);
-                    line_world(t->cam.cam.x, t->cam.cam.y, t->cam.cam.z,
-                               t->cam.orient.x, t->cam.orient.y, t->cam.orient.z, c);
+                    /* Frustum: shaft cam→orient, plus 4 lines fanning out
+                       to a square at the orient point so the viewing
+                       direction is obvious from any angle. */
+                    int cx = t->cam.cam.x,    cy = t->cam.cam.y,    cz = t->cam.cam.z;
+                    int ox = t->cam.orient.x, oy = t->cam.orient.y, oz = t->cam.orient.z;
+                    line_world(cx, cy, cz, ox, oy, oz, c);
+                    /* Pick a perpendicular by zeroing the smallest component. */
+                    int dx = ox-cx, dy = oy-cy, dz = oz-cz;
+                    int half = 600;   /* corner offset at the orient end */
+                    int u[3], v[3];
+                    if (abs(dx) <= abs(dy) && abs(dx) <= abs(dz)) {
+                        u[0]=0; u[1]=-dz; u[2]=dy;
+                    } else if (abs(dy) <= abs(dz)) {
+                        u[0]=-dz; u[1]=0; u[2]=dx;
+                    } else {
+                        u[0]=-dy; u[1]=dx; u[2]=0;
+                    }
+                    /* Normalise u/v roughly to ±half. */
+                    int ulen = (int)sqrt((double)u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
+                    if (ulen < 1) ulen = 1;
+                    u[0] = u[0]*half/ulen; u[1] = u[1]*half/ulen; u[2] = u[2]*half/ulen;
+                    v[0] = dy*u[2] - dz*u[1];
+                    v[1] = dz*u[0] - dx*u[2];
+                    v[2] = dx*u[1] - dy*u[0];
+                    int vlen = (int)sqrt((double)v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+                    if (vlen < 1) vlen = 1;
+                    v[0] = v[0]*half/vlen; v[1] = v[1]*half/vlen; v[2] = v[2]*half/vlen;
+                    int corners[4][3] = {
+                        { ox + u[0] + v[0], oy + u[1] + v[1], oz + u[2] + v[2] },
+                        { ox - u[0] + v[0], oy - u[1] + v[1], oz - u[2] + v[2] },
+                        { ox - u[0] - v[0], oy - u[1] - v[1], oz - u[2] - v[2] },
+                        { ox + u[0] - v[0], oy + u[1] - v[1], oz + u[2] - v[2] },
+                    };
+                    for (int k = 0; k < 4; k++) {
+                        line_world(cx, cy, cz,
+                                   corners[k][0], corners[k][1], corners[k][2], c);
+                        line_world(corners[k][0], corners[k][1], corners[k][2],
+                                   corners[(k+1)&3][0], corners[(k+1)&3][1], corners[(k+1)&3][2], c);
+                    }
                     cam_idx++;
                 } else if (g_show_traps) {
                     const unsigned char *c = (g_sel_trap == trap_idx) ? COL_TRAP_SEL : COL_TRAP;
@@ -346,6 +385,75 @@ int ed_hzd_get_route(int idx, EdHzdItem *out)
     out->cz = r->points[0].z;
     snprintf(out->tag, sizeof(out->tag), "route %d (%dpts)", idx, r->n_points);
     return 1;
+}
+
+/* CPU ray vs trap/camera AABB picking. Returns 1 if a trap hit, 2 for a
+   camera hit, 0 otherwise. Sets the matching g_sel_* index so the
+   wireframe highlights the picked one. */
+static int ray_aabb(const float ro[3], const float rd[3],
+                    int x0, int y0, int z0, int x1, int y1, int z1,
+                    float *out_t)
+{
+    float tmin = -1e30f, tmax = 1e30f;
+    int axes[3][2] = { {x0, x1}, {y0, y1}, {z0, z1} };
+    for (int k = 0; k < 3; k++) {
+        float d = rd[k];
+        if (d > -1e-6f && d < 1e-6f) {
+            if (ro[k] < (float)axes[k][0] || ro[k] > (float)axes[k][1])
+                return 0;
+        } else {
+            float t1 = ((float)axes[k][0] - ro[k]) / d;
+            float t2 = ((float)axes[k][1] - ro[k]) / d;
+            if (t1 > t2) { float tmp = t1; t1 = t2; t2 = tmp; }
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return 0;
+        }
+    }
+    if (tmin < 0) return 0;
+    *out_t = tmin;
+    return 1;
+}
+
+int ed_hzd_pick_ray(const float ro[3], const float rd[3])
+{
+    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    if (!m) return 0;
+    int   best_kind = 0;
+    int   best_idx  = -1;
+    float best_t    = 1e30f;
+    int trap_idx = 0, cam_idx = 0;
+    for (int gi = 0; gi < m->n_groups; gi++) {
+        HZD_GRP *g = &m->groups[gi];
+        if (!g->triggers) continue;
+        for (int i = 0; i < g->n_triggers; i++) {
+            HZD_TRG *t = &g->triggers[i];
+            int is_cam = trap_looks_like_camera(t);
+            HZD_VEC *b1 = is_cam ? &t->cam.b1  : &t->trap.b1;
+            HZD_VEC *b2 = is_cam ? &t->cam.b2  : &t->trap.b2;
+            int x0 = b1->x, y0 = b1->y, z0 = b1->z;
+            int x1 = b2->x, y1 = b2->y, z1 = b2->z;
+            if (x0 > x1) { int s = x0; x0 = x1; x1 = s; }
+            if (y0 > y1) { int s = y0; y0 = y1; y1 = s; }
+            if (z0 > z1) { int s = z0; z0 = z1; z1 = s; }
+            float t_hit;
+            if (ray_aabb(ro, rd, x0,y0,z0, x1,y1,z1, &t_hit) && t_hit < best_t) {
+                best_t   = t_hit;
+                best_idx = is_cam ? cam_idx : trap_idx;
+                best_kind = is_cam ? 2 : 1;
+            }
+            if (is_cam) cam_idx++; else trap_idx++;
+        }
+    }
+    if (best_kind == 1) {
+        g_sel_trap = best_idx;
+        return 1;
+    }
+    if (best_kind == 2) {
+        g_sel_cam = best_idx;
+        return 2;
+    }
+    return 0;
 }
 
 int ed_hzd_collect_trap_labels(EdHzdLabel *out, int max)
