@@ -171,15 +171,15 @@ void ed_camera_ortho_pan(EdOrthoCam *cam, int viewport_w, int viewport_h,
     float dx = (float)pixel_dx * ppu;
     float dy = (float)pixel_dy * ppu;
 
-    /* Pan within the locked plane: Top → world XZ, Front → world XY, Side → YZ.
-     * Screen +X is world +X for Top/Front, +Z for Side. Screen +Y (down on
-     * screen, since PSX +Y is down) is world +Z for Top, +Y for Front and
-     * Side. The signs match what mouse-drag intuition expects (drag the
-     * world the same direction the cursor moves). */
+    /* Pan within the locked plane: drag-the-world feel — world contents
+     * move the same direction as the cursor. Front/Side flip the Y term
+     * because their eye-Y is -world Y (so screen +Y down corresponds to
+     * world +Y up in user's Blender convention; cursor down means camera
+     * focus moves UP in world Y). */
     switch (cam->axis) {
     case ED_ORTHO_TOP:    cam->center[0] -= dx; cam->center[2] += dy; break;
-    case ED_ORTHO_FRONT:  cam->center[0] -= dx; cam->center[1] -= dy; break;
-    case ED_ORTHO_SIDE:   cam->center[2] += dx; cam->center[1] -= dy; break;
+    case ED_ORTHO_FRONT:  cam->center[0] -= dx; cam->center[1] += dy; break;
+    case ED_ORTHO_SIDE:   cam->center[2] -= dx; cam->center[1] += dy; break;
     }
 }
 
@@ -213,11 +213,19 @@ void ed_camera_ortho_compute(EdOrthoCam *cam, int viewport_w, int viewport_h,
 }
 
 /* Build the eye_inv matrix for an ortho cam. Layout per axis:
- *   Top  : eye-X ← world  X − cx,    eye-Y ← world  Z − cz, eye-Z ← world Y − cy
- *   Front: eye-X ← world  X − cx,    eye-Y ← world  Y − cy, eye-Z ← world Z − cz
- *   Side : eye-X ← world  Z − cz,    eye-Y ← world  Y − cy, eye-Z ← world X − cx
- * The MATRIX `m` rows are 4.12 fixed-point (×4096); `t` is the camera
- * translation that subtracts cam->center after rotation. */
+ *   Top  : eye-X ←  world X,  eye-Y ←  world Z,  eye-Z ← world Y
+ *   Front: eye-X ←  world X,  eye-Y ← -world Y,  eye-Z ← world Z
+ *   Side : eye-X ← -world Z,  eye-Y ← -world Y,  eye-Z ← world X
+ * The negated eye-Y for Front/Side is what flips Blender +Y-up content
+ * to be right-side-up on screen — the GL ortho shader path applies a
+ * second -ny flip to match the perspective path's PSX +Y-down screen
+ * convention, so world Y_high needs to land at eye Y_low to come out
+ * at the top of the rendered pane. (Top doesn't have this issue
+ * because its eye-Y is sourced from world Z, not Y.) The Side pane
+ * also negates eye-X so the cube's +X direction faces RIGHT on screen
+ * when looking down +X. The MATRIX `m` rows are 4.12 fixed-point
+ * (×4096); `t` is the camera translation that re-centers the world
+ * point cam->center at eye-space origin. */
 void ed_camera_ortho_build_eye_inv(EdOrthoCam *cam, MATRIX *out)
 {
     short m[3][3] = {{0}};
@@ -232,17 +240,17 @@ void ed_camera_ortho_build_eye_inv(EdOrthoCam *cam, MATRIX *out)
         t[2] = -(int)cam->center[1];
         break;
     case ED_ORTHO_FRONT:
-        /* eye-X = world X, eye-Y = world Y, eye-Z = world Z */
-        m[0][0] = K; m[1][1] = K; m[2][2] = K;
+        /* eye-X = world X, eye-Y = -world Y, eye-Z = world Z */
+        m[0][0] = K; m[1][1] = -K; m[2][2] = K;
         t[0] = -(int)cam->center[0];
-        t[1] = -(int)cam->center[1];
+        t[1] =  (int)cam->center[1];   /* sign flipped to match -K */
         t[2] = -(int)cam->center[2];
         break;
     case ED_ORTHO_SIDE:
-        /* eye-X = world Z, eye-Y = world Y, eye-Z = world X */
-        m[0][2] = K; m[1][1] = K; m[2][0] = K;
-        t[0] = -(int)cam->center[2];
-        t[1] = -(int)cam->center[1];
+        /* eye-X = -world Z, eye-Y = -world Y, eye-Z = world X */
+        m[0][2] = -K; m[1][1] = -K; m[2][0] = K;
+        t[0] =  (int)cam->center[2];
+        t[1] =  (int)cam->center[1];
         t[2] = -(int)cam->center[0];
         break;
     }
