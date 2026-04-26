@@ -1,0 +1,44 @@
+# s99z — test stage exercising every editor feature.
+#
+# Layout: 100×100 OBJ units (10000×10000 PSX units at scale=100). One
+# big floor + four perimeter walls. The visual mesh and collision mesh
+# share their geometry — the visual side has only floor + walls; the
+# collision side adds named trap_* and cam_* trigger volumes.
+#
+# UVs are square on every face so the same s99z.png tiles cleanly.
+# Authored by hand (no Blender) so vertex order is human-readable.
+
+mtllib s99z.mtl
+
+# --- 4 floor corners + 4 wall-top corners (8 verts total) -----------
+# Floor at Y=0, walls extruded up to Y=30 (= 3000 PSX units, snake-height).
+v -50  0 -50
+v  50  0 -50
+v  50  0  50
+v -50  0  50
+v -50 30 -50
+v  50 30 -50
+v  50 30  50
+v -50 30  50
+
+# Square UV on every face (matches a 256×256 tile).
+vt 0 0
+vt 1 0
+vt 1 1
+vt 0 1
+
+usemtl s99z
+
+o floor
+f 1/1 2/2 3/3 4/4
+
+# Walls: each is a vertical quad, two bottom verts on the floor + two
+# top verts at Y=30. CCW from outside-the-room.
+o wall_south
+f 1/1 5/4 6/3 2/2
+o wall_east
+f 2/1 6/4 7/3 3/2
+o wall_north
+f 3/1 7/4 8/3 4/2
+o wall_west
+f 4/1 8/4 5/3 1/2
