@@ -202,7 +202,14 @@ def walk_assets(stage_blob: bytes):
 
 # Hashes the importer wants to bundle (box_01..box_08 — referenced as
 # KMD_BOX_01+type by source/game/item.c GetResources).
+#
+# Plus a generic sliding door (door_dd, hash 0x6E28 — pulled from d11c's
+# resident DAR). Custom stages that drop a `chara &DOOR ... -m $s:6E28`
+# need this in the cache or the door actor spawns with no model and the
+# engine spins re-running the script. See port/doc/editor/05-stage-
+# authoring.md "Doors" for the wider naming convention.
 WANTED_KMDS = {gv_strcode(f"box_{i:02d}"): f"box_{i:02d}" for i in range(1, 9)}
+WANTED_KMDS[gv_strcode("door_dd")] = "door_dd"
 
 
 def main():

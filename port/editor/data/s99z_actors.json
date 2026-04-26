@@ -49,6 +49,53 @@
     "source": "scenerio"
   },
   {
+    "type": "DOOR",
+    "instance": "$s:0CB2",
+    "pos": [
+      0,
+      0,
+      -4000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        0,
+        -4000
+      ],
+      "d": [
+        0,
+        0,
+        0
+      ],
+      "m": [
+        "$s:6E28"
+      ],
+      "t": [
+        "b:2"
+      ],
+      "w": [
+        1500
+      ],
+      "s": [
+        70
+      ],
+      "u": [
+        500
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8BCF66",
+    "source": "scenerio"
+  },
+  {
     "type": "ITEM",
     "instance": "$s:99B1",
     "pos": [
