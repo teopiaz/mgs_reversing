@@ -192,16 +192,29 @@ void ed_hzd_render(void)
         }
     }
 
-    /* Routes: polylines through patrol points. */
+    /* Routes: polylines through patrol points + tiny X markers at each
+     * point so node positions are visible at a glance. The init point
+     * (route start) gets a slightly bigger marker so the playback
+     * direction can be inferred. */
     if (g_show_routes && m->routes) {
         for (int ri = 0; ri < m->n_routes; ri++) {
             HZD_PAT *r = &m->routes[ri];
-            if (!r->points || r->n_points <= 1) continue;
+            if (!r->points || r->n_points <= 0) continue;
             const unsigned char *c = (g_sel_route == ri) ? COL_ROUTE_SEL : COL_ROUTE;
-            for (int p = 0; p < r->n_points - 1; p++) {
+            for (int p = 0; p + 1 < r->n_points; p++) {
                 HZD_PTP *a = &r->points[p];
                 HZD_PTP *b = &r->points[p + 1];
                 line_world(a->x, a->y, a->z, b->x, b->y, b->z, c);
+            }
+            /* Per-point markers — small + cross in the XZ plane. The first
+             * point uses 1.6× size to mark the route start. */
+            for (int p = 0; p < r->n_points; p++) {
+                HZD_PTP *pt = &r->points[p];
+                int rad = (p == r->init_point) ? 240 : 150;
+                line_world(pt->x - rad, pt->y, pt->z,
+                           pt->x + rad, pt->y, pt->z, c);
+                line_world(pt->x, pt->y, pt->z - rad,
+                           pt->x, pt->y, pt->z + rad, c);
             }
         }
     }
