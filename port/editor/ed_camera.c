@@ -140,3 +140,114 @@ void ed_camera_build_eye_inv(DG_CHANL *chanl)
 
     DG_LookAt(chanl, &eye, &center, h);
 }
+
+/* ---------------------------------------------------------------------------
+ * Hammer-style ortho cameras: Top / Front / Side panes look down a fixed
+ * world axis and let the user pan/zoom in the locked plane. Each pane has
+ * its own camera state — independent of the perspective camera g_cam.
+ * ------------------------------------------------------------------------- */
+
+EdOrthoCam g_top_cam;
+EdOrthoCam g_front_cam;
+EdOrthoCam g_side_cam;
+
+void ed_camera_ortho_default(EdOrthoCam *cam, EdOrthoAxis axis)
+{
+    cam->axis = axis;
+    cam->center[0] = 0.0f;
+    cam->center[1] = 0.0f;
+    cam->center[2] = 0.0f;
+    cam->half_size = 12000.0f;  /* fits a typical stage at ±10000 */
+}
+
+void ed_camera_ortho_pan(EdOrthoCam *cam, int viewport_w, int viewport_h,
+                         int pixel_dx, int pixel_dy)
+{
+    if (viewport_w <= 0 || viewport_h <= 0) return;
+    /* World units per screen pixel, anchored on the smaller dimension so the
+     * scene fits the same size in both axes. */
+    int min_dim = (viewport_w < viewport_h) ? viewport_w : viewport_h;
+    float ppu = (cam->half_size * 2.0f) / (float)min_dim;
+    float dx = (float)pixel_dx * ppu;
+    float dy = (float)pixel_dy * ppu;
+
+    /* Pan within the locked plane: Top → world XZ, Front → world XY, Side → YZ.
+     * Screen +X is world +X for Top/Front, +Z for Side. Screen +Y (down on
+     * screen, since PSX +Y is down) is world +Z for Top, +Y for Front and
+     * Side. The signs match what mouse-drag intuition expects (drag the
+     * world the same direction the cursor moves). */
+    switch (cam->axis) {
+    case ED_ORTHO_TOP:    cam->center[0] -= dx; cam->center[2] += dy; break;
+    case ED_ORTHO_FRONT:  cam->center[0] -= dx; cam->center[1] -= dy; break;
+    case ED_ORTHO_SIDE:   cam->center[2] += dx; cam->center[1] -= dy; break;
+    }
+}
+
+void ed_camera_ortho_zoom(EdOrthoCam *cam, float wheel_steps)
+{
+    /* Each wheel notch zooms ~15% in/out. Clamp to avoid degenerate sizes. */
+    float factor = powf(0.85f, wheel_steps);
+    cam->half_size *= factor;
+    if (cam->half_size < 50.0f)     cam->half_size = 50.0f;
+    if (cam->half_size > 200000.0f) cam->half_size = 200000.0f;
+}
+
+/* Map an ortho cam to (l, r, b, t) bounds in eye space. The eye_inv we
+ * build per pane is hand-crafted so eye-X = screen-X axis, eye-Y =
+ * screen-Y axis, eye-Z = depth (along the locked axis). */
+void ed_camera_ortho_compute(EdOrthoCam *cam, int viewport_w, int viewport_h,
+                             float *out_lrbt)
+{
+    if (viewport_w <= 0) viewport_w = 1;
+    if (viewport_h <= 0) viewport_h = 1;
+    /* Aspect-correct extents around (0,0) in eye space, anchored on the
+     * smaller dim so half_size always means "what fits along the short axis". */
+    float aspect = (float)viewport_w / (float)viewport_h;
+    float hx, hy;
+    if (aspect >= 1.0f) { hy = cam->half_size; hx = hy * aspect; }
+    else                { hx = cam->half_size; hy = hx / aspect; }
+    out_lrbt[0] = -hx;  /* l */
+    out_lrbt[1] =  hx;  /* r */
+    out_lrbt[2] = -hy;  /* b */
+    out_lrbt[3] =  hy;  /* t */
+}
+
+/* Build the eye_inv matrix for an ortho cam. Layout per axis:
+ *   Top  : eye-X ← world  X − cx,    eye-Y ← world  Z − cz, eye-Z ← world Y − cy
+ *   Front: eye-X ← world  X − cx,    eye-Y ← world  Y − cy, eye-Z ← world Z − cz
+ *   Side : eye-X ← world  Z − cz,    eye-Y ← world  Y − cy, eye-Z ← world X − cx
+ * The MATRIX `m` rows are 4.12 fixed-point (×4096); `t` is the camera
+ * translation that subtracts cam->center after rotation. */
+void ed_camera_ortho_build_eye_inv(EdOrthoCam *cam, MATRIX *out)
+{
+    short m[3][3] = {{0}};
+    int t[3] = {0};
+    int K = 4096;
+    switch (cam->axis) {
+    case ED_ORTHO_TOP:
+        /* eye-X = world X, eye-Y = world Z, eye-Z = world Y */
+        m[0][0] = K; m[1][2] = K; m[2][1] = K;
+        t[0] = -(int)cam->center[0];
+        t[1] = -(int)cam->center[2];
+        t[2] = -(int)cam->center[1];
+        break;
+    case ED_ORTHO_FRONT:
+        /* eye-X = world X, eye-Y = world Y, eye-Z = world Z */
+        m[0][0] = K; m[1][1] = K; m[2][2] = K;
+        t[0] = -(int)cam->center[0];
+        t[1] = -(int)cam->center[1];
+        t[2] = -(int)cam->center[2];
+        break;
+    case ED_ORTHO_SIDE:
+        /* eye-X = world Z, eye-Y = world Y, eye-Z = world X */
+        m[0][2] = K; m[1][1] = K; m[2][0] = K;
+        t[0] = -(int)cam->center[2];
+        t[1] = -(int)cam->center[1];
+        t[2] = -(int)cam->center[0];
+        break;
+    }
+    out->m[0][0] = m[0][0]; out->m[0][1] = m[0][1]; out->m[0][2] = m[0][2];
+    out->m[1][0] = m[1][0]; out->m[1][1] = m[1][1]; out->m[1][2] = m[1][2];
+    out->m[2][0] = m[2][0]; out->m[2][1] = m[2][1]; out->m[2][2] = m[2][2];
+    out->t[0] = t[0]; out->t[1] = t[1]; out->t[2] = t[2];
+}

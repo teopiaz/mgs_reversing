@@ -176,6 +176,9 @@ int main(int argc, char *argv[])
     }
 
     ed_camera_default();
+    ed_camera_ortho_default(&g_top_cam,   ED_ORTHO_TOP);
+    ed_camera_ortho_default(&g_front_cam, ED_ORTHO_FRONT);
+    ed_camera_ortho_default(&g_side_cam,  ED_ORTHO_SIDE);
 
     g_running = 1;
     Uint64 freq = SDL_GetPerformanceFrequency();
@@ -188,21 +191,68 @@ int main(int argc, char *argv[])
         prev = now;
 
         editor_poll();
-        /* Camera input only when the 3D View panel is hovered/focused. The
-         * 3D View flag is updated by ed_ui_draw, so it lags by 1 frame —
-         * fine for input that's already integrated over dt. */
+        /* Camera input is gated on the panel under the cursor:
+         *   3D pane  → fly-style perspective camera (g_cam, ed_camera_update)
+         *   Top/Front/Side → ortho cam pan + zoom (ed_camera_ortho_*)
+         * The active-pane flags are updated by ed_ui_draw on the previous
+         * frame, so they lag by 1 frame — fine for integrated dt input. */
         if (ed_ui_3dview_active())
             ed_camera_update(dt, g_mouse_dx, g_mouse_dy, g_rmb_held);
 
         ed_ui_new_frame();
         ed_ui_draw();
-
         gl_renderer_begin_frame();
-        gl_renderer_begin_3d();
 
-        ed_render_frame();   /* KMD map + HZD overlay + actor markers */
-
-        gl_renderer_present();   /* renders into FBO; blit-to-window suppressed */
+        /* --- Render every viewport whose panel is visible. ImGui has by
+         *     now told us each panel's content-region size via ed_ui's
+         *     calls to gl_renderer_resize_viewport(idx, w, h). We re-walk
+         *     the same scene 4 times, switching FBO + projection mode for
+         *     each. Cheap: ~5k tris × 4 = 20k tris/frame, well within
+         *     budget on any GPU. */
+        struct { int idx; int is_ortho; EdOrthoCam *cam; } passes[] = {
+            { GL_VIEWPORT_3D,    0, NULL          },
+            { GL_VIEWPORT_TOP,   1, &g_top_cam    },
+            { GL_VIEWPORT_FRONT, 1, &g_front_cam  },
+            { GL_VIEWPORT_SIDE,  1, &g_side_cam   },
+        };
+        for (int p = 0; p < 4; p++) {
+            unsigned int tex = gl_renderer_get_viewport_color(passes[p].idx);
+            if (!tex) continue;          /* panel not yet sized → skip */
+            gl_renderer_set_active_viewport(passes[p].idx);
+            gl_renderer_begin_3d();
+            if (passes[p].is_ortho) {
+                /* Compute LRBT from the cam + current viewport size, then
+                 * tell the renderer about ortho + wireframe mode. */
+                /* viewport w/h were stored by gl_renderer_resize_viewport. */
+                extern int gl_renderer_get_viewport_w(int idx);
+                extern int gl_renderer_get_viewport_h(int idx);
+                /* Inline accessors not available — use a small helper here. */
+                int vw, vh;
+                vw = vh = 0;
+                /* We just need w/h; read them via the color texture's size:
+                 * since the editor's panel sizing already called resize, both
+                 * are set. We expose getters below. */
+                extern int gl_renderer_get_active_viewport(void);
+                (void)gl_renderer_get_active_viewport;
+                /* Use the cam's stored content size via getters added in
+                 * gl_renderer.c. */
+                gl_renderer_get_viewport_size(passes[p].idx, &vw, &vh);
+                float lrbt[4];
+                ed_camera_ortho_compute(passes[p].cam, vw, vh, lrbt);
+                gl_renderer_set_viewport_ortho(passes[p].idx, 1,
+                                               lrbt[0], lrbt[1], lrbt[2], lrbt[3]);
+                gl_renderer_set_viewport_wireframe(passes[p].idx, 1);
+                ed_render_frame_ortho(passes[p].cam, vw, vh);
+            } else {
+                gl_renderer_set_viewport_ortho(passes[p].idx, 0, 0, 0, 0, 0);
+                gl_renderer_set_viewport_wireframe(passes[p].idx, 0);
+                ed_render_frame();
+            }
+            gl_renderer_present();
+        }
+        /* Restore active viewport to slot 0 so debug HUDs / VRAM viewer that
+         * read g_fbo_color via the legacy alias keep showing the 3D view. */
+        gl_renderer_set_active_viewport(GL_VIEWPORT_3D);
 
         /* Clear the default framebuffer to dock-gutter dark grey. ImGui's
          * dockspace + windows paint on top; the 3D View panel samples the
