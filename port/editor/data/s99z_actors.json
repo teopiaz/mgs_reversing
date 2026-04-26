@@ -1,0 +1,389 @@
+[
+  {
+    "type": "SNAKE",
+    "instance": "SNAKE",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": [
+      0,
+      2048,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        "$w:800010",
+        "$w:800012",
+        "$w:800014"
+      ],
+      "d": [
+        0,
+        2048,
+        0
+      ]
+    },
+    "proc": "<script>",
+    "color": "#D0A1C6",
+    "source": "scenerio"
+  },
+  {
+    "type": "BREATH",
+    "instance": "$s:6F8B",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        90
+      ]
+    },
+    "proc": "<script>",
+    "color": "#83A8A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B1",
+    "pos": [
+      -2000,
+      1100,
+      2000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -2000,
+        1100,
+        2000
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:0"
+      ],
+      "i": [
+        "b:13"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "RATION"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B2",
+    "pos": [
+      0,
+      1100,
+      2000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        1100,
+        2000
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:1"
+      ],
+      "i": [
+        "b:0"
+      ],
+      "n": [
+        12
+      ],
+      "m": [
+        "SOCOM AMMO"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B3",
+    "pos": [
+      2000,
+      1100,
+      2000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        2000,
+        1100,
+        2000
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:2"
+      ],
+      "i": [
+        "b:5"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "NVG"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B4",
+    "pos": [
+      2000,
+      1100,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        2000,
+        1100,
+        0
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:3"
+      ],
+      "i": [
+        "b:11"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "BANDANA"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B5",
+    "pos": [
+      2000,
+      1100,
+      -2000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        2000,
+        1100,
+        -2000
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:4"
+      ],
+      "i": [
+        "b:7"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "GAS MASK"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B6",
+    "pos": [
+      0,
+      1100,
+      -2000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        0,
+        1100,
+        -2000
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:5"
+      ],
+      "i": [
+        "b:6"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "THERM-G"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B7",
+    "pos": [
+      -2000,
+      1100,
+      -2000
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -2000,
+        1100,
+        -2000
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:6"
+      ],
+      "i": [
+        "b:8"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "BODY ARMOR"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99B8",
+    "pos": [
+      -2000,
+      1100,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -2000,
+        1100,
+        0
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:7"
+      ],
+      "i": [
+        "b:17"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "PAL CARD"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  },
+  {
+    "type": "WATCHER",
+    "instance": "$s:99C1",
+    "pos": [
+      0,
+      0,
+      0
+    ],
+    "pos_option": "n",
+    "non_spatial": false,
+    "rot": "b:0",
+    "flags": 0,
+    "options": {
+      "n": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        "b:0"
+      ],
+      "b": [
+        "'P'"
+      ],
+      "a": [
+        "'S'"
+      ],
+      "f": [
+        0
+      ],
+      "l": [
+        5000
+      ]
+    },
+    "proc": "<script>",
+    "color": "#8B999A",
+    "source": "scenerio"
+  }
+]
