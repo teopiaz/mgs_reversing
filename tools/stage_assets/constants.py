@@ -29,8 +29,14 @@ SECTOR_SIZE = 2048
 # it never collides with either the framebuffer or texture pages.
 DEFAULT_TEXTURE_PX = 0
 DEFAULT_TEXTURE_PY = 256
+# CLUT row in the gap band y=224..255. The live game loads its
+# own font/menu CLUTs at y=240, so a stage's CLUTs there get
+# clobbered (textures load fine in VRAM but every face renders
+# black or with wrong colours). Park ours one row below at 241
+# — far enough not to conflict with the engine's own font data
+# yet still inside the safe gap. Bump if a future stage clashes.
 DEFAULT_CLUT_CX    = 0
-DEFAULT_CLUT_CY    = 240
+DEFAULT_CLUT_CY    = 241
 DEFAULT_TEXTURE_W  = 256
 DEFAULT_TEXTURE_H  = 256
 
