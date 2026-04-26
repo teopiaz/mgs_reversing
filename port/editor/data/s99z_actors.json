@@ -2,9 +2,13 @@
   {
     "type": "SNAKE",
     "instance": "SNAKE",
-    "pos": null,
-    "pos_option": null,
-    "non_spatial": true,
+    "pos": [
+      0,
+      0,
+      0
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
     "rot": [
       0,
       2048,
@@ -13,9 +17,9 @@
     "flags": null,
     "options": {
       "p": [
-        "$w:800010",
-        "$w:800012",
-        "$w:800014"
+        0,
+        0,
+        0
       ],
       "d": [
         0,
