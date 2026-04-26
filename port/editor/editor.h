@@ -175,6 +175,20 @@ typedef struct {
     int      rot_b;         /* "b:N" rotation, 0..255 = 0..360°. -1 if absent. */
     int      from_demo;     /* 1 if entry came from demo.gcl, 0 if scenerio. */
     void    *kmd_def;       /* DG_DEF * resolved at load. NULL = no model. */
+    /* Gameplay options harvested from data/<stage>_actors.json. -1 / empty
+     * when the option wasn't present on the chara line. Loaded only via
+     * the JSON path (TSV fallback leaves them all as -1 / empty). */
+    int      item_id;       /* ITEM `-i b:N` (linkvar.h IT_*) */
+    int      item_count;    /* ITEM `-n N` (count picked up) */
+    int      item_height;   /* ITEM `-h N` */
+    int      box_type;      /* ITEM `-b b:N` → KMD_BOX_01+N; -1 if absent */
+    int      vision_range;  /* WATCHER/COMMANDER `-l N` cone length */
+    char     behavior;      /* WATCHER `-b 'X'` single char (P/Z/S/...) */
+    char     alertness;     /* WATCHER `-a 'X'` single char */
+    int      flags_n;       /* `-f N` bitmask */
+    char     event_proc[32];/* TRAP / others `-e sub_XXXX` event handler */
+    char     init_proc[32]; /* `-y sub_XXXX` init handler */
+    char     message[32];   /* ITEM `-m` friendly name (e.g. "RATION") */
 } EdActor;
 
 extern EdActor *g_actors;
@@ -217,6 +231,7 @@ extern int g_show_axes;
 extern int g_show_actor_models;
 extern int g_show_actor_rotations;
 extern int g_show_trap_labels;
+extern int g_show_vision_cones;
 
 /* Render-side helpers for UI overlays and picking. Each works against the
    per-frame eye_inv captured by ed_render_frame. */
@@ -261,6 +276,15 @@ int  ed_stage_collect_entries(EdStageEntry *out, int max);
 /* Actor → KMD lookup. If a model is found, returns non-zero and writes a
    pointer to its DG_DEF in *out_def. Otherwise the cube marker is used. */
 int  ed_actor_kmd_for_type(const char *type, void **out_def);
+
+/* GM_Items[] catalog (linkvar.h IT_*). Returns a short lowercase name for
+ * the given item id, or "?" if out of range. Used for ITEM marker labels
+ * and the items inspector. */
+const char *ed_item_name(int item_id);
+
+/* RGB tint suggested for an item id (0xRRGGBB). Picks the family color
+ * (consumables green, equipment blue, key items yellow, ...). */
+uint32_t    ed_item_color(int item_id);
 
 /* World-space ray vs HZD trap / camera AABBs. On hit, sets the matching
    g_sel_* index, returns 1 (kind: 1=trap, 2=camera). 0 if no hit. */

@@ -27,6 +27,12 @@ static bool s_3dview_active = false;
 /* Index of the ortho pane (1=Top, 2=Front, 3=Side) currently hovered.
  * 0 = none. Used by the ortho cam pan/zoom handlers. */
 static int  s_ortho_active = 0;
+/* 3D View panel's image rect in OS-window screen coords, captured during
+ * draw_3dview_window. Used to map ed_world_to_screen 0..1 normalized
+ * coords to ImGui screen pixels for label overlays. Zero-sized when the
+ * panel hasn't drawn yet. */
+static ImVec2 s_3dview_origin = ImVec2(0, 0);
+static ImVec2 s_3dview_size   = ImVec2(0, 0);
 
 extern "C" int ed_ui_3dview_active(void) { return s_3dview_active ? 1 : 0; }
 extern "C" int ed_ui_ortho_active(void)  { return s_ortho_active; }
@@ -145,6 +151,9 @@ static bool stricontains(const char *hay, const char *needle)
    modes so actors without a resolved KMD still show as a cube — the
    curated type→KMD table only covers a handful of cases. */
 static int s_actor_mode = 1;
+/* ITEM markers get a small label showing the resolved item name (cigs /
+ * ration / box1 / ...) projected through the active 3D viewport. */
+static int g_show_item_labels = 1;
 
 static void apply_actor_mode(void)
 {
@@ -162,13 +171,20 @@ static void tab_actors(void)
     if (ImGui::Combo("display", &s_actor_mode, modes, 3)) apply_actor_mode();
     ImGui::SameLine();
     ImGui::Checkbox("rotations", (bool *)&g_show_actor_rotations);
+    ImGui::SameLine();
+    ImGui::Checkbox("item labels", (bool *)&g_show_item_labels);
+    ImGui::SameLine();
+    ImGui::Checkbox("vision cones", (bool *)&g_show_vision_cones);
 
     /* Filter + reload + save on one row. */
     ImGui::SetNextItemWidth(140);
     ImGui::InputTextWithHint("##filter", "filter type...", s_actor_filter, sizeof(s_actor_filter));
     ImGui::SameLine();
     char tsv_path[64];
-    std::snprintf(tsv_path, sizeof(tsv_path), "data/%s_actors.tsv",
+    /* Path is passed as JSON; ed_actors_load falls back to the sibling
+     * .tsv if no JSON is present. Save still writes TSV (the format the
+     * import pipeline reads back via tools/build_editor_data.py). */
+    std::snprintf(tsv_path, sizeof(tsv_path), "data/%s_actors.json",
                   g_stage.stage_name);
     if (ImGui::Button("Reload##actors")) ed_actors_load(tsv_path);
     ImGui::SameLine();
@@ -672,24 +688,71 @@ static void draw_help_window(void)
 /* (s_combo_idx / s_filter declared at the top of the file alongside the
    other inspector state.) */
 
-/* Floating overlay drawn on the background draw list — sits behind the
-   inspector window so it doesn't intercept clicks. */
+/* Map a normalized (sx, sy) ∈ [0,1]² coming from ed_world_to_screen()
+ * into the 3D View panel's screen-space rect. Returns 0 if the panel
+ * isn't yet sized; caller should skip drawing in that case. */
+static int viewport_to_panel(float sx_norm, float sy_norm,
+                             float *out_x, float *out_y)
+{
+    if (s_3dview_size.x <= 0 || s_3dview_size.y <= 0) return 0;
+    *out_x = s_3dview_origin.x + sx_norm * s_3dview_size.x;
+    *out_y = s_3dview_origin.y + sy_norm * s_3dview_size.y;
+    return 1;
+}
+
+/* Floating label overlay drawn on the foreground draw list. Foreground
+ * (not background) so the labels render on top of all panels — the 3D
+ * View panel's ImGui::Image otherwise hides them. Clipped to the panel
+ * rect so labels don't bleed onto adjacent docked windows. */
 static void draw_trap_labels(void)
 {
     if (!g_show_trap_labels || !g_stage.hzd_map) return;
     EdHzdLabel labels[256];
     int n = ed_hzd_collect_trap_labels(labels, 256);
     if (n <= 0) return;
-    ImGuiIO &io = ImGui::GetIO();
-    ImDrawList *dl = ImGui::GetBackgroundDrawList();
+    ImDrawList *dl = ImGui::GetForegroundDrawList();
     ImU32 col = IM_COL32(180, 255, 80, 220);
     ImU32 sh  = IM_COL32(0, 0, 0, 200);
+    dl->PushClipRect(s_3dview_origin,
+                     ImVec2(s_3dview_origin.x + s_3dview_size.x,
+                            s_3dview_origin.y + s_3dview_size.y), true);
     for (int i = 0; i < n; i++) {
-        float x = labels[i].sx * io.DisplaySize.x;
-        float y = labels[i].sy * io.DisplaySize.y;
+        float x, y;
+        if (!viewport_to_panel(labels[i].sx, labels[i].sy, &x, &y)) continue;
         dl->AddText(ImVec2(x + 1, y + 1), sh, labels[i].name);
         dl->AddText(ImVec2(x,     y    ), col, labels[i].name);
     }
+    dl->PopClipRect();
+}
+
+static void draw_item_labels(void)
+{
+    if (!g_show_item_labels) return;
+    if (s_3dview_size.x <= 0 || s_3dview_size.y <= 0) return;
+    ImDrawList *dl = ImGui::GetForegroundDrawList();
+    dl->PushClipRect(s_3dview_origin,
+                     ImVec2(s_3dview_origin.x + s_3dview_size.x,
+                            s_3dview_origin.y + s_3dview_size.y), true);
+    for (int i = 0; i < g_actor_count; i++) {
+        EdActor *a = &g_actors[i];
+        if (!a->has_pos) continue;
+        if (std::strcmp(a->type, "ITEM") != 0) continue;
+        float sx, sy;
+        if (!ed_world_to_screen(a->pos[0], a->pos[1], a->pos[2], &sx, &sy))
+            continue;
+        float x, y;
+        if (!viewport_to_panel(sx, sy, &x, &y)) continue;
+        const char *name = (a->item_id >= 0) ? ed_item_name(a->item_id) : "?";
+        uint32_t rgb = (a->item_id >= 0) ? ed_item_color(a->item_id) : 0xC0C0C0;
+        ImU32 col = IM_COL32((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 235);
+        ImU32 sh  = IM_COL32(0, 0, 0, 200);
+        /* Offset slightly above-right of the marker so the cube/model is
+         * still visible underneath. */
+        x += 6.0f; y -= 6.0f;
+        dl->AddText(ImVec2(x + 1, y + 1), sh, name);
+        dl->AddText(ImVec2(x,     y    ), col, name);
+    }
+    dl->PopClipRect();
 }
 
 /* Click anywhere in the viewport (i.e. not on an ImGui window) to pick the
@@ -803,6 +866,11 @@ static void draw_3dview_window(void)
         }
         bool img_hover = ImGui::IsItemHovered();
         s_3dview_active = ImGui::IsWindowHovered() || ImGui::IsWindowFocused();
+        /* Capture the image rect for label overlays (item / trap names
+         * project through the 3D viewport's matrix, so their normalized
+         * coords need to land inside *this* panel — not the OS window). */
+        s_3dview_origin = img_pos;
+        s_3dview_size   = ImVec2((float)iw, (float)ih);
 
         /* Hover-only wheel: dolly in fly mode, scale orbit_dist in orbit mode. */
         if (img_hover) {
@@ -938,6 +1006,7 @@ extern "C" void ed_ui_draw(void)
     draw_ortho_window("Side (YZ)",  GL_VIEWPORT_SIDE,  &g_side_cam,  3);
 
     draw_trap_labels();
+    draw_item_labels();
     handle_viewport_pick();
     handle_actor_cycle();
     handle_global_shortcuts();
