@@ -54,12 +54,33 @@ def parse_mtl(path: Path) -> dict:
     return out
 
 
+def _detect_blender_export(text: str) -> bool:
+    """True iff the OBJ has a Blender header. Blender's default exporter
+    writes `# Blender X.Y.Z` followed by `# www.blender.org` in the
+    first two lines."""
+    for raw in text.splitlines()[:5]:
+        s = raw.strip().lower()
+        if s.startswith("# blender") or "blender.org" in s:
+            return True
+    return False
+
+
 def parse_obj(path: Path) -> ObjMesh:
-    """Parse an OBJ file. Triangulates polygons via fan from vertex 0."""
+    """Parse an OBJ file. Triangulates polygons via fan from vertex 0.
+
+    Blender → PSX axis fix: Blender's default OBJ exporter writes +Y up
+    (right-handed). MGS PSX uses +Y down; without an axis fix every
+    Blender-authored stage comes out flipped vertically (walls hang
+    below the floor, ceilings render below the ground). When the OBJ
+    header identifies Blender as the source, negate Y at parse time so
+    callers always see PSX-convention coordinates."""
+    text = path.read_text(errors="replace")
+    flip_y_for_blender = _detect_blender_export(text)
+
     mesh = ObjMesh()
     cur_mat = None
 
-    for raw in path.read_text(errors="replace").splitlines():
+    for raw in text.splitlines():
         # Strip trailing inline comments before tokenising — Blender's
         # OBJ exporter doesn't emit any but our hand-authored demo does.
         if "#" in raw:
@@ -71,7 +92,10 @@ def parse_obj(path: Path) -> ObjMesh:
         kw = toks[0]
 
         if kw == "v" and len(toks) >= 4:
-            mesh.positions.append((float(toks[1]), float(toks[2]), float(toks[3])))
+            x, y, z = float(toks[1]), float(toks[2]), float(toks[3])
+            if flip_y_for_blender:
+                y = -y
+            mesh.positions.append((x, y, z))
         elif kw == "vt" and len(toks) >= 3:
             # OBJ Y-down convention: V=0 is top in most exports already, but
             # Blender flips it. We store the raw value; the KMD writer maps
