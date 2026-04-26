@@ -19,7 +19,12 @@
 #include <sys/mman.h>
 #include <stdint.h>
 
-#define GV_NORMAL_MEMORY_SIZE   0x200000   /* 2 MiB */
+/* GV_NORMAL_MEMORY holds stage data (KMDs, HZDs, textures, GCL bytecode).
+ * The PSX shipped with 2 MiB RAM total, so disc stages stay well under that.
+ * Custom stages from tools/import_stage.py can blow past it though — a heavy
+ * Blender export easily hits 5+ MiB. We're not running on PSX hardware so
+ * bump it to 32 MiB; covers any reasonable hand-authored stage with margin. */
+#define GV_NORMAL_MEMORY_SIZE   0x2000000  /* 32 MiB */
 #define GV_PACKET_MEMORY_SIZE   0x200000   /* 2 MiB each (PSX was 188KB; 64-bit structs ~2x larger) */
 #define PORT_MALLOC_POOL_SIZE   0x400000   /* 4 MiB */
 #define TOTAL_POOL_SIZE (GV_NORMAL_MEMORY_SIZE + GV_PACKET_MEMORY_SIZE * 2 + PORT_MALLOC_POOL_SIZE)

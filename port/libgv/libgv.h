@@ -20,7 +20,9 @@ extern void *port_packet_memory0;
 extern void *port_packet_memory1;
 
 #define GV_NORMAL_MEMORY_TOP    port_normal_memory
-#define GV_NORMAL_MEMORY_SIZE   0x200000  /* 2 MiB (port enlarged) */
+#define GV_NORMAL_MEMORY_SIZE   0x2000000 /* 32 MiB — fits heavy custom
+                                            stages from import_stage.py.
+                                            Must match port_memory.c. */
 #define GV_PACKET_MEMORY0_TOP   port_packet_memory0
 #define GV_PACKET_MEMORY1_TOP   port_packet_memory1
 #define GV_PACKET_MEMORY_SIZE   0x80000   /* 512 KiB (port enlarged) */
