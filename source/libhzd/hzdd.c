@@ -130,7 +130,24 @@ HZD_HDL *HZD_MakeHandler(HZD_DEF *hzd, int areaIndex, int dynamic_segments, int 
         zones = cached_route;
     }
 
+#ifdef PORT_BUILD
+    /* Port: pointer arrays must be sized in sizeof(void*) — PSX hard-coded
+     * 4-byte pointers, but on 64-bit they're 8 bytes. The original
+     * `(4 * dynamic_floors) + (4 * dynamic_segments)` under-allocates by
+     * half, so the floor / segment / flags arrays overlap and the first
+     * dynamic-segment write (e.g. door.c's HZD_QueueDynamicSegment2 from
+     * DoorInitHzdSegments_8006F7AC) clobbers the floor pointer table.
+     * Per-frame collision then walks bogus pointers and the engine
+     * locks up — the symptom that surfaced when adding a `chara &DOOR`
+     * to a custom stage.  */
+    size_t alloc_size = sizeof(HZD_HDL)
+                      + sizeof(void *) * dynamic_floors
+                      + sizeof(void *) * dynamic_segments
+                      + 2 * dynamic_segments;
+    hzdMap = (HZD_HDL *)GV_Malloc((int)alloc_size);
+#else
     hzdMap = (HZD_HDL *)GV_Malloc((4 * dynamic_floors) + sizeof(HZD_HDL) + (4 * dynamic_segments) + (2 * dynamic_segments));
+#endif
     if (hzdMap)
     {
         hzdMap->dynamic_floors = (void *)&hzdMap[1];

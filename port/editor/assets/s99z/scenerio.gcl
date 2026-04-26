@@ -56,6 +56,31 @@ script {
         -t 90
     mesg &SNAKE $s:f9ad &HASH_MAIN
 
+
+    # A sliding door near the south wall of the room. door_dd is a
+    # *two-leaf* sliding door (left + right halves), so `-t b:2` is
+    # mandatory — without it Door::leaf_count = 1 but the KMD ships
+    # 2 model parts, and Act() spins on a queue mismatch (the engine
+    # never reaches a stable state). Disc reference: d11c's door.
+    #
+    #   -p X Y Z       : world position (centre, on the floor).
+    #   -d 0 yaw 0     : rotation; yaw 0 leaves the door's local +Z
+    #                    facing +Z, i.e. it slides east–west along X.
+    #   -m $s:6E28     : door_dd KMD (bundled by import_stage.py via
+    #                    tools/stage_assets/bundled/door_dd.kmd).
+    #   -t b:2         : 2-leaf slider (REQUIRED for door_dd).
+    #   -w 1500        : slide-open width (PSX units).
+    #   -s 70          : slide speed.
+    #   -u 500         : interaction radius / button-press distance.
+    chara &DOOR $s:0cb2 \
+        -p 0 0 -4000
+        -d 0 0 0
+        -m $s:6E28
+        -t b:2
+        -w 1500
+        -s 70
+        -u 500
+
     # ---- 8 ITEM actors arranged in a circle around the centre. -----
     # Each one uses a different -b box variant (KMD_BOX_01..08) and
     # a different -i pickup id so the editor's palette colors and
@@ -136,4 +161,26 @@ script {
     # HZD_TRP records — visible in the editor's HZD tab. Wiring the
     # GCL `trap` directive to a handler is queued for a later wave
     # (the proc-binding side is intentionally inert here).
+
+
+
+#    chara &DOOR $s:59e3 \
+#        -p 500 0 2250        # position (centre of doorway, on the floor)
+#        -d 0 0 0             # rotation
+#        -m $s:6e28           # KMD hash for the door visual
+#        -t b:2               # type / animation style
+#        -w 1500              # door slide width
+#        -r -2000             # slide direction (signed)
+
+
+ 
+
+
+    # trap $s:c776 $s:21ca $s:0dd2 {
+    #     if (!$f:040002) {              # haven't opened yet
+    #         eval($f:040002 = true)     # mark opened
+    #         mesg $s:dd6d $s:0e4e       # tell door to open
+    #         sound -x sd:01010001       # play door SFX
+    #     }
+    # }
 }

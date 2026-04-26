@@ -145,19 +145,28 @@ def build_stage(name: str,
         (kmd_hash, 'h', hzd_blob),
     ]
 
-    # Bundle item KMDs (box_01..box_08) into every custom stage. Without
-    # them `chara &ITEM ... -i b:13` (and any other item id) silently
-    # drops the actor — see source/game/item.c GetResources, which now
-    # NULL-guards a missing body.objs and returns -1. The blobs were
-    # extracted from the disc once via tools/extract_disc_assets.py.
+    # Bundle generic actor KMDs into every custom stage. Without them,
+    # `chara &ITEM ... -i b:13` (and any other item id) silently drops
+    # the actor (source/game/item.c GetResources NULL-guards a missing
+    # body.objs and returns -1), and `chara &DOOR ... -m $s:6E28` makes
+    # the engine spin re-running the script when the KMD cache lookup
+    # misses. The blobs were extracted from the disc once via
+    # tools/extract_disc_assets.py.
     bundled_dir = REPO / "tools" / "stage_assets" / "bundled"
-    for i in range(1, 9):
-        blob_path = bundled_dir / f"box_{i:02d}.kmd"
+    BUNDLED_KMD_NAMES = (
+        # Item pickups — box_01..08 = KMD_BOX_01..08 in source/game/item.c.
+        [f"box_{i:02d}" for i in range(1, 9)]
+        # Generic sliding door from d11c. Reference from a custom stage
+        # via `chara &DOOR ... -m $s:6E28` (= gv_strcode("door_dd")).
+        + ["door_dd"]
+    )
+    for kmd_name in BUNDLED_KMD_NAMES:
+        blob_path = bundled_dir / f"{kmd_name}.kmd"
         if not blob_path.is_file():
             continue
-        h = gv_strcode(f"box_{i:02d}")
+        h = gv_strcode(kmd_name)
         resident_entries.append((h, 'k', blob_path.read_bytes()))
-        print(f"[import] bundled  : box_{i:02d}.kmd "
+        print(f"[import] bundled  : {kmd_name}.kmd "
               f"(hash 0x{h:04X}, {blob_path.stat().st_size} B)")
 
     cache_blobs = [(gv_strcode("scenerio"), 'g', gcx_blob)]

@@ -1,4 +1,5 @@
 SNAKE	SNAKE	0	0	0	#D0A1C6	<script>	[0, 2048, 0]	0
+DOOR	$s:0CB2	0	0	-4000	#8BCF66	<script>	[0, 0, 0]	0
 ITEM	$s:99B1	-2000	1100	2000	#929D77	<script>		0
 ITEM	$s:99B2	0	1100	2000	#929D77	<script>		0
 ITEM	$s:99B3	2000	1100	2000	#929D77	<script>		0
