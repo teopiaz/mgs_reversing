@@ -9,6 +9,12 @@
 #include <stdbool.h>
 #include <SDL.h>
 
+#ifdef __APPLE__
+#include <OpenGL/gl3.h>
+#else
+#include <GL/glcorearb.h>
+#endif
+
 #include "libdg/gl_renderer.h"
 #include "editor.h"
 
@@ -157,6 +163,11 @@ int main(int argc, char *argv[])
     if (editor_init_window() < 0) return 1;
     ed_ui_init(g_window);
 
+    /* Hammer-style docking: the rendered FBO is shown via ImGui::Image
+     * inside a dockable "3D View" panel, so suppress the FBO->window
+     * blit (it would just paint behind the dockspace gutters). */
+    gl_renderer_set_present_to_window(0);
+
     editor_engine_init();
     GM_LoadComplete = 1;
     if (ed_load_stage(start_stage) != 0) {
@@ -177,7 +188,10 @@ int main(int argc, char *argv[])
         prev = now;
 
         editor_poll();
-        if (!ed_ui_wants_keyboard())
+        /* Camera input only when the 3D View panel is hovered/focused. The
+         * 3D View flag is updated by ed_ui_draw, so it lags by 1 frame —
+         * fine for input that's already integrated over dt. */
+        if (ed_ui_3dview_active())
             ed_camera_update(dt, g_mouse_dx, g_mouse_dy, g_rmb_held);
 
         ed_ui_new_frame();
@@ -188,7 +202,19 @@ int main(int argc, char *argv[])
 
         ed_render_frame();   /* KMD map + HZD overlay + actor markers */
 
-        gl_renderer_present();
+        gl_renderer_present();   /* renders into FBO; blit-to-window suppressed */
+
+        /* Clear the default framebuffer to dock-gutter dark grey. ImGui's
+         * dockspace + windows paint on top; the 3D View panel samples the
+         * FBO via ImGui::Image so the rendered scene shows there. */
+        {
+            int fb_w = 0, fb_h = 0;
+            SDL_GL_GetDrawableSize(g_window, &fb_w, &fb_h);
+            glViewport(0, 0, fb_w, fb_h);
+            glClearColor(0.08f, 0.08f, 0.10f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+        }
+
         ed_ui_render();
         SDL_GL_SwapWindow(g_window);
     }

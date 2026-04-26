@@ -162,6 +162,25 @@ void gl_renderer_stats(int *out_tri_verts, int *out_line_verts);
  * dimensions, which are private to gl_renderer.c. */
 int gl_renderer_save_ppm(const char *path);
 
+/* --- Editor docking integration ------------------------------------------ */
+
+/* Resize the hi-res FBO to (w, h). Safe to call between frames. Re-allocates
+ * the color texture and depth renderbuffer if the size changed. The editor
+ * uses this to match the FBO to the dockable "3D View" panel's content
+ * region. Both dims clamped to >= 1. */
+void gl_renderer_resize_fbo(int w, int h);
+
+/* Returns the GL texture name (uint cast to uintptr_t for ImGui::Image). The
+ * texture is updated in-place every call to gl_renderer_present(). 0 if the
+ * renderer hasn't initialised yet. */
+unsigned int gl_renderer_get_fbo_color(void);
+
+/* Suppress the FBO->window blit at the end of gl_renderer_present(). The
+ * editor's docking layout shows the FBO via ImGui::Image instead, so the
+ * full-window blit would just paint behind the dockspace gutters. Defaults
+ * to 0 (blit on); the editor sets it to 1 at startup. */
+void gl_renderer_set_present_to_window(int on);
+
 #ifdef __cplusplus
 }
 #endif

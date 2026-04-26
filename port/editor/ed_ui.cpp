@@ -2,6 +2,7 @@
    camera controls. Replaces port/imgui_debug.cpp for the editor binary. */
 
 #include "imgui.h"
+#include "imgui_internal.h"  /* DockBuilder* APIs (still internal in 1.92) */
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_opengl3.h"
 #include <SDL.h>
@@ -10,6 +11,7 @@
 
 extern "C" {
 #include "editor.h"
+#include "libdg/gl_renderer.h"
 void port_vram_toggle_debug(void);
 int  port_vram_debug_view(void);
 void gl_renderer_stats(int *out_tri_verts, int *out_line_verts);
@@ -18,6 +20,12 @@ extern int gl_debug_wireframe;
 extern int gl_debug_skip_lines;
 extern int gl_debug_no_textures;
 }
+
+/* True iff the dockable "3D View" panel is hovered or focused this frame.
+ * Camera input gates on this so RMB-drag doesn't fight panel interaction. */
+static bool s_3dview_active = false;
+
+extern "C" int ed_ui_3dview_active(void) { return s_3dview_active ? 1 : 0; }
 
 #include <ctime>
 
@@ -63,6 +71,11 @@ extern "C" void ed_ui_init(void *sdl_window)
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    /* Hammer-style dockable layout: 3D View + side panels can be torn off,
+     * rearranged, and saved to imgui.ini. The PassthruCentralNode flag is
+     * used at the DockSpace call site so the empty central area renders
+     * transparent until the user docks something into it. */
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     ImGui::StyleColorsDark();
 
     ImGui_ImplSDL2_InitForOpenGL((SDL_Window *)sdl_window, SDL_GL_GetCurrentContext());
@@ -652,9 +665,76 @@ static void handle_global_shortcuts(void)
     if (ImGui::IsKeyPressed(ImGuiKey_G)) s_goto_open = true;
 }
 
+/* Dockable "3D View" panel: shows the rendered FBO via ImGui::Image, resizes
+ * the FBO to match the panel content region, and tracks hover/focus so the
+ * camera input only fires when the user is interacting with this view. */
+static void draw_3dview_window(void)
+{
+    /* No padding so the image fills the panel exactly. */
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(640, 480), ImGuiCond_FirstUseEver);
+    bool open = ImGui::Begin("3D View", NULL, ImGuiWindowFlags_NoCollapse);
+    if (open) {
+        ImVec2 sz = ImGui::GetContentRegionAvail();
+        int iw = (int)sz.x, ih = (int)sz.y;
+        if (iw > 0 && ih > 0) gl_renderer_resize_fbo(iw, ih);
+
+        unsigned int tex = gl_renderer_get_fbo_color();
+        if (tex && iw > 0 && ih > 0) {
+            /* PSX FBO has +Y down; ImGui texture coords are top-left = (0,0)
+             * but GL textures are bottom-left = (0,0). Flip V to display
+             * upright by mapping uv0=(0,1) bottom-left and uv1=(1,0) top-right. */
+            ImGui::Image((ImTextureID)(intptr_t)tex,
+                         ImVec2((float)iw, (float)ih),
+                         ImVec2(0, 1), ImVec2(1, 0));
+        }
+        s_3dview_active = ImGui::IsWindowHovered() || ImGui::IsWindowFocused();
+    } else {
+        s_3dview_active = false;
+    }
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+/* First-run dock layout: 3D View takes the centre, inspector docks to the
+ * left. Run once when no imgui.ini is found (DockBuilder needs an empty
+ * dock to stamp the layout). */
+static void build_default_dock_layout(ImGuiID dock_id)
+{
+    ImGui::DockBuilderRemoveNodeChildNodes(dock_id);
+    ImGui::DockBuilderSetNodeSize(dock_id, ImGui::GetMainViewport()->Size);
+
+    ImGuiID left, center;
+    ImGui::DockBuilderSplitNode(dock_id, ImGuiDir_Left, 0.22f, &left, &center);
+
+    ImGui::DockBuilderDockWindow("MGS Stage Editor", left);
+    ImGui::DockBuilderDockWindow("3D View", center);
+    ImGui::DockBuilderFinish(dock_id);
+}
+
 extern "C" void ed_ui_draw(void)
 {
     if (!s_initialized) return;
+
+    /* Top-level DockSpace: covers the entire OS window. Other windows
+     * (3D View, inspector tabs, help) dock into it. PassthruCentralNode
+     * keeps the empty centre transparent (we paint the dark grey clear
+     * underneath in main.c). */
+    ImGuiID dock_id =
+        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(),
+                                     ImGuiDockNodeFlags_PassthruCentralNode);
+
+    /* On first launch (no saved layout), stamp a sensible default. */
+    static bool dock_layout_built = false;
+    if (!dock_layout_built) {
+        ImGuiDockNode *node = ImGui::DockBuilderGetNode(dock_id);
+        if (!node || node->IsLeafNode()) {
+            build_default_dock_layout(dock_id);
+        }
+        dock_layout_built = true;
+    }
+
+    draw_3dview_window();
 
     draw_trap_labels();
     handle_viewport_pick();
