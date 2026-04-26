@@ -276,6 +276,92 @@ static void tab_hzd(void)
     hzd_list_table("routes##list",  &g_sel_route,  ed_hzd_count_routes,  ed_hzd_get_route);
 }
 
+/* Format byte count as KiB / MiB depending on size. Same convention as
+ * the rest of the engine debug output. */
+static void fmt_bytes(char *buf, size_t buflen, int bytes)
+{
+    if (bytes >= 1024 * 1024)
+        std::snprintf(buf, buflen, "%.1f MiB", bytes / (1024.0 * 1024.0));
+    else if (bytes >= 1024)
+        std::snprintf(buf, buflen, "%.1f KiB", bytes / 1024.0);
+    else
+        std::snprintf(buf, buflen, "%d B", bytes);
+}
+
+/* Diagnostic tab: live counters for memory pools, texture cache, actor
+ * list, and stage geometry. Read-only; useful for spotting leaks during
+ * stage authoring iteration. */
+static void tab_info(void)
+{
+    /* --- Memory pools (GV heap) --- */
+    EdMemStats mem;
+    ed_collect_memory_stats(&mem);
+    {
+        char tot[24], used[24];
+        fmt_bytes(tot,  sizeof(tot),  mem.total);
+        fmt_bytes(used, sizeof(used), mem.used);
+        ImGui::Text("Memory: %s used / %s total", used, tot);
+        if (mem.total > 0) {
+            float frac = (float)mem.used / (float)mem.total;
+            ImGui::ProgressBar(frac, ImVec2(-1, 0));
+        }
+    }
+    if (ImGui::BeginTable("mem_heaps", 5, ImGuiTableFlags_RowBg |
+            ImGuiTableFlags_BordersInnerH)) {
+        ImGui::TableSetupColumn("Pool");
+        ImGui::TableSetupColumn("Used");
+        ImGui::TableSetupColumn("Free");
+        ImGui::TableSetupColumn("Largest free");
+        ImGui::TableSetupColumn("Allocs");
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < 3; i++) {
+            EdHeapStat *h = &mem.heap[i];
+            char u[24], f[24], m[24];
+            fmt_bytes(u, sizeof(u), h->used);
+            fmt_bytes(f, sizeof(f), h->freed);
+            fmt_bytes(m, sizeof(m), h->max_free_block);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(h->name);
+            ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(u);
+            ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(f);
+            ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(m);
+            ImGui::TableSetColumnIndex(4); ImGui::Text("%d", h->n_units);
+        }
+        ImGui::EndTable();
+    }
+    ImGui::Separator();
+
+    /* --- Textures (DG_TEX cache → PSX VRAM) --- */
+    EdTexStats tex;
+    ed_collect_texture_stats(&tex);
+    {
+        char vb[24];
+        fmt_bytes(vb, sizeof(vb), tex.vram_bytes);
+        ImGui::Text("Textures: %d active   VRAM %s   pixels %d",
+                    tex.n_textures, vb, tex.vram_pixels);
+        ImGui::Text("by bpp: 4 = %d   8 = %d   16 = %d",
+                    tex.n_4bpp, tex.n_8bpp, tex.n_16bpp);
+        ImGui::TextDisabled("(PSX VRAM is 1 MiB — frame buffer + textures share it)");
+    }
+    ImGui::Separator();
+
+    /* --- Actors --- */
+    EdActorStats act;
+    ed_collect_actor_stats(&act);
+    ImGui::Text("Actors: %d total", act.total);
+    ImGui::Text("  with pos %d   with model %d   with rotation %d",
+                act.with_pos, act.with_model, act.with_rotation);
+    ImGui::Text("  source: scen %d   demo %d", act.from_scen, act.from_demo);
+    ImGui::Separator();
+
+    /* --- Stage geometry --- */
+    EdGeomStats geom;
+    ed_collect_geom_stats(&geom);
+    ImGui::Text("Geometry: %d KMD%s   %d models   %d faces   %d verts",
+                geom.n_kmds, geom.n_kmds == 1 ? "" : "s",
+                geom.n_models, geom.n_faces, geom.n_vertices);
+}
+
 /* Combined Scene tab — stage picker + view toggles + cache table. The
    stage picker is the most-used widget so it goes at the very top. */
 static void tab_scene(void)
@@ -883,6 +969,7 @@ extern "C" void ed_ui_draw(void)
             if (ImGui::BeginTabItem("Camera"))  { tab_camera();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Actors"))  { tab_actors();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("HZD"))     { tab_hzd();     ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Info"))    { tab_info();    ImGui::EndTabItem(); }
             ImGui::EndTabBar();
         }
     }

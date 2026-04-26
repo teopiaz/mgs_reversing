@@ -128,7 +128,14 @@ static void editor_poll(void)
             if (e.key.keysym.sym == SDLK_HOME) ed_camera_default();
             break;
         case SDL_MOUSEBUTTONDOWN:
-            if (e.button.button == SDL_BUTTON_RIGHT && !ed_ui_wants_mouse())
+            /* Once the 3D View is a docked ImGui window, ed_ui_wants_mouse()
+             * is always true while the cursor is over it, which would block
+             * camera RMB-drag. Allow it when the 3D View pane is the hovered
+             * one — ed_ui_3dview_active() is set by ImGui's IsWindowHovered
+             * the previous frame, which is fine for a click that's already
+             * inside the panel. */
+            if (e.button.button == SDL_BUTTON_RIGHT &&
+                (!ed_ui_wants_mouse() || ed_ui_3dview_active()))
                 g_rmb_held = 1;
             break;
         case SDL_MOUSEBUTTONUP:

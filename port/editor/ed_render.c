@@ -301,3 +301,102 @@ int ed_compute_active_aabb(float bmin[3], float bmax[3])
     if (ed_compute_selection_aabb(bmin, bmax)) return 1;
     return ed_compute_stage_aabb(bmin, bmax);
 }
+
+/* ---------------------------------------------------------------------------
+ * Diagnostic stats collectors. Walk the live GV heap table, the DG texture
+ * cache, and the actor + KMD list to fill out the Info-tab counters. The
+ * heap walk mirrors GV_CheckMemorySystem in source/libgv/memory.c (which
+ * only printf's; we want the numbers in the inspector). MemorySystems_*
+ * lives in source/data/bss.c with external linkage — we just declare it
+ * extern here. Same for TexSets in source/libdg/text.c. */
+
+extern GV_HEAP MemorySystems_800AD2F0[GV_MEMORY_MAX];
+extern DG_TEX  TexSets[DG_MAX_TEXTURES];
+
+static void collect_one_heap(int which, EdHeapStat *out)
+{
+    GV_HEAP *heap = &MemorySystems_800AD2F0[which];
+    out->total = (int)((char *)heap->end - (char *)heap->start);
+    out->used = 0;
+    out->freed = 0;
+    out->max_free_block = 0;
+    out->n_units = heap->used;
+    GV_ALLOC *alloc = &heap->units[0];
+    for (int i = heap->used; i > 0; i--, alloc++) {
+        int size = (int)((char *)alloc[1].start - (char *)alloc[0].start);
+        if (alloc->state == GV_ALLOC_STATE_FREE) {
+            out->freed += size;
+            if (size > out->max_free_block) out->max_free_block = size;
+        } else {
+            /* USED + VOIDED both count as taken (VOIDED is reserved). */
+            out->used += size;
+        }
+    }
+}
+
+void ed_collect_memory_stats(EdMemStats *out)
+{
+    static const char *names[3] = { "PACKET0", "PACKET1", "NORMAL" };
+    out->total = 0; out->used = 0; out->freed = 0;
+    for (int i = 0; i < 3; i++) {
+        out->heap[i].name = names[i];
+        collect_one_heap(i, &out->heap[i]);
+        out->total += out->heap[i].total;
+        out->used  += out->heap[i].used;
+        out->freed += out->heap[i].freed;
+    }
+}
+
+void ed_collect_texture_stats(EdTexStats *out)
+{
+    out->n_textures = 0;
+    out->n_4bpp = out->n_8bpp = out->n_16bpp = 0;
+    out->vram_pixels = 0;
+    out->vram_bytes  = 0;
+    for (int i = 0; i < DG_MAX_TEXTURES; i++) {
+        DG_TEX *t = &TexSets[i];
+        if (!t->used) continue;
+        out->n_textures++;
+        int pixels = ((int)t->w + 1) * ((int)t->h + 1);
+        out->vram_pixels += pixels;
+        /* PSX tpage bits 7..8: 0 = 4bpp, 1 = 8bpp, 2 = 16bpp. */
+        int bpp = (t->tpage >> 7) & 3;
+        if (bpp == 0)      { out->n_4bpp++;  out->vram_bytes += pixels / 2; }
+        else if (bpp == 1) { out->n_8bpp++;  out->vram_bytes += pixels; }
+        else               { out->n_16bpp++; out->vram_bytes += pixels * 2; }
+    }
+}
+
+void ed_collect_actor_stats(EdActorStats *out)
+{
+    out->total         = g_actor_count;
+    out->with_pos      = 0;
+    out->with_model    = 0;
+    out->with_rotation = 0;
+    out->from_demo     = 0;
+    out->from_scen     = 0;
+    for (int i = 0; i < g_actor_count; i++) {
+        EdActor *a = &g_actors[i];
+        if (a->has_pos)   out->with_pos++;
+        if (a->kmd_def)   out->with_model++;
+        if (a->rot_b >= 0) out->with_rotation++;
+        if (a->from_demo) out->from_demo++; else out->from_scen++;
+    }
+}
+
+void ed_collect_geom_stats(EdGeomStats *out)
+{
+    out->n_kmds = 0; out->n_models = 0; out->n_faces = 0; out->n_vertices = 0;
+    if (!g_stage.loaded) return;
+    for (int i = 0; i < g_stage.n_map_defs; i++) {
+        DG_DEF *d = (DG_DEF *)g_stage.map_defs[i];
+        if (!d) continue;
+        out->n_kmds++;
+        out->n_models += d->n_models;
+        for (int mi = 0; mi < d->n_models; mi++) {
+            DG_MDL *mdl = &d->model[mi];
+            out->n_faces    += mdl->n_faces;
+            out->n_vertices += mdl->n_verts;
+        }
+    }
+}
