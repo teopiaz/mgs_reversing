@@ -727,6 +727,18 @@ static int GetResources(ItemWork *work, int name, int where)
 
     body = &work->body;
     GM_InitObjectNoRots(body, KMD_BOX_01 + type, BODY_FLAG, 0);
+#ifdef PORT_BUILD
+    /* Port: bail out if the box KMD wasn't in cache (custom stages
+       without item models loaded). The original code falls through and
+       Act() NULL-derefs body.objs on the next tick. Silently dropping
+       the item is the least-bad option. */
+    if (!body->objs) {
+        fprintf(stderr,
+            "[item] KMD_BOX_%02d (hash=0x%X) not in cache — dropping item id=%d\n",
+            type + 1, KMD_BOX_01 + type, work->id);
+        return -1;
+    }
+#endif
     GM_ConfigObjectJoint((OBJECT *)body);
     GM_ConfigObjectLight((OBJECT *)body, work->light);
     GM_ConfigObjectStep((OBJECT *)body, &work->control.step);
