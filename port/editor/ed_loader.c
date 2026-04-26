@@ -193,7 +193,9 @@ int ed_load_stage(const char *stage_name)
        scenerio.gcl). Missing file is fine — most stages don't have a
        decompile yet. */
     char tsv_path[64];
-    snprintf(tsv_path, sizeof(tsv_path), "data/%s_actors.tsv", name_buf);
+    /* Pass the JSON path; ed_actors_load prefers JSON and falls back to
+     * the sibling .tsv if the JSON isn't present yet. */
+    snprintf(tsv_path, sizeof(tsv_path), "data/%s_actors.json", name_buf);
     ed_actors_load(tsv_path);
 
     return g_stage.loaded ? 0 : -1;
