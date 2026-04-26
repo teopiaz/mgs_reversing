@@ -25,6 +25,65 @@ from constants import GclCode, GclCommand, GclOperator
 from gcx import GclNode
 
 
+# ----------------------------------------------------------- error reporting
+
+def _pos_to_line_col(src: str, pos: int) -> tuple[int, int, int]:
+    """Convert a byte offset into (line_1based, col_1based, line_start_offset).
+    Lines are split on '\\n'; tab is counted as one column (close enough)."""
+    pos = max(0, min(pos, len(src)))
+    line_start = src.rfind("\n", 0, pos) + 1
+    line = src.count("\n", 0, pos) + 1
+    col = pos - line_start + 1
+    return line, col, line_start
+
+
+def format_source_error(src: str, pos: int, msg: str,
+                        path=None, context_lines: int = 1) -> str:
+    """Render a multi-line error with `path:line:col`, the offending
+    source line(s), and a caret pointing at the column. Suitable to be
+    fed straight to `raise SyntaxError(...)` or printed.
+
+    Output matches the de-facto Python/clang convention so editors can
+    parse it and jump to the offending line."""
+    if not src:
+        return f"{msg} at offset {pos}"
+    line, col, line_start = _pos_to_line_col(src, pos)
+    # Slice out N lines before + the error line + N lines after.
+    lines = src.split("\n")
+    lo = max(0, line - 1 - context_lines)
+    hi = min(len(lines), line + context_lines)
+    where = f"{path}:" if path else ""
+    out = [f"{where}{line}:{col}: {msg}"]
+    width = len(str(hi))
+    for i in range(lo, hi):
+        marker = ">" if (i + 1) == line else " "
+        out.append(f"  {marker} {str(i + 1).rjust(width)} | {lines[i]}")
+        if (i + 1) == line:
+            # caret line: spaces matching the rendered prefix, then a ^ at
+            # the column. Tabs in the source are echoed as tabs so the
+            # caret stays aligned.
+            prefix = "    " + " " * width + " | "
+            pad = []
+            for ch in lines[i][: max(0, col - 1)]:
+                pad.append("\t" if ch == "\t" else " ")
+            out.append(prefix + "".join(pad) + "^")
+    return "\n".join(out)
+
+
+class GclSyntaxError(SyntaxError):
+    """SyntaxError carrying the source text + path so callers (e.g. the
+    importer) can re-render the message after catching, or just print
+    str(exc) and get a clang-style annotated snippet."""
+
+    def __init__(self, src: str, pos: int, msg: str, path=None):
+        self.src = src
+        self.pos = pos
+        self.path = path
+        self.short_msg = msg
+        rendered = format_source_error(src, pos, msg, path=path)
+        super().__init__(rendered)
+
+
 # ---------------------------------------------------------------------- lex
 
 _TOKEN_RE = re.compile(
@@ -66,7 +125,7 @@ class Token:
         return f"Token({self.kind!r}, {self.text!r}@{self.pos})"
 
 
-def tokenize(src: str):
+def tokenize(src: str, path=None):
     tokens = []
     i = 0
     while i < len(src):
@@ -76,7 +135,21 @@ def tokenize(src: str):
             if src[i].isspace():
                 i += 1
                 continue
-            raise SyntaxError(f"unexpected character {src[i]!r} at offset {i}")
+            ch = src[i]
+            # Most common typo: writing `s:1234` / `b:0` instead of
+            # `$s:1234` / `b:0` with no surrounding `$`. Detect and hint.
+            hint = ""
+            if ch == ":" and i > 0 and src[i - 1] in "wbfscp":
+                # back up to the start of the would-be sigil to point at it
+                start = i - 1
+                while start > 0 and src[start - 1].isalnum():
+                    start -= 1
+                hint = (f" (did you mean ${src[start:i]}: ? variable / "
+                        f"strcode literals require a leading `$`)")
+                raise GclSyntaxError(src, start,
+                    f"unexpected character {ch!r}{hint}", path=path)
+            raise GclSyntaxError(src, i,
+                f"unexpected character {ch!r}", path=path)
         kind = m.lastgroup
         text = m.group(kind)
         if kind not in ("COMMENT", "CONT"):
@@ -146,9 +219,11 @@ UNARY_OPS = {
 
 
 class Parser:
-    def __init__(self, tokens):
+    def __init__(self, tokens, src: str = "", path=None):
         self.t = tokens
         self.i = 0
+        self._src = src
+        self._path = path
 
     # ----------- utilities
 
@@ -164,12 +239,24 @@ class Parser:
         while self.peek().kind == "NEWLINE":
             self.i += 1
 
+    def _err(self, tok, msg):
+        """Raise a GclSyntaxError pinned at the given token's source pos.
+        Centralised so every parse error gets a clang-style snippet."""
+        raise GclSyntaxError(self._src, tok.pos, msg, path=self._path)
+
+    def _describe(self, tok):
+        """Human-readable token rendering for "expected X, got Y" messages.
+        Newline / EOF tokens get named so users don't see a confusing
+        empty quoted text."""
+        if tok.kind == "NEWLINE": return "end of line"
+        if tok.kind == "EOF":     return "end of file"
+        return f"{tok.kind} {tok.text!r}"
+
     def expect(self, kind, text=None):
         tok = self.peek()
         if tok.kind != kind or (text is not None and tok.text != text):
-            raise SyntaxError(
-                f"expected {kind}{'='+text if text else ''}, got {tok}"
-            )
+            want = f"{kind}={text!r}" if text is not None else kind
+            self._err(tok, f"expected {want}, got {self._describe(tok)}")
         return self.eat()
 
     def at_sym(self, text):
@@ -193,7 +280,8 @@ class Parser:
             elif self.at_kw("FONTS"):
                 tree.append(self._parse_fonts())
             else:
-                raise SyntaxError(f"expected 'proc'/'script'/'FONTS', got {self.peek()}")
+                self._err(self.peek(),
+                    f"expected 'proc' / 'script' / 'FONTS', got {self._describe(self.peek())}")
             self.skip_newlines()
         return tree
 
@@ -258,7 +346,7 @@ class Parser:
             return self._parse_call()
         if tok.kind == "IDENT":
             return self._parse_cmd()
-        raise SyntaxError(f"expected statement, got {tok}")
+        self._err(tok, f"expected statement, got {self._describe(tok)}")
 
     def _parse_if(self):
         self.eat()                                  # 'if'
@@ -324,7 +412,9 @@ class Parser:
         name = name_tok.text.upper()
         if name not in GclCommand.__members__:
             if not name.startswith("CMD_"):
-                raise SyntaxError(f"unknown command {name_tok.text!r} at {name_tok.pos}")
+                self._err(name_tok,
+                    f"unknown command {name_tok.text!r} "
+                    f"(known: {', '.join(sorted(GclCommand.__members__))[:120]}…)")
             name = name_tok.text
         items = []
         # Positional args: until newline, DASH_OPT, or close brace.
@@ -640,6 +730,9 @@ def _make_binop(op: GclOperator, left, right):
 
 # --------------------------------------------------------------------- entry
 
-def parse(src: str):
-    """Parse .gcl source text → AST list."""
-    return Parser(tokenize(src)).parse_file()
+def parse(src: str, path=None):
+    """Parse .gcl source text → AST list. `path` is optional but
+    recommended — it makes lex/parse errors print as
+    `path:line:col: <msg>` with a snippet, which IDEs and editors can
+    parse directly."""
+    return Parser(tokenize(src, path=path), src=src, path=path).parse_file()

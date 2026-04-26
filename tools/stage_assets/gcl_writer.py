@@ -34,7 +34,9 @@ def write_gcx(stage_name: str, kmd_hash: int,
 
     if source_path is not None and Path(source_path).is_file():
         src = Path(source_path).read_text()
+        gcl_path = source_path
     else:
+        gcl_path = None
         # The GCL parser requires proc names of the form `sub_XXXX` (hash).
         # init_ve/scenerio.gcl is the minimal real example — one proc + one
         # script block. We mirror that shape and tag it with a stable hash
@@ -51,6 +53,6 @@ def write_gcx(stage_name: str, kmd_hash: int,
             "}\n"
         )
 
-    tree = parse(src)
+    tree = parse(src, path=gcl_path)
     comp = GclComp(align4=True)
     return bytes(comp.compile_file(tree))
