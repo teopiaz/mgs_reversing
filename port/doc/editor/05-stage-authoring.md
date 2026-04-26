@@ -117,10 +117,11 @@ based on the Blender object (`o name`) it belongs to:
 | Object name pattern    | Classification | Importer behaviour                            |
 | ---------------------- | -------------- | --------------------------------------------- |
 | `wall_*` / `wall*`     | wall           | Each face → one `HZD_SEG`. Bottom edge → `p1`/`p2`; vertical extent → wall height (used both by collision and by the soliton radar). |
+| `trap_<name>`          | trigger volume | All faces in the group → one `HZD_TRP`. AABB of the group's verts → `b1` / `b2`; `<name>` (≤ 12 chars) goes into the trap's name field. Bind it from GCL with `HZD_BIND` to fire a handler when an actor enters. |
 | Anything else (`floor`, `floor_*`, default unnamed) | floor | Each face → one `HZD_FLR` quad. |
 
-Comparison is case-insensitive on the `wall` prefix, so `Wall_Bunker`
-or `WALL_NORTH` work too.
+Comparison is case-insensitive on the `wall` and `trap_` prefixes, so
+`Wall_Bunker`, `WALL_NORTH`, or `Trap_Alarm` all work.
 
 ### Authoring walls in Blender
 
@@ -146,10 +147,42 @@ zero-height segments that don't correspond to any real geometry.
 
 ### Authoring floors
 
-Anything *not* in a `wall_*` object becomes floor geometry. Floors
-are emitted as `HZD_FLR` quads; the vertices' Y is preserved
-(walkable height comes from the floor surface, not a separate
-field).
+Anything *not* in a `wall_*` or `trap_*` object becomes floor
+geometry. Floors are emitted as `HZD_FLR` quads; the vertices' Y is
+preserved (walkable height comes from the floor surface, not a
+separate field).
+
+### Authoring trigger volumes (`trap_*`)
+
+Trap zones are AABBs that fire a GCL handler when an actor enters
+or leaves. Author one per zone as a Blender object whose name
+starts with `trap_`:
+
+```
+o trap_alarm        # → HZD_TRP { name = "alarm" }
+v -2000 0 -2000
+v  2000 0 -2000
+...                 # rest of the cube
+```
+
+The importer takes the AABB of every vertex inside the group as
+the volume bounds — model the cube any way you like, the writer
+only cares about the min/max corners. Multiple faces under the
+same `o trap_<name>` block merge into a single trigger; you don't
+need to keep the geometry to a single quad.
+
+The trap name (everything after `trap_`) is truncated to 12
+characters and used as the lookup key for `HZD_BIND` in your
+stage's `scenerio.gcl`:
+
+```
+bind alarm, sub_OnAlarmEnter, sub_OnAlarmExit ;
+```
+
+Without a `bind`, the trap volume still exists but does nothing
+when entered. The editor's `HZD` tab lists every emitted trigger
+with its name and AABB so you can spot-check placement before
+running the engine.
 
 ### Hand-authored fallback: `l` line primitives
 
