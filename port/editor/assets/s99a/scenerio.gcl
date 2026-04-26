@@ -43,4 +43,20 @@ script {
     # collision pointer. Sent by every real playable stage right after
     # the chara &SNAKE directive. &HASH_MAIN is the map id from mapdef.
     mesg &SNAKE $s:f9ad &HASH_MAIN
+
+    # Ration in the middle of the courtyard floor.
+    # -p X Y Z   : world position (centre of plaza, on the floor)
+    # -h 500     : float 500 units above the floor (typical item bobbing height)
+    # -b b:4     : standard pickable behavior flag
+    # -i b:13    : item id = IT_Ration (linkvar.h:228)
+    # -n 1       : Snake gets 1 ration on pickup
+    # -m "..."   : on-screen name when picked up
+    # The instance hash $s:99a1 just needs to be unique within the stage.
+    chara &ITEM $s:99a1 \
+        -p -158 1079 3411
+        -h 500
+        -b b:4
+        -i b:13
+        -n 1
+        -m "RATION"
 }

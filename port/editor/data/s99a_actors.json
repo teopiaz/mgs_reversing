@@ -1,0 +1,85 @@
+[
+  {
+    "type": "SNAKE",
+    "instance": "SNAKE",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": [
+      0,
+      2048,
+      0
+    ],
+    "flags": null,
+    "options": {
+      "p": [
+        "$w:800010",
+        "$w:800012",
+        "$w:800014"
+      ],
+      "d": [
+        0,
+        2048,
+        0
+      ]
+    },
+    "proc": "<script>",
+    "color": "#D0A1C6",
+    "source": "scenerio"
+  },
+  {
+    "type": "BREATH",
+    "instance": "$s:6F8B",
+    "pos": null,
+    "pos_option": null,
+    "non_spatial": true,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "t": [
+        90
+      ]
+    },
+    "proc": "<script>",
+    "color": "#83A8A0",
+    "source": "scenerio"
+  },
+  {
+    "type": "ITEM",
+    "instance": "$s:99A1",
+    "pos": [
+      -158,
+      1079,
+      3411
+    ],
+    "pos_option": "p",
+    "non_spatial": false,
+    "rot": null,
+    "flags": null,
+    "options": {
+      "p": [
+        -158,
+        1079,
+        3411
+      ],
+      "h": [
+        500
+      ],
+      "b": [
+        "b:4"
+      ],
+      "i": [
+        "b:13"
+      ],
+      "n": [
+        1
+      ],
+      "m": [
+        "RATION"
+      ]
+    },
+    "proc": "<script>",
+    "color": "#929D77",
+    "source": "scenerio"
+  }
+]
