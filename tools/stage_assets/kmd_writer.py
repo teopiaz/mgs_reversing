@@ -98,32 +98,57 @@ def _build_models(mesh: ObjMesh, default_texture: str, flip_v: bool):
             return (0, 0)
         return _scale_uv(mesh.uvs[uv_idx][0], mesh.uvs[uv_idx][1], flip_v)
 
-    for face in mesh.faces:
-        if len(face.verts) != 3:
-            # OBJ reader fan-triangulates everything to 3 verts.
-            continue
-        # Pre-flight: would adding this triangle's three new vertices push
-        # the model over 128? If so, flush first.
+    # Use poly_faces (preserves original n-gons) so OBJ quads emit as REAL
+    # KMD quads instead of two fan-triangulated degenerate quads. Two
+    # independent triangles share the diagonal in screen-space but the GL
+    # renderer's perspective-correct UV interpolation across each triangle
+    # produces a different gradient than a single quad's bilinear interp,
+    # which manifests as diagonal banding on cube faces with axis-aligned
+    # but non-symmetric UV rects (containers using atlas sub-rects).
+    for face in mesh.poly_faces:
+        n = len(face.verts)
+        if n != 3 and n != 4:
+            continue   # skip n-gons; n>4 would need fan-tri fallback
+
+        # Pre-flight overflow check (same as before, accounts for all n verts).
         new_count = sum(1 for (pi, _) in face.verts if pi not in cur_pos_dedup)
         if len(cur_verts) + new_count > MAX_VERTS_PER_MODEL:
             flush()
 
-        i0 = remap_pos(face.verts[0][0])
-        i1 = remap_pos(face.verts[1][0])
-        i2 = remap_pos(face.verts[2][0])
-        uv0 = uv_or_zero(face.verts[0][1])
-        uv1 = uv_or_zero(face.verts[1][1])
-        uv2 = uv_or_zero(face.verts[2][1])
-
         mat_name = face.material if face.material else default_texture
         mat_id   = gv_strcode(mat_name) if mat_name else 0
 
-        # Degenerate quad — the renderer skips zero-area tri 2 cleanly.
-        cur_faces.append(_SubFace(
-            idx=(i0, i1, i2, i2),
-            uvs=(uv0, uv1, uv2, uv2),
-            mat=mat_id,
-        ))
+        if n == 3:
+            i0 = remap_pos(face.verts[0][0])
+            i1 = remap_pos(face.verts[1][0])
+            i2 = remap_pos(face.verts[2][0])
+            uv0 = uv_or_zero(face.verts[0][1])
+            uv1 = uv_or_zero(face.verts[1][1])
+            uv2 = uv_or_zero(face.verts[2][1])
+            cur_faces.append(_SubFace(
+                idx=(i0, i1, i2, i2),
+                uvs=(uv0, uv1, uv2, uv2),
+                mat=mat_id,
+            ))
+        else:  # n == 4 — REAL quad in OBJ-author CCW order
+            # OBJ vertex order is (v0, v1, v2, v3) going CCW around the
+            # quad. The port renderer splits the quad along the v1-v3
+            # diagonal into tris (v0,v1,v3) and (v1,v2,v3), so just emit
+            # in direct (vertex k → slot k) order — uv[k] paired with
+            # vindices[k] in the renderer's read.
+            i0 = remap_pos(face.verts[0][0])
+            i1 = remap_pos(face.verts[1][0])
+            i2 = remap_pos(face.verts[2][0])
+            i3 = remap_pos(face.verts[3][0])
+            uv0 = uv_or_zero(face.verts[0][1])
+            uv1 = uv_or_zero(face.verts[1][1])
+            uv2 = uv_or_zero(face.verts[2][1])
+            uv3 = uv_or_zero(face.verts[3][1])
+            cur_faces.append(_SubFace(
+                idx=(i0, i1, i2, i3),
+                uvs=(uv0, uv1, uv2, uv3),
+                mat=mat_id,
+            ))
 
     flush()
     if not models:
@@ -234,14 +259,16 @@ def write_kmd(mesh: ObjMesh,
         # vindices.
         for f in m["faces"]:
             out += struct.pack("<I", _pack_quad_indices(*f.idx))
-        # texcoords. KMD vertex order for the four UVs is v0,v1,v3,v2
-        # (libdg_stub.c per-face read swaps the third/fourth pair). We
-        # have (uv0,uv1,uv2,uv3) where idx3==idx2 for triangles, so the
-        # last two entries match either way; for true quads the caller
-        # must already supply (uv0,uv1,uv3,uv2) order.
+        # texcoords. The port renderer (port/libdg/libdg_stub.c +
+        # port/editor/ed_render.c) reads uv[k] = bytes 2k..2k+1 and pairs
+        # uv[k] with vindices vertex k. So we emit UVs in direct vertex
+        # order (no PSX u3/u2 swap). The previous swap was a leftover from
+        # PSX POLY_FT4 strip layout — invisible on triangles (uv2==uv3)
+        # but it broke true quads, manifesting as diagonal banding on
+        # cube faces with axis-aligned atlas-rect UVs.
         for f in m["faces"]:
             (u0, v0), (u1, v1), (u2, v2), (u3, v3) = f.uvs
-            out += struct.pack("<BBBBBBBB", u0, v0, u1, v1, u3, v3, u2, v2)
+            out += struct.pack("<BBBBBBBB", u0, v0, u1, v1, u2, v2, u3, v3)
         # materials.
         for f in m["faces"]:
             out += struct.pack("<H", f.mat)
