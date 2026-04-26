@@ -401,10 +401,25 @@ static void tab_camera(void)
     ImGui::SetNextItemWidth(160);
     ImGui::SliderFloat("FOV", &g_cam.fov_scale, 0.3f, 4.0f, "%.2f");
 
+    /* Mode toggle (mirrors the overlay button on the 3D View pane). */
+    int mode = g_cam.mode;
+    const char *modes[] = { "Fly", "Orbit" };
+    ImGui::SetNextItemWidth(120);
+    if (ImGui::Combo("mode", &mode, modes, 2)) ed_camera_set_mode(mode);
+    if (g_cam.mode == ED_CAM_MODE_ORBIT) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("dist %.0f", g_cam.orbit_dist);
+    }
+
     /* Presets. */
     if (ImGui::Button("Top-down")) ed_camera_default();
     ImGui::SameLine();
     if (ImGui::Button("First-person")) ed_camera_first_person();
+    ImGui::SameLine();
+    if (ImGui::Button("Frame all")) {
+        float bmin[3], bmax[3];
+        if (ed_compute_stage_aabb(bmin, bmax)) ed_camera_frame_aabb(bmin, bmax);
+    }
     ImGui::SameLine();
     if (ImGui::Button("Screenshot")) {
         char ts[64];
@@ -548,7 +563,12 @@ static void draw_help_window(void)
     if (ImGui::Begin("Keybindings", &s_show_help)) {
         ImGui::TextUnformatted(
             "WASD / QE        move / up-down\n"
-            "RMB + drag       look\n"
+            "RMB + drag       look (or orbit when in Orbit mode)\n"
+            "Alt + RMB + drag orbit around target\n"
+            "Wheel (3D)       dolly fly / zoom orbit\n"
+            "Wheel (ortho)    zoom that pane\n"
+            "MMB drag (ortho) pan that pane\n"
+            "F                frame selection (active pane)\n"
             "arrows           rotate\n"
             "Shift / Ctrl     4× / 0.25× speed\n"
             "Home             top-down view\n"
@@ -671,7 +691,9 @@ static void handle_global_shortcuts(void)
 
 /* Dockable "3D View" panel: shows viewport 0's FBO via ImGui::Image, resizes
  * the FBO to match the panel content region, and tracks hover/focus so the
- * camera input only fires when the user is interacting with this view. */
+ * camera input only fires when the user is interacting with this view.
+ * Handles hover-only wheel (dolly / orbit-zoom), F-to-frame, and shows a
+ * small Fly/Orbit toggle button overlaid on the top-left of the image. */
 static void draw_3dview_window(void)
 {
     /* No padding so the image fills the panel exactly. */
@@ -683,6 +705,7 @@ static void draw_3dview_window(void)
         int iw = (int)sz.x, ih = (int)sz.y;
         if (iw > 0 && ih > 0) gl_renderer_resize_viewport(GL_VIEWPORT_3D, iw, ih);
 
+        ImVec2 img_pos = ImGui::GetCursorScreenPos();
         unsigned int tex = gl_renderer_get_viewport_color(GL_VIEWPORT_3D);
         if (tex && iw > 0 && ih > 0) {
             /* PSX FBO has +Y down; ImGui texture coords are top-left = (0,0)
@@ -692,7 +715,36 @@ static void draw_3dview_window(void)
                          ImVec2((float)iw, (float)ih),
                          ImVec2(0, 1), ImVec2(1, 0));
         }
+        bool img_hover = ImGui::IsItemHovered();
         s_3dview_active = ImGui::IsWindowHovered() || ImGui::IsWindowFocused();
+
+        /* Hover-only wheel: dolly in fly mode, scale orbit_dist in orbit mode. */
+        if (img_hover) {
+            ImGuiIO &io = ImGui::GetIO();
+            if (io.MouseWheel != 0.0f) ed_camera_zoom(io.MouseWheel);
+            if (ImGui::IsKeyPressed(ImGuiKey_F)) {
+                float bmin[3], bmax[3];
+                if (ed_compute_active_aabb(bmin, bmax))
+                    ed_camera_frame_aabb(bmin, bmax);
+            }
+        }
+
+        /* Fly/Orbit toggle overlay — small button anchored top-left of the
+         * image so it doesn't interfere with hover input on the rest of
+         * the pane. */
+        if (iw > 0 && ih > 0) {
+            ImGui::SetCursorScreenPos(ImVec2(img_pos.x + 6.0f, img_pos.y + 6.0f));
+            const char *label = (g_cam.mode == ED_CAM_MODE_ORBIT) ? "Orbit" : "Fly";
+            if (ImGui::SmallButton(label))
+                ed_camera_set_mode(g_cam.mode == ED_CAM_MODE_ORBIT
+                                   ? ED_CAM_MODE_FLY : ED_CAM_MODE_ORBIT);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Camera mode (click to toggle).\n"
+                                  "Fly: WASD + RMB look.\n"
+                                  "Orbit: RMB rotates around target.\n"
+                                  "Alt+RMB always orbits.\n"
+                                  "F: frame selection (or whole stage).");
+        }
     } else {
         s_3dview_active = false;
     }
@@ -721,8 +773,8 @@ static void draw_ortho_window(const char *title, int viewport_idx,
                          ImVec2(0, 1), ImVec2(1, 0));
         }
 
-        /* Hover-only input: MMB drag pans, wheel zooms. We use IsItemHovered
-         * after the Image() so the dock tab area doesn't trigger panning. */
+        /* Hover-only input: MMB drag pans, wheel zooms, F frames target.
+         * IsItemHovered() fires only over the Image, not the dock tab area. */
         bool img_hover = ImGui::IsItemHovered();
         if (img_hover) {
             s_ortho_active = active_id;
@@ -734,6 +786,11 @@ static void draw_ortho_window(const char *title, int viewport_idx,
             }
             if (io.MouseWheel != 0.0f) {
                 ed_camera_ortho_zoom(cam, io.MouseWheel);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_F)) {
+                float bmin[3], bmax[3];
+                if (ed_compute_active_aabb(bmin, bmax))
+                    ed_camera_ortho_frame_aabb(cam, bmin, bmax);
             }
         }
     }

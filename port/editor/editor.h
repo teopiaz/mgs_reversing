@@ -31,11 +31,17 @@ int  ed_stage_count(void);
 const char *ed_stage_name(int idx);
 
 /* ed_camera.c */
+#define ED_CAM_MODE_FLY    0
+#define ED_CAM_MODE_ORBIT  1
+
 typedef struct {
-    float pos[3];        /* world-space, +Y down (PSX convention) */
-    float yaw;           /* radians, around Y */
+    float pos[3];          /* world-space, +Y down (PSX convention) */
+    float yaw;             /* radians, around Y */
     float pitch;
-    float fov_scale;     /* multiplied into PSX H register; default 1.0 */
+    float fov_scale;       /* multiplied into PSX H register; default 1.0 */
+    int   mode;            /* ED_CAM_MODE_FLY | ED_CAM_MODE_ORBIT */
+    float orbit_target[3]; /* world-space pivot for orbit mode */
+    float orbit_dist;      /* distance from pos to orbit_target, world units */
 } EdCamera;
 
 extern EdCamera g_cam;
@@ -47,6 +53,27 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held);
    it along the current forward axis. Yaw/pitch are preserved — the actor
    gets centered in view from whatever angle the user is currently using. */
 void ed_camera_focus(int wx, int wy, int wz, float distance);
+
+/* Phase-3 camera helpers. Orbit/fly toggle picks an orbit_target one
+ * `orbit_dist` step ahead of the current position; fly→orbit doesn't move
+ * the camera. Orbit mouse-rotation rotates the camera around orbit_target.
+ * Zoom: fly = dolly along view direction, orbit = scale orbit_dist. */
+void ed_camera_set_mode(int mode);
+void ed_camera_orbit(int mouse_dx, int mouse_dy);
+void ed_camera_zoom(float wheel_steps);
+
+/* Reframe the camera so the given world AABB fits comfortably in view.
+ * Fly mode: yaw/pitch preserved, pos shifts along forward; orbit mode:
+ * orbit_target = AABB center, orbit_dist scales to fit the diagonal. */
+void ed_camera_frame_aabb(const float bmin[3], const float bmax[3]);
+
+/* AABB sources for the F-key. Returns 1 if a sensible AABB was filled,
+ * 0 if no geometry/selection is loaded. ed_compute_active_aabb prefers
+ * a current selection (actor / HZD trap / camera) and falls back to
+ * the union of stage map KMD bboxes. */
+int  ed_compute_selection_aabb(float bmin[3], float bmax[3]);
+int  ed_compute_stage_aabb(float bmin[3], float bmax[3]);
+int  ed_compute_active_aabb(float bmin[3], float bmax[3]);
 
 /* Hammer-style ortho camera (one per Top/Front/Side pane). The camera
  * looks along a fixed world axis; `center` pans within the locked plane
@@ -71,6 +98,10 @@ void ed_camera_ortho_zoom(EdOrthoCam *cam, float wheel_steps);
 /* Compute eye-space (world * eye_inv / 4096 + t) bounds + matrix for an ortho cam. */
 void ed_camera_ortho_compute(EdOrthoCam *cam, int viewport_w, int viewport_h,
                              float *out_lrbt /*[4] in eye coords*/);
+/* Reframe an ortho cam to fit the AABB in its plane (Top: XZ, Front: XY,
+ * Side: YZ) with a small margin. Center moves to the AABB midpoint. */
+void ed_camera_ortho_frame_aabb(EdOrthoCam *cam,
+                                const float bmin[3], const float bmax[3]);
 
 /* True iff the dockable "3D View" panel is hovered or focused (set by ed_ui). */
 int  ed_ui_3dview_active(void);

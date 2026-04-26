@@ -1,6 +1,6 @@
 # Keyboard and mouse reference
 
-## Camera
+## 3D viewport — Fly mode (default)
 
 | Key                | Action                                                |
 | ------------------ | ----------------------------------------------------- |
@@ -8,9 +8,34 @@
 | `Q` / `E`          | Move up / down (PSX `-Y` / `+Y`)                       |
 | `←` / `→` / `↑` / `↓` | Yaw / pitch without using the mouse                |
 | `Right-click + drag` | Look (mouse yaw/pitch)                              |
+| `Alt + RMB + drag` | Orbit around the camera's forward target (one-shot)   |
+| `Wheel`            | Dolly forward / back along view direction             |
+| `F`                | Frame current selection (or the whole stage)          |
 | `Shift` (held)     | 4× movement speed                                     |
 | `Ctrl` (held)      | 0.25× movement speed                                  |
 | `Home`             | Reset to the top-down preset                          |
+
+## 3D viewport — Orbit mode
+
+Click the **Fly / Orbit** button at the top-left of the 3D View pane (or
+flip the *mode* combo on the **Camera** tab) to switch into Orbit. The
+orbit pivot is auto-planted one camera-distance step in front of you when
+you switch in.
+
+| Key                | Action                                                |
+| ------------------ | ----------------------------------------------------- |
+| `Right-click + drag` | Rotate around the orbit target                      |
+| `Wheel`            | Dolly closer / further to the target                  |
+| `WASD / QE`        | Pan target + camera together (relationship preserved) |
+| `F`                | Re-center orbit pivot on the current selection / stage |
+
+## Ortho viewports — Top (XZ), Front (XY), Side (YZ)
+
+| Mouse / key        | Action                                                |
+| ------------------ | ----------------------------------------------------- |
+| `Middle-click + drag` | Pan within the locked plane                        |
+| `Wheel`            | Zoom the pane independently                           |
+| `F`                | Frame current selection (or stage) inside that pane   |
 
 ## Selection
 
