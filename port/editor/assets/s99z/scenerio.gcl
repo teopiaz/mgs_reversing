@@ -12,7 +12,7 @@
 #   cam_*     — one camera zone in the collision OBJ; engine flips
 #               to behind-mode while Snake is inside.
 #
-# Stage hash 0x69D5 = gv_strcode("s99z"). Same hash is reused for the
+# Stage hash 0x6BD4 = gv_strcode("s99z"). Same hash is reused for the
 # KMD, HZD, and lighting-KMD so the importer can register them all
 # under one name.
 
@@ -34,9 +34,9 @@ proc sub_99DA {
 script {
     call(sub_99D1)
     mapdef &HASH_MAIN \
-        -k $s:69D5
-        -l $s:69D5
-        -h $s:69D5 0
+        -k $s:6BD4
+        -l $s:6BD4
+        -h $s:6BD4 0
         -z 0
     map \
         -b b:50 b:50 b:80
@@ -44,8 +44,13 @@ script {
         -a &HASH_MAIN
     map \
         -s &HASH_MAIN
+    # Hardcoded spawn at the room centre. Most scenarios derive Snake's
+    # spawn from $w:800010..14 (filled by the previous stage / title menu),
+    # but a feature-test stage launched via PORT_AUTOLOAD_STAGE may inherit
+    # stale or out-of-room coords; pin the player on the floor here so the
+    # room is always reachable.
     chara &SNAKE &SNAKE \
-        -p $w:800010 $w:800012 $w:800014
+        -p 0 0 0
         -d 0 2048 0
     chara &BREATH $s:6f8b \
         -t 90
