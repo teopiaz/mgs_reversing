@@ -265,6 +265,35 @@ int  ed_hzd_get_trap(int idx,   EdHzdItem *out);
 int  ed_hzd_get_camera(int idx, EdHzdItem *out);
 int  ed_hzd_get_route(int idx,  EdHzdItem *out);
 
+/* ------ Demo (cutscene) player ------------------------------------------ */
+
+/* Three-state transport. The engine actor system ticks when state is PLAY;
+ * frame counter advances accordingly. STOP fully resets engine state by
+ * reloading the stage; PAUSE just freezes the tick loop. */
+typedef enum { ED_DEMO_STOPPED = 0, ED_DEMO_PLAYING, ED_DEMO_PAUSED } EdDemoState;
+
+extern EdDemoState g_demo_state;
+extern int         g_demo_frame;        /* monotonic tick counter while playing */
+extern int         g_demo_loaded;       /* 1 if demo.gcx was found + handed to GCL */
+
+/* Snapshot of the engine's runtime camera (DG_Chanls[1].eye_inv) decomposed
+ * into world pos + Euler rotation. Updated each frame the engine ticks.
+ * Pos in PSX world units; rot in 4096-fixed units (PSX convention). */
+extern float       g_demo_cam_pos[3];
+extern float       g_demo_cam_rot_yaw;
+extern float       g_demo_cam_rot_pitch;
+extern float       g_demo_cam_rot_roll;
+
+/* Transport control. Idempotent: calling Play while already playing is a
+ * no-op; Stop while stopped does nothing. Implemented in ed_demo.c. */
+void ed_demo_play(void);
+void ed_demo_pause(void);
+void ed_demo_stop(void);
+void ed_demo_step_one(void);            /* tick the engine once + freeze */
+/* Per-editor-frame hook: when state is PLAY, advances the engine + camera
+ * snapshot. Cheap when stopped or paused. */
+void ed_demo_tick(void);
+
 /* Stage metadata — read by the inspector "Stage" tab. */
 typedef struct {
     char ext;            /* k, h, p, b, ... */
