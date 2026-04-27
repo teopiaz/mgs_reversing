@@ -83,6 +83,8 @@ extern int GV_Clock;
 int g_demo_diag_actor_count = 0;
 int g_demo_diag_chanl_dirty = 0;     /* bitmask: bit N if DG_Chanls[N].eye_inv changed last tick */
 int g_demo_diag_gv_clock    = 0;
+int g_demo_diag_game_status = 0;     /* GM_GameStatus snapshot (camera Act gates on >= 0) */
+int g_demo_diag_pause_level = 0;     /* GV_PauseLevel — gates the camera helpers */
 
 /* GCL daemon registration is one-shot — calling it twice would push a
  * second 'g' loader. Track here so editor_engine_init can call us once
@@ -297,4 +299,10 @@ void ed_demo_tick(void)
     update_camera_snapshot();
     g_demo_diag_actor_count = count_active_actors();
     g_demo_diag_gv_clock    = GV_Clock;
+    {
+        extern int GM_GameStatus;
+        extern int GV_PauseLevel;
+        g_demo_diag_game_status = GM_GameStatus;
+        g_demo_diag_pause_level = GV_PauseLevel;
+    }
 }
