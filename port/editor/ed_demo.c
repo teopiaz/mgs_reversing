@@ -62,6 +62,14 @@ extern void GCL_ChangeSenerioCode(int demo_flag);
 extern void GM_InitArea(void);
 extern void GM_InitChara(void);
 extern void GM_InitScript(void);
+/* Per-stage prelude (live-game flow: gamed.c:415-417, run by GameWork
+ * after the resident cache is dirty-saved, right before GCL_ExecScript).
+ * GM_ResetMap initialises GM_CurrentMap / GM_Camera defaults. NewCamera
+ * System spawns the camera-driver actor whose Act() calls DG_LookAt
+ * on DG_Chanl(0) every frame — without it the runtime camera never
+ * updates, even with the demo's CINEMA actor running. */
+extern void  GM_ResetMap(void);
+extern void *NewCameraSystem(void);
 extern int  ed_load_stage(const char *stage_name);
 extern EditorStage g_stage;
 extern DG_CHANL DG_Chanls[3];
@@ -146,6 +154,11 @@ void ed_demo_play(void)
             printf("[demo] GCL_LoadScript refused the blob\n");
             return;
         }
+        /* Per-stage prelude — mirror gamed.c:415-417 (the live game's
+         * GameWork actor runs these right before GCL_ExecScript). */
+        GM_ResetMap();
+        NewCameraSystem();        /* spawns the DG_LookAt-driving actor */
+
         /* GCL_LoadScript only sets up the proc table + script_body
          * pointer. The actual chara directives at the top level run
          * via GCL_ExecScript, which walks the script body once and
