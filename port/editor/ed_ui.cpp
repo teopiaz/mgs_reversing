@@ -382,15 +382,42 @@ static void tab_demo(void)
                        :           "■ stopped";
         ImGui::TextDisabled("%s   frame %d", st, g_demo_frame);
         if (g_demo_loaded) {
-            ImGui::Text("Camera   pos %.0f, %.0f, %.0f",
+            ImGui::Text("Camera (chanl %d)   pos %.0f, %.0f, %.0f",
+                        g_demo_active_chanl,
                         g_demo_cam_pos[0], g_demo_cam_pos[1], g_demo_cam_pos[2]);
-            ImGui::Text("         yaw %.1f°   pitch %.1f°   roll %.1f°",
+            ImGui::Text("                    yaw %.1f°   pitch %.1f°   roll %.1f°",
                         g_demo_cam_rot_yaw   * 57.2958f,
                         g_demo_cam_rot_pitch * 57.2958f,
                         g_demo_cam_rot_roll  * 57.2958f);
         } else {
             ImGui::TextDisabled("Press Play to load this stage's demo.gcx into "
                                 "the engine.");
+        }
+        if (ImGui::TreeNode("Diagnostics##demo")) {
+            ImGui::Text("GV_Clock          %d", g_demo_diag_gv_clock);
+            ImGui::Text("Live actors       %d", g_demo_diag_actor_count);
+            ImGui::Text("Channels updated  [%c %c %c]   "
+                        "(bit set = eye_inv changed last tick)",
+                        (g_demo_diag_chanl_dirty & 1) ? '0' : '-',
+                        (g_demo_diag_chanl_dirty & 2) ? '1' : '-',
+                        (g_demo_diag_chanl_dirty & 4) ? '2' : '-');
+            if (ImGui::Button("Dump actors → stdout")) ed_demo_dump_actors();
+            ImGui::SameLine();
+            ImGui::TextDisabled("(reads gActorsList; mirrors GV_DumpActorSystem)");
+            if (g_demo_loaded && g_demo_diag_actor_count == 0)
+                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f),
+                    "0 active actors after Play — demo bytecode loaded but the\n"
+                    "GCL runner actor isn't in the list. Likely missing a\n"
+                    "GCL_StartDaemon path that adds the runner via\n"
+                    "GV_NewActor; check ed_demo.c init order.");
+            else if (g_demo_loaded && g_demo_diag_chanl_dirty == 0
+                     && g_demo_state == ED_DEMO_PLAYING && g_demo_frame > 30)
+                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f),
+                    "Actors running but no DG_Chanls write — the camera-driver\n"
+                    "actor (game/camera.c NewCameraSystem or a CINEMA-specific\n"
+                    "one) hasn't spawned. Demo plays \"blind\" against whatever\n"
+                    "eye_inv was set last.");
+            ImGui::TreePop();
         }
         ImGui::Separator();
     }

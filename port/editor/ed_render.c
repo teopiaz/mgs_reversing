@@ -241,18 +241,21 @@ void ed_render_frame_ortho(EdOrthoCam *cam, int viewport_w, int viewport_h)
  * cinema actor) and let the engine's PSX-replica render path push every
  * actor's animated mesh into gl_renderer's tri buffer. The editor's
  * static-map walk runs after so the level geometry shows underneath the
- * demo's character animations. */
-extern int GV_Clock;
+ * demo's character animations.
+ *
+ * Channel selection: the live game writes DG_Chanls[0]; demo overlays
+ * may write 1 or 2. ed_demo.c tracks which channel changed last tick
+ * and exposes its index via g_demo_active_chanl, so the camera follows
+ * whichever the demo's engine code is driving. */
+extern int  GV_Clock;
+extern int  g_demo_active_chanl;
 extern void port_RenderObjects(int idx);
 void ed_render_frame_demo(void)
 {
     extern DG_CHANL DG_Chanls[3];
-    DG_CHANL *ch = &DG_Chanls[1];
-
-    /* The engine sets DG_Chanls[1].eye_inv every frame (via the cinema
-     * actor's camera-update message dispatch). Mirror it into the
-     * editor's view-matrix snapshot so HZD overlays / actor markers /
-     * pick rays / world axes still project correctly. */
+    int ci = g_demo_active_chanl;
+    if (ci < 0 || ci > 2) ci = 0;
+    DG_CHANL *ch = &DG_Chanls[ci];
     s_eye_inv   = ch->eye_inv;
     s_clip_dist = ch->clip_distance ? ch->clip_distance : 300;
 

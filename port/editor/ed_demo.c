@@ -45,12 +45,23 @@ float       g_demo_cam_rot_roll  = 0.0f;
 
 /* Engine entry points — all linked into the editor via port/obj/. */
 extern void GV_ExecActorSystem(void);
+extern void GV_DumpActorSystem(void);
 extern int  GCL_LoadScript(unsigned char *datatop);
 extern void GCL_StartDaemon(void);
 extern void GCL_ChangeSenerioCode(int demo_flag);
 extern int  ed_load_stage(const char *stage_name);
 extern EditorStage g_stage;
 extern DG_CHANL DG_Chanls[3];
+extern int GV_Clock;
+
+/* Live diagnostic counters mirrored out of the engine state every tick.
+ * Read by the Demo tab so the user can verify (a) actors are actually
+ * executing — non-zero counts here mean GV_ExecActorSystem touched
+ * them — and (b) which DG_Chanls slot the runtime camera is writing
+ * (channel 0 in the live game; demo overlays may use 1 or 2). */
+int g_demo_diag_actor_count = 0;
+int g_demo_diag_chanl_dirty = 0;     /* bitmask: bit N if DG_Chanls[N].eye_inv changed last tick */
+int g_demo_diag_gv_clock    = 0;
 
 /* GCL daemon registration is one-shot — calling it twice would push a
  * second 'g' loader. Track here so editor_engine_init can call us once
@@ -154,43 +165,87 @@ void ed_demo_step_one(void)
     g_demo_state = ED_DEMO_PAUSED;
 }
 
-/* Decompose the runtime camera's eye_inv 3×3 matrix into Z-Y-X Euler
- * angles (yaw / pitch / roll), matching the convention the engine's
- * camera setup uses. The translation column gives the eye position
- * directly; we negate so the displayed value is "where the camera is",
- * not "where it was translated from". Eye_inv rotation rows are unit
- * vectors in 4.12 fixed-point (×4096), so we work in floats. */
-static void update_camera_snapshot(void)
+/* Decompose an eye_inv 3×3 + translation into world-space camera pose.
+ * The matrix maps world → eye (eye = m·world + t), so eye-space origin
+ * in world is -m^T · t. Z-Y-X Euler angles for human-friendly display.
+ * Returns the chosen channel's matrix CRC so callers can detect change. */
+static unsigned long camera_pose_from_chanl(DG_CHANL *ch,
+                                            float pos[3],
+                                            float *yaw, float *pitch, float *roll)
 {
-    DG_CHANL *ch = &DG_Chanls[1];
-    /* `t` is the translation that takes a world point into eye space:
-     * eye = m * world + t. Eye-space origin in world = -m^T * t. */
     float m[3][3];
+    unsigned long crc = 0;
     for (int r = 0; r < 3; r++)
-        for (int c = 0; c < 3; c++)
-            m[r][c] = (float)ch->eye_inv.m[r][c] / 4096.0f;
-    float t[3] = {
-        (float)ch->eye_inv.t[0],
-        (float)ch->eye_inv.t[1],
-        (float)ch->eye_inv.t[2],
-    };
-    /* world_origin = -m^T * t (transpose because m is the rotation that
-     * maps world → eye, and we want eye → world to recover the camera's
-     * world position). */
-    g_demo_cam_pos[0] = -(m[0][0]*t[0] + m[1][0]*t[1] + m[2][0]*t[2]);
-    g_demo_cam_pos[1] = -(m[0][1]*t[0] + m[1][1]*t[1] + m[2][1]*t[2]);
-    g_demo_cam_pos[2] = -(m[0][2]*t[0] + m[1][2]*t[1] + m[2][2]*t[2]);
-    /* Z-Y-X Euler from a row-major rotation:
-     *   yaw   = atan2( m02, m22)        // around Y
-     *   pitch = asin (-m12)             // around X
-     *   roll  = atan2( m10, m11)        // around Z   */
-    g_demo_cam_rot_yaw   = atan2f(m[0][2], m[2][2]);
-    /* clamp arg to asin so floating-point drift doesn't NaN it. */
+        for (int c = 0; c < 3; c++) {
+            short v = ch->eye_inv.m[r][c];
+            m[r][c] = (float)v / 4096.0f;
+            crc = crc * 31u + (unsigned short)v;
+        }
+    int tx = ch->eye_inv.t[0], ty = ch->eye_inv.t[1], tz = ch->eye_inv.t[2];
+    crc = crc * 1009u + (unsigned)tx;
+    crc = crc * 1009u + (unsigned)ty;
+    crc = crc * 1009u + (unsigned)tz;
+    pos[0] = -(m[0][0]*tx + m[1][0]*ty + m[2][0]*tz);
+    pos[1] = -(m[0][1]*tx + m[1][1]*ty + m[2][1]*tz);
+    pos[2] = -(m[0][2]*tx + m[1][2]*ty + m[2][2]*tz);
+    *yaw = atan2f(m[0][2], m[2][2]);
     float p = -m[1][2];
     if (p >  1.0f) p =  1.0f;
     if (p < -1.0f) p = -1.0f;
-    g_demo_cam_rot_pitch = asinf(p);
-    g_demo_cam_rot_roll  = atan2f(m[1][0], m[1][1]);
+    *pitch = asinf(p);
+    *roll = atan2f(m[1][0], m[1][1]);
+    return crc;
+}
+
+/* Pick whichever of DG_Chanls[0..2] is "live" — preferring the channel
+ * whose matrix changed since the last tick. The runtime's cinema flow
+ * writes channel 0 in normal play; some overlays target 1 or 2; the
+ * editor itself was using 1 before demo mode. Tracking deltas means we
+ * automatically follow whichever channel the demo's engine code is
+ * driving without hard-coding an assumption. */
+static unsigned long s_chanl_crc[3] = {0,0,0};
+int g_demo_active_chanl = 0;          /* 0..2 — exposed so render path matches */
+
+static void update_camera_snapshot(void)
+{
+    int dirty = 0;
+    for (int ci = 0; ci < 3; ci++) {
+        float pos[3], y, p, r;
+        unsigned long crc = camera_pose_from_chanl(&DG_Chanls[ci], pos, &y, &p, &r);
+        if (crc != s_chanl_crc[ci]) {
+            dirty |= (1 << ci);
+            s_chanl_crc[ci] = crc;
+            /* Adopt the channel that just changed as the active one (last
+             * write wins — works for a single-camera demo). */
+            g_demo_active_chanl = ci;
+            g_demo_cam_pos[0]    = pos[0];
+            g_demo_cam_pos[1]    = pos[1];
+            g_demo_cam_pos[2]    = pos[2];
+            g_demo_cam_rot_yaw   = y;
+            g_demo_cam_rot_pitch = p;
+            g_demo_cam_rot_roll  = r;
+        }
+    }
+    g_demo_diag_chanl_dirty = dirty;
+}
+
+/* Walk the actor list to count live actors per level. Reads the same
+ * gActorsList_800ACC18 array GV_DumpActorSystem traverses so the count
+ * is always in sync with what the system would print. */
+extern ActorList gActorsList_800ACC18[GV_ACTOR_LEVEL];
+static int count_active_actors(void)
+{
+    int total = 0;
+    for (int lv = 0; lv < GV_ACTOR_LEVEL; lv++) {
+        GV_ACT *a = gActorsList_800ACC18[lv].first.next;
+        while (a) { if (a->act) total++; a = a->next; }
+    }
+    return total;
+}
+
+void ed_demo_dump_actors(void)
+{
+    GV_DumpActorSystem();
 }
 
 void ed_demo_tick(void)
@@ -199,4 +254,6 @@ void ed_demo_tick(void)
     GV_ExecActorSystem();
     g_demo_frame++;
     update_camera_snapshot();
+    g_demo_diag_actor_count = count_active_actors();
+    g_demo_diag_gv_clock    = GV_Clock;
 }

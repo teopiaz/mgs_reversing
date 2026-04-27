@@ -298,6 +298,16 @@ void ed_demo_step_one(void);            /* tick the engine once + freeze */
  * snapshot. Cheap when stopped or paused. */
 void ed_demo_tick(void);
 
+/* Live diagnostics — populated by ed_demo_tick. Exposed to the Demo tab so
+ * the user can verify whether actors are actually executing and which
+ * DG_Chanls channel the runtime camera is writing. */
+extern int g_demo_diag_actor_count;     /* live actor count after last tick */
+extern int g_demo_diag_chanl_dirty;     /* bitmask: channels whose eye_inv changed last tick */
+extern int g_demo_diag_gv_clock;        /* GV_Clock as observed last tick */
+extern int g_demo_active_chanl;         /* 0/1/2 — channel the demo is driving */
+/* Print every active actor (level, name, runtime fraction) to stdout. */
+void ed_demo_dump_actors(void);
+
 /* Stage metadata — read by the inspector "Stage" tab. */
 typedef struct {
     char ext;            /* k, h, p, b, ... */
