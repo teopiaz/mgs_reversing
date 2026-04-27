@@ -8,8 +8,8 @@ The resulting .gcx can be loaded by the runtime in
 """
 import sys
 
-from constants import GclCode, GclCommand, GclOperator
-from gcx import GcxData, GclNode
+from .constants import GclCode, GclCommand, GclOperator
+from .gcx import GcxData, GclNode
 
 
 class GclComp:
@@ -234,7 +234,7 @@ def _encode_string(value: str) -> bytes:
     - Chars in mgs_chars.CHAR_TO_CODE table    → raw 2-byte code
     - ASCII chars (< 0x80)                     → single raw byte
     """
-    from mgs_chars import CHAR_TO_CODE
+    from .glyphs.chars import CHAR_TO_CODE
 
     out = bytearray()
     i = 0

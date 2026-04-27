@@ -1,8 +1,8 @@
 """Emit a minimal scenerio.gcx for a custom stage.
 
-We hand-craft a tiny .gcl text and run the existing
-port/gcl_tools/gcl_compile.py over it (no point reinventing the
-bytecode emitter — it's tested against the disc binaries).
+We hand-craft a tiny .gcl text and run the bytecode compiler from
+`mgs_tools.gcl` over it — no point reinventing the bytecode emitter,
+it's already verified against the disc binaries.
 
 The generated scenerio.gcl boots a stage that just sits idle so the
 editor can load it; no characters, no triggers, no demo logic. The
@@ -10,8 +10,10 @@ KMD that this stage maps to is identified by `kmd_hash` (16-bit GV
 StrCode of the KMD's DAR id name).
 """
 
-import sys
 from pathlib import Path
+
+from mgs_tools.gcl.parser  import parse
+from mgs_tools.gcl.compile import GclComp
 
 
 def write_gcx(stage_name: str, kmd_hash: int,
@@ -23,15 +25,6 @@ def write_gcx(stage_name: str, kmd_hash: int,
     so the editor can load it; no characters, no triggers, no demo
     logic. The stage's KMD is identified by `kmd_hash` (16-bit GV
     StrCode of the KMD's DAR id name)."""
-    # Make sure port/gcl_tools is on sys.path before importing.
-    repo = Path(__file__).resolve().parent.parent.parent
-    gcl_tools = repo / "port" / "gcl_tools"
-    if str(gcl_tools) not in sys.path:
-        sys.path.insert(0, str(gcl_tools))
-
-    from gcl_parser import parse                  # noqa: E402
-    from gcl_compile import GclComp               # noqa: E402
-
     if source_path is not None and Path(source_path).is_file():
         src = Path(source_path).read_text()
         gcl_path = source_path

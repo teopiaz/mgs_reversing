@@ -16,9 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcl_compile import GclComp
-from gcl_parser import parse
-from gcx import GclNode
+from mgs_tools.gcl.compile import GclComp
+from mgs_tools.gcl.parser import parse
+from mgs_tools.gcl.gcx import GclNode
 
 
 def main() -> int:

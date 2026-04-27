@@ -130,7 +130,7 @@ def collect_codes_from_string(payload: str) -> list[int]:
     Supports `{XXXX}` markers, `\\xNN` escapes (for half of a pair — rare),
     table-mapped chars, and plain ASCII (skipped).
     """
-    from mgs_chars import CHAR_TO_CODE
+    from .chars import CHAR_TO_CODE
 
     codes: list[int] = []
     i = 0

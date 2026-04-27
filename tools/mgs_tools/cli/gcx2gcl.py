@@ -12,9 +12,9 @@ from pathlib import Path
 # Make sibling modules importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcx import GcxData
-from gcl_decompile import GclDecomp
-from gcl_writer import GclWriter
+from mgs_tools.gcl.gcx import GcxData
+from mgs_tools.gcl.decompile import GclDecomp
+from mgs_tools.gcl.writer import GclWriter
 
 
 def main() -> int:

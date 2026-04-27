@@ -8,11 +8,11 @@ the engine logs `KMD_BOX_NN not in cache` and silently drops the item.
 
 This script reads the disc once, locates the resident DARs that contain
 the box KMDs, and dumps them as raw blobs under
-`tools/stage_assets/bundled/`. `import_stage.py` then merges them into
+`tools/mgs_tools/stage/bundled/`. `import_stage.py` then merges them into
 every custom stage's resident DAR so items render and pickup works.
 
 Usage:
-    python3 tools/extract_disc_assets.py port/ISO/mgs.cue
+    python3 tools/extract_disc.py port/ISO/mgs.cue
 
 Re-run only when bundled assets need to be refreshed (rare — the disc
 contents don't change).
@@ -24,95 +24,11 @@ import struct
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "tools"))
+# tools/mgs_tools/cli/extract_disc.py → repo root is 4 levels up.
+REPO = Path(__file__).resolve().parents[3]
 
-from stage_assets.constants import SECTOR_SIZE, gv_strcode  # noqa: E402
-
-ISO_USER_SIZE = 2048
-
-
-# ---------- minimal ISO9660 reader (Mode2/2352, Mode1/2352, plain ISO) ------
-
-class IsoImage:
-    def __init__(self, path: Path):
-        self.path = path
-        self.fp = open(path, "rb")
-        self._detect_format()
-
-    def _detect_format(self):
-        # Try Mode2/2352 (data offset 24), Mode1/2352 (offset 16), plain (0).
-        for sector_size, data_offset in ((2352, 24), (2352, 16), (2048, 0)):
-            self.sector_size = sector_size
-            self.data_offset = data_offset
-            buf = self.read_sector(16)
-            if buf and buf[1:6] == b"CD001":
-                return
-        raise RuntimeError(f"no ISO-9660 PVD in {self.path}")
-
-    def read_sector(self, lba: int) -> bytes:
-        off = lba * self.sector_size + self.data_offset
-        self.fp.seek(off)
-        return self.fp.read(ISO_USER_SIZE)
-
-    def read_extent(self, lba: int, size: int) -> bytes:
-        n = (size + ISO_USER_SIZE - 1) // ISO_USER_SIZE
-        out = bytearray()
-        for i in range(n):
-            out.extend(self.read_sector(lba + i))
-        return bytes(out[:size])
-
-    def read_file_at(self, lba: int, byte_offset: int, length: int) -> bytes:
-        first = byte_offset // ISO_USER_SIZE
-        last = (byte_offset + length - 1) // ISO_USER_SIZE
-        chunk = bytearray()
-        for i in range(first, last + 1):
-            chunk.extend(self.read_sector(lba + i))
-        start = byte_offset % ISO_USER_SIZE
-        return bytes(chunk[start:start + length])
-
-    def find_file(self, path: str) -> tuple[int, int]:
-        """Return (lba, size) for /<path>. ISO names may end with ;1."""
-        pvd = self.read_sector(16)
-        # Root directory record at PVD offset 156: { ..., +2 lba LE32,
-        # +10 size LE32, ... }
-        root = pvd[156:156 + 34]
-        dir_lba = struct.unpack_from("<I", root, 2)[0]
-        dir_size = struct.unpack_from("<I", root, 10)[0]
-
-        components = [c for c in path.replace("\\", "/").split("/") if c]
-        for ci, comp in enumerate(components):
-            is_last = (ci == len(components) - 1)
-            data = self.read_extent(dir_lba, dir_size)
-            i = 0
-            found = False
-            while i < dir_size:
-                rec_len = data[i]
-                if rec_len == 0:
-                    i = ((i // ISO_USER_SIZE) + 1) * ISO_USER_SIZE
-                    continue
-                f_lba = struct.unpack_from("<I", data, i + 2)[0]
-                f_size = struct.unpack_from("<I", data, i + 10)[0]
-                flags = data[i + 25]
-                name_len = data[i + 32]
-                name = bytes(data[i + 33:i + 33 + name_len]).decode("ascii", "replace")
-                # Strip ;version and trailing dots.
-                if ";" in name:
-                    name = name.split(";", 1)[0]
-                while name.endswith("."):
-                    name = name[:-1]
-                is_dir = (flags & 2) != 0
-                if name.upper() == comp.upper():
-                    if is_last and not is_dir:
-                        return f_lba, f_size
-                    if not is_last and is_dir:
-                        dir_lba, dir_size = f_lba, f_size
-                        found = True
-                        break
-                i += rec_len
-            if not found:
-                raise FileNotFoundError(f"ISO: {path} not found at component '{comp}'")
-        raise FileNotFoundError(path)
+from mgs_tools.common.iso       import IsoImage, ISO_USER_SIZE
+from mgs_tools.stage.constants  import SECTOR_SIZE, gv_strcode
 
 
 # ---------- STAGE.DIR + DATACNF parsing ------------------------------------
@@ -215,7 +131,7 @@ WANTED_KMDS[gv_strcode("door_dd")] = "door_dd"
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("disc", help="path to .cue or .bin/.iso of MGS disc")
-    ap.add_argument("--out", default=str(REPO / "tools" / "stage_assets" / "bundled"),
+    ap.add_argument("--out", default=str(REPO / "tools" / "mgs_tools" / "stage" / "bundled"),
                     help="output directory for extracted blobs")
     ap.add_argument("--prefer-stage", default=None,
                     help="preferred source stage (e.g. 'init', 's00a'). "

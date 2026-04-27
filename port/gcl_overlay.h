@@ -6,7 +6,7 @@
    When a stage loads its scenerio.gcx / demo.gcx, the overlay system
    checks for a compiled replacement on disk and, if found, feeds that
    to GCL_LoadScript instead of the shipped bytecode. Lets you iterate
-   on GCL behavior by editing .gcl source + running gcl_tools/gcl2gcx,
+   on GCL behavior by editing .gcl source + running tools/gcl2gcx.py,
    without a port rebuild.
 
    Default search root: ./overlays/  (relative to the port's CWD)
@@ -20,7 +20,7 @@
 
    Font-trailer handling: the .gcx format normally has a trailing font
    blob past the script body that the engine exposes as font slot 2.
-   gcl_tools strips it during decompile (--trailing <file>) and splices
+   gcx2gcl strips it during decompile (--trailing <file>) and splices
    it back during compile. If your overlay .gcx was built WITHOUT the
    trailing blob, port_gcl_overlay_load re-points font #2 at the
    ORIGINAL cached buffer's trailing bytes, which stay resident for

@@ -3,7 +3,7 @@
 # that byte-matches the vanilla original.
 set -euo pipefail
 
-TOOL_DIR="$(cd "$(dirname "$0")/../gcl_tools" && pwd)"
+TOOL_DIR="$(cd "$(dirname "$0")/../../tools" && pwd)"
 
 for f in ./*/*.gcl; do
     tail_file="${f%.gcl}.tail"

@@ -76,13 +76,10 @@ DG_MODEL_UNLIT    = 0x00004
 DG_MODEL_BOTHFACE = 0x00400
 
 
-def gv_strcode(s: str) -> int:
-    """Replicates source/libgv/strcode.c GV_StrCode(): 16-bit rol-5 + add."""
-    h = 0
-    for b in s.encode("utf-8"):
-        h = ((h << 5) | (h >> 11)) & 0xFFFF
-        h = (h + b) & 0xFFFF
-    return h
+# gv_strcode now lives in mgs_tools.common.strcode — single source of
+# truth shared with the GCL toolkit. Re-exported here so older
+# `from mgs_tools.stage.constants import gv_strcode` callers still work.
+from mgs_tools.common.strcode import gv_strcode  # noqa: F401
 
 
 def pad_to(buf: bytearray, multiple: int) -> bytearray:
