@@ -358,6 +358,43 @@ static void tab_demo(void)
         return;
     }
 
+    /* ---- Demo Player transport. The cutscene runs inside the editor by
+     * ticking the engine's actor system (ed_demo.c). Display-only state
+     * (frame counter + camera readout) updates as ticks fly by. */
+    {
+        const bool playing = (g_demo_state == ED_DEMO_PLAYING);
+        const bool paused  = (g_demo_state == ED_DEMO_PAUSED);
+        const bool stopped = (g_demo_state == ED_DEMO_STOPPED && !g_demo_loaded);
+        if (playing) {
+            if (ImGui::Button("Pause")) ed_demo_pause();
+        } else {
+            if (ImGui::Button(paused ? "Resume" : "Play")) ed_demo_play();
+        }
+        ImGui::SameLine();
+        if (stopped) ImGui::BeginDisabled();
+        if (ImGui::Button("Stop")) ed_demo_stop();
+        if (stopped) ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Step"))  ed_demo_step_one();
+        ImGui::SameLine();
+        const char *st = playing ? "▶ playing"
+                       : paused  ? "‖ paused"
+                       :           "■ stopped";
+        ImGui::TextDisabled("%s   frame %d", st, g_demo_frame);
+        if (g_demo_loaded) {
+            ImGui::Text("Camera   pos %.0f, %.0f, %.0f",
+                        g_demo_cam_pos[0], g_demo_cam_pos[1], g_demo_cam_pos[2]);
+            ImGui::Text("         yaw %.1f°   pitch %.1f°   roll %.1f°",
+                        g_demo_cam_rot_yaw   * 57.2958f,
+                        g_demo_cam_rot_pitch * 57.2958f,
+                        g_demo_cam_rot_roll  * 57.2958f);
+        } else {
+            ImGui::TextDisabled("Press Play to load this stage's demo.gcx into "
+                                "the engine.");
+        }
+        ImGui::Separator();
+    }
+
     ImGui::Text("Demo actors: %d total", total);
     /* Category badges. */
     for (int c = 0; c < DEMO_CAT_COUNT; c++) {

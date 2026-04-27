@@ -198,6 +198,10 @@ int main(int argc, char *argv[])
         prev = now;
 
         editor_poll();
+        /* Demo runtime tick (no-op when transport is STOPPED or PAUSED).
+         * Done before the camera/UI step so the camera-snapshot exposed
+         * by ed_demo.c is fresh when the Demo tab renders. */
+        ed_demo_tick();
         /* Camera input is gated on the panel under the cursor:
          *   3D pane  → fly-style perspective camera (g_cam, ed_camera_update)
          *   Top/Front/Side → ortho cam pan + zoom (ed_camera_ortho_*)
