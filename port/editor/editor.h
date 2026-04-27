@@ -304,6 +304,8 @@ void ed_demo_tick(void);
 extern int g_demo_diag_actor_count;     /* live actor count after last tick */
 extern int g_demo_diag_chanl_dirty;     /* bitmask: channels whose eye_inv changed last tick */
 extern int g_demo_diag_gv_clock;        /* GV_Clock as observed last tick */
+extern int g_demo_diag_game_status;     /* GM_GameStatus — camera Act gates on >= 0 */
+extern int g_demo_diag_pause_level;     /* GV_PauseLevel — gates camera-helper updates */
 extern int g_demo_active_chanl;         /* 0/1/2 — channel the demo is driving */
 /* Print every active actor (level, name, runtime fraction) to stdout. */
 void ed_demo_dump_actors(void);

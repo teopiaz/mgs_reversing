@@ -396,6 +396,14 @@ static void tab_demo(void)
         if (ImGui::TreeNode("Diagnostics##demo")) {
             ImGui::Text("GV_Clock          %d", g_demo_diag_gv_clock);
             ImGui::Text("Live actors       %d", g_demo_diag_actor_count);
+            ImGui::Text("GM_GameStatus     0x%08X   %s", g_demo_diag_game_status,
+                        g_demo_diag_game_status < 0
+                            ? "← NEGATIVE: camera Act() early-exits, DG_LookAt won't run"
+                            : "(non-negative — camera Act() body runs)");
+            ImGui::Text("GV_PauseLevel     %d   %s", g_demo_diag_pause_level,
+                        g_demo_diag_pause_level
+                            ? "← non-zero: camera-helpers skip, gUnkCameraStruct stays stale → static cam"
+                            : "(zero — camera helpers update gUnkCameraStruct each frame)");
             ImGui::Text("Channels updated  [%c %c %c]   "
                         "(bit set = eye_inv changed last tick)",
                         (g_demo_diag_chanl_dirty & 1) ? '0' : '-',
