@@ -430,6 +430,14 @@ static void parse_actor_object(JR *r)
             else if (strcmp(key, "options") == 0) {
                 parse_actor_options(r, a);
             }
+            else if (strcmp(key, "source") == 0) {
+                /* "scenerio" or "demo" — drives the Demo tab filter +
+                 * the demo-actor tint in the 3D pane. */
+                char buf[16];
+                if (jr_str(r, buf, sizeof(buf))) {
+                    a->from_demo = (strcmp(buf, "demo") == 0) ? 1 : 0;
+                } else jr_skip_value(r);
+            }
             else {
                 /* non_spatial, pos_option, etc. — not yet used. */
                 jr_skip_value(r);
