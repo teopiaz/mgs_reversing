@@ -47,8 +47,21 @@ float       g_demo_cam_rot_roll  = 0.0f;
 extern void GV_ExecActorSystem(void);
 extern void GV_DumpActorSystem(void);
 extern int  GCL_LoadScript(unsigned char *datatop);
+extern void GCL_ExecScript(void);
 extern void GCL_StartDaemon(void);
 extern void GCL_ChangeSenerioCode(int demo_flag);
+/* Game-side init pieces. Live game calls all of these via GM_StartDaemon
+ * but that also installs the GameWork master actor which drives the
+ * full title→stage→play state machine — too much for the editor. We
+ * pull the three Init* calls in by hand:
+ *   GM_InitArea   — area / region tracking (GM_CurrentMap etc.)
+ *   GM_InitChara  — chara-type → factory table (chara/&CINEMA, &DEMODOLL…)
+ *   GM_InitScript — registers GCL command table (chara, light, map,
+ *                   mesg, delay…). Without this, GCL_ExecScript NULL
+ *                   derefs at the first non-builtin directive. */
+extern void GM_InitArea(void);
+extern void GM_InitChara(void);
+extern void GM_InitScript(void);
 extern int  ed_load_stage(const char *stage_name);
 extern EditorStage g_stage;
 extern DG_CHANL DG_Chanls[3];
@@ -79,6 +92,14 @@ void ed_demo_engine_init(void)
      * any GCL — Play takes explicit responsibility for picking demo. */
     extern int scenerio_code;
     scenerio_code = 0xFFFF;
+
+    /* Register the game's command table + chara-type factories. Without
+     * these the demo bytecode's first `light`/`chara`/`map` lookup
+     * returns NULL from FindCommand and dereferencing it crashes. */
+    GM_InitArea();
+    GM_InitChara();
+    GM_InitScript();
+
     s_gcl_daemon_started = 1;
 }
 
@@ -125,10 +146,17 @@ void ed_demo_play(void)
             printf("[demo] GCL_LoadScript refused the blob\n");
             return;
         }
+        /* GCL_LoadScript only sets up the proc table + script_body
+         * pointer. The actual chara directives at the top level run
+         * via GCL_ExecScript, which walks the script body once and
+         * spawns every actor (CINEMA, DEMODOLL, EMITTER, …). The live
+         * game does this from gamed.c's GameWork actor; we replicate
+         * the same call here. Without it, GV_ExecActorSystem ticks
+         * but the actor list is empty (only gvd.c is alive). */
+        printf("[demo] GCL_LoadScript ok, executing top-level script\n");
+        GCL_ExecScript();
         g_demo_loaded = 1;
         g_demo_frame  = 0;
-        printf("[demo] loaded demo.gcx for '%s' (%p)\n",
-               g_stage.stage_name, (void *)blob);
     }
     g_demo_state = ED_DEMO_PLAYING;
 }
