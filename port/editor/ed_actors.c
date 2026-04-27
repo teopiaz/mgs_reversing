@@ -731,6 +731,14 @@ void ed_actors_render(void)
             (unsigned char)((mark_color >> 8)  & 0xFF),
             (unsigned char)( mark_color        & 0xFF),
         };
+        /* Demo (cutscene) actors get a desaturated tint so the Actors
+         * pane / 3D view can tell scen vs. demo apart at a glance.
+         * Pulls each channel toward 128 (mid-grey) by 40% to wash out the
+         * type-hash color without losing it entirely. */
+        if (a->from_demo) {
+            for (int k = 0; k < 3; k++)
+                col[k] = (unsigned char)(((int)col[k] * 6 + 128 * 4) / 10);
+        }
         int r = MARKER_R;
         if (i == g_actor_selected) {
             col[0] = 255; col[1] = 255; col[2] = 60;
