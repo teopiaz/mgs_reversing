@@ -111,10 +111,7 @@ class GclCommand(Enum):
 COMMAND_NAME = {c.value: c.name.lower() for c in GclCommand}
 
 
-def gv_strcode(s: str) -> int:
-    """Replicates source/libgv/strcode.c GV_StrCode(): 5-bit rol + add."""
-    h = 0
-    for b in s.encode("utf-8"):
-        h = ((h << 5) | (h >> 11)) & 0xFFFF
-        h = (h + b) & 0xFFFF
-    return h
+# gv_strcode now lives in mgs_tools.common.strcode — single source of
+# truth shared with the stage authoring side. Re-exported here so older
+# `from mgs_tools.gcl.constants import gv_strcode` callers still work.
+from mgs_tools.common.strcode import gv_strcode  # noqa: F401

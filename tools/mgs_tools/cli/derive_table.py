@@ -20,10 +20,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcx import GcxData
-from gcl_decompile import GclDecomp
-from gcl_writer import GclWriter
-from mgs_chars import CHAR_TO_CODE, CODE_TO_CHAR
+from mgs_tools.gcl.gcx import GcxData
+from mgs_tools.gcl.decompile import GclDecomp
+from mgs_tools.gcl.writer import GclWriter
+from mgs_tools.gcl.glyphs.chars import CHAR_TO_CODE, CODE_TO_CHAR
 
 
 _OUR_STR_RE = re.compile(r'm"((?:[^"\\]|\\.)*)"')

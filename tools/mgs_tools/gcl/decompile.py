@@ -13,8 +13,8 @@ File layout:
 """
 import sys
 
-from constants import GclCode, GclCommand, GclOperator
-from gcx import GcxData, GclNode
+from .constants import GclCode, GclCommand, GclOperator
+from .gcx import GcxData, GclNode
 
 
 class GclDecomp:

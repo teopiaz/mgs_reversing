@@ -200,7 +200,7 @@ The writer:
 
 PSX VRAM is 1024×512 16-bit pixels. The port's framebuffer occupies
 `y=0..223`. The writer's defaults
-([`tools/stage_assets/constants.py`](../../../tools/stage_assets/constants.py)):
+([`tools/mgs_tools/stage/constants.py`](../../../tools/mgs_tools/stage/constants.py)):
 
 | Region         | VRAM coords (16-bit pixels)        |
 | -------------- | ---------------------------------- |
@@ -339,7 +339,7 @@ expected offset, found values that decoded as plausible
 `DARFILE_TAG`s, and "processed" hundreds of fake entries before
 hitting the buffer end. Symptom: `Processed 249 nocache entries` in
 the log instead of `Processed 1`. Fix:
-[`tools/stage_assets/datacnf_writer.py`](../../../tools/stage_assets/datacnf_writer.py)
+[`tools/mgs_tools/stage/datacnf_writer.py`](../../../tools/mgs_tools/stage/datacnf_writer.py)
 only 4-byte-aligns `c_bytes`.
 
 ### `DARFILE_TAG` (8 bytes)

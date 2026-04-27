@@ -29,11 +29,11 @@ import sys
 from pathlib import Path
 
 THIS = Path(__file__).resolve()
-REPO = THIS.parent.parent
-sys.path.insert(0, str(REPO / "port" / "gcl_tools"))
+# tools/mgs_tools/cli/extract_actors.py → repo root is 4 levels up.
+REPO = THIS.parents[3]
 
-from gcl_parser import parse  # noqa: E402
-from mgs_names import HASH_TO_NAME  # noqa: E402
+from mgs_tools.gcl.parser import parse
+from mgs_tools.gcl.names  import HASH_TO_NAME
 
 
 def first(node, key):
@@ -274,12 +274,63 @@ def extract(inputs, output_json):
     return len(out), n_spatial
 
 
+def discover_stages():
+    """Discover every stage with a decompiled scenerio.gcl. Returns
+    `{stage_name: [Path, ...]}` — overlays/ wins over gcl/decompiled/
+    when both have a stage (it's the one the engine actually loads).
+    Used by the --batch mode (replaces the old build_editor_data.py)."""
+    stages: dict[str, list[Path]] = {}
+    for base in (REPO / "port" / "gcl" / "decompiled",
+                 REPO / "port" / "overlays"):
+        if not base.is_dir():
+            continue
+        for child in base.iterdir():
+            paths = []
+            for fname in ("scenerio.gcl", "demo.gcl"):
+                p = child / fname
+                if p.is_file():
+                    paths.append(p)
+            if paths:
+                stages[child.name] = paths
+    return stages
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--input",  required=True, action="append",
-                    help="path to scenerio.gcl or demo.gcl (may be repeated)")
-    ap.add_argument("--output", required=True, help="path to write JSON")
+    ap.add_argument("--input",  action="append",
+                    help="path to scenerio.gcl or demo.gcl (may be repeated; "
+                         "ignored when --batch is set)")
+    ap.add_argument("--output",
+                    help="path to write JSON (omitted in --batch mode — "
+                         "files land at port/editor/data/<stage>_actors.json)")
+    ap.add_argument("--batch", action="store_true",
+                    help="run over every stage that has a decompiled "
+                         "scenerio.gcl (under port/overlays/ or "
+                         "port/gcl/decompiled/) and emit per-stage JSON+TSV. "
+                         "Replaces the old build_editor_data.py.")
     args = ap.parse_args()
+
+    if args.batch:
+        out_dir = REPO / "port" / "editor" / "data"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stages = discover_stages()
+        if not stages:
+            print("no stages with decompiled scenerio.gcl found", file=sys.stderr)
+            return 1
+        ok = fail = 0
+        for name in sorted(stages):
+            out = out_dir / f"{name}_actors.json"
+            try:
+                extract([str(p) for p in stages[name]], str(out))
+                ok += 1
+            except Exception as e:                       # noqa: BLE001
+                print(f"  {name}: FAILED — {e}", file=sys.stderr)
+                fail += 1
+        print(f"generated {ok} stages, {fail} failed -> {out_dir}")
+        return 0 if fail == 0 else 2
+
+    if not args.input or not args.output:
+        ap.error("--input and --output are required (or pass --batch)")
 
     n_total, n_spatial = extract(args.input, args.output)
     out_path = Path(args.output)

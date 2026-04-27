@@ -61,7 +61,7 @@ class GcxData(bytearray):
         as `{XXXX}` literal markers. Round-trip is always lossless.
         Literal '"', '\\', '{' bytes escape as \\xNN.
         """
-        from mgs_chars import CODE_TO_CHAR
+        from .glyphs.chars import CODE_TO_CHAR
 
         chars = []
         length = 0xFF

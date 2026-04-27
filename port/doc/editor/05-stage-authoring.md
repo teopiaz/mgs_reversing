@@ -105,7 +105,7 @@ position, etc.
                                     datacnf_writer.build_datacnf   ─► datacnf.bin
 ```
 
-Every module lives in `tools/stage_assets/`. They're intentionally
+Every module lives in `tools/mgs_tools/stage/`. They're intentionally
 narrow — one file, one format. See [06-asset-formats.md](06-asset-formats.md)
 for the byte layouts each writer produces.
 

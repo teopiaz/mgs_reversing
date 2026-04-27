@@ -6,7 +6,7 @@ and round-trip-ready: no silent `bytes:` gap for undecoded opcodes.
 """
 import textwrap
 
-from constants import (
+from .constants import (
     COMMAND_NAME,
     GclCode,
     GclCommand,
@@ -61,14 +61,14 @@ class GclWriter:
         self._name_table = None
         if use_names:
             try:
-                from mgs_names import HASH_TO_NAME
+                from .names import HASH_TO_NAME
                 self._name_table = HASH_TO_NAME
             except ImportError:
                 self._name_table = {}
 
     def render(self) -> str:
         out = []
-        out.append(f"# GCL decompiler output (port/gcl_tools)\n")
+        out.append(f"# GCL decompiler output (tools/mgs_tools/gcl)\n")
         out.append(f"# {len(self.tree_data)} top-level block(s)\n\n")
         for node in self.tree_data:
             out.append(self._render_top(node))
