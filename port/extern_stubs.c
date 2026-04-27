@@ -63,6 +63,13 @@ CHARA MainCharacterEntries[] = {
     CHARA_002E_SUB_ROOM,
     /* Cutscene character model (デモ人形) */
     CHARA_DEMODOLL,
+    /* Cutscene-camera framing actor — drives the runtime camera during
+     * cinematics. Hash 0x8E45 (WT_VIEW). Without this, demo.gcl's
+     * `chara $s:8e45` directive logs "func not found", so DG_LookAt
+     * runs every frame with stale gUnkCameraStruct values and the
+     * camera appears frozen. NewWaterView is in source/takabe/wt_view.c
+     * which is already linked into the editor + live game. */
+    CHARA_WT_VIEW,
     CHARA_END
 };
 
