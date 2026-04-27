@@ -242,6 +242,194 @@ static void tab_actors(void)
     }
 }
 
+/* ---------------------------------------------------------------------------
+ * Demo (cutscene) viewer — read-only inspection of every actor extracted
+ * from a stage's demo.gcl. The actors are already in g_actors with
+ * from_demo=1; this tab groups them by purpose (cameras / characters /
+ * props / audio / triggers) so the user can see at a glance what a
+ * cutscene contains.
+ *
+ * Most demo entries have non-spatial state (CINEMA -t timer, DEMODOLL
+ * animation hash, RADIO codec call, …) so the panel is the main view
+ * surface; spatial entries still respond to click → camera focus when
+ * they carry a position.
+ * ------------------------------------------------------------------------- */
+
+enum DemoCat {
+    DEMO_CAT_CAMERAS = 0,
+    DEMO_CAT_CHARS,
+    DEMO_CAT_PROPS,
+    DEMO_CAT_ITEMS,
+    DEMO_CAT_AUDIO_UI,
+    DEMO_CAT_TRIGGERS,
+    DEMO_CAT_OTHER,
+    DEMO_CAT_COUNT
+};
+
+static const char *DEMO_CAT_LABEL[DEMO_CAT_COUNT] = {
+    "Cameras", "Characters", "Props", "Items",
+    "Audio / UI / FX", "Triggers", "Other",
+};
+
+/* Bucket each actor type into a category. The lists are by inspection of
+ * disc demos — extend when a new type shows up. Anything unmatched falls
+ * into DEMO_CAT_OTHER, which is fine for browsing. */
+static int demo_category(const char *type)
+{
+    static const char *CAMERAS[]  = { "CINEMA","CAMERA","CAMERA2","INTR_CAM",
+                                      "GUNCAME","FOCUS","CAMSHAKE", NULL };
+    static const char *CHARS[]    = { "SNAKE","MERYL","MERYL7","DEMODOLL",
+                                      "WATCHER","COMMANDER","DOLL","HIYOKO",
+                                      "ASIOTOKUN","BREATH","KAGE", NULL };
+    static const char *PROPS[]    = { "WALL","DYNWALL","DMYWALL","DOOR","DOOR2",
+                                      "M_DOOR","GLASS","LAMP","PATO_LAMP",
+                                      "EMITTER","MONITOR1","CHAIR","SHUTER",
+                                      "ELEVATOR","LIFT","SEARCHLIGHT",
+                                      "MOVIE","CLAYMORE","KEY_ITEM", NULL };
+    static const char *ITEMS[]    = { "ITEM", NULL };
+    static const char *AUDIO_UI[] = { "RADIO","JIMAKU","SOUND","FADEIO",
+                                      "ED_TELOP","TELOP","RADIOMES","MENU",
+                                      "PADVIBRATE","EVPANEL","JINGLE", NULL };
+    static const char *TRIGGERS[] = { "TRAP","NTRAP","CAT_IN","ASIATO","ASIATO2",
+                                      "DEMOASI","DEMOKAGE","DELAY","CINEMA_TRAP",
+                                      "EVNTMOUS","TRACKTRP","TR_AREA",
+                                      "WT_AREA","WT_AREA2", NULL };
+    const char *const *lists[] = { CAMERAS, CHARS, PROPS, ITEMS,
+                                   AUDIO_UI, TRIGGERS, NULL };
+    int cats[] = { DEMO_CAT_CAMERAS, DEMO_CAT_CHARS, DEMO_CAT_PROPS,
+                   DEMO_CAT_ITEMS, DEMO_CAT_AUDIO_UI, DEMO_CAT_TRIGGERS };
+    for (int i = 0; lists[i]; i++)
+        for (const char *const *p = lists[i]; *p; p++)
+            if (std::strcmp(type, *p) == 0) return cats[i];
+    return DEMO_CAT_OTHER;
+}
+
+/* One-line summary of the actor's salient option(s), shown next to its
+ * type/instance in the demo list. Different categories surface different
+ * fields — for a cinema the lifetime matters, for a character it's the
+ * animation hash, for an item it's the pickup name. */
+static void demo_format_detail(const EdActor *a, char *out, size_t outlen)
+{
+    out[0] = 0;
+    if (std::strcmp(a->type, "CINEMA") == 0) {
+        /* options.t is captured by extract_actors only when the value is
+         * a numeric scalar; the editor's JSON loader doesn't bring -t
+         * into EdActor for non-ITEM types. Fall back to instance-id. */
+        std::snprintf(out, outlen, "inst %s", a->instance);
+    } else if (std::strcmp(a->type, "ITEM") == 0) {
+        const char *name = (a->item_id >= 0) ? ed_item_name(a->item_id) : "?";
+        std::snprintf(out, outlen, "item %s", name);
+        if (a->item_count > 0) {
+            size_t n = std::strlen(out);
+            std::snprintf(out + n, outlen - n, " ×%d", a->item_count);
+        }
+    } else if (std::strcmp(a->type, "WATCHER") == 0
+            || std::strcmp(a->type, "COMMANDER") == 0) {
+        if (a->vision_range > 0)
+            std::snprintf(out, outlen, "vision %d", a->vision_range);
+        else
+            std::snprintf(out, outlen, "%s", a->instance);
+    } else if (a->event_proc[0]) {
+        std::snprintf(out, outlen, "→ %s", a->event_proc);
+    } else if (a->message[0]) {
+        std::snprintf(out, outlen, "\"%s\"", a->message);
+    } else {
+        std::snprintf(out, outlen, "%s", a->instance);
+    }
+}
+
+static void tab_demo(void)
+{
+    /* Bucket counts + first pass to find which categories have any
+     * entries (so we can skip empty headers). */
+    int cat_count[DEMO_CAT_COUNT] = {0};
+    int total = 0;
+    for (int i = 0; i < g_actor_count; i++) {
+        if (!g_actors[i].from_demo) continue;
+        cat_count[demo_category(g_actors[i].type)]++;
+        total++;
+    }
+    if (total == 0) {
+        ImGui::TextDisabled(
+            "No demo.gcl actors loaded for this stage.\n"
+            "(extract_actors only sees demo entries when the stage has\n"
+            "a decompiled port/gcl/decompiled/<stage>/demo.gcl, or when\n"
+            "the active overlay at port/overlays/<stage>/ ships one.)");
+        return;
+    }
+
+    ImGui::Text("Demo actors: %d total", total);
+    /* Category badges. */
+    for (int c = 0; c < DEMO_CAT_COUNT; c++) {
+        if (cat_count[c] == 0) continue;
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+        ImGui::Text("%s %d", DEMO_CAT_LABEL[c], cat_count[c]);
+    }
+    ImGui::Separator();
+
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputTextWithHint("##demofilter", "filter type...",
+                             s_actor_filter, sizeof(s_actor_filter));
+    ImGui::SameLine();
+    if (ImGui::SmallButton("clear")) s_actor_filter[0] = 0;
+    ImGui::Separator();
+
+    /* One collapsing-header per non-empty category, each containing a
+     * compact 4-column table. Everything is read-only — clicking a
+     * row only selects + focuses the camera. */
+    if (!ImGui::BeginChild("demo_scroll", ImVec2(0, 0))) {
+        ImGui::EndChild();
+        return;
+    }
+    for (int c = 0; c < DEMO_CAT_COUNT; c++) {
+        if (cat_count[c] == 0) continue;
+        char hdr[40];
+        std::snprintf(hdr, sizeof(hdr), "%s (%d)##cat%d",
+                      DEMO_CAT_LABEL[c], cat_count[c], c);
+        if (!ImGui::CollapsingHeader(hdr, ImGuiTreeNodeFlags_DefaultOpen))
+            continue;
+        char tag[24];
+        std::snprintf(tag, sizeof(tag), "##cat_table_%d", c);
+        if (ImGui::BeginTable(tag, 3, ImGuiTableFlags_RowBg |
+                ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
+            ImGui::TableSetupColumn("Type",   ImGuiTableColumnFlags_WidthStretch, 1.2f);
+            ImGui::TableSetupColumn("Detail", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+            ImGui::TableSetupColumn("Pos",    ImGuiTableColumnFlags_WidthStretch, 1.5f);
+            for (int i = 0; i < g_actor_count; i++) {
+                EdActor *a = &g_actors[i];
+                if (!a->from_demo) continue;
+                if (demo_category(a->type) != c) continue;
+                if (s_actor_filter[0] && !stricontains(a->type, s_actor_filter))
+                    continue;
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                bool sel = (i == g_actor_selected);
+                char label[64];
+                std::snprintf(label, sizeof(label), "%s##d%d", a->type, i);
+                if (ImGui::Selectable(label, sel,
+                        ImGuiSelectableFlags_SpanAllColumns)) {
+                    g_actor_selected = i;
+                    if (a->has_pos)
+                        ed_camera_focus(a->pos[0], a->pos[1], a->pos[2], 5000.0f);
+                }
+                ImGui::TableSetColumnIndex(1);
+                char detail[80];
+                demo_format_detail(a, detail, sizeof(detail));
+                ImGui::TextUnformatted(detail);
+                ImGui::TableSetColumnIndex(2);
+                if (a->has_pos)
+                    ImGui::Text("%d %d %d", a->pos[0], a->pos[1], a->pos[2]);
+                else
+                    ImGui::TextDisabled("non-spatial");
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::EndChild();
+}
+
 /* Generic HZD list. `count_fn`/`get_fn` come from ed_hzd.c.
    `selected_idx` is the matching g_sel_* int so the wireframe highlights it. */
 static void hzd_list_table(const char *label, int *selected_idx,
@@ -1096,6 +1284,7 @@ extern "C" void ed_ui_draw(void)
             if (ImGui::BeginTabItem("Scene"))   { tab_scene();   ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Camera"))  { tab_camera();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Actors"))  { tab_actors();  ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Demo"))    { tab_demo();    ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("HZD"))     { tab_hzd();     ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Info"))    { tab_info();    ImGui::EndTabItem(); }
             ImGui::EndTabBar();
