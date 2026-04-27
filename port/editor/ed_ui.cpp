@@ -19,6 +19,10 @@ int  gl_renderer_save_ppm(const char *path);
 extern int gl_debug_wireframe;
 extern int gl_debug_skip_lines;
 extern int gl_debug_no_textures;
+/* CLI-supplied path to the disc image (port/libfs/libfs.c). Used by the
+ * Play button to spawn the live game with the same ISO the editor is
+ * already reading. */
+extern const char *port_iso_override;
 }
 
 /* True iff the dockable "3D View" panel is hovered or focused this frame.
@@ -421,6 +425,7 @@ static void tab_scene(void)
     /* Reimport button — only shown when the current stage came from
        extra_stages/<name>/manifest.json. Shells out to the Python
        importer with the stored args, then reloads the stage. */
+    bool has_manifest = false;
     {
         char manifest_path[128];
         std::snprintf(manifest_path, sizeof(manifest_path),
@@ -428,6 +433,7 @@ static void tab_scene(void)
         FILE *mf = std::fopen(manifest_path, "r");
         if (mf) {
             std::fclose(mf);
+            has_manifest = true;
             ImGui::SameLine();
             if (ImGui::Button("Reimport")) {
                 char cmd[512];
@@ -441,6 +447,59 @@ static void tab_scene(void)
             }
         }
     }
+
+    /* Play button: launches the live game (./mgs) on this stage in a
+     * detached background process so the editor stays responsive. For
+     * custom stages with a manifest, reimports first so any unsaved
+     * GCL/OBJ edits land in the datacnf before the game reads it.
+     * Disabled when no stage is loaded — there's nothing to play. */
+    ImGui::SameLine();
+    if (!g_stage.loaded) ImGui::BeginDisabled();
+    if (ImGui::Button("Play")) {
+        /* Reimport first so edits to scenerio.gcl / OBJs reach the
+         * live game without the user having to press Reimport. */
+        if (has_manifest) {
+            char rc_cmd[512];
+            std::snprintf(rc_cmd, sizeof(rc_cmd),
+                "cd ../.. && python3 tools/import_stage.py "
+                "--manifest port/editor/extra_stages/%s/manifest.json",
+                g_stage.stage_name);
+            int rc = system(rc_cmd);
+            if (rc != 0)
+                std::fprintf(stderr,
+                    "editor: Play: reimport failed (rc=%d) — launching anyway\n", rc);
+        }
+        /* Reuse the ISO the editor was launched with. Fallback to the
+         * conventional location next to the editor binary. */
+        const char *iso = port_iso_override;
+        if (!iso || !*iso) iso = "./ISO/mgs.cue";
+        /* Background launch (`&`) so the editor doesn't block, and
+         * `setsid` so killing the editor doesn't take the game with it.
+         * Output goes to /tmp/mgs.log for post-mortem if the game
+         * crashes; stdin is redirected from /dev/null to avoid the bg
+         * job freezing on TTY. */
+        char cmd[768];
+        std::snprintf(cmd, sizeof(cmd),
+            "cd .. && PORT_AUTOLOAD_STAGE=%s PORT_GL=1 "
+            "nohup ./mgs '%s' </dev/null >/tmp/mgs_%s.log 2>&1 &",
+            g_stage.stage_name, iso, g_stage.stage_name);
+        int rc = system(cmd);
+        if (rc != 0)
+            std::fprintf(stderr,
+                "editor: Play launch failed (rc=%d): %s\n", rc, cmd);
+        else
+            std::printf("editor: Play — launched mgs on '%s' (log: /tmp/mgs_%s.log)\n",
+                        g_stage.stage_name, g_stage.stage_name);
+    }
+    if (ImGui::IsItemHovered() && g_stage.loaded) {
+        ImGui::SetTooltip("Launch ./mgs with PORT_AUTOLOAD_STAGE=%s.\n"
+                          "%sBackground process; output → /tmp/mgs_%s.log",
+                          g_stage.stage_name,
+                          has_manifest ? "Reimports the custom stage first.\n" : "",
+                          g_stage.stage_name);
+    }
+    if (!g_stage.loaded) ImGui::EndDisabled();
+
     ImGui::Separator();
 
     /* Render toggles. */
