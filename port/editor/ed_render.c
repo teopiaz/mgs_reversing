@@ -237,6 +237,35 @@ void ed_render_frame_ortho(EdOrthoCam *cam, int viewport_w, int viewport_h)
     ed_render_scene();
 }
 
+/* Demo-playback render: use the engine's runtime camera (driven by the
+ * cinema actor) and let the engine's PSX-replica render path push every
+ * actor's animated mesh into gl_renderer's tri buffer. The editor's
+ * static-map walk runs after so the level geometry shows underneath the
+ * demo's character animations. */
+extern int GV_Clock;
+extern void port_RenderObjects(int idx);
+void ed_render_frame_demo(void)
+{
+    extern DG_CHANL DG_Chanls[3];
+    DG_CHANL *ch = &DG_Chanls[1];
+
+    /* The engine sets DG_Chanls[1].eye_inv every frame (via the cinema
+     * actor's camera-update message dispatch). Mirror it into the
+     * editor's view-matrix snapshot so HZD overlays / actor markers /
+     * pick rays / world axes still project correctly. */
+    s_eye_inv   = ch->eye_inv;
+    s_clip_dist = ch->clip_distance ? ch->clip_distance : 300;
+
+    /* Engine pipeline: this calls gl_renderer_begin_3d() which clears
+     * last frame's tris, then walks DG_OBJS submitting each animated
+     * model. Snake / DEMODOLLs / EMITTERs all show up here. */
+    port_RenderObjects(GV_Clock);
+
+    /* Layer the editor's map + HZD + actor-marker overlays on top so
+     * the level geometry is visible behind the demo's characters. */
+    ed_render_scene();
+}
+
 /* ---------------------------------------------------------------------------
  * AABB sources for "Frame selection" (F key). Selection takes precedence;
  * if nothing is selected we fall back to the union of every map KMD's
