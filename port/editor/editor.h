@@ -159,6 +159,10 @@ void ed_render_frame(void);
 /* Renders the same scene with an ortho camera; caller must bind the
  * destination viewport FBO and enable ortho/wireframe in the GL renderer. */
 void ed_render_frame_ortho(EdOrthoCam *cam, int viewport_w, int viewport_h);
+/* Demo playback: uses the engine's runtime DG_Chanls[1].eye_inv as the
+ * camera and runs the engine's port_RenderObjects pipeline so animated
+ * actors appear. Editor map/HZD overlays render on top. */
+void ed_render_frame_demo(void);
 
 /* ed_hzd.c */
 void ed_hzd_render(void);

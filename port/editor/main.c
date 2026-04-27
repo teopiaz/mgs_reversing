@@ -257,7 +257,16 @@ int main(int argc, char *argv[])
             } else {
                 gl_renderer_set_viewport_ortho(passes[p].idx, 0, 0, 0, 0, 0);
                 gl_renderer_set_viewport_wireframe(passes[p].idx, 0);
-                ed_render_frame();
+                /* During demo playback, switch the 3D pane to the engine's
+                 * runtime camera + actor render path so the cinema, demo
+                 * dolls, particle emitters etc. render with their live
+                 * animations. The Top/Front/Side ortho panes stay on the
+                 * editor's static walker — they're for spatial layout
+                 * inspection, not playback. */
+                if (g_demo_loaded && passes[p].idx == GL_VIEWPORT_3D)
+                    ed_render_frame_demo();
+                else
+                    ed_render_frame();
             }
             gl_renderer_present();
         }
