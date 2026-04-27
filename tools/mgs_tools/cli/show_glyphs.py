@@ -19,9 +19,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcx import GcxData
-from gcl_decompile import GclDecomp
-from glyph_extractor import (
+from mgs_tools.gcl.gcx import GcxData
+from mgs_tools.gcl.decompile import GclDecomp
+from mgs_tools.gcl.glyphs.extractor import (
     GLYPH_BYTES,
     bank_and_offset,
     collect_codes_from_string,

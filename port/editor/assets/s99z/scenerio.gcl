@@ -67,7 +67,7 @@ script {
     #   -d 0 yaw 0     : rotation; yaw 0 leaves the door's local +Z
     #                    facing +Z, i.e. it slides east–west along X.
     #   -m $s:6E28     : door_dd KMD (bundled by import_stage.py via
-    #                    tools/stage_assets/bundled/door_dd.kmd).
+    #                    tools/mgs_tools/stage/bundled/door_dd.kmd).
     #   -t b:2         : 2-leaf slider (REQUIRED for door_dd).
     #   -w 1500        : slide-open width (PSX units).
     #   -s 70          : slide speed.

@@ -187,7 +187,7 @@ static void tab_actors(void)
     char tsv_path[64];
     /* Path is passed as JSON; ed_actors_load falls back to the sibling
      * .tsv if no JSON is present. Save still writes TSV (the format the
-     * import pipeline reads back via tools/build_editor_data.py). */
+     * import pipeline reads back via tools/extract_actors.py --batch). */
     std::snprintf(tsv_path, sizeof(tsv_path), "data/%s_actors.json",
                   g_stage.stage_name);
     if (ImGui::Button("Reload##actors")) ed_actors_load(tsv_path);

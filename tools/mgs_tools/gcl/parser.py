@@ -21,8 +21,8 @@ Tokens are whitespace/newline separated except inside strings.
 import re
 import sys
 
-from constants import GclCode, GclCommand, GclOperator
-from gcx import GclNode
+from .constants import GclCode, GclCommand, GclOperator
+from .gcx import GclNode
 
 
 # ----------------------------------------------------------- error reporting
@@ -649,7 +649,7 @@ class Parser:
             # Bare identifier inside an option position → treat as STR_ID
             # of its hash. (Not currently emitted by our writer; accept
             # for future hash-resolved source.)
-            from constants import gv_strcode
+            from .constants import gv_strcode
             self.eat()
             return GclNode({GclCode.STR_ID.name: gv_strcode(text)})
 
@@ -693,7 +693,7 @@ class Parser:
             return GclNode({GclCode.PROC.name: int(text[4:], 16)})
 
         if k == "NAMEREF":
-            from mgs_names import NAME_TO_HASH
+            from .names import NAME_TO_HASH
             self.eat()
             ident = text[1:]                      # strip leading &
             if ident not in NAME_TO_HASH:

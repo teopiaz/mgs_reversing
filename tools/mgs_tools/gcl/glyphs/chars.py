@@ -60,7 +60,7 @@ def _to_fullwidth(ch: str) -> str:
 
 
 try:
-    from mgs_chars_derived import DERIVED_CODE_TO_CHAR as _DERIVED
+    from .chars_derived import DERIVED_CODE_TO_CHAR as _DERIVED
     for _code, _raw in _DERIVED.items():
         _ch = _to_fullwidth(_raw) if len(_raw) == 1 else _raw
         if ord(_ch) < 0x80:
