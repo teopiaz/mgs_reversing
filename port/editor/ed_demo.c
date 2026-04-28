@@ -221,6 +221,10 @@ void ed_demo_stop(void)
     g_demo_frame  = 0;
     g_demo_cam_pos[0] = g_demo_cam_pos[1] = g_demo_cam_pos[2] = 0.0f;
     g_demo_cam_rot_yaw = g_demo_cam_rot_pitch = g_demo_cam_rot_roll = 0.0f;
+    /* Drop the auto-loaded .dmo so the next Play picks the catalogue's
+     * default again (matters when the user switched dmos via the dropdown
+     * mid-playback — Stop should fully reset the source too). */
+    ed_dmo_close();
 }
 
 void ed_demo_step_one(void)
@@ -346,6 +350,8 @@ static void feed_dmo_frame_to_engine(void)
 
     if (g_dmo_active_frame < g_dmo_active->n_extracted - 1)
         g_dmo_active_frame++;
+    else if (g_dmo_loop)
+        g_dmo_active_frame = 0;
 }
 
 void ed_demo_tick(void)
