@@ -27,6 +27,8 @@ typedef struct {
     short visible;
     short pos[3];           /* PSX world units */
     short rot[3];           /* root rotation, pre-skeletal */
+    int   n_rots;           /* per-joint Euler triplets — bone hierarchy size */
+    short *rots;            /* [n_rots * 3] heap-owned (rx,ry,rz)... */
 } EdDmoAdjust;
 
 typedef struct {
@@ -72,7 +74,9 @@ extern EdDmoData       *g_dmo_active;       /* NULL = nothing selected */
 extern int              g_dmo_active_frame; /* index into g_dmo_active->frames */
 extern int              g_dmo_show_path;    /* draw camera path in 3D pane */
 extern int              g_dmo_show_actors;  /* draw per-frame DMO_ADJ markers */
+extern int              g_dmo_show_models;  /* prefer KMDs over cube markers when in cache */
 extern int              g_dmo_follow_cam;   /* per-frame, snap editor cam to eye + look-at */
+extern int              g_dmo_loop;         /* during Play: wrap to frame 0 instead of holding */
 
 void ed_dmo_load_index(void);
 int  ed_dmo_open(const char *name);
