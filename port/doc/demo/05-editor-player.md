@@ -41,6 +41,16 @@ the editor:
 
 ## What it isn't (yet)
 
+- **Streamed cinematics.** A demo whose `demo.gcx` invokes
+  `demo -s <code>` to play a pre-baked stream from `ZMOVIE.STR`
+  via [demothrd.c](../../../source/kojo/demothrd.c) stalls — the
+  editor doesn't pump the FS streamer that
+  `FS_StreamGetData(5)` waits on. See
+  [09-streamed-demos.md](09-streamed-demos.md) for the full
+  picture and the fix sketch. This is what's playing in any
+  cutscene that "starts but freezes immediately"; a cutscene that
+  *plays* in the editor (d00a's opener, many in-stage scenes) is
+  using only the GCL-scripted path.
 - **Audio.** The editor's sound system is initialised so
   `FS_LoadStageRequest` can write to SPU memory without crashing,
   but the per-tick `SdInt` / `IntSdMain` / `StrSpuTrans` pumps

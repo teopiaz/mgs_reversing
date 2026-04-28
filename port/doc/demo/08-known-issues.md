@@ -8,6 +8,26 @@ implementations* that we intend to fix.
 
 ## Editor Demo Player
 
+### Streamed cutscenes (`demo -s` / `demo -f`) stall
+
+When the GCL script invokes `demo -s <code>` (stream-based) the
+runtime spawns a `DemoWork` actor in `demothrd.c::DM_ThreadStream`
+that polls `FS_StreamGetData(5)` per tick. The editor's libfs
+exposes the streamer API but doesn't pump it from `ed_demo_tick`,
+so the call returns NULL forever — the cutscene appears frozen
+on the first frame.
+
+`demo -f <file>` (file-based) uses `PCopen` and reads the entire
+demo upfront; this likely works in the editor but no UI invokes
+it directly.
+
+Most dramatic disc cinematics (long openers, boss intros, codec
+calls) use the streamed path. In-stage GCL cutscenes (the kind
+covered by [01-overview.md](01-overview.md)) work fine.
+
+**Fix sketch:** see [09-streamed-demos.md](09-streamed-demos.md)
+"What it would take to support streamed cinematics".
+
 ### No audio
 
 The editor inits the SPU emulator (`spu_emu_init` + `sd_init`)
