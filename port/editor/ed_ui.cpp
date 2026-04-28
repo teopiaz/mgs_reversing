@@ -392,12 +392,20 @@ static void tab_demo(void)
                         g_demo_cam_rot_roll  * 57.2958f);
             /* The active .dmo's per-frame eye/center is what makes the
              * cinematic camera animate while Play is on. Show which is
-             * driving + let the user switch when the stage has multiple. */
+             * driving + let the user scrub / loop without leaving the
+             * Demo tab. */
             if (g_dmo_active) {
                 ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.6f, 1.0f),
                     "Driving camera from %s  (frame %d / %d)",
                     g_dmo_active->name, g_dmo_active_frame + 1,
                     g_dmo_active->n_extracted);
+                if (g_dmo_active->n_extracted > 1) {
+                    ImGui::SetNextItemWidth(-120);
+                    ImGui::SliderInt("##demo_dmo_frame", &g_dmo_active_frame,
+                                     0, g_dmo_active->n_extracted - 1, "frame %d");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("loop", (bool *)&g_dmo_loop);
+                }
             } else {
                 ImGui::TextDisabled(
                     "No .dmo loaded — camera won't animate. (Stage has\n"
@@ -678,7 +686,13 @@ static void tab_dmo(void)
                         d->n_models, d->n_maps);
     ImGui::Checkbox("draw camera path in 3D view", (bool *)&g_dmo_show_path);
     ImGui::SameLine();
-    ImGui::Checkbox("show actor markers##dmo", (bool *)&g_dmo_show_actors);
+    ImGui::Checkbox("show characters##dmo", (bool *)&g_dmo_show_actors);
+    if (g_dmo_show_actors) {
+        ImGui::SameLine();
+        ImGui::Checkbox("as KMDs##dmo", (bool *)&g_dmo_show_models);
+        ImGui::SameLine();
+        ImGui::TextDisabled("(off = cube markers)");
+    }
     /* Follow toggle: every frame the editor cam is snapped to the active
      * dmo frame's eye + oriented to look at center. The user can then
      * scrub the timeline (or hold Right-arrow) and watch the cinematic

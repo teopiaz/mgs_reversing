@@ -24,6 +24,10 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "libgte.h"
+#include "libgpu.h"
+#include "libgv/libgv.h"
+#include "libdg/libdg.h"
 #include "ed_dmo.h"
 
 /* ---------------------------------------------------------------------- */
@@ -127,7 +131,9 @@ EdDmoData       *g_dmo_active      = NULL;
 int              g_dmo_active_frame = 0;
 int              g_dmo_show_path = 1;
 int              g_dmo_show_actors = 1;
+int              g_dmo_show_models = 1;
 int              g_dmo_follow_cam = 0;
+int              g_dmo_loop = 0;
 
 /* Read a whole file into a heap buffer. Returns NULL on failure;
  * sets *out_size when it doesn't. Caller frees with `free`. */
@@ -324,7 +330,8 @@ static int parse_dat_block(EdDmoFrame *f, const unsigned char *raw, int sz)
     f->n_adjusts = (short)n;
     f->adjusts = n ? (EdDmoAdjust *)calloc(n, sizeof(EdDmoAdjust)) : NULL;
     for (int i = 0; i < n; i++) {
-        const unsigned char *p = raw + adj_off + i * 24;
+        unsigned long adj_self_off = adj_off + i * 24;
+        const unsigned char *p = raw + adj_self_off;
         EdDmoAdjust *a = &f->adjusts[i];
         a->type    = (int)le_u32(p);
         a->visible = le_s16(p + 4);
@@ -334,6 +341,25 @@ static int parse_dat_block(EdDmoFrame *f, const unsigned char *raw, int sz)
         a->pos[0]  = le_s16(p + 12);
         a->pos[1]  = le_s16(p + 14);
         a->pos[2]  = le_s16(p + 16);
+        /* rots[] payload: n_rots Euler triplets at byte offset
+         * (adjust_self_offset + adjust->rots_offset) — that's how the
+         * runtime's OFFSET_TO_PTR(adjust, &adjust->rots) computes the
+         * pointer (offset is relative to the adjust struct, not raw). */
+        int n_rots = le_s16(p + 18);
+        unsigned long rots_off_rel = le_u32(p + 20);
+        if (n_rots <= 0 || n_rots > 64) {
+            a->n_rots = 0; a->rots = NULL;
+        } else {
+            unsigned long rots_abs = adj_self_off + rots_off_rel;
+            if (rots_abs + (unsigned)n_rots * 6u > (unsigned)sz) {
+                a->n_rots = 0; a->rots = NULL;
+            } else {
+                a->n_rots = n_rots;
+                a->rots = (short *)malloc(n_rots * 3 * sizeof(short));
+                for (int j = 0; j < n_rots * 3; j++)
+                    a->rots[j] = le_s16(raw + rots_abs + j * 2);
+            }
+        }
     }
     return 1;
 }
@@ -407,15 +433,24 @@ int ed_dmo_find_for_stage(const char *stage_name, int max,
     return found;
 }
 
+static void free_frames(EdDmoFrame *frames, int n)
+{
+    if (!frames) return;
+    for (int i = 0; i < n; i++) {
+        if (frames[i].adjusts) {
+            for (int j = 0; j < frames[i].n_adjusts; j++)
+                free(frames[i].adjusts[j].rots);
+            free(frames[i].adjusts);
+        }
+    }
+    free(frames);
+}
+
 void ed_dmo_close(void)
 {
     if (!g_dmo_active) return;
     EdDmoData *d = g_dmo_active;
-    if (d->frames) {
-        for (int i = 0; i < d->n_extracted; i++)
-            free(d->frames[i].adjusts);
-        free(d->frames);
-    }
+    free_frames(d->frames, d->n_extracted);
     free(d->models);
     free(d->maps);
     free(d);
@@ -467,11 +502,7 @@ int ed_dmo_open(const char *name)
 
     if (!parse_dmo_blocks(d, buf, got)) {
         printf("[dmo] open: %s parse failed at sector 0x%X\n", name, sector);
-        if (d->frames) {
-            for (int i = 0; i < d->n_extracted; i++)
-                free(d->frames[i].adjusts);
-            free(d->frames);
-        }
+        free_frames(d->frames, d->n_extracted);
         free(d->models); free(d->maps); free(d); free(buf);
         return 0;
     }
@@ -574,6 +605,78 @@ static void cube_lines_at(int cx, int cy, int cz, int r,
     #undef DMO_LINE
 }
 
+/* Look up a KMD in the engine's cache by low-24-bit id. Returns NULL when
+ * the model isn't loaded (common: cinematic references a chara not
+ * shipped in the stage's DATACNF). The void* is a DG_DEF; we keep it
+ * opaque to avoid dragging libdg through ed_dmo.h. */
+extern GV_CACHE_PAGE GV_CacheSystem;
+
+static void *dmo_cache_lookup(int cache_id)
+{
+    int target = cache_id & 0xFFFFFF;
+    if (!target) return NULL;
+    int start = target % MAX_CACHE_TAGS;
+    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
+        int slot = (start + i) % MAX_CACHE_TAGS;
+        GV_CACHE_TAG *t = &GV_CacheSystem.tags[slot];
+        int cur = t->id & 0xFFFFFF;
+        if (cur == 0) return NULL;
+        if (cur == target) return t->ptr;
+    }
+    return NULL;
+}
+
+extern void render_kmd_unlit(DG_DEF *def, int dist, int wx, int wy, int wz);
+extern void render_kmd_posed(DG_DEF *def, int dist, const MATRIX *bones,
+                             int wx, int wy, int wz);
+
+/* Build the world-space bone matrices for a posed KMD. Walks DG_MDL[]
+ * in order (assumes parents come before children — true for disc KMDs).
+ * For each bone:
+ *   local = R(rots[i])  with translation = mdl[i].pos
+ *   if root (parent < 0): bone[i] = T(adj.pos) * R(adj.rot) * local
+ *   else:                 bone[i] = bone[parent] * local
+ *
+ * Returns the number of bones filled (clamped to `cap`). When the
+ * adjust has fewer rots than the KMD has bones, missing entries are
+ * treated as identity rotations — characters stand in T-pose for the
+ * unposed body parts. */
+static int build_bone_matrices(DG_DEF *def, EdDmoAdjust *adj,
+                               MATRIX *out, int cap)
+{
+    int n = def->n_models;
+    if (n > cap) n = cap;
+    SVECTOR root_rot = { adj->rot[0], adj->rot[1], adj->rot[2], 0 };
+    MATRIX root;
+    RotMatrixZYX_gte(&root_rot, &root);
+    root.t[0] = adj->pos[0];
+    root.t[1] = adj->pos[1];
+    root.t[2] = adj->pos[2];
+
+    for (int i = 0; i < n; i++) {
+        DG_MDL *mdl = &def->model[i];
+        SVECTOR rot = {0,0,0,0};
+        if (adj->rots && i < adj->n_rots) {
+            rot.vx = adj->rots[i*3 + 0];
+            rot.vy = adj->rots[i*3 + 1];
+            rot.vz = adj->rots[i*3 + 2];
+        }
+        MATRIX local;
+        RotMatrixZYX_gte(&rot, &local);
+        local.t[0] = mdl->pos.vx;
+        local.t[1] = mdl->pos.vy;
+        local.t[2] = mdl->pos.vz;
+
+        int parent = mdl->parent;
+        if (parent < 0 || parent >= i) {
+            CompMatrix(&root, &local, &out[i]);
+        } else {
+            CompMatrix(&out[parent], &local, &out[i]);
+        }
+    }
+    return n;
+}
+
 void ed_dmo_render_actors(void)
 {
     if (!g_dmo_active || !g_dmo_show_actors) return;
@@ -597,7 +700,40 @@ void ed_dmo_render_actors(void)
     for (int i = 0; i < f->n_adjusts; i++) {
         EdDmoAdjust *a = &f->adjusts[i];
         if (!a->visible) continue;
-        const unsigned char *col = palette[a->type & 7];
-        cube_lines_at(a->pos[0], a->pos[1], a->pos[2], R, col, cd);
+        /* Try to render the actual character KMD. Match the adjust's type
+         * to a DMO_DEF.models[] entry by linear search (same as
+         * source/kojo/demo.c::demothrd_8007CFE8), then look up its KMD in
+         * the cache by cache_id. Translation only; rotation is
+         * skeletal-animation territory. Falls back to a cube marker
+         * when no model matched / not in cache. */
+        void *def = NULL;
+        if (g_dmo_show_models) {
+            for (int m = 0; m < d->n_models; m++) {
+                if (d->models[m].type == a->type) {
+                    def = dmo_cache_lookup(d->models[m].cache_id);
+                    break;
+                }
+            }
+        }
+        if (def) {
+            /* Skeletal-pose render: build world matrices for every bone
+             * and call render_kmd_posed. Per-bone rotations come from
+             * DMO_ADJ.rots[], root rotation+translation from DMO_ADJ
+             * itself. Static fall-through if pose-build fails (corrupt
+             * data → render at adj.pos with translation only). */
+            #define MAX_BONES 64
+            MATRIX bones[MAX_BONES];
+            int nb = build_bone_matrices((DG_DEF *)def, a, bones, MAX_BONES);
+            if (nb > 0) {
+                render_kmd_posed((DG_DEF *)def, cd, bones, 0, 0, 0);
+            } else {
+                render_kmd_unlit((DG_DEF *)def, cd,
+                                 a->pos[0], a->pos[1], a->pos[2]);
+            }
+            #undef MAX_BONES
+        } else {
+            const unsigned char *col = palette[a->type & 7];
+            cube_lines_at(a->pos[0], a->pos[1], a->pos[2], R, col, cd);
+        }
     }
 }

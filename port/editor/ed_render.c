@@ -102,8 +102,16 @@ static void render_world_axes(void)
     ed_world_to_eye(0, 0, L, a); gl_submit_line3d(o, a, B, B, s_clip_dist);
 }
 
-static void render_kmd_unlit(DG_DEF *def, int dist,
-                             int wx, int wy, int wz)
+/* Posed variant — when `bones` is non-NULL, each vertex of model[i] is
+ * transformed by bones[i] (rotation + translation) before projection,
+ * and wx/wy/wz are ignored (the bone matrix already carries world pos).
+ * When `bones` is NULL, behaves like render_kmd_unlit (translation-only).
+ *
+ * Caller is responsible for building bones[] following the KMD's bone
+ * hierarchy (DG_MDL.parent → world matrix composition). See ed_dmo.c
+ * for the cinematic-pose builder. */
+void render_kmd_posed(DG_DEF *def, int dist, const MATRIX *bones,
+                      int wx, int wy, int wz)
 {
     /* Reject NULL and obviously-bogus tiny/unaligned pointers so a stale
      * cache entry can't take down the editor. DG_DEFs come from FS-loaded
@@ -130,9 +138,29 @@ static void render_kmd_unlit(DG_DEF *def, int dist,
                            (vi >> 16) & 0x7F, (vi >> 24) & 0x7F };
             int eye[4][3];
             for (int k = 0; k < 4; k++) {
-                ed_world_to_eye(verts[idx[k]].vx + wx,
-                                verts[idx[k]].vy + wy,
-                                verts[idx[k]].vz + wz, eye[k]);
+                int wxk, wyk, wzk;
+                if (bones) {
+                    /* Posed: world = R * v + t, with shifts mirroring
+                     * the GTE's 12-bit fixed-point convention. */
+                    const MATRIX *m = &bones[mi];
+                    int vx = verts[idx[k]].vx;
+                    int vy = verts[idx[k]].vy;
+                    int vz = verts[idx[k]].vz;
+                    wxk = m->t[0] +
+                          (((int)m->m[0][0]*vx + (int)m->m[0][1]*vy +
+                            (int)m->m[0][2]*vz) >> 12);
+                    wyk = m->t[1] +
+                          (((int)m->m[1][0]*vx + (int)m->m[1][1]*vy +
+                            (int)m->m[1][2]*vz) >> 12);
+                    wzk = m->t[2] +
+                          (((int)m->m[2][0]*vx + (int)m->m[2][1]*vy +
+                            (int)m->m[2][2]*vz) >> 12);
+                } else {
+                    wxk = verts[idx[k]].vx + wx;
+                    wyk = verts[idx[k]].vy + wy;
+                    wzk = verts[idx[k]].vz + wz;
+                }
+                ed_world_to_eye(wxk, wyk, wzk, eye[k]);
             }
             /* Reject if entire face is behind near plane. */
             if (eye[0][2] < 1 && eye[1][2] < 1 && eye[2][2] < 1 && eye[3][2] < 1)
@@ -185,6 +213,13 @@ static void render_kmd_unlit(DG_DEF *def, int dist,
                             dist, face_z, tpage, clut, flags);
         }
     }
+}
+
+/* Public translation-only entry — convenience wrapper over render_kmd_posed. */
+void render_kmd_unlit(DG_DEF *def, int dist,
+                      int wx, int wy, int wz)
+{
+    render_kmd_posed(def, dist, NULL, wx, wy, wz);
 }
 
 /* Submit every renderable element of the loaded stage to the GL renderer,
