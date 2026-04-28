@@ -1,55 +1,98 @@
 # Camera pipeline
 
 The cutscene camera that gets baked into every triangle's eye-space
-position is the end of a four-step chain. Knowing the chain is the
-shortest route to debugging any "camera doesn't move / wrong angle /
-black screen" problem.
+position is the end of a chain that depends on **which kind of demo**
+is playing. There are two paths — pick the right one or you'll end up
+chasing a frozen camera in the wrong source file.
 
 ```
-WT_VIEW.Act()              writes  →  gUnkCameraStruct2_800B7868.{eye, center, zoom}
-camera.c Act()             reads   →  same struct
-                           calls   →  DG_LookAt(DG_Chanl(0), eye, center, zoom)
-DG_LookAt                  writes  →  DG_Chanls[0].eye_inv (the world→eye matrix)
-port_RenderObjects(idx)    consumes →  DG_Chanls[0].eye_inv
+streamed (demo -s / demo -f):
+  demothrd.c StreamAct → FrameRunDemo(work, dat)
+                          ↓
+                          gUnkCameraStruct2_800B7868.{eye, center}  (per frame)
+
+GCL-scripted only (no demo -s):
+  per-stage overlay actor (democame.c, 11g_demo.c, intr_cam.c, …)
+                          ↓
+                          gUnkCameraStruct2_800B7868.{eye, center}
+
+then for both paths:
+  camera.c Act()           reads   →  same struct
+                           calls   →  DG_LookAt(DG_Chanl(0), eye, center, clip_dist)
+  DG_LookAt                writes  →  DG_Chanls[0].eye_inv (the world→eye matrix)
+  port_RenderObjects(idx)  consumes →  DG_Chanls[0].eye_inv
                                        projects every actor mesh's verts
                                        through the matrix → gl_submit_tri3d
-gl_renderer_present                  →  GL draw → window swap
+  gl_renderer_present                  →  GL draw → window swap
 ```
 
 Each step has a single observable side effect; if any breaks, the
 chain stalls in a different way.
 
-## Step 1 — WT_VIEW animates the camera struct
+## Step 1A — streamed: FrameRunDemo writes the camera struct
 
-`source/takabe/wt_view.c`'s `Act()` runs every tick. It reads its
-own `Work` struct (populated at spawn from the GCL's `-b` and `-c`
-options), advances internal animation timers, and writes the result
-into the global
+When the demo is streamed (`demo -s <code>` or `demo -f "*.dmo"`),
+[`source/kojo/demothrd.c`](../../../source/kojo/demothrd.c) spawns a
+`DemoWork` actor whose `StreamAct` / `FileAct` polls the FS streamer
+for the next `DMO_DAT` record per cutscene frame. For each record,
+it calls `FrameRunDemo` (in
+[`source/kojo/demo.c`](../../../source/kojo/demo.c)), which writes:
 
 ```c
-struct {
-    SVECTOR eye;       // world-space camera position
-    SVECTOR center;    // world-space look-at target
-    int     zoom;      // PSX H register / FOV mapping
-} gUnkCameraStruct2_800B7868;
+gUnkCameraStruct2_800B7868.eye.vx    = data->eye_x;       // s16, PSX world units
+gUnkCameraStruct2_800B7868.eye.vy    = data->eye_y;
+gUnkCameraStruct2_800B7868.eye.vz    = data->eye_z;
+gUnkCameraStruct2_800B7868.center.vx = data->center_x;
+gUnkCameraStruct2_800B7868.center.vy = data->center_y;
+gUnkCameraStruct2_800B7868.center.vz = data->center_z;
+DG_Chanl(0)->clip_distance           = data->clip_dist;   // FOV
 ```
 
-For a static framing, the same eye + center is written every frame.
-For a moving shot (a slow dolly, a pan), eye/center change on a per-
-tick smooth curve. The interpolation lookup tables live in
-`wt_view.c`'s `.rodata`.
+The animation is **fully baked** — every frame of the cinematic ships
+on disc as a `DMO_DAT` record. There's no interpolation or actor-
+driven motion; eye/center are looked up by frame index.
 
-If WT_VIEW is **missing** (factory not registered → `chara: func not
-found`), nothing writes the struct. It stays at whatever the C
-runtime zero-initialises it to: `eye = center = (0,0,0)`, `zoom = 0`.
-That's a *degenerate* camera — `DG_LookAt` will produce a
-forward-vector of zero, fall through its `right.vx|y|z == 0` branch,
-and bake an identity-ish matrix. The 3D pane appears frozen looking
-into the world origin from nowhere.
+This is what plays the long disc cinematics (the d00a opener, codec
+calls with synced voice, boss intros). See
+[09-streamed-demos.md](09-streamed-demos.md) for the full streamer
+chain — it's not running in the editor today; the streamed path
+stalls there.
+
+## Step 1B — GCL-scripted: a per-stage overlay actor
+
+When the demo is GCL-scripted only (no `demo -s` / `demo -f` directive
+anywhere in the scenario / demo `.gcl`), there is **no built-in
+cutscene camera animator** — none of CINEMA, WT_VIEW, DEMODOLL,
+EMITTER, FADEIO, JIMAKU, or RADIO touches `gUnkCameraStruct2`. The
+camera stays at whatever the previous gameplay tick set, which means
+in-stage scenes (codec calls, environmental fly-bys, scene
+transitions) reuse the last gameplay framing or use a stage-specific
+override.
+
+When a designer needed an animated camera in a non-streamed cutscene,
+the disc shipped a custom actor in the per-stage overlay:
+
+| Source | Stage | What it does |
+| --- | --- | --- |
+| [`source/overlays/s19b/takabe/democame.c`](../../../source/overlays/s19b/takabe/democame.c) | s19b (jeep ride) | spawns at script init, drives `gUnkCameraStruct2.eye/center` along a scripted path |
+| [`source/overlays/s11g/okajima/11g_demo.c`](../../../source/overlays/s11g/okajima/11g_demo.c) | s11g (hind chase) | similar — moves camera with the hind |
+| [`source/overlays/s12a/okajima/wolf/wolf2.c`](../../../source/overlays/s12a/okajima/wolf/wolf2.c) | s12a (wolves) | overrides camera during a scripted attack |
+| [`source/chara/others/intr_cam.c`](../../../source/chara/others/intr_cam.c) | various | "introductory camera" — fly-in for stage entry |
+
+These all write `gUnkCameraStruct2.eye/center` directly. They are
+*not* what the chara hash `0x8E45` (`WT_VIEW`) refers to —
+`NewWaterView` is a water visual effect (see
+[03-key-actors.md](03-key-actors.md)).
+
+So if a non-streamed cutscene's camera looks frozen, the question is
+"does *this stage* have an overlay actor for camera animation?" — and
+in most disc demos the answer is "no, the camera intentionally
+doesn't move during this scene".
 
 ## Step 2 — camera.c reads the struct, calls DG_LookAt
 
-`source/game/camera.c`'s `Act()` is one of the simpler engine actors:
+[`source/game/camera.c`](../../../source/game/camera.c)'s `Act()` is
+one of the simpler engine actors:
 
 ```c
 static void Act(GV_ACT *work) {
@@ -120,15 +163,15 @@ projected through the matrix that started its life as
 ## How to verify each step in the editor
 
 The editor's Demo Player tab exposes channel-dirty bits + raw camera
-values. The expected progression on a working d00a Play:
+values. Expected progression depends on the demo type:
 
 | Step | Symptom of failure | Diagnostic |
 | --- | --- | --- |
-| WT_VIEW spawned | `chara: func not found (hash=0x8E45)` in stderr | "Live actors" doesn't include `wt_view.c` after **Dump actors** |
-| WT_VIEW Act runs | `gUnkCameraStruct2` stays zero | n/a — would need a printf inside wt_view.c |
-| camera.c Act runs | "Channels updated" stays `[- - -]` | `Live actors` includes `camera.c`; `GM_GameStatus` is non-negative |
-| DG_LookAt fires | `Channels updated` stays `[- - -]` | `GV_PauseLevel == 0` |
-| Matrix actually changes | `Channels updated` shows `[0 - -]` flickering | "Camera (chanl 0) pos / yaw" values change frame-to-frame |
+| streamed: DemoWork spawned | "DemoWork at frame -1" log; "Channels updated" stays `[- - -]` forever | demothrd.c is in the dump, but `FS_StreamGetData` returns NULL — see [09-streamed-demos.md](09-streamed-demos.md) |
+| GCL-only: stage has no camera actor | (expected for in-stage demos) | "Channels updated" `[- - -]` is the *correct* state — the camera is meant to be static |
+| camera.c Act runs | "Channels updated" stays `[- - -]` even though something *should* drive it | `Live actors` includes `camera.c`; `GM_GameStatus` is non-negative |
+| DG_LookAt fires | "Channels updated" stays `[- - -]` | `GV_PauseLevel == 0` |
+| Matrix actually changes | "Channels updated" shows `[0 - -]` flickering | "Camera (chanl 0) pos / yaw" values change frame-to-frame |
 | Render uses the matrix | Camera readout updates but 3D pane looks frozen | the editor's render path uses `g_demo_active_chanl`; check that it picked 0 |
 
 ## Channel auto-detect
