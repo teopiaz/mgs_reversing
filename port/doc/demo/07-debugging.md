@@ -39,39 +39,59 @@ forked an older snapshot that called only `GCL_StartDaemon`, the
 GCL command table has only the four basic commands — anything else
 NULL-derefs.
 
-### Diagnostics → Live actors > 1, no `wt_view.c`
+### `[gcl] chara: func not found (hash=0x8E45)` — missing WT_VIEW
 
-`Dump actors → stdout` and search for `wt_view.c` in the output.
-If absent, `WT_VIEW` (chara 0x8E45) isn't registered.
-
-```
-[gcl] chara: func not found (hash=0x8E45)
-```
+`WT_VIEW` (`NewWaterView`) is the **water visual effect** — *not*
+the cutscene camera animator (the disc symbol is misleading). When
+absent, the stage will have no animated water tiles in shots that
+expected them, but the camera and the rest of the cutscene play
+normally.
 
 **Fix:** add `CHARA_WT_VIEW` to `MainCharacterEntries[]` in
 [`port/extern_stubs.c`](../../../port/extern_stubs.c). The factory
-(`NewWaterView`) already exists in `source/takabe/wt_view.c`; the
-fix is one line.
+already exists in `source/takabe/wt_view.c`; the fix is one line.
 
 ### Diagnostics → Channels updated `[- - -]`
 
 Actors run, but no engine code writes any `DG_Chanls[].eye_inv`.
-The cutscene-camera chain
+For most in-stage GCL cutscenes this is the *expected* state — the
+camera is meant to hold its previous gameplay framing. But for a
+streamed cutscene or a stage with a dedicated camera-animation
+overlay, it means the chain
 ([04-camera-pipeline.md](04-camera-pipeline.md)) is broken at one
 of its steps.
 
-Check in order:
+Decide which kind of cutscene this is first:
 
-1. **`Live actors` → `Dump actors`**: is `camera.c` listed at level
+```
+grep "demo -s\|demo -f" port/gcl/decompiled/<stage>/*.gcl
+```
+
+A match means **streamed**: the camera animation is baked in a
+`.dmo` record and read by `demothrd.c::FrameRunDemo` (see
+[09-streamed-demos.md](09-streamed-demos.md)). The editor doesn't
+pump the FS streamer today — `FS_StreamGetData` returns NULL and the
+DemoWork actor sits at frame -1. This stalls without an explicit
+error; symptom is the camera frozen at its last gameplay value.
+
+No match means **GCL-scripted only**:
+
+1. **Is the camera *meant* to move?** Many in-stage demos are
+   static set-piece shots (codec calls, scene transitions). If the
+   disc plays them with no camera motion, `[- - -]` is correct.
+2. **`Live actors` → `Dump actors`**: is `camera.c` listed at level
    2? If not, `NewCameraSystem()` wasn't called. Should be in
    `ed_demo_play`'s prelude — confirm the file matches what's in
    git.
-2. **`GM_GameStatus`**: negative? Camera Act early-exits. Clear
+3. **`GM_GameStatus`**: negative? Camera Act early-exits. Clear
    `STATE_PADRELEASE | STATE_ALL_OFF` before Play.
-3. **`GV_PauseLevel`**: non-zero? Camera helpers skip; DG_LookAt
+4. **`GV_PauseLevel`**: non-zero? Camera helpers skip; DG_LookAt
    fires but with stale inputs. Clear before Play.
-4. **`Dump actors`**: is `wt_view.c` listed? If not, see above
-   (CHARA_WT_VIEW unregistered).
+5. **Stage-specific camera actor**: stages s11g, s12a, s19b ship a
+   per-overlay actor (`11g_demo.c`, `wolf2.c`, `democame.c`) that
+   writes `gUnkCameraStruct2` directly. If the overlay isn't linked
+   into the editor, the camera won't animate. Check
+   `port/extern_stubs.c` and the per-stage Makefile entries.
 
 ## "It plays, but the camera is wrong / inverted / black screen"
 
@@ -82,14 +102,15 @@ zero or absurd, projecting every face outside NDC.
 
 **Check:** `Camera (chanl N) pos / yaw / pitch / roll` in the
 diagnostic readout. Position values huge (>100 000) or tiny
-(<-100 000)? `WT_VIEW` is animating to coords your stage's geometry
-isn't near, so all tris are being culled.
+(<-100 000)? Whatever's writing `gUnkCameraStruct2` is feeding
+coords your stage's geometry isn't near, so all tris get culled.
 
-**Fix:** for custom cutscenes, double-check `WT_VIEW`'s `-b X1 Y1
-Z1 X2 Y2 Z2` bounds match your stage's actual extents. Disc demos
-were authored against specific stage geometry — using a disc
-`WT_VIEW` directive verbatim against a custom map's dimensions
-won't frame correctly.
+**Fix:** for streamed demos, the eye/center come straight from the
+`.dmo` records — open the cutscene in the editor's **DMO** tab to
+inspect the per-frame eye/center values; if they don't fit your
+stage AABB, the demo isn't authored for this map. For GCL-scripted
+demos with a custom camera overlay, double-check the actor's
+hand-coded eye/center against the stage's actual extents.
 
 ### Looks weird, mirror-imaged or upside down
 
@@ -139,7 +160,9 @@ The faulting actor's name + filename are listed in the next
 ### `[gcl] chara: func not found (hash=0xNNNN)` (informational)
 
 Not a crash — just a skip. The actor doesn't spawn. If it was a
-critical actor (like WT_VIEW), the cutscene visually breaks.
+visually critical actor (one of the per-stage camera overlays from
+[04-camera-pipeline.md](04-camera-pipeline.md), or a DEMODOLL the
+shot frames around), the cutscene loses that piece.
 
 **Fix:** look up the hash in
 [`source/include/charalst.h`](../../../source/include/charalst.h),

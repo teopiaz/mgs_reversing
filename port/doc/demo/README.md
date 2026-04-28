@@ -19,7 +19,7 @@ cutscene.
 | [01-overview.md](01-overview.md) | What a cutscene actually is — the actor-driven model, why there's no timeline. |
 | [02-data-flow.md](02-data-flow.md) | DATACNF → demo.gcx → GCL_LoadScript → GCL_ExecScript → actor system. |
 | [03-key-actors.md](03-key-actors.md) | CINEMA, WT_VIEW, DEMODOLL, EMITTER, FADEIO and how they cooperate. |
-| [04-camera-pipeline.md](04-camera-pipeline.md) | How runtime camera state flows: WT_VIEW → gUnkCameraStruct2 → camera.c → DG_LookAt → DG_Chanls[0].eye_inv. |
+| [04-camera-pipeline.md](04-camera-pipeline.md) | How runtime camera state flows: streamed `FrameRunDemo` (or per-stage overlay) → gUnkCameraStruct2 → camera.c → DG_LookAt → DG_Chanls[0].eye_inv. |
 | [05-editor-player.md](05-editor-player.md) | The editor's Demo tab + Demo Player — Play/Pause/Stop, diagnostics, what it does and doesn't render. |
 | [06-authoring.md](06-authoring.md) | Writing a `demo.gcl` for a custom stage; common patterns. |
 | [07-debugging.md](07-debugging.md) | "Camera doesn't move", "Actors not spawning", missing CHARA registrations, NULL command lookups. |
@@ -52,11 +52,14 @@ opener animates while many `d-prefix` demos appear frozen mid-load.
   keyframe editor, no frame slider in the original engine — events
   fire because actors spawn at script init and drive their own state
   via `delay`, `mesg`, and per-tick `Act()` callbacks.
-- The runtime camera comes from a *chain*: a `WT_VIEW` actor (one per
-  cutscene) animates `gUnkCameraStruct2_800B7868`. The `camera.c`
-  actor reads that struct and calls `DG_LookAt` on `DG_Chanl(0)` every
-  tick. `port_RenderObjects` projects every actor's mesh through the
-  resulting `eye_inv` matrix.
+- The runtime camera comes from a *chain*: streamed `.dmo` records
+  feed `FrameRunDemo` (or, for non-streamed scenes, a per-stage
+  overlay actor like `democame.c`/`intr_cam.c`) which writes
+  `gUnkCameraStruct2_800B7868`. The `camera.c` actor reads that
+  struct and calls `DG_LookAt` on `DG_Chanl(0)` every tick.
+  `port_RenderObjects` projects every actor's mesh through the
+  resulting `eye_inv` matrix. `WT_VIEW` is *not* in this chain —
+  it's a water visual effect.
 - The editor can play a cutscene in-place by reusing the engine's
   actor system + render path, without launching `./mgs`. See
   [05-editor-player.md](05-editor-player.md).

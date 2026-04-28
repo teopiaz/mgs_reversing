@@ -30,9 +30,16 @@ once the importer side catches up.
 
 ## Minimum viable demo
 
-A "blank" cutscene needs three things: a fade-in, a camera
-animator, and a CINEMA timer. Drop this into
-`port/editor/assets/<stage>/demo.gcl`:
+A "blank" cutscene needs three things: a fade-in, a CINEMA lifetime
+timer, and (optionally) a camera animator. Custom cutscenes have no
+built-in camera-animation primitive — the disc relied on baked `.dmo`
+records (which need an offline pipeline we don't have) or per-stage
+overlay actors compiled into C. For a custom GCL-only demo your
+options are: (a) leave the camera static and let it inherit whatever
+the gameplay scene framed, or (b) use the `camera` GCL command to
+configure a fixed framing via the engine's HZD camera system.
+
+Drop this into `port/editor/assets/<stage>/demo.gcl`:
 
 ```gcl
 # Stage hash 0xNNNN = gv_strcode("<stage>"); replace below.
@@ -64,10 +71,10 @@ script {
         -t 60 240          # 60 ticks of black, 240 ticks of fade
         -c 0 0 0
 
-    # Camera that watches a 6000-unit cube around the origin
-    chara $s:8e45 $s:DDD3 \
-        -b -3000 -3000 -3000 3000 3000 3000
-        -c b:80 b:80 b:120
+    # Optional water effect — only if the scene shows water
+    # chara &WT_VIEW $s:DDD3 \
+    #     -b -3000 -3000 -3000 3000 3000 3000
+    #     -c b:80 b:80 b:120
 
     # Cutscene runs for ~17 seconds at 60Hz
     chara &CINEMA $s:DDD4 \
@@ -89,46 +96,54 @@ In the editor, open the stage and hit **Play** on the Demo tab.
 
 ## Common authoring patterns
 
-### Slow camera pan
+### Camera framing
 
-`WT_VIEW`'s motion is driven by its bound box and an internal animation
-table that interpolates between the corners. To get a slow drift,
-make the bound box wider on the axis you want movement on:
+Custom GCL has no built-in animated cutscene camera (see "Status"
+above). Practical approaches:
+
+**Static fixed framing via the `camera` GCL command.** This
+configures one of the engine's HZD camera slots (`GM_CameraList[N]`,
+N = 0..7) and switches to it. The set is identical to in-game zone
+cameras — useful for a single shot that holds for the whole demo.
 
 ```gcl
-chara $s:8e45 $s:CAM1 \
-    -b -8000 0 -2000  8000 0 2000      # 16000 units of pan along X
-    -c b:80 b:80 b:120
+camera \
+    -s 4                                  # slot 4
+    d:CAM_FIX d:CAM_INTERP_LINER d:CAM_CAM_TO_TRG \
+    -3362,1759,4936                       # eye  position
+    -2475,770, 6672                       # target
+    1                                     # enable
 ```
 
-The `-c` colour is post-processed onto the framing — usually
-deliberately desaturated (`b:80` ≈ 50% brightness) to suggest
-"cinematic" without recolouring the scene.
-
-### Multiple shots in one cutscene
-
-The original game does multiple shots within a cutscene by spawning
-multiple `WT_VIEW` actors and using `delay` + `mesg` to enable /
-disable them at different times. There's no clean "Director" idiom —
-just imperative messaging:
+**Multi-shot via multiple slots + delay.** Pre-configure two slots,
+then switch between them mid-script.
 
 ```gcl
-proc sub_CUT2 {
-    mesg $s:CAM1 $s:DEACT b:0      # turn off shot A
-    mesg $s:CAM2 $s:ACT   b:0      # turn on shot B
-}
-
 script {
-    chara $s:8e45 $s:CAM1 -b … -c …
-    chara $s:8e45 $s:CAM2 -b … -c …
+    camera -s 4 d:CAM_FIX d:CAM_INTERP_LINER d:CAM_CAM_TO_TRG \
+           -3362,1759,4936 -2475,770,6672 1
+    camera -s 5 d:CAM_FIX d:CAM_INTERP_LINER d:CAM_CAM_TO_TRG \
+            1500,1759,4936  -200,770,6672  1
+    camera -t 4                            # track slot 4
     delay 240
-    call(sub_CUT2)
-    …
+    camera -t 5                            # cut to slot 5
+    delay 360
 }
 ```
 
-Disc demos are mostly single-WT_VIEW; the multi-shot pattern is
-a custom-stage convention.
+**Animated framing.** Currently requires a stage-specific overlay
+actor written in C (see [04-camera-pipeline.md](04-camera-pipeline.md)
+for examples — `democame.c`, `11g_demo.c`, `intr_cam.c`). Each
+writes `gUnkCameraStruct2_800B7868.eye/center` per tick along a
+hand-coded path. There's no GCL-only equivalent. Re-using one of
+these overlays from a custom stage means linking that overlay's
+object file into the editor + live game build.
+
+Disc dramatic cinematics avoid this problem entirely by going
+*streamed*: an offline pipeline produces a `.dmo` file that
+`demothrd.c::FrameRunDemo` plays back from `DEMO.DAT` per frame.
+That pipeline is not yet ported (see
+[09-streamed-demos.md](09-streamed-demos.md)).
 
 ### A character walks across the room
 
@@ -178,14 +193,15 @@ for the encoding convention.
 
 ### "Camera never moves"
 
-Almost always: the WT_VIEW chara hash (`0x8E45`) is missing from
-`MainCharacterEntries[]` in `port/extern_stubs.c`. Already fixed for
-the editor + live game in this repo, but worth checking if you
-forked an older snapshot.
+Expected for most GCL-only custom demos — there's no built-in
+cutscene-camera animator (see "Camera framing" above for what *is*
+available). If you wanted motion you need either the `camera`
+GCL-command multi-slot trick, an overlay actor, or to wait for the
+streamed-demo pipeline to port. WT_VIEW is **not** the answer
+despite the name; it's a water visual effect.
 
-See [04-camera-pipeline.md](04-camera-pipeline.md) for the camera
-chain; if you're hitting "frozen view" *with* WT_VIEW registered,
-that doc lists the four-step diagnosis.
+See [04-camera-pipeline.md](04-camera-pipeline.md) for the actual
+camera chain.
 
 ### "Cutscene runs forever / engine doesn't return to gameplay"
 
@@ -238,7 +254,7 @@ Worth reading the source of these to learn idioms:
 
 | Stage | What's good about it | Notable techniques |
 | ----- | -------------------- | ------------------ |
-| `d00a` | Opening helipad fly-by — minimal | Single CINEMA, single WT_VIEW, lots of EMITTER snow |
+| `d00a` | Opening helipad fly-by — minimal | Single CINEMA, baked camera via `demo -f "s0102a0.dmo"`, lots of EMITTER snow |
 | `d01a` | Codec briefing — multi-character | `RADIO` + `JIMAKU` + 2 DEMODOLLs |
 | `d18a` | Bunsin demo — complex | Multiple DEMODOLLs, mid-scene proc calls |
 | `d11c` | Door + door open animation | Demonstrates `DOOR` actor in cutscene context |

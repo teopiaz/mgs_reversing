@@ -40,20 +40,34 @@ of the screen. The camera animation is `WT_VIEW`'s job (below).
 | Constructor | `NewWaterView` |
 | Level | 3 |
 
-The cutscene-camera *animator*. Reads its `-b` (bound box, two
-SVECTORs) and `-c` (CVECTOR colour) options at spawn, then mutates
-`gUnkCameraStruct2_800B7868.eye / .center / .zoom` every frame
-according to the cinematic's pre-baked motion curve.
+A **water visual effect**, *not* a camera animator (the disc symbol
+is misleading). Its `Act()` reads `DG_Chanls[1].eye.t[]` — i.e. the
+current camera position — and, when that point is inside the
+`-b` bound box, allocates a tile primitive and draws an animated
+water surface tinted by the `-c` color. Outside the bounds it frees
+the prims and idles. It writes nothing to camera state.
 
-The struct it writes is global and read by `camera.c` — see
-[04-camera-pipeline.md](04-camera-pipeline.md) for the chain.
+Where the cutscene camera actually comes from depends on the demo's
+type ([01-overview.md](01-overview.md)):
 
-The name "WT_VIEW" is the disc symbol — internally it's "water view"
-(`NewWaterView`), an early-development title. It's the one cutscene
-actor whose absence makes the cinematic camera appear frozen, so
-seeing `chara: func not found (hash=0x8E45)` in stderr means the
-runtime never spawned the animator and the camera will sit at
-`DG_LookAt(eye=center=zero)` for the entire demo.
+- **Streamed** (`demo -s` / `demo -f`):
+  [`source/kojo/demo.c::FrameRunDemo`](../../../source/kojo/demo.c)
+  writes `gUnkCameraStruct2_800B7868.eye/center` per frame from the
+  baked `DMO_DAT.eye_x/y/z`. This is what drives every disc-shipped
+  dramatic cinematic.
+- **GCL-scripted only** (no `demo -s`): nothing is built in. The
+  camera stays at whatever the previous gameplay tick left it.
+  Some per-stage overlays spawn a custom camera actor that writes
+  `gUnkCameraStruct2` directly —
+  [`source/overlays/s19b/takabe/democame.c`](../../../source/overlays/s19b/takabe/democame.c),
+  [`source/overlays/s11g/okajima/11g_demo.c`](../../../source/overlays/s11g/okajima/11g_demo.c),
+  [`source/chara/others/intr_cam.c`](../../../source/chara/others/intr_cam.c)
+  are the most common. These are *not* WT_VIEW.
+
+So a `chara: func not found (hash=0x8E45)` log means the stage will
+have no animated water tiles, but it does **not** explain a frozen
+cinematic camera — that points at the streamed-demo path instead
+(see [09-streamed-demos.md](09-streamed-demos.md)).
 
 ## DEMODOLL — `chara &DEMODOLL $s:HHHH -m $s:KMD -p X Y Z [-r yaw] …`
 
