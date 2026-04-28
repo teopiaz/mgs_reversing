@@ -110,18 +110,21 @@ each actor's `Act()` callback. Within one tick, that's typically:
 | 0 | `gvd.c` daemon | always alive, processes `LoadReq` etc. |
 | 1 | (unused in most cutscenes) | |
 | 2 | `camera.c` (player/cutscene cam driver) | reads `gUnkCameraStruct2_800B7868`, calls `DG_LookAt(DG_Chanl(0), …)` |
-| 3 | `cinema.c` (fade bars), `WT_VIEW` (camera animator) | `WT_VIEW` mutates `gUnkCameraStruct2_800B7868` each tick |
+| 3 | `cinema.c` (fade bars), `wt_view.c` (water visuals), `demothrd.c` (when streamed) | streamed cutscenes' DemoWork actor lives here; writes `gUnkCameraStruct2` from `.dmo` records each tick (see [09-streamed-demos.md](09-streamed-demos.md)) |
 | 4 | `pato_lmp.c`, lamp / lighting actors | |
 | 5 | `wall.c`, `shakemdl.c`, geometry / FX | |
 | 6 | (overlay-specific) | |
 | 7 | (unused in most cutscenes) | |
 | 8 | (system) | |
 
-The actor list with the *animation* logic (`WT_VIEW`) runs at level
-3, **before** the camera-driver actor at level 2 — but levels are
-walked HIGH → LOW (`for (i = GV_ACTOR_LEVEL; i > 0; i--)`), so within
-a single frame the camera-driver consumes whatever the animator
-wrote in the same tick. No dependency inversion.
+For streamed cutscenes the camera-animation source lives at level 3
+(`demothrd.c::StreamAct` calls `FrameRunDemo`), and the camera-driver
+at level 2 consumes its writes within the same tick — levels walk
+HIGH → LOW (`for (i = GV_ACTOR_LEVEL; i > 0; i--)`), so the order
+is correct without any dependency inversion. For GCL-scripted-only
+cutscenes there's no level-3 camera writer in the base actor set;
+some per-stage overlays add their own (see
+[04-camera-pipeline.md](04-camera-pipeline.md)).
 
 ## Render: port_RenderObjects → gl_renderer → screen
 
@@ -142,8 +145,10 @@ the `DG_OBJS` list. `port_RenderObjects(GV_Clock)`:
 uploads any dirty VRAM rows for textured fills, runs the GL draw of
 the accumulated tri buffer, and swaps the window. The cinematic
 camera shows up because every face was projected through the
-`eye_inv` matrix that `WT_VIEW` → `gUnkCameraStruct2` → `DG_LookAt`
-produced.
+`eye_inv` matrix that the camera source (streamed `FrameRunDemo` or
+a per-stage overlay actor — see
+[04-camera-pipeline.md](04-camera-pipeline.md)) → `gUnkCameraStruct2`
+→ `DG_LookAt` produced.
 
 ## Stop / reset
 

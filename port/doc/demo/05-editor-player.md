@@ -116,7 +116,7 @@ the user needs to debug "why doesn't this play":
 | `GM_GameStatus` | Snapshot. Camera Act gates on `>= 0` | Negative → `STATE_PADRELEASE` set, camera Act skips |
 | `GV_PauseLevel` | Snapshot. Camera helpers gate on `== 0` | Non-zero → DG_LookAt fires but with stale inputs |
 | `Channels updated` | Bitmask: bit N if `DG_Chanls[N].eye_inv` changed last tick | All `-` while Live actors > 1 → no engine code drives the camera |
-| **Dump actors → stdout** | Calls `GV_DumpActorSystem`. Lists every alive actor with its file/proc name | Use this to confirm `wt_view.c` and `camera.c` are in the list |
+| **Dump actors → stdout** | Calls `GV_DumpActorSystem`. Lists every alive actor with its file/proc name | Use this to confirm `camera.c` (the camera-driver) and any per-stage camera-animation overlay are in the list |
 
 Two contextual warnings render in red beneath when conditions point
 at a known cause:
@@ -126,8 +126,10 @@ at a known cause:
   isn't registered (didn't call `GM_InitScript`).
 - **"Actors running but no DG_Chanls write"** — actor system
   ticks, but no engine code touched `eye_inv`. Most commonly:
-  `WT_VIEW` factory not registered, so `gUnkCameraStruct2` stays
-  zero and `DG_LookAt` keeps producing the same matrix.
+  no camera-animation source is running. For most in-stage GCL
+  demos this is the expected state (camera holds last gameplay
+  framing); for streamed cinematics it means the FS streamer isn't
+  pumped and `FrameRunDemo` never runs.
 
 ## Implementation files
 

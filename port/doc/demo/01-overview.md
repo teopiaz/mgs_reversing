@@ -39,7 +39,7 @@ A typical 30-second cutscene contains:
 | Actor type   | Role | Count |
 | ------------ | ---- | ----- |
 | `CINEMA`     | Owns the cutscene's *lifetime*. `-t 30000` means the demo runs for 30000 ticks. Draws the black framing bars on `DG_Chanl(1)`. | 1 |
-| `WT_VIEW`    | Cutscene-camera *animator*. Reads its `-b` bounds and `-c` color params, mutates `gUnkCameraStruct2_800B7868.eye/center/zoom` per frame. | 1 |
+| `WT_VIEW`    | **Water visual effect** (despite the name — `NewWaterView`). Draws an animated water surface when the camera is inside its `-b` bound box. Does *not* drive the camera; see [04-camera-pipeline.md](04-camera-pipeline.md). | 0–1 |
 | `DEMODOLL`   | A character (Snake, Meryl, a guard) playing a canned animation clip referenced by `-m $s:HHHH`. | 1–N |
 | `EMITTER`    | Particle / smoke / light spawner. | 1–10 |
 | `WALL`       | Static prop placeholder (a piece of geometry the demo expects to be visible). | 1–N |
@@ -100,8 +100,11 @@ as gameplay. The only practical differences:
 - `DEMODOLL` characters don't read controller input (they replay
   canned animations) — Snake during a cutscene is a `DEMODOLL`, not
   the regular `SNAKE` actor.
-- `WT_VIEW` overrides the camera that gameplay's third-person /
-  first-person logic would normally produce.
+- The cutscene camera is driven *either* by streamed `.dmo` records
+  (`source/kojo/demo.c::FrameRunDemo`) or by a per-stage overlay
+  actor (e.g. `democame.c`, `intr_cam.c`) that overrides whatever
+  framing the gameplay third-person / first-person logic was using.
+  See [04-camera-pipeline.md](04-camera-pipeline.md).
 - `JIMAKU` / `RADIO` actors expect text/voice to play; the editor's
   embedded player skips audio.
 
