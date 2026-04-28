@@ -34,6 +34,7 @@
 #include "libdg/libdg.h"
 #include "libgcl/libgcl.h"
 #include "editor.h"
+#include "ed_dmo.h"
 
 EdDemoState g_demo_state = ED_DEMO_STOPPED;
 int         g_demo_frame = 0;
@@ -74,6 +75,7 @@ extern int  ed_load_stage(const char *stage_name);
 extern EditorStage g_stage;
 extern DG_CHANL DG_Chanls[3];
 extern int GV_Clock;
+extern void DG_LookAt(DG_CHANL *chanl, SVECTOR *eye, SVECTOR *center, int clip_distance);
 
 /* Live diagnostic counters mirrored out of the engine state every tick.
  * Read by the Demo tab so the user can verify (a) actors are actually
@@ -142,6 +144,29 @@ void ed_demo_play(void)
         printf("[demo] no stage loaded — cannot play\n");
         return;
     }
+    /* Auto-load a .dmo for this stage on a fresh Play. The catalogue
+     * tracks which `decompiled/<stage>/*.gcl` referenced each .dmo, so we
+     * can pick the right one without the user opening the DMO tab. If
+     * they've explicitly opened a different one (g_dmo_active set), keep
+     * theirs. Stages with multiple chained dmos take the first by
+     * sector order — chronological play order. */
+    if (!g_demo_loaded && !g_dmo_active) {
+        char names[8][32];
+        int n = ed_dmo_find_for_stage(g_stage.stage_name, 8, names);
+        if (n > 0) {
+            printf("[demo] stage '%s' references %d dmo(s); auto-loading %s\n",
+                   g_stage.stage_name, n, names[0]);
+            ed_dmo_open(names[0]);
+        } else {
+            printf("[demo] stage '%s' has no .dmo references in the catalogue "
+                   "— camera will not animate (GCL-scripted only)\n",
+                   g_stage.stage_name);
+        }
+    }
+    /* Reset the DMO scrubber to frame 0 on a fresh Play (not on resume
+     * from PAUSE) so the cinematic starts at the beginning regardless of
+     * where the user left the DMO tab slider. */
+    if (!g_demo_loaded && g_dmo_active) g_dmo_active_frame = 0;
     /* First Play after stage load: bring the demo's bytecode into the GCL
      * runtime. Subsequent Play after Pause is just a state flip. */
     if (!g_demo_loaded) {
@@ -291,10 +316,47 @@ void ed_demo_dump_actors(void)
     GV_DumpActorSystem();
 }
 
+/* Stand in for FrameRunDemo. Drives the cinematic camera from the active
+ * .dmo's per-frame eye/center. Auto-advances the frame; clamps at the
+ * last record so the camera holds on the final shot rather than wrapping.
+ * No-op when no .dmo is open in the DMO inspector — Play still works for
+ * GCL-only demos, the camera just won't animate.
+ *
+ * Writing to `gUnkCameraStruct2` is useless during the actor tick:
+ * camera.c::Act() (level 2) calls camera_act_helper4 which overwrites
+ * the struct from `GM_Camera` every frame, then calls DG_LookAt with the
+ * just-overwritten values. The live game's FrameRunDemo dodges this by
+ * computing DG_Chanls[0].eye_inv directly (see source/kojo/demo.c:553).
+ *
+ * We do the same: call DG_LookAt on chanl 0 after GV_ExecActorSystem so
+ * our matrix is the last write before the renderer reads it. */
+static void feed_dmo_frame_to_engine(void)
+{
+    if (!g_dmo_active || g_dmo_active->n_extracted == 0) return;
+    if (g_dmo_active_frame < 0)
+        g_dmo_active_frame = 0;
+    if (g_dmo_active_frame >= g_dmo_active->n_extracted)
+        g_dmo_active_frame = g_dmo_active->n_extracted - 1;
+
+    EdDmoFrame *f = &g_dmo_active->frames[g_dmo_active_frame];
+    SVECTOR eye    = { f->eye[0],    f->eye[1],    f->eye[2],    0 };
+    SVECTOR center = { f->center[0], f->center[1], f->center[2], 0 };
+    int clip = f->clip_dist > 0 ? f->clip_dist : 200;
+    DG_LookAt(DG_Chanl(0), &eye, &center, clip);
+
+    if (g_dmo_active_frame < g_dmo_active->n_extracted - 1)
+        g_dmo_active_frame++;
+}
+
 void ed_demo_tick(void)
 {
     if (g_demo_state != ED_DEMO_PLAYING) return;
     GV_ExecActorSystem();
+    /* Camera write goes AFTER the actor tick so it's the last writer to
+     * DG_Chanls[0].eye_inv before render. camera.c::Act() runs inside
+     * GV_ExecActorSystem and overwrites the matrix from GM_Camera; we
+     * stomp on top with the cinematic eye/center. */
+    feed_dmo_frame_to_engine();
     g_demo_frame++;
     update_camera_snapshot();
     g_demo_diag_actor_count = count_active_actors();
