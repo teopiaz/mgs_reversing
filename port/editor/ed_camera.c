@@ -251,6 +251,29 @@ void ed_camera_focus(int wx, int wy, int wz, float distance)
     g_cam.pos[2] = (float)wz - fwd[2] * distance;
 }
 
+/* Place the camera at (ex,ey,ez) and rotate it to look toward (cx,cy,cz).
+ * Used by the DMO inspector's "auto-follow eye" toggle to make the editor
+ * camera mirror a cutscene's per-frame eye/center pair as the user scrubs
+ * the timeline. The orientation conventions match cam_basis: yaw=0 looks
+ * +Z, +pitch tilts down (PSX +Y-down screen). When eye≈center the look
+ * direction is undefined; we leave the existing yaw/pitch alone so the
+ * camera doesn't snap to garbage. */
+void ed_camera_look_from_to(float ex, float ey, float ez,
+                            float cx, float cy, float cz)
+{
+    g_cam.pos[0] = ex;
+    g_cam.pos[1] = ey;
+    g_cam.pos[2] = ez;
+    float dx = cx - ex, dy = cy - ey, dz = cz - ez;
+    float len2 = dx*dx + dy*dy + dz*dz;
+    if (len2 < 1.0f) return;
+    float len = sqrtf(len2);
+    g_cam.yaw   = atan2f(dx, dz);
+    g_cam.pitch = asinf(dy / len);
+    if (g_cam.pitch >  1.55f) g_cam.pitch =  1.55f;
+    if (g_cam.pitch < -1.55f) g_cam.pitch = -1.55f;
+}
+
 /* Build eye_inv via DG_LookAt: feed it a camera position and a center one
    forward step ahead, mirroring what main_game.c update_camera does for the
    in-game free-cam. The renderer convention (handedness, +Y-down screen)

@@ -14,6 +14,7 @@
 #include "libdg/libdg.h"
 #include "libdg/gl_renderer.h"
 #include "editor.h"
+#include "ed_dmo.h"
 
 extern void ed_camera_build_eye_inv(DG_CHANL *chanl);
 
@@ -210,6 +211,8 @@ static void ed_render_scene(void)
     render_world_axes();
     if (g_stage.hzd_map)  ed_hzd_render();
     if (g_show_actors)    ed_actors_render();
+    ed_dmo_render_path();    /* no-op when no .dmo selected or path-toggle off */
+    ed_dmo_render_actors();  /* no-op when no .dmo selected or actor-toggle off */
 }
 
 void ed_render_frame(void)
