@@ -24,6 +24,27 @@ cutscene.
 | [06-authoring.md](06-authoring.md) | Writing a `demo.gcl` for a custom stage; common patterns. |
 | [07-debugging.md](07-debugging.md) | "Camera doesn't move", "Actors not spawning", missing CHARA registrations, NULL command lookups. |
 | [08-known-issues.md](08-known-issues.md) | What still doesn't work in the editor's embedded playback. |
+| [09-streamed-demos.md](09-streamed-demos.md) | The *other* cutscene path — `demo -s` / `demo -f`, `demothrd.c`, pre-baked DMO_DAT timelines from `DEMO.DAT` / `ZMOVIE.STR`. **Currently stalls in the editor** for stream-based; file-based is likely-but-untested. |
+
+## Two cutscene paths
+
+MGS has **two** cinematic systems and they work very differently:
+
+1. **GCL-scripted** — `demo.gcx` runs at stage entry, spawns
+   `CINEMA` + `WT_VIEW` + `DEMODOLL` actors, the actor system
+   advances per `GV_Clock` tick. Animation comes from the actor
+   `Act()` callbacks. Most of this folder describes this path.
+2. **Streamed pre-baked** — a GCL `demo -s <code>` or `demo -f
+   <file>` directive triggers `demothrd.c` to read per-frame
+   `DMO_DAT` records from `DEMO.DAT` / `ZMOVIE.STR` and apply
+   their baked camera + character poses directly. The "rendered
+   cutscene" feeling comes from this path. See
+   [09-streamed-demos.md](09-streamed-demos.md).
+
+The editor's Demo Player **fully supports path 1** today.
+Path 2 stalls (the FS streamer doesn't pump in the editor) — most
+disc-shipped dramatic cinematics use it, which is why d00a's
+opener animates while many `d-prefix` demos appear frozen mid-load.
 
 ## At a glance
 

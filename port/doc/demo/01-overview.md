@@ -2,10 +2,18 @@
 
 If you're coming from a modern engine, the word "cutscene" suggests a
 timeline editor with keyframed cameras, animation clips per character,
-maybe a dialogue track. **MGS does not have any of that.** A cutscene
-is a GCL script — bytecode loaded at stage entry, walked once to spawn
-a handful of *actors*, after which each actor's per-frame `Act()`
-callback runs the cinematic on its own.
+maybe a dialogue track. MGS has **two** cutscene systems — and both
+are weird from a modern perspective.
+
+This file covers the **GCL-scripted** path: bytecode loaded at stage
+entry, walked once to spawn a handful of *actors*, after which each
+actor's per-frame `Act()` callback runs the cinematic on its own.
+For the *other* path — pre-baked timeline data from `DEMO.DAT` /
+`ZMOVIE.STR` consumed by `demothrd.c::FrameRunDemo` — see
+[09-streamed-demos.md](09-streamed-demos.md). Most of the disc's
+dramatic cinematics use the streamed path; the "in-stage" cinematics
+(scene transitions, codec calls, environmental fly-bys) use the
+GCL-scripted one.
 
 There is no timeline because there is no scrubber. There are no
 keyframes because nothing seeks. The script is a one-shot init
