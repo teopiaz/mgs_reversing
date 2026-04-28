@@ -881,6 +881,20 @@ void FS_StreamStop(void)
 void FS_StreamOpen(void) {}
 void FS_StreamClose(void) {}
 
+/* Editor-only accessor: read raw bytes from one of the opened DAT files
+ * (file_id matches the FS_FILEID_* enum). Used by the DMO inspector to
+ * walk DEMO.DAT block streams without going through the FS streamer
+ * abstraction. Returns bytes read, 0 on EOF, -1 on error / closed file.
+ *
+ * Not meant for game code — the streamer is the right path for live
+ * cutscene playback. This is a back door for offline tooling that wants
+ * the *file* shape rather than the streamed-block shape. */
+int port_fs_read_dat(int file_id, long byte_off, int len, void *buf)
+{
+    if (file_id < 0 || file_id >= 7) return -1;
+    return pf_read_at(&dat_pf[file_id], byte_off, len, buf);
+}
+
 int FS_StreamIsEnd(void)
 {
     /* In timer mode (no stream data), end after the tick counter

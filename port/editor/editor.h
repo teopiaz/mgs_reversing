@@ -53,6 +53,11 @@ void ed_camera_update(float dt, int mouse_dx, int mouse_dy, int rmb_held);
    it along the current forward axis. Yaw/pitch are preserved — the actor
    gets centered in view from whatever angle the user is currently using. */
 void ed_camera_focus(int wx, int wy, int wz, float distance);
+/* Snap pos to (ex,ey,ez) and rotate to look toward (cx,cy,cz). Used by the
+ * DMO inspector's auto-follow toggle to mirror a cutscene's per-frame
+ * eye/center as the user scrubs the timeline. */
+void ed_camera_look_from_to(float ex, float ey, float ez,
+                            float cx, float cy, float cz);
 
 /* Phase-3 camera helpers. Orbit/fly toggle picks an orbit_target one
  * `orbit_dist` step ahead of the current position; fly→orbit doesn't move

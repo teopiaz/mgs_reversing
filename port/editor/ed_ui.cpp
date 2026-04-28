@@ -11,6 +11,7 @@
 
 extern "C" {
 #include "editor.h"
+#include "ed_dmo.h"
 #include "libdg/gl_renderer.h"
 void port_vram_toggle_debug(void);
 int  port_vram_debug_view(void);
@@ -534,6 +535,199 @@ static void hzd_list_table(const char *label, int *selected_idx,
         ImGui::EndTable();
     }
     ImGui::TreePop();
+}
+
+/* DMO Inspector — offline inspection of the streamed-cinematic timeline
+ * data baked into DEMO.DAT. Reads pre-extracted JSON from data/dmo/
+ * (produced by tools/extract_dmo.py). The runtime can't *play* a streamed
+ * cinematic in the editor today (FS streamer isn't pumped), so this tab
+ * gives the user a way to see what each .dmo would render: header
+ * metadata, model/map references, and the per-frame camera path.
+ *
+ * The whole thing is read-only — the user cannot edit a .dmo here; that
+ * would require re-encoding DMO_DEF/DMO_DAT block streams and writing
+ * them back into DEMO.DAT, which is out of scope. */
+static int  s_dmo_filter_idx = -1;
+static char s_dmo_filter[32] = {0};
+
+static void tab_dmo(void)
+{
+    ed_dmo_load_index();
+
+    if (g_dmo_index_count == 0) {
+        ImGui::TextDisabled(
+            "No DMO data extracted yet.\n\n"
+            "Run from the repo root:\n"
+            "  python3 tools/extract_dmo.py --all\n\n"
+            "This walks every `demo -s` reference in port/gcl/decompiled/\n"
+            "and emits port/editor/data/dmo/<name>.json for each — the\n"
+            "files this tab loads.");
+        return;
+    }
+
+    ImGui::Text("%d .dmo cutscenes catalogued from DEMO.DAT", g_dmo_index_count);
+    ImGui::TextDisabled(
+        "Streamed cinematics — `demo -f \"X.dmo\" -s t:NNNN` in GCL. The\n"
+        "editor can't run them yet (FS streamer not pumped); this view\n"
+        "is read-only metadata + per-frame camera path inspection.");
+    ImGui::Separator();
+
+    ImGui::SetNextItemWidth(180);
+    ImGui::InputTextWithHint("##dmo_filter", "filter name...",
+                             s_dmo_filter, sizeof(s_dmo_filter));
+    ImGui::SameLine();
+    if (ImGui::Button("Reload index")) {
+        g_dmo_index_loaded = 0;
+        ed_dmo_close();
+        ed_dmo_load_index();
+    }
+
+    ImGui::BeginChild("dmo_list", ImVec2(0, 180), true);
+    if (ImGui::BeginTable("dmo_table", 4, ImGuiTableFlags_RowBg
+                                          | ImGuiTableFlags_Borders
+                                          | ImGuiTableFlags_SizingFixedFit
+                                          | ImGuiTableFlags_ScrollY)) {
+        ImGui::TableSetupColumn("name");
+        ImGui::TableSetupColumn("frames");
+        ImGui::TableSetupColumn("models");
+        ImGui::TableSetupColumn("from");
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < g_dmo_index_count; i++) {
+            EdDmoIndexEntry *e = &g_dmo_index[i];
+            if (s_dmo_filter[0] && !stricontains(e->name, s_dmo_filter))
+                continue;
+            ImGui::PushID(i);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            const bool sel = (i == s_dmo_filter_idx);
+            if (ImGui::Selectable(e->name, sel, ImGuiSelectableFlags_SpanAllColumns)) {
+                s_dmo_filter_idx = i;
+                ed_dmo_open(e->name);
+            }
+            ImGui::TableSetColumnIndex(1); ImGui::Text("%d", e->n_frames);
+            ImGui::TableSetColumnIndex(2); ImGui::Text("%d", e->n_models);
+            ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(e->gcl_path);
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+    ImGui::EndChild();
+
+    if (!g_dmo_active) {
+        ImGui::TextDisabled("Select a row above to load its details.");
+        return;
+    }
+
+    EdDmoData *d = g_dmo_active;
+    ImGui::Separator();
+    ImGui::Text("%s   sector 0x%X   %d frames",
+                d->name, d->sector, d->n_extracted);
+    ImGui::TextDisabled("DMO_DEF: %d models, %d maps",
+                        d->n_models, d->n_maps);
+    ImGui::Checkbox("draw camera path in 3D view", (bool *)&g_dmo_show_path);
+    ImGui::SameLine();
+    ImGui::Checkbox("show actor markers##dmo", (bool *)&g_dmo_show_actors);
+    /* Follow toggle: every frame the editor cam is snapped to the active
+     * dmo frame's eye + oriented to look at center. The user can then
+     * scrub the timeline (or hold Right-arrow) and watch the cinematic
+     * shot through the 3D pane. */
+    ImGui::Checkbox("follow camera (snap to eye / look at center)",
+                    (bool *)&g_dmo_follow_cam);
+
+    if (ImGui::TreeNode("Models / maps")) {
+        if (d->n_maps > 0 && ImGui::BeginTable("dmo_maps", 3,
+                ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
+            ImGui::TableSetupColumn("#");
+            ImGui::TableSetupColumn("cache_id");
+            ImGui::TableSetupColumn("filename");
+            ImGui::TableHeadersRow();
+            for (int i = 0; i < d->n_maps; i++) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0); ImGui::Text("%d", i);
+                ImGui::TableSetColumnIndex(1); ImGui::Text("0x%08X", d->maps[i].cache_id);
+                ImGui::TableSetColumnIndex(2); ImGui::Text("0x%08X", d->maps[i].filename);
+            }
+            ImGui::EndTable();
+        }
+        if (d->n_models > 0 && ImGui::BeginTable("dmo_models", 5,
+                ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {
+            ImGui::TableSetupColumn("#");
+            ImGui::TableSetupColumn("type");
+            ImGui::TableSetupColumn("flag");
+            ImGui::TableSetupColumn("cache_id");
+            ImGui::TableSetupColumn("filename");
+            ImGui::TableHeadersRow();
+            for (int i = 0; i < d->n_models; i++) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0); ImGui::Text("%d", i);
+                ImGui::TableSetColumnIndex(1); ImGui::Text("%d", d->models[i].type);
+                ImGui::TableSetColumnIndex(2); ImGui::Text("0x%X", d->models[i].flag);
+                ImGui::TableSetColumnIndex(3); ImGui::Text("0x%08X", d->models[i].cache_id);
+                ImGui::TableSetColumnIndex(4); ImGui::Text("0x%08X", d->models[i].filename);
+            }
+            ImGui::EndTable();
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Frame %d / %d", g_dmo_active_frame + 1, d->n_extracted);
+    if (d->n_extracted > 1) {
+        ImGui::SetNextItemWidth(-1);
+        ImGui::SliderInt("##dmo_frame", &g_dmo_active_frame, 0,
+                         d->n_extracted - 1, "frame %d");
+    }
+    if (g_dmo_active_frame >= 0 && g_dmo_active_frame < d->n_extracted) {
+        EdDmoFrame *f = &d->frames[g_dmo_active_frame];
+        ImGui::Text("eye    %d, %d, %d", f->eye[0], f->eye[1], f->eye[2]);
+        ImGui::Text("center %d, %d, %d", f->center[0], f->center[1], f->center[2]);
+        ImGui::Text("roll %d   clip %d", f->roll, f->clip_dist);
+        ImGui::Text("n_charas %d   n_adjusts %d", f->n_charas, f->n_adjusts);
+        if (ImGui::Button("Focus 3D cam on eye")) {
+            ed_camera_focus(f->eye[0], f->eye[1], f->eye[2], 0.0f);
+        }
+        /* Auto-follow: re-aim the editor camera every frame the panel
+         * draws while the toggle is on. */
+        if (g_dmo_follow_cam) {
+            ed_camera_look_from_to((float)f->eye[0],    (float)f->eye[1],    (float)f->eye[2],
+                                   (float)f->center[0], (float)f->center[1], (float)f->center[2]);
+        }
+    }
+
+    /* Compact per-frame summary table — first 200 frames inline; the
+     * slider above is the proper way to navigate large dmos. */
+    if (ImGui::TreeNode("Frame table (first 200)")) {
+        if (ImGui::BeginTable("dmo_frames", 5,
+                ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders
+                | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY,
+                ImVec2(0, 240))) {
+            ImGui::TableSetupColumn("frame");
+            ImGui::TableSetupColumn("eye");
+            ImGui::TableSetupColumn("center");
+            ImGui::TableSetupColumn("roll/clip");
+            ImGui::TableSetupColumn("charas/adj");
+            ImGui::TableHeadersRow();
+            int lim = d->n_extracted < 200 ? d->n_extracted : 200;
+            for (int i = 0; i < lim; i++) {
+                EdDmoFrame *f = &d->frames[i];
+                ImGui::PushID(i);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                char id[24];
+                std::snprintf(id, sizeof(id), "%d", f->frame);
+                if (ImGui::Selectable(id, i == g_dmo_active_frame,
+                                      ImGuiSelectableFlags_SpanAllColumns))
+                    g_dmo_active_frame = i;
+                ImGui::TableSetColumnIndex(1); ImGui::Text("%d %d %d", f->eye[0], f->eye[1], f->eye[2]);
+                ImGui::TableSetColumnIndex(2); ImGui::Text("%d %d %d", f->center[0], f->center[1], f->center[2]);
+                ImGui::TableSetColumnIndex(3); ImGui::Text("%d / %d", f->roll, f->clip_dist);
+                ImGui::TableSetColumnIndex(4); ImGui::Text("%d / %d", f->n_charas, f->n_adjusts);
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        ImGui::TreePop();
+    }
 }
 
 static void tab_hzd(void)
@@ -1357,6 +1551,7 @@ extern "C" void ed_ui_draw(void)
             if (ImGui::BeginTabItem("Camera"))  { tab_camera();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Actors"))  { tab_actors();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Demo"))    { tab_demo();    ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("DMO"))     { tab_dmo();     ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("HZD"))     { tab_hzd();     ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Info"))    { tab_info();    ImGui::EndTabItem(); }
             ImGui::EndTabBar();
