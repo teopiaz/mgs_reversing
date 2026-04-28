@@ -77,6 +77,13 @@ extern int              g_dmo_follow_cam;   /* per-frame, snap editor cam to eye
 void ed_dmo_load_index(void);
 int  ed_dmo_open(const char *name);
 void ed_dmo_close(void);
+/* Look up dmos referenced by `decompiled/<stage>/{demo,scenerio}.gcl`.
+ * Fills out_names[0..max-1] with at most `max` dmo filenames; returns
+ * the total found (may exceed `max`). Order follows the catalogue's
+ * sector ordering — i.e., chronological play order for stages that
+ * chain multiple `.dmo`s. */
+int  ed_dmo_find_for_stage(const char *stage_name, int max,
+                           char (*out_names)[32]);
 /* Submit camera-path lines for the current dmo. No-op when nothing is
  * loaded or g_dmo_show_path is off. Calls into gl_submit_line3d using
  * whatever eye_inv / clip_dist the caller has already bound. */

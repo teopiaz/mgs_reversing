@@ -390,9 +390,61 @@ static void tab_demo(void)
                         g_demo_cam_rot_yaw   * 57.2958f,
                         g_demo_cam_rot_pitch * 57.2958f,
                         g_demo_cam_rot_roll  * 57.2958f);
+            /* The active .dmo's per-frame eye/center is what makes the
+             * cinematic camera animate while Play is on. Show which is
+             * driving + let the user switch when the stage has multiple. */
+            if (g_dmo_active) {
+                ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.6f, 1.0f),
+                    "Driving camera from %s  (frame %d / %d)",
+                    g_dmo_active->name, g_dmo_active_frame + 1,
+                    g_dmo_active->n_extracted);
+            } else {
+                ImGui::TextDisabled(
+                    "No .dmo loaded — camera won't animate. (Stage has\n"
+                    "no entries in the dmo catalogue, or auto-load failed.)");
+            }
         } else {
             ImGui::TextDisabled("Press Play to load this stage's demo.gcx into "
                                 "the engine.");
+            /* Preview the dmos this stage will consider — helps the user
+             * understand what Play is about to do. */
+            char dmos[8][32];
+            int n = ed_dmo_find_for_stage(g_stage.stage_name, 8, dmos);
+            if (n > 0) {
+                ImGui::TextDisabled("Stage references %d .dmo%s:", n,
+                                    n == 1 ? "" : "s");
+                for (int i = 0; i < n && i < 8; i++)
+                    ImGui::TextDisabled("    %s%s", dmos[i],
+                                        i == 0 ? "  (will auto-load)" : "");
+            } else {
+                ImGui::TextDisabled("Stage has no .dmo references — Play will "
+                                    "run the actor system only.");
+            }
+        }
+        /* When playing and the stage has multiple .dmos, expose a switcher.
+         * Picking a different one swaps the camera mid-playback (re-loads
+         * the .dmo and restarts at frame 0). */
+        if (g_demo_loaded) {
+            char dmos[8][32];
+            int n = ed_dmo_find_for_stage(g_stage.stage_name, 8, dmos);
+            if (n > 1) {
+                int sel = -1;
+                for (int i = 0; i < n; i++) {
+                    if (g_dmo_active && strcmp(dmos[i], g_dmo_active->name) == 0) {
+                        sel = i; break;
+                    }
+                }
+                ImGui::SetNextItemWidth(180);
+                if (ImGui::BeginCombo("dmo source", sel >= 0 ? dmos[sel] : "(none)")) {
+                    for (int i = 0; i < n; i++) {
+                        bool is_sel = (i == sel);
+                        if (ImGui::Selectable(dmos[i], is_sel)) {
+                            ed_dmo_open(dmos[i]);
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
         }
         if (ImGui::TreeNode("Diagnostics##demo")) {
             ImGui::Text("GV_Clock          %d", g_demo_diag_gv_clock);
