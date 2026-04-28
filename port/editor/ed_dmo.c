@@ -380,6 +380,33 @@ static int parse_dmo_blocks(EdDmoData *d, const unsigned char *buf, int len)
     return got_def && d->n_extracted > 0;
 }
 
+/* Catalogue gcl_path looks like "decompiled/<stage>/(demo|scenerio).gcl".
+ * Match the second segment against `stage_name`. Case-sensitive; the
+ * disc and our overlays both use lowercase stage codes. */
+int ed_dmo_find_for_stage(const char *stage_name, int max,
+                          char (*out_names)[32])
+{
+    if (!stage_name || !*stage_name) return 0;
+    ed_dmo_load_index();
+
+    int found = 0;
+    int slen = (int)strlen(stage_name);
+    for (int i = 0; i < g_dmo_index_count; i++) {
+        EdDmoIndexEntry *e = &g_dmo_index[i];
+        const char *p = strstr(e->gcl_path, "decompiled/");
+        if (!p) continue;
+        p += sizeof("decompiled/") - 1;
+        const char *slash = strchr(p, '/');
+        if (!slash) continue;
+        if ((slash - p) != slen) continue;
+        if (memcmp(p, stage_name, slen) != 0) continue;
+        if (out_names && found < max)
+            snprintf(out_names[found], 32, "%s", e->name);
+        found++;
+    }
+    return found;
+}
+
 void ed_dmo_close(void)
 {
     if (!g_dmo_active) return;
