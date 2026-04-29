@@ -187,6 +187,21 @@ void ExtendVector(SVECTOR *vec)
 
 int GM_ConfigMotionControl(OBJECT *object, MOTION_CONTROL *m_ctrl, int name, MOTION_SEGMENT *m_segs1, MOTION_SEGMENT *m_segs2, CONTROL *control, SVECTOR *rots)
 {
+#ifdef PORT_BUILD
+    /* GM_ConfigObjectModel inside GM_InitObject returns -1 when the chara's
+     * KMD isn't in the cache — but the callers (sna_LoadSnake et al.) don't
+     * propagate that, leaving object->objs NULL. The next line below would
+     * then NULL-deref at &objs->rots (offset 0x48). On disc this doesn't
+     * happen because the resident KMDs are guaranteed loaded; in the editor
+     * the user may Play a stage whose DATACNF didn't ship the chara. Skip
+     * the wire-up so the chara fails to spawn instead of crashing. */
+    if (!object->objs) {
+        printf("[motion] GM_ConfigMotionControl: object->objs NULL "
+               "(name=0x%X) — KMD not in cache; chara spawn skipped\n",
+               name);
+        return -1;
+    }
+#endif
     m_ctrl->oar = GV_GetCache(GV_CacheID(name, 'o'));
     m_ctrl->height = &object->height;
 
