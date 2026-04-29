@@ -258,6 +258,18 @@ void ed_camera_focus(int wx, int wy, int wz, float distance)
  * +Z, +pitch tilts down (PSX +Y-down screen). When eye≈center the look
  * direction is undefined; we leave the existing yaw/pitch alone so the
  * camera doesn't snap to garbage. */
+/* Editor camera forward unit vector (used by the DMO author to capture
+ * the look-direction at each tick). Mirrors the cam_basis math without
+ * needing the right/down axes. */
+void ed_camera_get_forward(float fwd[3])
+{
+    float fwd_local[3], right[3], down[3];
+    cam_basis(fwd_local, right, down);
+    fwd[0] = fwd_local[0];
+    fwd[1] = fwd_local[1];
+    fwd[2] = fwd_local[2];
+}
+
 void ed_camera_look_from_to(float ex, float ey, float ez,
                             float cx, float cy, float cz)
 {

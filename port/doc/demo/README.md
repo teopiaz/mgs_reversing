@@ -25,6 +25,7 @@ cutscene.
 | [07-debugging.md](07-debugging.md) | "Camera doesn't move", "Actors not spawning", missing CHARA registrations, NULL command lookups. |
 | [08-known-issues.md](08-known-issues.md) | What still doesn't work in the editor's embedded playback. |
 | [09-streamed-demos.md](09-streamed-demos.md) | The *other* cutscene path — `demo -s` / `demo -f`, `demothrd.c`, pre-baked DMO_DAT timelines from `DEMO.DAT` / `ZMOVIE.STR`. **Currently stalls in the editor** for stream-based; file-based is likely-but-untested. |
+| [10-dmo-format.md](10-dmo-format.md) | Wire-level reference for the `.dmo` binary — block stream, DMO_DEF / DMO_DAT / DMO_MAP / DMO_MDL / DMO_CHA / DMO_ADJ field layouts. Read this when implementing a parser or an authoring tool. |
 
 ## Two cutscene paths
 

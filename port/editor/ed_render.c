@@ -234,8 +234,15 @@ static void ed_render_scene(void)
             render_kmd_unlit((DG_DEF *)g_stage.map_defs[i], s_clip_dist, 0, 0, 0);
         }
     }
+    /* During Demo Play, the cinematic's DMO_ADJ records own where every
+     * character is at frame N — the static actor markers loaded from
+     * `data/<stage>_actors.json` show *gameplay* spawn positions which
+     * are stale and just clutter the playback view. Suppress them while
+     * a demo is loaded; they re-appear after Stop. */
+    int playing = (g_demo_loaded && g_demo_state != ED_DEMO_STOPPED);
+
     /* Optional actor-model render. */
-    if (g_show_actor_models) {
+    if (g_show_actor_models && !playing) {
         for (int i = 0; i < g_actor_count; i++) {
             EdActor *a = &g_actors[i];
             if (!a->has_pos || !a->kmd_def) continue;
@@ -244,10 +251,12 @@ static void ed_render_scene(void)
         }
     }
     render_world_axes();
-    if (g_stage.hzd_map)  ed_hzd_render();
-    if (g_show_actors)    ed_actors_render();
-    ed_dmo_render_path();    /* no-op when no .dmo selected or path-toggle off */
-    ed_dmo_render_actors();  /* no-op when no .dmo selected or actor-toggle off */
+    if (g_stage.hzd_map)        ed_hzd_render();
+    if (g_show_actors && !playing) ed_actors_render();
+    ed_dmo_render_path();             /* read-only inspector path overlay */
+    ed_dmo_render_actors();           /* read-only inspector char markers */
+    ed_dmo_render_timeline_path();    /* author preview — cam keys + path */
+    ed_dmo_render_timeline_actors();  /* author preview — doll positions  */
 }
 
 void ed_render_frame(void)

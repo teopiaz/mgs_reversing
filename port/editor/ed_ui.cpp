@@ -794,6 +794,290 @@ static void tab_dmo(void)
         }
         ImGui::TreePop();
     }
+
+    /* ------ Authoring — keyframe timeline editor --------------------- */
+    ImGui::Separator();
+    ImGui::TextUnformatted("Author");
+    ImGui::TextDisabled("Place sparse camera + DEMODOLL keys on a timeline.\n"
+                        "Save bakes them (linear interp) into\n"
+                        "data/dmo/custom/<name>.dmo, re-loadable above.");
+
+    static char s_tl_name[32] = "untitled";
+    static int  s_tl_seconds  = 20;
+    if (!g_dmo_timeline.active) {
+        ImGui::SetNextItemWidth(140);
+        ImGui::InputText("name##tl_name", s_tl_name, sizeof(s_tl_name));
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(80);
+        ImGui::DragInt("seconds##tl_secs", &s_tl_seconds, 1.0f, 1, 180);
+        ImGui::SameLine();
+        if (ImGui::Button("New timeline##tl_new"))
+            ed_dmo_timeline_new(s_tl_name, s_tl_seconds * 30);
+    } else {
+        EdDmoTimeline *tl = &g_dmo_timeline;
+        ImGui::Text("%s.dmo  •  %d frames  (%.1fs @ 30Hz)",
+                    tl->name, tl->n_frames, tl->n_frames / 30.0f);
+        ImGui::SameLine();
+        if (ImGui::Button("Save##tl_save")) {
+            if (ed_dmo_timeline_save()) {
+                char p[160];
+                std::snprintf(p, sizeof(p),
+                              "data/dmo/custom/%s.dmo", tl->name);
+                ed_dmo_open_file(p);
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Close##tl_close")) ed_dmo_timeline_close();
+
+        /* Scrubber — drives both the 3D preview gizmo and key-add target. */
+        ImGui::SetNextItemWidth(-1);
+        if (g_dmo_timeline_frame >= tl->n_frames)
+            g_dmo_timeline_frame = tl->n_frames - 1;
+        ImGui::SliderInt("##tl_scrub", &g_dmo_timeline_frame,
+                         0, tl->n_frames - 1, "frame %d");
+
+        /* ---- Camera track --------------------------------------------- */
+        bool cam_open = ImGui::TreeNodeEx("Camera##tl_cam",
+            ImGuiTreeNodeFlags_DefaultOpen,
+            "Camera  •  %d keys", tl->cam_n_keys);
+        if (cam_open) {
+            /* Track strip: child window with key buttons positioned by frame. */
+            ImGui::BeginChild("tl_cam_strip", ImVec2(-1, 36), true,
+                              ImGuiWindowFlags_NoScrollbar);
+            ImVec2 strip_pos = ImGui::GetCursorScreenPos();
+            ImVec2 strip_sz  = ImGui::GetContentRegionAvail();
+            ImDrawList *dl   = ImGui::GetWindowDrawList();
+            /* Background bar */
+            dl->AddRectFilled(strip_pos,
+                              ImVec2(strip_pos.x + strip_sz.x,
+                                     strip_pos.y + strip_sz.y),
+                              IM_COL32(40, 40, 50, 200), 3.0f);
+            /* Scrubber line */
+            float sx = strip_pos.x + strip_sz.x *
+                       ((float)g_dmo_timeline_frame / (float)(tl->n_frames - 1));
+            dl->AddLine(ImVec2(sx, strip_pos.y),
+                        ImVec2(sx, strip_pos.y + strip_sz.y),
+                        IM_COL32(255, 255, 255, 200), 1.5f);
+            /* Key diamonds */
+            for (int i = 0; i < tl->cam_n_keys; i++) {
+                float kx = strip_pos.x + strip_sz.x *
+                           ((float)tl->cam_keys[i].frame /
+                            (float)(tl->n_frames - 1));
+                float cy = strip_pos.y + strip_sz.y * 0.5f;
+                bool selected = (g_dmo_timeline_sel_track == -2 &&
+                                 g_dmo_timeline_sel_key == i);
+                ImU32 col = selected ? IM_COL32(255, 240,  60, 255)
+                                     : IM_COL32(180, 220, 255, 255);
+                dl->AddQuadFilled(ImVec2(kx,      cy - 6),
+                                  ImVec2(kx + 6,  cy),
+                                  ImVec2(kx,      cy + 6),
+                                  ImVec2(kx - 6,  cy),
+                                  col);
+                /* Invisible button for selection / scrub. */
+                ImGui::SetCursorScreenPos(ImVec2(kx - 7, cy - 8));
+                ImGui::PushID(i);
+                if (ImGui::InvisibleButton("k", ImVec2(14, 16))) {
+                    g_dmo_timeline_sel_track = -2;
+                    g_dmo_timeline_sel_key   = i;
+                    g_dmo_timeline_frame     = tl->cam_keys[i].frame;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+
+            ImGui::Indent();
+            if (ImGui::Button("Add key at scrubber##tl_cam_add")) {
+                int idx = ed_dmo_timeline_add_cam_key(g_dmo_timeline_frame);
+                g_dmo_timeline_sel_track = -2;
+                g_dmo_timeline_sel_key   = idx;
+            }
+            ImGui::SameLine();
+            bool can_remove = (g_dmo_timeline_sel_track == -2 &&
+                               g_dmo_timeline_sel_key >= 0 &&
+                               tl->cam_n_keys > 2);
+            if (!can_remove) ImGui::BeginDisabled();
+            if (ImGui::Button("Remove key##tl_cam_rm")) {
+                ed_dmo_timeline_remove_cam_key(g_dmo_timeline_sel_key);
+                g_dmo_timeline_sel_key = -1;
+            }
+            if (!can_remove) ImGui::EndDisabled();
+
+            /* Selected camera key editor. */
+            if (g_dmo_timeline_sel_track == -2 &&
+                g_dmo_timeline_sel_key >= 0 &&
+                g_dmo_timeline_sel_key < tl->cam_n_keys)
+            {
+                EdDmoCamKey *k = &tl->cam_keys[g_dmo_timeline_sel_key];
+                ImGui::Text("Key %d  •  frame %d",
+                            g_dmo_timeline_sel_key, k->frame);
+                int eye[3] = {k->eye[0], k->eye[1], k->eye[2]};
+                int ctr[3] = {k->center[0], k->center[1], k->center[2]};
+                ImGui::SetNextItemWidth(220);
+                if (ImGui::DragInt3("eye##tl_cam_eye", eye, 5.0f, -32000, 32000)) {
+                    k->eye[0] = (short)eye[0];
+                    k->eye[1] = (short)eye[1];
+                    k->eye[2] = (short)eye[2];
+                }
+                ImGui::SetNextItemWidth(220);
+                if (ImGui::DragInt3("center##tl_cam_ctr", ctr, 5.0f, -32000, 32000)) {
+                    k->center[0] = (short)ctr[0];
+                    k->center[1] = (short)ctr[1];
+                    k->center[2] = (short)ctr[2];
+                }
+                int roll = k->roll, clip = k->clip;
+                ImGui::SetNextItemWidth(110);
+                if (ImGui::DragInt("roll##tl_cam_roll", &roll, 1.0f, -2048, 2048))
+                    k->roll = (short)roll;
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(110);
+                if (ImGui::DragInt("clip##tl_cam_clip", &clip, 1.0f, 64, 1000))
+                    k->clip = (short)clip;
+                if (ImGui::Button("Snap to editor cam##tl_cam_snap"))
+                    ed_dmo_timeline_snap_cam_to_editor();
+                ImGui::SameLine();
+                ImGui::TextDisabled("(eye = pos, center = forward·4096)");
+            }
+            ImGui::Unindent();
+            ImGui::TreePop();
+        }
+
+        /* ---- Doll tracks --------------------------------------------- */
+        for (int di = 0; di < tl->n_dolls; di++) {
+            EdDmoTrack *t = &tl->dolls[di];
+            ImGui::PushID(di);
+            char hdr[48];
+            std::snprintf(hdr, sizeof(hdr), "%s  (type=%d)  •  %d keys",
+                          t->label, t->type, t->n_keys);
+            bool t_open = ImGui::TreeNodeEx("##tl_doll_hdr",
+                ImGuiTreeNodeFlags_DefaultOpen, "%s", hdr);
+            if (t_open) {
+                ImGui::BeginChild("tl_doll_strip", ImVec2(-1, 28), true,
+                                  ImGuiWindowFlags_NoScrollbar);
+                ImVec2 sp = ImGui::GetCursorScreenPos();
+                ImVec2 ss = ImGui::GetContentRegionAvail();
+                ImDrawList *dl = ImGui::GetWindowDrawList();
+                dl->AddRectFilled(sp,
+                                  ImVec2(sp.x + ss.x, sp.y + ss.y),
+                                  IM_COL32(40, 50, 40, 200), 3.0f);
+                float sx2 = sp.x + ss.x *
+                           ((float)g_dmo_timeline_frame / (float)(tl->n_frames - 1));
+                dl->AddLine(ImVec2(sx2, sp.y),
+                            ImVec2(sx2, sp.y + ss.y),
+                            IM_COL32(255, 255, 255, 180), 1.5f);
+                for (int i = 0; i < t->n_keys; i++) {
+                    float kx = sp.x + ss.x *
+                               ((float)t->keys[i].frame /
+                                (float)(tl->n_frames - 1));
+                    float cy = sp.y + ss.y * 0.5f;
+                    bool selected = (g_dmo_timeline_sel_track == di &&
+                                     g_dmo_timeline_sel_key == i);
+                    ImU32 col = selected ? IM_COL32(255, 240,  60, 255)
+                                         : IM_COL32(180, 255, 180, 255);
+                    dl->AddCircleFilled(ImVec2(kx, cy), 5.5f, col);
+                    ImGui::SetCursorScreenPos(ImVec2(kx - 7, cy - 8));
+                    ImGui::PushID(i);
+                    if (ImGui::InvisibleButton("k", ImVec2(14, 16))) {
+                        g_dmo_timeline_sel_track = di;
+                        g_dmo_timeline_sel_key   = i;
+                        g_dmo_timeline_frame     = t->keys[i].frame;
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndChild();
+
+                ImGui::Indent();
+                if (ImGui::Button("Add key##tl_doll_add")) {
+                    int idx = ed_dmo_timeline_add_doll_key(di, g_dmo_timeline_frame);
+                    g_dmo_timeline_sel_track = di;
+                    g_dmo_timeline_sel_key   = idx;
+                }
+                ImGui::SameLine();
+                bool can_rm = (g_dmo_timeline_sel_track == di &&
+                               g_dmo_timeline_sel_key >= 0 &&
+                               t->n_keys > 1);
+                if (!can_rm) ImGui::BeginDisabled();
+                if (ImGui::Button("Remove key##tl_doll_rm")) {
+                    ed_dmo_timeline_remove_doll_key(di, g_dmo_timeline_sel_key);
+                    g_dmo_timeline_sel_key = -1;
+                }
+                if (!can_rm) ImGui::EndDisabled();
+                ImGui::SameLine();
+                if (ImGui::Button("Remove track##tl_doll_kill")) {
+                    ed_dmo_timeline_remove_doll(di);
+                    g_dmo_timeline_sel_track = -1;
+                    ImGui::Unindent(); ImGui::TreePop(); ImGui::PopID();
+                    di--; continue;
+                }
+                if (g_dmo_timeline_sel_track == di &&
+                    g_dmo_timeline_sel_key >= 0 &&
+                    g_dmo_timeline_sel_key < t->n_keys)
+                {
+                    EdDmoDollKey *k = &t->keys[g_dmo_timeline_sel_key];
+                    ImGui::Text("Key %d  •  frame %d",
+                                g_dmo_timeline_sel_key, k->frame);
+                    int pos[3] = {k->pos[0], k->pos[1], k->pos[2]};
+                    int rot[3] = {k->rot[0], k->rot[1], k->rot[2]};
+                    bool vis = k->visible != 0;
+                    ImGui::SetNextItemWidth(220);
+                    if (ImGui::DragInt3("pos##tl_doll_pos", pos, 5.0f, -32000, 32000)) {
+                        k->pos[0] = (short)pos[0];
+                        k->pos[1] = (short)pos[1];
+                        k->pos[2] = (short)pos[2];
+                    }
+                    ImGui::SetNextItemWidth(220);
+                    if (ImGui::DragInt3("rot##tl_doll_rot", rot, 8.0f, -2048, 2048)) {
+                        k->rot[0] = (short)rot[0];
+                        k->rot[1] = (short)rot[1];
+                        k->rot[2] = (short)rot[2];
+                    }
+                    if (ImGui::Checkbox("visible##tl_doll_vis", &vis))
+                        k->visible = vis ? 1 : 0;
+                    ImGui::SameLine();
+                    if (ImGui::Button("Snap pos to editor cam##tl_doll_snap"))
+                        ed_dmo_timeline_snap_doll_to_editor();
+                }
+                int track_type = t->type;
+                ImGui::SetNextItemWidth(80);
+                if (ImGui::InputInt("type##tl_doll_type", &track_type, 1, 1)) {
+                    if (track_type < 0) track_type = 0;
+                    t->type = track_type;
+                }
+                ImGui::SameLine();
+                int cache = t->cache_id;
+                ImGui::SetNextItemWidth(140);
+                if (ImGui::InputInt("cache_id##tl_doll_cache", &cache, 0, 0,
+                                    ImGuiInputTextFlags_CharsHexadecimal))
+                    t->cache_id = cache;
+                ImGui::Unindent();
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
+        /* "+ Add doll" — gives the user a fresh track keyed at frame 0. */
+        if (tl->n_dolls < ED_DMO_MAX_DOLLS) {
+            static char s_new_doll[24] = "Snake";
+            static int  s_new_doll_cache = 0xA7693;   /* d00a snake KMD */
+            ImGui::SetNextItemWidth(120);
+            ImGui::InputText("##tl_new_doll", s_new_doll, sizeof(s_new_doll));
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(110);
+            ImGui::InputInt("##tl_new_cache", &s_new_doll_cache, 0, 0,
+                            ImGuiInputTextFlags_CharsHexadecimal);
+            ImGui::SameLine();
+            if (ImGui::Button("Add doll##tl_doll_new")) {
+                ed_dmo_timeline_add_doll(s_new_doll, tl->n_dolls + 1,
+                                         s_new_doll_cache);
+            }
+        }
+    }
+
+    /* Direct file open — for loading saved customs back into the inspector. */
+    ImGui::Separator();
+    static char s_open_path[160] = "data/dmo/custom/untitled.dmo";
+    ImGui::SetNextItemWidth(280);
+    ImGui::InputText("##author_open_path", s_open_path, sizeof(s_open_path));
+    ImGui::SameLine();
+    if (ImGui::Button("Open file")) ed_dmo_open_file(s_open_path);
 }
 
 static void tab_hzd(void)
@@ -1477,6 +1761,36 @@ static void draw_3dview_window(void)
                                   "Orbit: RMB rotates around target.\n"
                                   "Alt+RMB always orbits.\n"
                                   "F: frame selection (or whole stage).");
+
+            /* Demo Play HUD overlay — top-right of the pane. Only shows
+             * while a .dmo is driving playback. Frame index + wall-clock
+             * elapsed at 30 Hz so the user can locate "the bit at 0:08". */
+            if (g_dmo_active && g_demo_loaded) {
+                int fr = g_dmo_active_frame;
+                int total = g_dmo_active->n_extracted;
+                /* PSX cinematics nominally tick at 30 Hz. */
+                int total_ms = fr * 1000 / 30;
+                int s_ = total_ms / 1000;
+                int ms = total_ms % 1000;
+                char hud[64];
+                std::snprintf(hud, sizeof(hud), "%s  %d/%d  %d:%02d.%03d",
+                              g_demo_state == ED_DEMO_PLAYING ? "\xE2\x96\xB6"
+                              : g_demo_state == ED_DEMO_PAUSED ? "\xE2\x80\x96"
+                                                               : "\xE2\x96\xA0",
+                              fr + 1, total, s_ / 60, s_ % 60, ms);
+                ImVec2 ts = ImGui::CalcTextSize(hud);
+                ImVec2 pad(8.0f, 4.0f);
+                ImVec2 br(img_pos.x + (float)iw - 6.0f,
+                          img_pos.y + 6.0f);
+                ImVec2 tl(br.x - ts.x - pad.x * 2,
+                          br.y);
+                ImVec2 tr_pos(tl.x + pad.x, tl.y + pad.y);
+                ImDrawList *dl = ImGui::GetWindowDrawList();
+                dl->AddRectFilled(tl,
+                                  ImVec2(br.x, tl.y + ts.y + pad.y * 2),
+                                  IM_COL32(0, 0, 0, 180), 4.0f);
+                dl->AddText(tr_pos, IM_COL32(220, 240, 200, 255), hud);
+            }
         }
     } else {
         s_3dview_active = false;
