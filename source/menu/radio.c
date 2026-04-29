@@ -977,6 +977,15 @@ STATIC void menu_radio_codec_helper_helper11_8004150C(MenuWork *work)
     work->field_212 = 0x1e;
     GM_SeSet2(0, 0x3f, SE_RADIO_SEND);
     pRadioCode = MENU_GetRadioCode(codec_freq_800AB638);
+#ifdef PORT_BUILD
+    /* Print every codec dial — maps to "user pressed Triangle to call". */
+    {
+        int freq = codec_freq_800AB638;
+        printf("[codec] dial %d.%02d  (raw=0x%04X, code=%d)\n",
+               freq / 100, freq % 100, freq, pRadioCode);
+        fflush(stdout);
+    }
+#endif
     if (pRadioCode >= 0)
     {
         sub_80047D70(work, codec_freq_800AB638, pRadioCode);

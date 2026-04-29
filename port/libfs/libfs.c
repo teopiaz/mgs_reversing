@@ -903,6 +903,55 @@ int FS_StreamIsEnd(void)
        (e.g., when user presses skip or the pad_demo finishes). */
     if (!stream_active) return 1;
     if (stream_ended) return 1;
+
+    /* Natural-end detection: the codec script does
+         while (GM_StreamStatus() != -1) mts_wait_vbl(2);
+       after starting a VOX line and expects this to terminate when the
+       audio finishes playing. On PSX the SPU signals end-of-stream via
+       hardware; here we have to derive it from the SPU emulator's read
+       cursor catching up to the game's write cursor.
+
+       A stream is considered finished when:
+         (1) the SPU stream voice was keyed on at least once (wr_r > 0),
+         (2) the audio thread's read cursor has reached or passed both
+             the L and R write cursors (no more PCM left), AND
+         (3) we observe this condition stably across at least 2 polls
+             (~33 ms between codec wait_vbl(2) cycles) — guards against
+             an off-by-one where the game just hasn't produced the next
+             chunk yet but is about to.
+
+       Without this the codec call hangs forever in stages whose Mei
+       Ling voice line isn't long enough for the user to press CROSS
+       during the brief codec_state==5 window. */
+    {
+        extern int port_spu_stream_info(int *pcm_rd, int *pcm_wr_r, int *pcm_wr_l,
+                                        int *active, unsigned long *base_r,
+                                        unsigned long *base_l);
+        static int prev_seen_done = 0;
+        int rd = 0, wr_r = 0, wr_l = 0, sa = 0;
+        port_spu_stream_info(&rd, &wr_r, &wr_l, &sa, NULL, NULL);
+        if (wr_r > 0 && rd >= wr_r && rd >= wr_l) {
+            if (prev_seen_done) {
+                stream_ended = 1;
+                prev_seen_done = 0;
+                /* Also force the sd_main str_status state machine back to
+                   idle. On PSX it transitions 5→6→7→0 when sd_str.c
+                   exhausts FS_StreamGetData; in the port it sometimes
+                   gets stuck at 5/6 because the order of mts task wakes
+                   diverges. If we leave it stuck, sd_str_play() returns
+                   true forever (status > 4) and the next stream playback
+                   attempt floods "Double Pcm" instead of keying on. */
+                {
+                    extern unsigned int str_status;
+                    str_status = 0;
+                }
+                return 1;
+            }
+            prev_seen_done = 1;
+        } else {
+            prev_seen_done = 0;
+        }
+    }
     return 0;
 }
 

@@ -1,24 +1,35 @@
 /**
- * Port MTS implementation — cooperative multitasking via ucontext.
+ * Port MTS implementation — cooperative multitasking via setjmp/longjmp.
  *
  * The PSX MTS is a single-core cooperative scheduler: tasks yield explicitly
  * at mts_slp_tsk, mts_wait_vbl, mts_lock_sem, mts_send, mts_receive.
- * We replicate this exactly with ucontext (one coroutine per task).
+ *
+ * We previously used ucontext_t / swapcontext, but macOS arm64's ucontext
+ * implementation has a separately-allocated mcontext64 reached via a pointer
+ * inside ucontext_t — and that pointer becomes invalid in subtle ways when
+ * a task that slept (yielded back to main) is later woken and finishes its
+ * procedure, taking the uc_link path. The crash signature is a SIGBUS at
+ * &main_ctx with PC=LR=&main_ctx and zero argument registers — clearly a
+ * mis-restored register file.
+ *
+ * The replacement uses two primitives:
+ *   1. setjmp/longjmp for resuming a task that already executed at least
+ *      once (it has a valid register snapshot inside the task stack).
+ *   2. A tiny inline-asm stack switcher (`mts_co_first_entry`) for a
+ *      task's very first execution: switch SP to the task's allocated
+ *      stack and tail-call into the C trampoline, which then runs the
+ *      task procedure and longjmp's back to the main loop on completion.
+ *
+ * Each task carries a `started` flag so resume_task knows which path to take.
  */
 
 #define __IN_MTS_NEW__
 
-/* Suppress macOS deprecation warning for ucontext — it works fine,
-   Apple just wants you to use pthreads/GCD instead. */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
-#define _XOPEN_SOURCE  /* required for ucontext.h on macOS */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <ucontext.h>
+#include <setjmp.h>
 #include <SDL.h>
 #include <unistd.h>
 #include "mts.h"
@@ -32,18 +43,19 @@
 #define TASK_STACK_SIZE (256 * 1024)  /* generous stack per task */
 
 typedef struct {
-    ucontext_t   ctx;
+    jmp_buf      jb;             /* register snapshot at last yield */
     char        *stack;          /* allocated stack memory */
+    int          started;        /* 0 before first entry, 1 once running */
     int          state;          /* MTS_TASK_DEAD, _READY, _SLEEPING, _WAIT_VBL, _PENDING */
     int          wake_count;     /* pre-wake counter for mts_slp_tsk */
     int          vbl_target;     /* target tick for mts_wait_vbl */
     void       (*procedure)(void);
 } PortTask;
 
-static PortTask tasks[MTS_NR_TASK];
-static int      active_task = -1;
-static ucontext_t main_ctx;             /* the main loop's context */
-static unsigned int vbl_tick = 0;       /* advanced by main loop */
+static PortTask     tasks[MTS_NR_TASK];
+static int          active_task = -1;
+static jmp_buf      main_jb;             /* main loop's saved register frame */
+static unsigned int vbl_tick = 0;        /* advanced by main loop */
 
 /* Semaphores: who holds each, and a simple wait queue */
 #define MAX_SEM_WAITERS 16
@@ -70,19 +82,60 @@ static int  (*vsync_callback_func)(void) = NULL;
 /* Context switching                                                         */
 /*---------------------------------------------------------------------------*/
 
-/* Yield from the current task back to the main loop (scheduler). */
+/* First-entry stack switcher. Sets SP to `stack_top`, then tail-calls
+   mts_task_trampoline(id). Never returns (trampoline either runs the
+   task procedure to completion + longjmp's to main, or hits the brk
+   if the trampoline somehow falls through). The brk gives a clean
+   crash if the invariant is violated. */
+extern void mts_co_first_entry(void *stack_top, int id) __attribute__((noreturn));
+void mts_task_trampoline(int id) __attribute__((noreturn));
+
+#if defined(__APPLE__) && defined(__aarch64__)
+__asm__(
+    ".text\n"
+    ".p2align 2\n"
+    ".globl _mts_co_first_entry\n"
+    "_mts_co_first_entry:\n"
+    "    mov sp, x0\n"            /* switch to the task's stack */
+    "    mov x0, x1\n"            /* pass id as first arg */
+    "    bl _mts_task_trampoline\n" /* run the trampoline (noreturn) */
+    "    brk #0\n"                 /* trap if trampoline ever returns */
+);
+#else
+#error "mts_co_first_entry needs an arm64-macOS implementation; port to your platform"
+#endif
+
+/* Yield from the current task back to the main loop. */
 static void yield_to_main(void)
 {
     int me = active_task;
     active_task = -1;
-    swapcontext(&tasks[me].ctx, &main_ctx);
+    if (setjmp(tasks[me].jb) == 0) {
+        longjmp(main_jb, 1);
+    }
+    /* Resumed: a later resume_task longjmp'd back here. */
+    active_task = me;
 }
 
-/* Resume a specific task from the main loop. */
+/* Resume a specific task from the main loop. Returns when the task yields. */
 static void resume_task(int id)
 {
     active_task = id;
-    swapcontext(&main_ctx, &tasks[id].ctx);
+    if (setjmp(main_jb) == 0) {
+        if (tasks[id].started) {
+            longjmp(tasks[id].jb, 1);
+        } else {
+            tasks[id].started = 1;
+            /* Stack grows downward on arm64; pass the top of the
+               allocated buffer (already 16-byte aligned: malloc on
+               macOS returns 16-byte aligned, TASK_STACK_SIZE is a
+               multiple of 16). */
+            char *stack_top = tasks[id].stack + TASK_STACK_SIZE;
+            mts_co_first_entry(stack_top, id);
+        }
+    }
+    /* Task yielded back. */
+    active_task = -1;
 }
 
 /* Find the lowest-numbered ready task (PSX priority = lower ID = higher priority). */
@@ -122,19 +175,25 @@ void mts_scheduler_tick(void)
 /* Task entry trampoline                                                     */
 /*---------------------------------------------------------------------------*/
 
-static void task_trampoline(void)
+/* First C frame on a brand-new task stack — called from
+   mts_co_first_entry's `bl`. Runs the user procedure, then longjmp's
+   straight to main_jb on completion. Never returns (the asm guards
+   with brk if it does). */
+void mts_task_trampoline(int id)
 {
-    int me = active_task;
-    if (me < 0 || me >= MTS_NR_TASK || !tasks[me].procedure) {
-        printf("[mts] trampoline: BAD task %d\n", me);
-        if (me >= 0 && me < MTS_NR_TASK) tasks[me].state = MTS_TASK_DEAD;
-        yield_to_main();
-        return;
+    if (id < 0 || id >= MTS_NR_TASK || !tasks[id].procedure) {
+        printf("[mts] trampoline: BAD task %d\n", id);
+        if (id >= 0 && id < MTS_NR_TASK) tasks[id].state = MTS_TASK_DEAD;
+        active_task = -1;
+        longjmp(main_jb, 1);
     }
-    tasks[me].procedure();
-    /* If procedure returns (mts_ext_tsk not called), mark dead and yield */
-    tasks[me].state = MTS_TASK_DEAD;
-    yield_to_main();
+    tasks[id].procedure();
+    /* If procedure returns naturally (no mts_ext_tsk call), mark dead
+       and longjmp straight to the main loop — there's no setjmp pair
+       for the task here because it'll never run again. */
+    tasks[id].state = MTS_TASK_DEAD;
+    active_task = -1;
+    longjmp(main_jb, 1);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -193,17 +252,10 @@ int mts_sta_tsk(int tasknr, void (*procedure)(void), void *stack_pointer)
         }
     }
 
-    t->state = MTS_TASK_READY;
+    t->state      = MTS_TASK_READY;
     t->wake_count = 0;
-
-    /* Set up ucontext — getcontext must be called BEFORE setting procedure,
-       because on some platforms getcontext may clobber nearby memory. */
-    getcontext(&t->ctx);
-    t->ctx.uc_stack.ss_sp = t->stack;
-    t->ctx.uc_stack.ss_size = TASK_STACK_SIZE;
-    t->ctx.uc_link = &main_ctx;  /* return to main on completion */
-    makecontext(&t->ctx, task_trampoline, 0);
-    t->procedure = procedure;  /* must be after getcontext/makecontext */
+    t->started    = 0;          /* first resume will run mts_co_first_entry */
+    t->procedure  = procedure;
 
     printf("[mts] sta_tsk(%d) → coroutine %p\n", tasknr, (void *)procedure);
 
@@ -719,10 +771,6 @@ void port_update_pad(void)
 
     port_pad_buttons = b;
 
-    if (port_controller) {
-        printf("[pad] buttons=0x%04X lx=%d ly=%d\n", port_pad_buttons, port_pad_lx, port_pad_ly);
-    }
-
     /* Input recording/replay — supports mid-session switching via port_replay_start() */
     {
         static int io_init = 0;
@@ -953,5 +1001,3 @@ int cprintf(const char *format, ...)
     va_end(ap);
     return ret;
 }
-
-#pragma clang diagnostic pop
