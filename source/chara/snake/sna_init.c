@@ -8510,6 +8510,20 @@ static inline int GetResources(SnaInitWork *work, int name, int where)
     }
 
     GM_InitObject(body, model, BODY_FLAG, OAR_SNAKE);
+
+#ifdef PORT_BUILD
+    /* In the editor, the user may Play a stage whose DATACNF didn't ship
+     * Snake's KMD — GM_InitObject leaves body->objs NULL and every
+     * downstream function in sna_LoadSnake / sna_LoadSnake2 NULL-derefs.
+     * Bail out cleanly so the GCL `chara &SNAKE` directive becomes a
+     * no-op rather than crashing the editor. The disc never hits this
+     * path: resident KMDs are always loaded before chara directives run. */
+    if (!body->objs) {
+        printf("[snake] sna_LoadSnake: SNAKE KMD (0x%X) not in cache — "
+               "chara skipped\n", model);
+        return -1;
+    }
+#endif
     GM_ConfigObjectJoint(body);
     GM_ConfigMotionControl(body, &work->m_ctrl, OAR_SNAKE, work->m_segs1, work->m_segs2, control, work->rots);
     GM_ConfigObjectLight(body, work->light);
