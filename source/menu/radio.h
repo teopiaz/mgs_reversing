@@ -23,7 +23,17 @@ typedef struct RadioCoordsStru_8009E6FC
 
 typedef struct MENU_CURPOS
 {
+    /* PSX decomp says mes[8], but datasave.c writes 14-byte strings like
+       "MEMORY CARD 1" and 9-byte filename suffixes via strcpy and relies
+       on the OOB write spilling into adjacent fields with the renderer
+       reading null-terminated past mes[]. macOS libc's __strcpy_chk
+       (FORTIFY_SOURCE) aborts on this. For the port, widen the buffer so
+       the strings fit; PSX builds keep mes[8] for binary-identical asm. */
+#ifdef PORT_BUILD
+    char mes[24];
+#else
     char mes[8];
+#endif
     int  field_8;
     int  field_C;
     int  field_10;
@@ -68,6 +78,15 @@ typedef struct RadioFileModeStruElem
     int                       field_4;
     TRadioFileModeFn          field_8_pFn;
     struct RadioFileModeUnk1 *field_C_unk1; // probably wrong type of pointer, it points to some smaller struct
+#ifdef PORT_BUILD
+    /* On 64-bit hosts the int-typed fields in RadioFileModeUnk1 can't hold
+       host pointers. helper3 stashes a SELECT_INFO* into U1::field_14 via
+       (int) — the upper 4 bytes of the address are lost. helper3_helper
+       casts it back and segfaults on the truncated pointer. Mirror the
+       host pointer here on the per-element struct (which is NOT aliased
+       like U1's tail is by sub_8004ABF0). */
+    void *port_unk1_ptr;
+#endif
 } RadioFileModeStruElem;
 
 typedef struct RadioFileModeUnk1 // guessed size, could be larger

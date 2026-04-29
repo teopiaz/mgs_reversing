@@ -328,7 +328,15 @@ gap                                     gap_800BDCC4[0x4]; // 4 bytes
 
 #ifndef VR_EXE
 /* equip/jpegcam.obj */
+#ifdef PORT_BUILD
+/* PSX stores this as a 4-byte int and reinterprets the bits as a char *.
+   On 64-bit hosts a char * is 8 bytes — declaring as int truncates the
+   pointer write and clobbers dword_800BDCCC, so the readback in
+   jpegcam_unk3_800638B4 sees a garbage address and segfaults. */
+char *BSS           dword_800BDCC8;
+#else
 int BSS             dword_800BDCC8; // 0x4 (4) bytes
+#endif
 int BSS             dword_800BDCCC; // 0x4 (4) bytes
 int BSS             dword_800BDCD0; // 0x4 (4) bytes
 gap                                     gap_800BDCD4[0x4]; // 4 bytes

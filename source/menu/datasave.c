@@ -35,6 +35,13 @@ int                         SECTION(".sbss") dword_800ABB80;
 int                         SECTION(".sbss") dword_800ABB84;
 SELECT_INFO                *SECTION(".sbss") dword_800ABB88;
 int                         SECTION(".sbss") dword_800ABB8C;
+#ifdef PORT_BUILD
+/* On 64-bit hosts dword_800ABB8C truncates a host pointer when stored
+   as int (radio.c:1235 passes pCharaStruct->field_C_pScript via (int)
+   cast). Mirror the full 8-byte pointer here; getAreaName_8004CF20
+   dereferences via this alias instead of casting the truncated int. */
+char *                      port_dword_800ABB8C_ptr;
+#endif
 int                         SECTION(".sbss") dword_800ABB90;
 int                         SECTION(".sbss") dword_800ABB94;
 //------------------------------------------------------------------------------
@@ -733,6 +740,30 @@ void move_coord(int *arr, int len)
 
 STATIC void menu_radio_do_file_mode_helper2_helper_8004A4C4(MenuPrim *pGlue, RadioFileModeStruElem *pElem)
 {
+#ifdef PORT_BUILD
+    /* helper2_8004A87C type-puns RadioFileModeUnk2* through a U1*-typed
+       field. On 64-bit hosts U2::field_4 is an 8-byte pointer (vs U1's
+       4-byte int field_4), shifting all subsequent U2 fields. Reading
+       through U1 layout gives only the low 4 bytes of the pointer (cast
+       to char* → NULL deref) and offset-misaligns the int fields too. */
+    RadioFileModeUnk2 *pUnk2 = (RadioFileModeUnk2 *)pElem->field_C_unk1;
+    RadioFileModeUnk1 *pUnk  = pElem->field_C_unk1;
+    TextConfig         textConfig;
+
+    if (pElem->field_0 == 1)
+    {
+        /* helper2 wrote field_8/_C/_10/_14 as the U2 layout, but
+           move_coord works on consecutive ints — pass the U2 view. */
+        move_coord((int *)&pUnk2->field_8, 2);
+        pUnk2->field_18 = 0x3d482e;
+    }
+    textConfig.xpos  = pUnk2->field_8  >> 16;
+    textConfig.ypos  = pUnk2->field_10 >> 16;
+    textConfig.flags = 0x12;
+    textConfig.colour = pUnk2->field_18 | 0x66000000;
+
+    _menu_number_draw_string2(pGlue, &textConfig, (char *)pUnk2->field_4);
+#else
     RadioFileModeUnk1 *pUnk;
     TextConfig         textConfig;
 
@@ -748,6 +779,7 @@ STATIC void menu_radio_do_file_mode_helper2_helper_8004A4C4(MenuPrim *pGlue, Rad
     textConfig.color = pUnk->field_18 | 0x66000000;
 
     _menu_number_draw_string2(pGlue, &textConfig, (char *)pUnk->field_4); // TODO: Fix cast
+#endif
 }
 
 STATIC void menu_radio_do_file_mode_helper4_helper_8004A54C(MenuPrim *pGlue, RadioFileModeStruElem *pElem)
@@ -820,9 +852,20 @@ STATIC void menu_radio_do_file_mode_helper3_helper_8004A790(MenuPrim *pGlue, Rad
         move_coord(&pUnk->field_4, 2);
     }
 
+#ifdef PORT_BUILD
+    /* field_14 holds a truncated 32-bit copy of a host SELECT_INFO* —
+       use the wide alias helper3 also writes on the pElem. */
+    {
+        SELECT_INFO *info = (SELECT_INFO *)pElem->port_unk1_ptr;
+        *(short *)info       = pUnk->field_4 >> 16;
+        *(short *)((char *)info + 2) = pUnk->field_C >> 16;
+        menu_radio_do_file_mode_helper16_8004C164(pGlue, info);
+    }
+#else
     *(short *)pUnk->field_14 = pUnk->field_4 >> 16; // TODO: Fix type of field_14
     *(short *)(pUnk->field_14 + 2) = pUnk->field_C >> 16; // pUnk->field_C / 65536 wouldn't match
     menu_radio_do_file_mode_helper16_8004C164(pGlue, (SELECT_INFO *)pUnk->field_14);
+#endif
 }
 
 //file may be split here
@@ -909,7 +952,10 @@ STATIC void menu_radio_do_file_mode_helper3_8004A994(int idx, int param_2, int p
         pElem->field_0 = 1;
     }
 
-    pUnk->field_14 = (int)field_14;
+    pUnk->field_14 = (int)(intptr_t)field_14;
+#ifdef PORT_BUILD
+    pElem->port_unk1_ptr = field_14; /* host-wide alias for the truncated U1::field_14 pointer */
+#endif
     pElem->field_4 = divisor;
 }
 
@@ -2201,7 +2247,11 @@ STATIC void getAreaName_8004CF20(int code, char **pAreaNameForMenu, char **pArea
         *pAreaNameForMenu = "NO PLACE";
         *pAreaNameForSaveData = "\x81\x40";
     }
+#ifdef PORT_BUILD
+    GCL_SetArgTop(port_dword_800ABB8C_ptr);
+#else
     GCL_SetArgTop((char *)dword_800ABB8C);
+#endif
     printf("code %d\n", code);
     for (i = 0; i < code; i++) {
         if (GCL_NextStr() == 0)
