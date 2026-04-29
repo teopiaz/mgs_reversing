@@ -1234,6 +1234,17 @@ skip_fading:
                     work->field_210_codec_state = 6;
                     break;
                 case 3:
+#ifdef PORT_BUILD
+                    {
+                        /* The (int) truncation below loses the high 4 bytes
+                           of pCharaStruct->field_C_pScript on 64-bit hosts;
+                           getAreaName_8004CF20 reads it back and segfaults
+                           on the truncated address. Stash the full host
+                           pointer in the port-only alias before the call. */
+                        extern char *port_dword_800ABB8C_ptr;
+                        port_dword_800ABB8C_ptr = (char *)pCharaStruct->field_C_pScript;
+                    }
+#endif
                     menu_radio_init_save_mode((int)pCharaStruct->field_C_pScript,
                                               pCharaStruct->field_1A_index);
                     work->field_210_codec_state = 0xB;
