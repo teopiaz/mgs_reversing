@@ -28,6 +28,7 @@
 #include "libgpu.h"
 #include "libgv/libgv.h"
 #include "libdg/libdg.h"
+#include "editor.h"
 #include "ed_dmo.h"
 
 /* ---------------------------------------------------------------------- */
@@ -736,4 +737,518 @@ void ed_dmo_render_actors(void)
             cube_lines_at(a->pos[0], a->pos[1], a->pos[2], R, col, cd);
         }
     }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Authoring — keyframe-based timeline editor.
+ *
+ * The user places sparse "keys" along a frame timeline (one set for the
+ * camera, one per DEMODOLL track) and the bake step interpolates them to
+ * dense per-frame DMO_DAT records.
+ *
+ * On disk: data/dmo/custom/<name>.dmo, in the same {type:8, size:24LE}
+ * block format as DEMO.DAT entries — re-parsable by ed_dmo_open_file. */
+
+EdDmoTimeline g_dmo_timeline = {0};
+int g_dmo_timeline_frame      = 0;
+int g_dmo_timeline_sel_track  = -1;     /* -2 cam, 0..n_dolls-1 doll */
+int g_dmo_timeline_sel_key    = -1;
+
+extern void ed_camera_get_forward(float fwd[3]);
+
+void ed_dmo_timeline_close(void)
+{
+    memset(&g_dmo_timeline, 0, sizeof(g_dmo_timeline));
+    g_dmo_timeline_frame = 0;
+    g_dmo_timeline_sel_track = -1;
+    g_dmo_timeline_sel_key = -1;
+}
+
+void ed_dmo_timeline_new(const char *name, int n_frames)
+{
+    ed_dmo_timeline_close();
+    if (n_frames <= 0 || n_frames > 30000) n_frames = 600;
+    g_dmo_timeline.active = 1;
+    g_dmo_timeline.n_frames = n_frames;
+    snprintf(g_dmo_timeline.name, sizeof(g_dmo_timeline.name), "%s",
+             (name && *name) ? name : "untitled");
+
+    /* Seed two camera keys so the cinematic isn't empty: one at frame 0
+     * snapped to current editor camera, one at the end with a slight
+     * forward dolly. The user is expected to immediately re-snap them
+     * to make sense for their stage. */
+    int k0 = ed_dmo_timeline_add_cam_key(0);
+    int k1 = ed_dmo_timeline_add_cam_key(n_frames - 1);
+    g_dmo_timeline_sel_track = -2;
+    g_dmo_timeline_sel_key   = k0;
+    ed_dmo_timeline_snap_cam_to_editor();
+    g_dmo_timeline_sel_key   = k1;
+    ed_dmo_timeline_snap_cam_to_editor();
+    /* Nudge the second key 2000 units forward along view so there's
+     * visible motion between the two keys without further input. */
+    if (k1 >= 0) {
+        EdDmoCamKey *k = &g_dmo_timeline.cam_keys[k1];
+        float fwd[3]; ed_camera_get_forward(fwd);
+        k->eye[0]    = (short)(k->eye[0]    + fwd[0] * 2000.0f);
+        k->eye[2]    = (short)(k->eye[2]    + fwd[2] * 2000.0f);
+        k->center[0] = (short)(k->center[0] + fwd[0] * 2000.0f);
+        k->center[2] = (short)(k->center[2] + fwd[2] * 2000.0f);
+    }
+    g_dmo_timeline_sel_key = -1;
+}
+
+/* ---- Camera keys (sorted by frame for binary-friendly traversal) ----- */
+
+static int cam_key_insert_pos(int frame)
+{
+    int n = g_dmo_timeline.cam_n_keys;
+    int i = 0;
+    while (i < n && g_dmo_timeline.cam_keys[i].frame < frame) i++;
+    return i;
+}
+
+int ed_dmo_timeline_add_cam_key(int frame)
+{
+    if (!g_dmo_timeline.active) return -1;
+    if (frame < 0) frame = 0;
+    if (frame >= g_dmo_timeline.n_frames) frame = g_dmo_timeline.n_frames - 1;
+    if (g_dmo_timeline.cam_n_keys >= ED_DMO_MAX_KEYS) return -1;
+    int pos = cam_key_insert_pos(frame);
+    /* Replace if a key already lives on this exact frame. */
+    if (pos < g_dmo_timeline.cam_n_keys &&
+        g_dmo_timeline.cam_keys[pos].frame == frame) {
+        return pos;
+    }
+    /* Shift later keys down. */
+    for (int i = g_dmo_timeline.cam_n_keys; i > pos; i--)
+        g_dmo_timeline.cam_keys[i] = g_dmo_timeline.cam_keys[i - 1];
+    EdDmoCamKey *k = &g_dmo_timeline.cam_keys[pos];
+    memset(k, 0, sizeof(*k));
+    k->frame = frame;
+    k->clip = 200;
+    /* Initialize from interpolated current value so a new key doesn't
+     * snap the camera back to origin — preserves a smooth path. */
+    EdDmoCamKey eval;
+    ed_dmo_timeline_eval_cam(frame, &eval);
+    for (int i = 0; i < 3; i++) {
+        k->eye[i]    = eval.eye[i];
+        k->center[i] = eval.center[i];
+    }
+    k->roll = eval.roll;
+    k->clip = eval.clip ? eval.clip : 200;
+    g_dmo_timeline.cam_n_keys++;
+    return pos;
+}
+
+int ed_dmo_timeline_remove_cam_key(int idx)
+{
+    if (idx < 0 || idx >= g_dmo_timeline.cam_n_keys) return 0;
+    /* Disallow removing the last two keys; without them the bake produces
+     * a degenerate single-shot cinematic. */
+    if (g_dmo_timeline.cam_n_keys <= 2) return 0;
+    for (int i = idx; i + 1 < g_dmo_timeline.cam_n_keys; i++)
+        g_dmo_timeline.cam_keys[i] = g_dmo_timeline.cam_keys[i + 1];
+    g_dmo_timeline.cam_n_keys--;
+    return 1;
+}
+
+void ed_dmo_timeline_snap_cam_to_editor(void)
+{
+    if (g_dmo_timeline_sel_track != -2) return;
+    if (g_dmo_timeline_sel_key < 0 ||
+        g_dmo_timeline_sel_key >= g_dmo_timeline.cam_n_keys) return;
+    EdDmoCamKey *k = &g_dmo_timeline.cam_keys[g_dmo_timeline_sel_key];
+    float fwd[3]; ed_camera_get_forward(fwd);
+    k->eye[0]    = (short)g_cam.pos[0];
+    k->eye[1]    = (short)g_cam.pos[1];
+    k->eye[2]    = (short)g_cam.pos[2];
+    const float reach = 4096.0f;
+    k->center[0] = (short)(g_cam.pos[0] + fwd[0] * reach);
+    k->center[1] = (short)(g_cam.pos[1] + fwd[1] * reach);
+    k->center[2] = (short)(g_cam.pos[2] + fwd[2] * reach);
+}
+
+/* Linear interpolation between adjacent keys. Outside the keyed range,
+ * clamps to the first / last key's value. */
+static int lerp_s16(int a, int b, int num, int denom)
+{
+    if (denom <= 0) return a;
+    long long delta = (long long)(b - a) * num;
+    return a + (int)(delta / denom);
+}
+
+void ed_dmo_timeline_eval_cam(int frame, EdDmoCamKey *out)
+{
+    memset(out, 0, sizeof(*out));
+    out->clip = 200;
+    int n = g_dmo_timeline.cam_n_keys;
+    if (n == 0) return;
+    if (frame <= g_dmo_timeline.cam_keys[0].frame) {
+        *out = g_dmo_timeline.cam_keys[0];
+        out->frame = frame;
+        return;
+    }
+    if (frame >= g_dmo_timeline.cam_keys[n - 1].frame) {
+        *out = g_dmo_timeline.cam_keys[n - 1];
+        out->frame = frame;
+        return;
+    }
+    int i = 0;
+    while (i + 1 < n && g_dmo_timeline.cam_keys[i + 1].frame <= frame) i++;
+    EdDmoCamKey *a = &g_dmo_timeline.cam_keys[i];
+    EdDmoCamKey *b = &g_dmo_timeline.cam_keys[i + 1];
+    int span = b->frame - a->frame;
+    int t    = frame - a->frame;
+    for (int j = 0; j < 3; j++) {
+        out->eye[j]    = (short)lerp_s16(a->eye[j],    b->eye[j],    t, span);
+        out->center[j] = (short)lerp_s16(a->center[j], b->center[j], t, span);
+    }
+    out->roll = (short)lerp_s16(a->roll, b->roll, t, span);
+    out->clip = (short)lerp_s16(a->clip, b->clip, t, span);
+    out->frame = frame;
+}
+
+/* ---- Doll tracks ----------------------------------------------------- */
+
+int ed_dmo_timeline_add_doll(const char *label, int type, int cache_id)
+{
+    if (!g_dmo_timeline.active) return -1;
+    if (g_dmo_timeline.n_dolls >= ED_DMO_MAX_DOLLS) return -1;
+    EdDmoTrack *t = &g_dmo_timeline.dolls[g_dmo_timeline.n_dolls];
+    memset(t, 0, sizeof(*t));
+    snprintf(t->label, sizeof(t->label), "%s",
+             (label && *label) ? label : "Doll");
+    t->type     = type > 0 ? type : g_dmo_timeline.n_dolls + 1;
+    t->cache_id = cache_id;
+    /* Seed one visible key at frame 0 — saves the user a click. */
+    EdDmoDollKey *k = &t->keys[0];
+    memset(k, 0, sizeof(*k));
+    k->visible = 1;
+    k->frame = 0;
+    /* Position at editor camera — usable default. */
+    k->pos[0] = (short)g_cam.pos[0];
+    k->pos[1] = (short)g_cam.pos[1];
+    k->pos[2] = (short)g_cam.pos[2];
+    t->n_keys = 1;
+    return g_dmo_timeline.n_dolls++;
+}
+
+int ed_dmo_timeline_remove_doll(int doll_idx)
+{
+    if (doll_idx < 0 || doll_idx >= g_dmo_timeline.n_dolls) return 0;
+    for (int i = doll_idx; i + 1 < g_dmo_timeline.n_dolls; i++)
+        g_dmo_timeline.dolls[i] = g_dmo_timeline.dolls[i + 1];
+    g_dmo_timeline.n_dolls--;
+    return 1;
+}
+
+static int doll_key_insert_pos(EdDmoTrack *t, int frame)
+{
+    int i = 0;
+    while (i < t->n_keys && t->keys[i].frame < frame) i++;
+    return i;
+}
+
+int ed_dmo_timeline_add_doll_key(int doll_idx, int frame)
+{
+    if (doll_idx < 0 || doll_idx >= g_dmo_timeline.n_dolls) return -1;
+    EdDmoTrack *t = &g_dmo_timeline.dolls[doll_idx];
+    if (t->n_keys >= ED_DMO_MAX_KEYS) return -1;
+    if (frame < 0) frame = 0;
+    if (frame >= g_dmo_timeline.n_frames) frame = g_dmo_timeline.n_frames - 1;
+    int pos = doll_key_insert_pos(t, frame);
+    if (pos < t->n_keys && t->keys[pos].frame == frame) return pos;
+    for (int i = t->n_keys; i > pos; i--) t->keys[i] = t->keys[i - 1];
+    EdDmoDollKey *k = &t->keys[pos];
+    memset(k, 0, sizeof(*k));
+    k->frame = frame;
+    k->visible = 1;
+    EdDmoDollKey eval;
+    ed_dmo_timeline_eval_doll(doll_idx, frame, &eval);
+    for (int i = 0; i < 3; i++) { k->pos[i] = eval.pos[i]; k->rot[i] = eval.rot[i]; }
+    k->visible = eval.visible;
+    t->n_keys++;
+    return pos;
+}
+
+int ed_dmo_timeline_remove_doll_key(int doll_idx, int key_idx)
+{
+    if (doll_idx < 0 || doll_idx >= g_dmo_timeline.n_dolls) return 0;
+    EdDmoTrack *t = &g_dmo_timeline.dolls[doll_idx];
+    if (key_idx < 0 || key_idx >= t->n_keys) return 0;
+    if (t->n_keys <= 1) return 0;
+    for (int i = key_idx; i + 1 < t->n_keys; i++) t->keys[i] = t->keys[i + 1];
+    t->n_keys--;
+    return 1;
+}
+
+void ed_dmo_timeline_snap_doll_to_editor(void)
+{
+    if (g_dmo_timeline_sel_track < 0 ||
+        g_dmo_timeline_sel_track >= g_dmo_timeline.n_dolls) return;
+    EdDmoTrack *t = &g_dmo_timeline.dolls[g_dmo_timeline_sel_track];
+    if (g_dmo_timeline_sel_key < 0 ||
+        g_dmo_timeline_sel_key >= t->n_keys) return;
+    EdDmoDollKey *k = &t->keys[g_dmo_timeline_sel_key];
+    k->pos[0] = (short)g_cam.pos[0];
+    k->pos[1] = (short)g_cam.pos[1];
+    k->pos[2] = (short)g_cam.pos[2];
+}
+
+void ed_dmo_timeline_eval_doll(int doll_idx, int frame, EdDmoDollKey *out)
+{
+    memset(out, 0, sizeof(*out));
+    out->visible = 1;
+    if (doll_idx < 0 || doll_idx >= g_dmo_timeline.n_dolls) return;
+    EdDmoTrack *t = &g_dmo_timeline.dolls[doll_idx];
+    if (t->n_keys == 0) return;
+    if (frame <= t->keys[0].frame)              { *out = t->keys[0];               out->frame = frame; return; }
+    if (frame >= t->keys[t->n_keys - 1].frame)  { *out = t->keys[t->n_keys - 1];   out->frame = frame; return; }
+    int i = 0;
+    while (i + 1 < t->n_keys && t->keys[i + 1].frame <= frame) i++;
+    EdDmoDollKey *a = &t->keys[i];
+    EdDmoDollKey *b = &t->keys[i + 1];
+    int span = b->frame - a->frame;
+    int tt   = frame - a->frame;
+    for (int j = 0; j < 3; j++) {
+        out->pos[j] = (short)lerp_s16(a->pos[j], b->pos[j], tt, span);
+        out->rot[j] = (short)lerp_s16(a->rot[j], b->rot[j], tt, span);
+    }
+    /* Visibility uses A's value across the span — flips at the next key. */
+    out->visible = a->visible;
+    out->frame = frame;
+}
+
+/* ---- Live preview render -------------------------------------------- */
+
+void ed_dmo_render_timeline_path(void)
+{
+    if (!g_dmo_timeline.active || g_dmo_timeline.cam_n_keys < 2) return;
+    short cd = ed_render_clip_dist();
+    static const unsigned char path_col[3]  = {  80, 200, 220 };
+    static const unsigned char key_col[3]   = { 255, 220,  80 };
+    static const unsigned char gizmo_col[3] = { 255, 240,  60 };
+
+    /* Path between adjacent keys (linearly interpolated, sampled every
+     * 4 frames so curves stay readable). */
+    int prev[3];
+    EdDmoCamKey s; ed_dmo_timeline_eval_cam(0, &s);
+    ed_world_to_eye(s.eye[0], s.eye[1], s.eye[2], prev);
+    int step = g_dmo_timeline.n_frames / 256;
+    if (step < 1) step = 1;
+    for (int f = step; f < g_dmo_timeline.n_frames; f += step) {
+        EdDmoCamKey e; ed_dmo_timeline_eval_cam(f, &e);
+        int cur[3];
+        ed_world_to_eye(e.eye[0], e.eye[1], e.eye[2], cur);
+        gl_submit_line3d(prev, cur, path_col, path_col, cd);
+        prev[0] = cur[0]; prev[1] = cur[1]; prev[2] = cur[2];
+    }
+    /* Key markers — small ×-cross in yellow. */
+    for (int i = 0; i < g_dmo_timeline.cam_n_keys; i++) {
+        EdDmoCamKey *k = &g_dmo_timeline.cam_keys[i];
+        const int R = 300;
+        int a[3], b[3];
+        ed_world_to_eye(k->eye[0] - R, k->eye[1], k->eye[2], a);
+        ed_world_to_eye(k->eye[0] + R, k->eye[1], k->eye[2], b);
+        gl_submit_line3d(a, b, key_col, key_col, cd);
+        ed_world_to_eye(k->eye[0], k->eye[1] - R, k->eye[2], a);
+        ed_world_to_eye(k->eye[0], k->eye[1] + R, k->eye[2], b);
+        gl_submit_line3d(a, b, key_col, key_col, cd);
+        ed_world_to_eye(k->eye[0], k->eye[1], k->eye[2] - R, a);
+        ed_world_to_eye(k->eye[0], k->eye[1], k->eye[2] + R, b);
+        gl_submit_line3d(a, b, key_col, key_col, cd);
+    }
+    /* Gizmo at scrubber frame: eye + line to center. */
+    EdDmoCamKey g; ed_dmo_timeline_eval_cam(g_dmo_timeline_frame, &g);
+    int eye[3], ctr[3];
+    ed_world_to_eye(g.eye[0],    g.eye[1],    g.eye[2],    eye);
+    ed_world_to_eye(g.center[0], g.center[1], g.center[2], ctr);
+    gl_submit_line3d(eye, ctr, gizmo_col, gizmo_col, cd);
+}
+
+void ed_dmo_render_timeline_actors(void)
+{
+    if (!g_dmo_timeline.active) return;
+    short cd = ed_render_clip_dist();
+    static const unsigned char palette[8][3] = {
+        { 100, 220, 255 }, { 255, 180, 100 }, { 200, 120, 255 },
+        { 120, 220, 120 }, { 240, 240, 100 }, { 255, 100, 160 },
+        { 200, 200, 200 }, { 160, 100,  80 },
+    };
+    for (int i = 0; i < g_dmo_timeline.n_dolls; i++) {
+        EdDmoDollKey p; ed_dmo_timeline_eval_doll(i, g_dmo_timeline_frame, &p);
+        if (!p.visible) continue;
+        const unsigned char *col = palette[i & 7];
+        cube_lines_at(p.pos[0], p.pos[1], p.pos[2], 600, col, cd);
+    }
+}
+
+/* ---- Bake → .dmo binary --------------------------------------------- */
+
+static void w_u32(unsigned char **p, unsigned int v)
+{
+    (*p)[0] = (unsigned char)(v       & 0xFF);
+    (*p)[1] = (unsigned char)((v >>  8) & 0xFF);
+    (*p)[2] = (unsigned char)((v >> 16) & 0xFF);
+    (*p)[3] = (unsigned char)((v >> 24) & 0xFF);
+    *p += 4;
+}
+static void w_s16(unsigned char **p, short v)
+{
+    unsigned short u = (unsigned short)v;
+    (*p)[0] = (unsigned char)(u      & 0xFF);
+    (*p)[1] = (unsigned char)((u>>8) & 0xFF);
+    *p += 2;
+}
+static void w_block_tag(unsigned char *blk, unsigned int type, unsigned int size)
+{
+    unsigned int hdr = (size << 8) | (type & 0xFF);
+    blk[0] = (unsigned char)(hdr       & 0xFF);
+    blk[1] = (unsigned char)((hdr >>  8) & 0xFF);
+    blk[2] = (unsigned char)((hdr >> 16) & 0xFF);
+    blk[3] = (unsigned char)((hdr >> 24) & 0xFF);
+}
+
+int ed_dmo_timeline_save(void)
+{
+    if (!g_dmo_timeline.active || g_dmo_timeline.cam_n_keys < 2) {
+        printf("[dmo-author] need at least 2 camera keys + an active "
+               "timeline before saving\n");
+        return 0;
+    }
+
+    int N = g_dmo_timeline.n_frames;
+    int n_models = g_dmo_timeline.n_dolls;
+
+    /* DMO_DEF block:
+     *   28-byte header + n_models * 20 bytes of DMO_MDL records. We
+     *   don't ship maps (n_maps = 0). */
+    int def_sz = 28 + n_models * 20;
+    /* DMO_DAT per frame:
+     *   40-byte header + n_dolls * 24 bytes of DMO_ADJ records (each
+     *   adjust has rots_off = 0 since we don't author per-bone rots). */
+    int dat_sz = 40 + n_models * 24;
+    int end_sz = 4;
+    int total  = def_sz + N * dat_sz + end_sz;
+
+    unsigned char *buf = (unsigned char *)calloc(total, 1);
+    if (!buf) return 0;
+    unsigned char *p = buf;
+
+    /* DMO_DEF */
+    w_block_tag(p, 0x05, def_sz); p += 4;
+    w_u32(&p, 0);                   /* frame    = 0 */
+    w_u32(&p, (unsigned)N);         /* n_frames */
+    w_u32(&p, 0);                   /* n_maps   */
+    w_u32(&p, (unsigned)n_models);  /* n_models */
+    w_u32(&p, 0);                   /* maps_off */
+    w_u32(&p, n_models ? 28u : 0u); /* models_off */
+    for (int i = 0; i < n_models; i++) {
+        EdDmoTrack *t = &g_dmo_timeline.dolls[i];
+        w_u32(&p, (unsigned)t->type);     /* type */
+        w_u32(&p, 0);                     /* flag */
+        w_u32(&p, (unsigned)t->cache_id); /* cache_id (KMD lookup) */
+        w_u32(&p, (unsigned)(t->cache_id & 0xFFFFFF)); /* filename hash */
+        w_u32(&p, 0);                     /* name */
+    }
+
+    /* DMO_DAT blocks */
+    for (int f = 0; f < N; f++) {
+        EdDmoCamKey c; ed_dmo_timeline_eval_cam(f, &c);
+        w_block_tag(p, 0x05, dat_sz); p += 4;
+        w_u32(&p, (unsigned)f);
+        w_s16(&p, c.eye[0]); w_s16(&p, c.eye[1]); w_s16(&p, c.eye[2]);
+        w_s16(&p, c.center[0]); w_s16(&p, c.center[1]); w_s16(&p, c.center[2]);
+        w_s16(&p, c.roll);
+        w_s16(&p, c.clip ? c.clip : 200);
+        w_s16(&p, 0);                     /* pad @ 24 */
+        w_s16(&p, 0);                     /* n_charas @ 26 */
+        w_u32(&p, 0);                     /* chara_off */
+        w_s16(&p, (short)n_models);       /* n_adjusts */
+        w_s16(&p, 0);                     /* pad @ 34 */
+        /* adjust_off relative to block start; our adjusts begin right
+         * after the 40-byte header. */
+        w_u32(&p, n_models ? 40u : 0u);
+        /* Adjust array: 24 bytes per doll. */
+        for (int i = 0; i < n_models; i++) {
+            EdDmoDollKey d; ed_dmo_timeline_eval_doll(i, f, &d);
+            EdDmoTrack *t = &g_dmo_timeline.dolls[i];
+            w_u32(&p, (unsigned)t->type);
+            w_s16(&p, d.visible);
+            w_s16(&p, d.rot[0]); w_s16(&p, d.rot[1]); w_s16(&p, d.rot[2]);
+            w_s16(&p, d.pos[0]); w_s16(&p, d.pos[1]); w_s16(&p, d.pos[2]);
+            w_s16(&p, 0);                 /* n_rots = 0 (no per-bone authoring) */
+            w_u32(&p, 0);                 /* rots_off */
+        }
+    }
+
+    /* End-of-stream marker */
+    w_block_tag(p, 0xF0, end_sz); p += 4;
+
+    char path[160];
+    snprintf(path, sizeof(path), "data/dmo/custom/%s.dmo",
+             g_dmo_timeline.name[0] ? g_dmo_timeline.name : "untitled");
+    system("mkdir -p data/dmo/custom 2>/dev/null");
+    FILE *fp = fopen(path, "wb");
+    if (!fp) {
+        printf("[dmo-author] cannot open %s for write\n", path);
+        free(buf); return 0;
+    }
+    int wrote = (int)fwrite(buf, 1, total, fp);
+    fclose(fp);
+    free(buf);
+    if (wrote != total) {
+        printf("[dmo-author] short write %d/%d → %s\n", wrote, total, path);
+        return 0;
+    }
+    printf("[dmo-author] saved %s (%d frames, %d models, %d bytes)\n",
+           path, N, n_models, total);
+    return 1;
+}
+
+
+/* ---- Load custom .dmo file -------------------------------------------- */
+
+int ed_dmo_open_file(const char *path)
+{
+    ed_dmo_close();
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        printf("[dmo] open_file: cannot read %s\n", path);
+        return 0;
+    }
+    fseek(fp, 0, SEEK_END);
+    long sz = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (sz <= 0 || sz > DMO_READ_BYTES) {
+        printf("[dmo] open_file: bad size %ld in %s\n", sz, path);
+        fclose(fp);
+        return 0;
+    }
+    unsigned char *buf = (unsigned char *)malloc(sz);
+    if (!buf) { fclose(fp); return 0; }
+    long rd = (long)fread(buf, 1, sz, fp);
+    fclose(fp);
+    if (rd != sz) { free(buf); return 0; }
+
+    EdDmoData *d = (EdDmoData *)calloc(1, sizeof(EdDmoData));
+    if (!d) { free(buf); return 0; }
+    /* Pull a friendly name out of the path tail. */
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    snprintf(d->name, sizeof(d->name), "%s", base);
+    d->sector = -1;     /* not from DEMO.DAT */
+
+    if (!parse_dmo_blocks(d, buf, (int)rd)) {
+        printf("[dmo] open_file: %s parse failed\n", path);
+        free_frames(d->frames, d->n_extracted);
+        free(d->models); free(d->maps); free(d); free(buf);
+        return 0;
+    }
+    free(buf);
+
+    g_dmo_active = d;
+    g_dmo_active_frame = 0;
+    printf("[dmo] opened file %s: %d frames\n", path, d->n_extracted);
+    return 1;
 }

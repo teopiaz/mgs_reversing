@@ -17,6 +17,7 @@
 
 #include "libdg/gl_renderer.h"
 #include "editor.h"
+#include "ed_dmo.h"
 
 #define WIN_W 1280
 #define WIN_H 720

@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <SDL.h>
 
 #include "libgte.h"
 #include "libgv/libgv.h"
@@ -92,6 +93,12 @@ int g_demo_diag_pause_level = 0;     /* GV_PauseLevel — gates the camera helpe
  * second 'g' loader. Track here so editor_engine_init can call us once
  * and Play can be a no-op for the daemon side. */
 static int s_gcl_daemon_started = 0;
+
+/* Wall-clock anchor for the 30 Hz throttle in ed_demo_tick — set on each
+ * fresh Play (and on Stop) so a Resume after a long Pause doesn't burst
+ * a backlog of catch-up ticks. Defined here so ed_demo_play can clear
+ * it before the throttle helpers below reference it. */
+static unsigned int s_demo_last_tick_ms = 0;
 
 void ed_demo_engine_init(void)
 {
@@ -167,6 +174,10 @@ void ed_demo_play(void)
      * from PAUSE) so the cinematic starts at the beginning regardless of
      * where the user left the DMO tab slider. */
     if (!g_demo_loaded && g_dmo_active) g_dmo_active_frame = 0;
+    /* Reset the 30 Hz throttle clock so the first tick fires immediately
+     * — without this a Resume after a long Pause would burst-tick to
+     * catch up to wall-clock. */
+    s_demo_last_tick_ms = 0;
     /* First Play after stage load: bring the demo's bytecode into the GCL
      * runtime. Subsequent Play after Pause is just a state flip. */
     if (!g_demo_loaded) {
@@ -227,13 +238,15 @@ void ed_demo_stop(void)
     ed_dmo_close();
 }
 
+static void ed_demo_tick_one(void);
+
 void ed_demo_step_one(void)
 {
     if (!g_demo_loaded) ed_demo_play();
     if (!g_demo_loaded) return;     /* play refused → nothing to step */
-    /* Tick once then freeze. */
-    g_demo_state = ED_DEMO_PLAYING;
-    ed_demo_tick();
+    /* Tick once then freeze. Bypass the 30 Hz throttle — Step is meant
+     * to advance exactly one engine frame regardless of wall clock. */
+    ed_demo_tick_one();
     g_demo_state = ED_DEMO_PAUSED;
 }
 
@@ -354,9 +367,29 @@ static void feed_dmo_frame_to_engine(void)
         g_dmo_active_frame = 0;
 }
 
-void ed_demo_tick(void)
+/* Cap the engine tick rate to PSX-native 30 Hz regardless of how fast the
+ * editor's render loop is running. Without this, on a 60+Hz display the
+ * cinematic plays 2× too fast and timed cues (CINEMA -t lifetime,
+ * audio sync) drift. We accumulate elapsed milliseconds since the last
+ * tick and step the actor system once per ~33.3ms slot.
+ *
+ * The user can override the rate via PORT_DEMO_HZ env var at startup
+ * (e.g. PORT_DEMO_HZ=60 to play at 60). 0 falls back to one-tick-per-call
+ * so Step still works for single-step debugging. */
+static int s_demo_target_hz = -1;
+
+static int demo_target_hz(void)
 {
-    if (g_demo_state != ED_DEMO_PLAYING) return;
+    if (s_demo_target_hz < 0) {
+        const char *e = getenv("PORT_DEMO_HZ");
+        s_demo_target_hz = (e && *e) ? atoi(e) : 30;
+        if (s_demo_target_hz < 0) s_demo_target_hz = 30;
+    }
+    return s_demo_target_hz;
+}
+
+static void ed_demo_tick_one(void)
+{
     GV_ExecActorSystem();
     /* Camera write goes AFTER the actor tick so it's the last writer to
      * DG_Chanls[0].eye_inv before render. camera.c::Act() runs inside
@@ -372,5 +405,31 @@ void ed_demo_tick(void)
         extern int GV_PauseLevel;
         g_demo_diag_game_status = GM_GameStatus;
         g_demo_diag_pause_level = GV_PauseLevel;
+    }
+}
+
+void ed_demo_tick(void)
+{
+    if (g_demo_state != ED_DEMO_PLAYING) return;
+
+    int hz = demo_target_hz();
+    if (hz <= 0) {
+        /* Uncapped — one tick per call (useful for Step). */
+        ed_demo_tick_one();
+        return;
+    }
+
+    unsigned int now = SDL_GetTicks();
+    if (s_demo_last_tick_ms == 0) s_demo_last_tick_ms = now;
+    /* slot_ms = floor(1000 / hz). At 30 Hz that's 33ms; the small drift
+     * (1000 - 33*30 = 10ms per second) is below human perception for
+     * cutscene playback. */
+    unsigned int slot_ms = 1000u / (unsigned)hz;
+    /* Cap catch-up to avoid death spirals after a stall (window resize,
+     * file load): no more than 4 slots in one render frame. */
+    int max_steps = 4;
+    while ((now - s_demo_last_tick_ms) >= slot_ms && max_steps-- > 0) {
+        ed_demo_tick_one();
+        s_demo_last_tick_ms += slot_ms;
     }
 }
