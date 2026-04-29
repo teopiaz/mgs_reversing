@@ -10,19 +10,42 @@
 #include "test_server.h"
 #include "libdg/gl_renderer.h"
 
-static void crash_handler(int sig)
+#include <sys/ucontext.h>
+
+static void crash_handler_si(int sig, siginfo_t *info, void *ucontext)
 {
     void *bt[30];
     int n = backtrace(bt, 30);
     fprintf(stderr, "\n=== CRASH: signal %d ===\n", sig);
+    if (info) {
+        fprintf(stderr, "  si_addr=%p si_code=%d\n", info->si_addr, info->si_code);
+    }
+#if defined(__APPLE__) && defined(__aarch64__)
+    if (ucontext) {
+        ucontext_t *uc = (ucontext_t *)ucontext;
+        fprintf(stderr, "  pc=%llx lr=%llx sp=%llx fp=%llx\n",
+                (unsigned long long)uc->uc_mcontext->__ss.__pc,
+                (unsigned long long)uc->uc_mcontext->__ss.__lr,
+                (unsigned long long)uc->uc_mcontext->__ss.__sp,
+                (unsigned long long)uc->uc_mcontext->__ss.__fp);
+        fprintf(stderr, "  x0=%llx x1=%llx x2=%llx x3=%llx\n",
+                (unsigned long long)uc->uc_mcontext->__ss.__x[0],
+                (unsigned long long)uc->uc_mcontext->__ss.__x[1],
+                (unsigned long long)uc->uc_mcontext->__ss.__x[2],
+                (unsigned long long)uc->uc_mcontext->__ss.__x[3]);
+    }
+#endif
     backtrace_symbols_fd(bt, n, 2);
     _exit(1);
 }
 
 static void port_install_crash_handler(void)
 {
-    signal(SIGBUS, crash_handler);
-    signal(SIGSEGV, crash_handler);
+    struct sigaction sa = {0};
+    sa.sa_sigaction = crash_handler_si;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGBUS,  &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
 }
 
 #define SCREEN_WIDTH  320

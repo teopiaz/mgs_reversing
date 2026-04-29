@@ -818,6 +818,46 @@ void gl_renderer_set_clear_color(int r8, int g8, int b8)
 
 int gl_renderer_get_scale(void) { return g_scale; }
 
+int gl_renderer_read_psx_region(int psx_x, int psx_y, int psx_w, int psx_h,
+                                unsigned char *out_rgb,
+                                int *out_w, int *out_h)
+{
+    if (!g_enabled || !g_fbo || !out_rgb) return 0;
+    if (psx_w <= 0 || psx_h <= 0) return 0;
+
+    int x = psx_x * g_scale;
+    int w = psx_w * g_scale;
+    int h = psx_h * g_scale;
+    /* PSX origin is top-left, GL origin is bottom-left — flip y. */
+    int y_top = psx_y * g_scale;
+    int y_gl  = g_fbo_h - y_top - h;
+    if (y_gl < 0) y_gl = 0;
+
+    GLint prev_fbo = 0, prev_pack = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_fbo);
+    glGetIntegerv(GL_PACK_ALIGNMENT, &prev_pack);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(x, y_gl, w, h, GL_RGB, GL_UNSIGNED_BYTE, out_rgb);
+    glPixelStorei(GL_PACK_ALIGNMENT, prev_pack);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)prev_fbo);
+
+    /* Flip vertically into place — glReadPixels returns bottom-up rows. */
+    int stride = w * 3;
+    unsigned char tmp[stride];
+    for (int yy = 0; yy < h / 2; yy++) {
+        unsigned char *row_a = out_rgb + yy * stride;
+        unsigned char *row_b = out_rgb + (h - 1 - yy) * stride;
+        memcpy(tmp,   row_a, stride);
+        memcpy(row_a, row_b, stride);
+        memcpy(row_b, tmp,   stride);
+    }
+
+    if (out_w) *out_w = w;
+    if (out_h) *out_h = h;
+    return 1;
+}
+
 void gl_renderer_set_scale(int n)
 {
     if (!g_enabled) return;

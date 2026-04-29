@@ -14,7 +14,7 @@ else
 SANITIZE =
 endif
 
-CFLAGS = -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -include psx/port_overrides.h $(INCLUDES) \
+CFLAGS = -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
 		 -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
 		 -Wno-incompatible-pointer-types $(SANITIZE)
 CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
@@ -135,7 +135,8 @@ PORT_OBJ = \
 	$(OBJDIR)/libfs.o \
 	$(OBJDIR)/iso_reader.o \
 	$(OBJDIR)/spu_emu.o \
-	$(OBJDIR)/memcard_stub.o \
+	$(OBJDIR)/memcard_host.o \
+	$(OBJDIR)/photo_export.o \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o \
@@ -228,8 +229,11 @@ $(OBJDIR)/iso_reader.o: libfs/iso_reader.c | $(OBJDIR)
 $(OBJDIR)/spu_emu.o: sound/spu_emu.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
-$(OBJDIR)/memcard_stub.o: memcard/memcard_stub.c | $(OBJDIR)
+$(OBJDIR)/memcard_host.o: memcard/memcard_host.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/photo_export.o: memcard/photo_export.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -Wno-unused-function -c -o $@ $<
 
 $(OBJDIR)/hzd_loader.o: libhzd/hzd_loader.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<

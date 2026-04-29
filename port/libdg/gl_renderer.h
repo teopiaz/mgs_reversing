@@ -71,6 +71,18 @@ extern int gl_debug_show_normals;   /* output interpolated normal as RGB */
 extern int gl_debug_clear_override; /* 1 = use gl_debug_clear_rgb instead of game */
 extern float gl_debug_clear_rgb[3]; /* override clear color, 0..1 per channel */
 
+/* Read a region of the hi-res FBO back into a host RGB buffer. Coordinates
+ * are in PSX framebuffer pixels (0..320 x 0..224). The function multiplies
+ * by the current scale and reads `psx_w * scale` x `psx_h * scale` RGB
+ * triples into `out_rgb`. Buffer must be sized for that. Returns 1 on
+ * success, 0 if disabled or FBO not initialised. Used by the photo
+ * exporter to capture the actual rendered scene at native resolution
+ * (StoreImage from emulated VRAM only sees CPU rasterizer output, not
+ * the GL pipeline). */
+int gl_renderer_read_psx_region(int psx_x, int psx_y, int psx_w, int psx_h,
+                                unsigned char *out_rgb,
+                                int *out_w, int *out_h);
+
 /* Recreate the hi-res FBO at a new PORT_GL_SCALE. Safe to call between frames
  * (typically from the debug menu). n clamped to [1, 8]. */
 void gl_renderer_set_scale(int n);

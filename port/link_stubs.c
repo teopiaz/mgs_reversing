@@ -12,7 +12,11 @@ void *GM_PlayerControl = _default_control;  /* CONTROL * */
 
 /* Variables whose source files are NOT compiled in the port */
 int MGS_DiskName = 0;
-int MGS_MemoryCardName = 0;
+/* datasave.c does `strcpy(memoryCardFileName, MGS_MemoryCardName)` then
+   overwrites positions 12..19 — so this needs to be a real 12-char string,
+   not the int=0 the stub used to be. Matches the INTEGRAL build's
+   source/main/main.c definition. */
+const char *MGS_MemoryCardName = "BISLPM-86247";
 int DG_HikituriFlagOld = 0;
 
 /* s12c fog overlay stubs — libdg2.c is excluded from build */
