@@ -134,5 +134,5 @@ suggests several layers of refactoring. Renaming to
 
 ## See also
 
-- [README.md](README.md) — folder overview.
+- [index.md](index.md) — folder overview.
 - Per-component docs.

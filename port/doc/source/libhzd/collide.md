@@ -119,6 +119,8 @@ slope-aware step logic in `level.c`.
 - **The handler must be valid.** `HZD_HDL` is per-stage; passing
   the wrong one collides against the wrong scene.
 
+---
+
 ## Port notes
 
 `collide.c` runs unmodified on the port — pure math. The HZD data

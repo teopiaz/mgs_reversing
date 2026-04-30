@@ -85,7 +85,7 @@ naturally despawn.
 
 ## See also
 
-- [`source/menu/radar.c`](../menu/README.md) — radar binding.
+- [`source/menu/radar.c`](../menu/index.md) — radar binding.
 - [`source/enemy/command.c`](../../../../source/enemy/command.c) —
   guard-side alert propagation.
 - [`source/game/sound.c`](../../../../source/game/sound.c) — BGM

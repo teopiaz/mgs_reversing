@@ -189,7 +189,7 @@ think.c picks the grenade-attack state.
 
 - [watcher.md](watcher.md) / [meryl7.md](meryl7.md) — the actors
   these supports decorate.
-- [`source/thing/`](../thing/README.md) — non-character actors,
+- [`source/thing/`](../thing/index.md) — non-character actors,
   which `object.c` is sister-to.
 - [`source/anime/effect/`](../anime/effect.md) — 2D billboard
   effects, where some of these duplicates live.

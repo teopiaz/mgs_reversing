@@ -112,7 +112,9 @@ Every actor that draws something:
 
 Free path: `DG_DequeueObjs` + `DG_FreeObjs`.
 
-## Port replacement
+---
+
+## Port notes
 
 The disc's libdg compiles a *PSX GPU command list* that the
 hardware GPU consumes. The port replaces this with

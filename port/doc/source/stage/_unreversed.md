@@ -48,7 +48,7 @@ pass could write per-stage walkthroughs covering:
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
 - [`port/gcl/decompiled/`](../../../../port/gcl/decompiled/) —
   per-stage GCL in readable text form.
 - [`source/enemy/meryl7.md`](../enemy/meryl7.md) — example of

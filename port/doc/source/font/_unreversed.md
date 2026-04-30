@@ -27,6 +27,6 @@ The fallback character is hard-coded.
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
 - [`tools/mgs_tools/gcl/glyphs/`](../../../../tools/) — glyph
   extraction tools.

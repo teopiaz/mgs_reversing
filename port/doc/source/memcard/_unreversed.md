@@ -31,5 +31,5 @@ all combinations.
 
 ## See also
 
-- [README.md](README.md), [savefile.md](savefile.md) — documented
+- [index.md](index.md), [savefile.md](savefile.md) — documented
   surfaces.

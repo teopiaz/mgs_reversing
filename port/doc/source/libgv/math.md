@@ -125,6 +125,8 @@ the same hashes the original game uses.
 - **`rsin`/`rcos` return 12-bit fixed; multiplying then dividing by
   4096 is the only correct chain.** Watch for missed `>>12`.
 
+---
+
 ## Port notes
 
 `math.c`/`math_near.c`/`strcode.c` run unmodified. `math_quat.c`

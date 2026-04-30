@@ -39,6 +39,6 @@ Each weapon is registered in a master table that maps weapon-id to
 
 ## See also
 
-- [README.md](README.md), [weapons.md](weapons.md) — documented
+- [index.md](index.md), [weapons.md](weapons.md) — documented
   surfaces.
-- [`source/bullet/`](../bullet/README.md) — projectile internals.
+- [`source/bullet/`](../bullet/index.md) — projectile internals.

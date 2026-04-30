@@ -67,6 +67,6 @@ arguments. Examples: `chrtbl`, `tobctl`, `2ndctl`.
 
 ## See also
 
-- [README.md](README.md), [chara.md](chara.md), [camera.md](camera.md),
+- [index.md](index.md), [chara.md](chara.md), [camera.md](camera.md),
   [target.md](target.md), [item.md](item.md), [script.md](script.md),
   [alert.md](alert.md), [map.md](map.md) — documented surfaces.

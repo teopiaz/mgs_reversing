@@ -24,6 +24,6 @@ or stubbed to NOPs. The port preserves the stubs.
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
 - [`port/libsio/`](../../../../port/libsio/) — stub
   replacement.

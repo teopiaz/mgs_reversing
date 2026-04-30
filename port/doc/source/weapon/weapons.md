@@ -128,8 +128,8 @@ into target. Crash or detonate ends control-mode.
 
 ## See also
 
-- [`source/bullet/`](../bullet/README.md) — projectile actors.
+- [`source/bullet/`](../bullet/index.md) — projectile actors.
 - [`source/menu/weapon.c`](../menu/menuman.md) — weapon-tab UI.
 - [`source/chara/snake.md`](../chara/snake.md) — player + ACTPACK.
-- [`source/equip/`](../equip/README.md) — wearable items
+- [`source/equip/`](../equip/index.md) — wearable items
   (different from weapons).

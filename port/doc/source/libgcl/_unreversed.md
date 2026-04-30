@@ -73,6 +73,6 @@ partial; some are present but not formally documented.
 
 ## See also
 
-- [README.md](README.md), [bytecode.md](bytecode.md), [parse.md](parse.md),
+- [index.md](index.md), [bytecode.md](bytecode.md), [parse.md](parse.md),
   [command.md](command.md), [expr.md](expr.md) — documented surfaces.
 - `tools/mgs_tools/gcl/constants.py` — the canonical opcode list.

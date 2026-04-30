@@ -388,6 +388,6 @@ codegen.
 
 - [`build/functions.txt`](../../../../build/functions.txt) — the
   canonical "all functions" list with addresses.
-- [README.md](README.md) — animal/ component overview.
+- [index.md](index.md) — animal/ component overview.
 - Each component's doc (`doll.md`, `meryl72.md`, `zako11e.md`,
   `zako11f.md`) — for the in-context view of each function.

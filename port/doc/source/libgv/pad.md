@@ -143,6 +143,8 @@ int  GV_GetPadDirNoPadOrg(unsigned int pad_idx);
 - **The dir field is 12-bit fixed.** Combine with `rsin/rcos` like
   any GV angle, not in degrees.
 
+---
+
 ## Port notes
 
 The port replaces the MTS pad task with SDL key-state polling.

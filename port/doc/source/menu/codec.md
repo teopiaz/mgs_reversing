@@ -121,6 +121,8 @@ GM_PlayVox(vox_id)  → sound/sd_str.c streams from CD
 
 The voice's amplitude envelope is fed to `radioanim.c` for lip-flap.
 
+---
+
 ## Port notes
 
 The port had a significant codec bug that was fixed (see
@@ -144,7 +146,7 @@ Both were fixed; the codec now runs end-to-end.
 
 ## See also
 
-- [`source/sound/`](../sound/README.md) — VOX streaming.
+- [`source/sound/`](../sound/index.md) — VOX streaming.
 - [`source/libgcl/bytecode.md`](../libgcl/bytecode.md) — radio.dat
   opcode space.
-- [`source/font/`](../font/README.md) — text rendering.
+- [`source/font/`](../font/index.md) — text rendering.
