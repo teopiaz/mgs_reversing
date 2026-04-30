@@ -154,6 +154,8 @@ script cursor and resumes from where it yielded.
 - **The command-line stack is bounded at 8.** Commands that nest
   too deeply (nested `if` / `for` etc.) may exhaust it.
 
+---
+
 ## Port notes
 
 `script.c` runs unmodified. The port adds debug hooks to log every
@@ -161,7 +163,7 @@ GCL command invocation (visible via `[gcl-cmd]` prefix in stderr).
 
 ## See also
 
-- [`source/libgcl/`](../libgcl/README.md) — the bytecode
+- [`source/libgcl/`](../libgcl/index.md) — the bytecode
   interpreter this builds on.
 - [`source/libgcl/command.md`](../libgcl/command.md) — `GCL_Command`
   is what dispatches into here.

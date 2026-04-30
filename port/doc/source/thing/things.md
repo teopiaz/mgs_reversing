@@ -116,5 +116,5 @@ Spherical trigger zone. Used by bosses with a "engagement radius"
   toggle HZD segments.
 - [`source/anime/effect.md`](../anime/effect.md) — what emitters
   spawn.
-- [`source/okajima/`](../okajima/README.md) — sister effects
+- [`source/okajima/`](../okajima/index.md) — sister effects
   library.

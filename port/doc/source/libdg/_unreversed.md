@@ -102,7 +102,7 @@ is in `motionconv.c` (anime/) and not formally captured here.
 
 ## See also
 
-- [README.md](README.md), [pipeline.md](pipeline.md), [obj.md](obj.md),
+- [index.md](index.md), [pipeline.md](pipeline.md), [obj.md](obj.md),
   [matrix.md](matrix.md), [text.md](text.md), [display.md](display.md)
   — the documented surfaces.
 - `source/anime/animconv.md` — the bytecode interpreter that

@@ -95,6 +95,8 @@ encounter colour shifts (e.g. Liquid's intro fade-to-red).
 - **Resident textures must fit.** Resident region in VRAM is
   fixed-size; loading too many = collision with stage textures.
 
+---
+
 ## Port notes
 
 The port replaces VRAM with an OpenGL texture array; `DG_TEX::tpage`

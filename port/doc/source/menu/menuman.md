@@ -100,6 +100,6 @@ allocated per-frame.
 ## See also
 
 - [02-game-loop.md](../02-game-loop.md) — `GV_PauseLevel` semantics.
-- [`source/menu/radio.c`](README.md) — codec system (separate path).
-- [`source/font/`](../font/README.md) — text rasteriser.
-- [`source/memcard/`](../memcard/README.md) — save backend.
+- [`source/menu/radio.c`](index.md) — codec system (separate path).
+- [`source/font/`](../font/index.md) — text rasteriser.
+- [`source/memcard/`](../memcard/index.md) — save backend.

@@ -361,7 +361,7 @@ When `param_life ≤ 0`:
 
 ## See also
 
-- [README.md](README.md) — folder overview.
+- [index.md](index.md) — folder overview.
 - [`animal/zako11e/`](../animal/zako11e.md) and
   [`animal/zako11f/`](../animal/zako11f.md) — derived variants.
 - [`source/game/target.c`](../../../../source/game/target.c) —

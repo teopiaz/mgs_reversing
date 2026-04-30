@@ -85,6 +85,8 @@ each stage has at most 256 zones.
   jumping actor hits `top` when his head (Y + height) reaches it,
   not when his feet do. Common bug: testing wrong Y.
 
+---
+
 ## Port notes
 
 Pure math; runs unmodified.

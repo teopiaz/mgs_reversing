@@ -93,5 +93,5 @@ from the side. Multiple files because:
 
 - [02-game-loop.md](../02-game-loop.md) — `GM_TogglePauseScreen`
   is gamed.c's entry point into the pause menu.
-- [`source/font/`](../font/README.md) — text rasteriser used by
+- [`source/font/`](../font/index.md) — text rasteriser used by
   every UI element.

@@ -43,5 +43,5 @@ bit toggles which overlay) isn't enumerated.
 
 ## See also
 
-- [README.md](README.md), [menuman.md](menuman.md), [codec.md](codec.md),
+- [index.md](index.md), [menuman.md](menuman.md), [codec.md](codec.md),
   [hud.md](hud.md) — documented surfaces.

@@ -79,7 +79,9 @@ void SD_FadeOut(int frames);
 - `game/strctrl.c` — story-cinematic stream control.
 - Every `chara/`, `enemy/`, `weapon/` actor that emits sound.
 
-## Port replacement
+---
+
+## Port notes
 
 The port replaces the SPU emulation with
 [`port/spu_emu.c`](../../../../port/spu_emu.c) (a software SPU
@@ -100,7 +102,7 @@ Some pump routines are missing from the port — see
 
 ## See also
 
-- [`source/mts/`](../mts/README.md) — the task scheduler that
+- [`source/mts/`](../mts/index.md) — the task scheduler that
   feeds SPU pumps.
 - [`source/menu/radio.c`](../../../../source/menu/radio.c) — the
   codec system uses VOX streaming.

@@ -123,6 +123,8 @@ These are reset by `HZD_StartDaemon` between stages.
   `GetAddress` walk every zone. Always pass the actor's stored
   `start_addr` to keep the search local.
 
+---
+
 ## Port notes
 
 The port had a bug where stage transitions weren't refreshing

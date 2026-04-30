@@ -81,6 +81,8 @@ enumerate, `MC_Save` / `MC_Load` for the actual operations.
 - **Checksum failure aborts load silently.** Player sees "data
   corrupted" without an error code.
 
+---
+
 ## Port notes
 
 The port replaces the memcard with a flat file at

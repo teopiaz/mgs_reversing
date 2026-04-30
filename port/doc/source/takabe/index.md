@@ -131,7 +131,7 @@ context.
 - [`doc/demo/03-key-actors.md`](../../demo/03-key-actors.md) —
   CINEMA / FADEIO / WT_VIEW are documented as cutscene actors
   there.
-- [`source/okajima/`](../okajima/README.md) — sister effect
+- [`source/okajima/`](../okajima/index.md) — sister effect
   library.
 - [`source/anime/effect/`](../anime/effect.md) — 2D billboard
   effect library.

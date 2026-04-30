@@ -71,6 +71,8 @@ chains where state has to be preserved.
   matrix has translation, transpose alone won't give you the
   inverse — you need to also negate-and-rotate the translation.
 
+---
+
 ## Port notes
 
 The port emulates GTE `gte_*` macros in software (see

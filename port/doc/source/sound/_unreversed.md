@@ -48,7 +48,7 @@ not formally documented.
 
 ## See also
 
-- [README.md](README.md), [architecture.md](architecture.md) —
+- [index.md](index.md), [architecture.md](architecture.md) —
   documented surfaces.
 - [`port/sound.c`](../../../../port/sound.c) — port replacement.
 - [reference_testvox.md](#) — working VOX/codec testbed.

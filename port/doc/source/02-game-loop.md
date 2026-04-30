@@ -299,7 +299,21 @@ GameOver runs through a similar path but at a higher priority —
 `GM_GameOverTimer` non-zero short-circuits the regular `Act` flow
 into the GameOver subroutine (line ~456-481).
 
-## Port-specific notes
+## See also
+
+- [03-control-and-motion.md](03-control-and-motion.md) — the
+  CONTROL primitive that gameplay actors run on top of `GameWork`.
+- [`source/game/`](game/index.md) — the rest of the policy layer.
+- [`source/libgv/actor.md`](libgv/actor.md) — the actor system
+  `GameWork` is registered into.
+- [`source/libgcl/`](libgcl/index.md) — the bytecode interpreter
+  driving `GCL_ExecScript`.
+- [doc/demo/02-data-flow.md](../demo/02-data-flow.md) — the
+  cutscene-specific subset of the loop.
+
+---
+
+## Port notes
 
 The disc binary's gamed.c relies on PSX-specific timing
 (`mts_wait_vbl`, CD interrupt firing under SDL). The port's main
@@ -315,13 +329,3 @@ Two PORT_BUILD blocks live inside gamed.c itself:
   on the port skip cutscene procs and don't, so we do it manually.
 - Various debug printfs gated by `PORT_BUILD_VERBOSE` so the
   default port output isn't drowned in trace.
-
-## Cross-references
-
-- For *what* a chara is and *how* it's created when a cutscene
-  spawns one, see [03-control-and-motion.md](03-control-and-motion.md)
-  and the chara-tier docs.
-- For the bytecode that drives `GCL_ExecScript`, see the
-  GCL-system docs and `tools/gcl2gcx.py`.
-- For the cutscene-specific subset of the loop, see
-  [doc/demo/02-data-flow.md](../demo/02-data-flow.md).

@@ -129,6 +129,8 @@ detect him).
   one bind's GCL changes state used by a later bind, the order
   becomes load-bearing.
 
+---
+
 ## Port notes
 
 `event.c` runs unmodified. The bind list survives stage transitions

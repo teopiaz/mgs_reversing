@@ -64,19 +64,6 @@ In RELEASE / PORT_BUILD, the stage table isn't a known symbol —
 it lives at the tail of BSS, populated by stage init. `mts_get_bss_tail()`
 walks the linker layout to find it.
 
-## Port: 32-bit address rejection
-
-The port adds a guard:
-
-```c
-if ((uintptr_t)chara_table->func < 0x100000000ULL)
-    return NULL;
-```
-
-Some stage tables still have raw PSX addresses (`0x80XXXXXX`) for
-charas not yet ported. The port treats these as "missing" rather
-than calling into garbage.
-
 ## `GM_GetChara(script)` — GCL entry point
 
 ```c
@@ -111,7 +98,24 @@ the table won't expose stale entries.
 
 - [02-game-loop.md](../02-game-loop.md) — `gamed.c` calls
   `GM_InitChara` at boot.
+- [script.md](script.md) — the GCL `chara` command that invokes
+  `GM_GetChara`.
 - [`source/main.c`](../../../../source/main.c) — `MainCharacterEntries`
   definition.
 - [`source/include/charadef.h`](../../../../source/include/charadef.h) —
   `CHARA` struct.
+
+---
+
+## Port notes
+
+The port adds a 32-bit-address rejection guard:
+
+```c
+if ((uintptr_t)chara_table->func < 0x100000000ULL)
+    return NULL;
+```
+
+Some stage tables still have raw PSX addresses (`0x80XXXXXX`) for
+charas not yet ported. The port treats these as "missing" rather
+than calling into garbage.

@@ -64,7 +64,9 @@ The CD reads sectors continuously into a 96 KiB ring buffer at
 streamer is fed by an interrupt handler tied to the SPU (each
 SPU IRQ kicks the next sector read).
 
-## Port replacement
+---
+
+## Port notes
 
 Almost all of `source/libfs/` is **replaced** in the port by
 [`port/libfs/libfs.c`](../../../../port/libfs/libfs.c) which

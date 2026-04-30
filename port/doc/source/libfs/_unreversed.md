@@ -28,6 +28,6 @@ sort.
 
 ## See also
 
-- [README.md](README.md), [streaming.md](streaming.md) — documented
+- [index.md](index.md), [streaming.md](streaming.md) — documented
   surfaces.
 - [`port/libfs/libfs.c`](../../../../port/libfs/libfs.c) — port.

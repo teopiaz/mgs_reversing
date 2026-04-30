@@ -32,5 +32,5 @@ logic is per-item; not aggregated.
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
 - [`source/menu/item.c`](../menu/menuman.md) — equip UI.

@@ -76,7 +76,7 @@ participant in an interaction), but isn't formally typed.
 
 ## See also
 
-- [README.md](README.md), [collide.md](collide.md), [level.md](level.md),
+- [index.md](index.md), [collide.md](collide.md), [level.md](level.md),
   [zone.md](zone.md), [event.md](event.md), [dynamic.md](dynamic.md)
   — documented surfaces.
 - [`source/include/fmt_hzd.h`](../../../../source/include/fmt_hzd.h)

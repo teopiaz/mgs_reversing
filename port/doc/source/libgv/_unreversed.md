@@ -72,6 +72,6 @@ removed feature.
 
 ## See also
 
-- [README.md](README.md), [actor.md](actor.md), [memory.md](memory.md),
+- [index.md](index.md), [actor.md](actor.md), [memory.md](memory.md),
   [cache.md](cache.md), [message.md](message.md), [pad.md](pad.md),
   [math.md](math.md) — the documented surfaces.

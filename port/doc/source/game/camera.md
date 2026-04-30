@@ -120,6 +120,8 @@ Used heavily in cinematics for non-DMO camera changes.
   breaks (e.g. ground-shadow placement). `up` is mostly ignored
   in gameplay but cinematic uses it.
 
+---
+
 ## Port notes
 
 The port substitutes `DG_LookAt`'s body with a host-matrix builder,
