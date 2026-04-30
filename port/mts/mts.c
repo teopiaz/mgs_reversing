@@ -84,25 +84,60 @@ static int  (*vsync_callback_func)(void) = NULL;
 
 /* First-entry stack switcher. Sets SP to `stack_top`, then tail-calls
    mts_task_trampoline(id). Never returns (trampoline either runs the
-   task procedure to completion + longjmp's to main, or hits the brk
-   if the trampoline somehow falls through). The brk gives a clean
-   crash if the invariant is violated. */
+   task procedure to completion + longjmp's to main, or hits the trap
+   instruction if the trampoline somehow falls through).
+
+   Calling convention for both supported architectures:
+     arg1 (stack_top) → x0  on arm64,  rdi on x86_64
+     arg2 (id)        → x1  on arm64,  rsi on x86_64
+   No callee-saved register is touched — this is a one-way jump that
+   will never return through the asm. Stack alignment requirements:
+     arm64:  16-byte (SP must be 16-aligned at any sub-call boundary)
+     x86_64: 16-byte (RSP must be 16-aligned at the `call` instruction)
+   `tasks[id].stack` is malloc'd (16-byte aligned on both platforms)
+   and TASK_STACK_SIZE is a multiple of 16, so stack_top satisfies
+   both requirements out of the box. */
 extern void mts_co_first_entry(void *stack_top, int id) __attribute__((noreturn));
 void mts_task_trampoline(int id) __attribute__((noreturn));
 
-#if defined(__APPLE__) && defined(__aarch64__)
+/* macOS uses a leading underscore on C symbol names in asm; Linux
+   doesn't. Pre-compute both names so each block stays compact. */
+#if defined(__APPLE__)
+#  define MTS_ASM_SYM(s) "_" s
+#  define MTS_ASM_DECL(s)
+#elif defined(__linux__)
+#  define MTS_ASM_SYM(s) s
+#  define MTS_ASM_DECL(s) ".type " s ", %function\n"
+#else
+#  error "Unsupported OS — add MTS_ASM_SYM mapping for your platform"
+#endif
+
+#if defined(__aarch64__)
 __asm__(
     ".text\n"
     ".p2align 2\n"
-    ".globl _mts_co_first_entry\n"
-    "_mts_co_first_entry:\n"
+    ".globl " MTS_ASM_SYM("mts_co_first_entry") "\n"
+    MTS_ASM_DECL(MTS_ASM_SYM("mts_co_first_entry"))
+    MTS_ASM_SYM("mts_co_first_entry") ":\n"
     "    mov sp, x0\n"            /* switch to the task's stack */
     "    mov x0, x1\n"            /* pass id as first arg */
-    "    bl _mts_task_trampoline\n" /* run the trampoline (noreturn) */
+    "    bl " MTS_ASM_SYM("mts_task_trampoline") "\n" /* noreturn */
     "    brk #0\n"                 /* trap if trampoline ever returns */
 );
+#elif defined(__x86_64__)
+__asm__(
+    ".text\n"
+    ".p2align 4\n"
+    ".globl " MTS_ASM_SYM("mts_co_first_entry") "\n"
+    MTS_ASM_DECL(MTS_ASM_SYM("mts_co_first_entry"))
+    MTS_ASM_SYM("mts_co_first_entry") ":\n"
+    "    movq %rdi, %rsp\n"       /* switch to the task's stack */
+    "    movq %rsi, %rdi\n"       /* pass id as first arg */
+    "    callq " MTS_ASM_SYM("mts_task_trampoline") "\n"
+    "    ud2\n"                    /* trap if trampoline ever returns */
+);
 #else
-#error "mts_co_first_entry needs an arm64-macOS implementation; port to your platform"
+#  error "mts_co_first_entry needs an asm implementation for this CPU arch"
 #endif
 
 /* Yield from the current task back to the main loop. */
