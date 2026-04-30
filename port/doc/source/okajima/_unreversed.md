@@ -44,5 +44,5 @@ pattern, etc.) is hard-coded magic.
 
 ## See also
 
-- [README.md](README.md), [effects.md](effects.md) (in
+- [index.md](index.md), [effects.md](effects.md) (in
   `takabe/`) — documented sister folders.

@@ -115,9 +115,9 @@ differently (analog-like crosshair drift, breath holding via L1).
 
 ## See also
 
-- [`source/bullet/`](../bullet/README.md) — projectile actors
+- [`source/bullet/`](../bullet/index.md) — projectile actors
   spawned by these weapons.
-- [`source/equip/`](../equip/README.md) — equipment items
+- [`source/equip/`](../equip/index.md) — equipment items
   (vs *weapons* — equip is worn, weapons are fired).
 - [`source/menu/weapon.c`](../../../../source/menu/weapon.c) —
   weapon-tab inventory UI.

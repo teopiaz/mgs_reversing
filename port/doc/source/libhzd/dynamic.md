@@ -77,13 +77,6 @@ Registered with `cache.c` for extension `'h'`. Called when a `.hzd`
 file is loaded; processes the file in place via `OFFSET_TO_PTR`
 fixups so internal offsets become real pointers.
 
-> **Port quirk:** The macro `OFFSET_TO_PTR(ptr, offset) =
-> *(int*)offset = (int)ptr + *(int*)offset` is a 32-bit cast that
-> breaks on 64-bit pointers. The port intercepts this loader to
-> rebuild the HZD into a 64-bit-pointer-friendly representation;
-> see
-> [project_32bit_pointer_blocker.md](#).
-
 ### `HZD_MakeHandler`
 
 Allocates a runtime `HZD_HDL` from the parsed HZD file. Allocates
@@ -117,11 +110,20 @@ IDs).
   (addr<<8)` to expand 8-bit zone addresses; understand which
   context you're in before using it.
 
+---
+
 ## Port notes
 
-`HZD_LoadInitHzd` is the most heavily-modified file in the port —
-the original PSX format isn't 64-bit-pointer-clean. The runtime
-behaviour after load is unchanged.
+`HZD_LoadInitHzd` is the most heavily-modified file in the port.
+The macro `OFFSET_TO_PTR(ptr, offset) = *(int*)offset = (int)ptr
++ *(int*)offset` is a 32-bit cast that breaks on 64-bit pointers,
+so the port intercepts the loader to rebuild the HZD into a
+64-bit-pointer-friendly representation. See
+[project_32bit_pointer_blocker](#) for context.
+
+The runtime behaviour after load is unchanged — `collide.c`,
+`level.c`, `zone.c`, `event.c` all see identical data once
+loading completes.
 
 ## See also
 

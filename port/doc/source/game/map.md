@@ -92,6 +92,8 @@ Most stages have just one map. `GM_StageMaps[0]` is set at boot;
 - **Map index 0 is *not* a sentinel.** It's a valid map (the
   default). NULL / -1 are the "no map" indicators.
 
+---
+
 ## Port notes
 
 The port preserves the exact map switching behaviour. No 64-bit
@@ -99,7 +101,7 @@ adjustments needed because GM_MAP entries are small.
 
 ## See also
 
-- [`source/libhzd/`](../libhzd/README.md) — collision data.
+- [`source/libhzd/`](../libhzd/index.md) — collision data.
 - [`source/libdg/obj.md`](../libdg/obj.md) — KMD data.
 - [`source/game/area.c`](../../../../source/game/area.c) —
   area-bound dispatching helpers.

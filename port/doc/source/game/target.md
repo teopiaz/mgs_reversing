@@ -143,5 +143,5 @@ slot.
   consumers (every guard's TARGETs).
 - [`source/chara/snake/`](../chara/snake.md) — player's TARGETs
   for pickup detection + attack-out.
-- [`source/bullet/`](../bullet/README.md) — bullets are TARGETs
+- [`source/bullet/`](../bullet/index.md) — bullets are TARGETs
   that fire on collision.

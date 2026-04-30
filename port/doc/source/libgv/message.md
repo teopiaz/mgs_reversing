@@ -116,6 +116,8 @@ RootFlagCheck-style switch statements.
   by `GV_SendMessage` itself — if you bypass it and write directly
   to the buffer, runs corrupt.
 
+---
+
 ## Port notes
 
 Unmodified. The message bus runs entirely in software with no PSX-

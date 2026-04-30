@@ -181,6 +181,8 @@ compact.
   this is fine — but worth knowing if porting to an environment
   with low-address pointers.
 
+---
+
 ## Port notes
 
 The port runs unchanged on top of the heap allocator — `memory.c` is

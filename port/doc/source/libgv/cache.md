@@ -102,14 +102,6 @@ GV_LoadInit(ptr, id, region):
 so `GV_SaveResidentFileCache` knows to preserve it across stage
 transitions.
 
-### Important port behaviour
-
-The port's KMD/HZD loaders **rewrite** `tag->ptr` after rebuilding
-the asset to a 64-bit-pointer-friendly representation. The original
-`GV_SetCache` rejected updates if the tag already existed; the port
-patched it (line 174) to overwrite. See
-[memory project notes](#) for context.
-
 ## Resident vs cache
 
 ```c
@@ -168,14 +160,28 @@ preceding load.
 - **Loader return value.** Returning ≤0 from a loader cancels the
   cache insertion (tag is cleared). This is how a loader signals
   "data is bad, don't keep me".
-- **Port: pointer rewriting.** If you write a custom loader that
-  needs to enlarge or relocate the buffer, you MUST `GV_SetCache(id,
-  new_ptr)` to update the tag. The port's KMD/HZD loaders do this.
 
 ## See also
 
 - [memory.md](memory.md) — the heap that backs the loaded data.
-- [resident.md (TODO)] / `source/libgv/resident.c` — bump allocator
-  for the resident snapshot.
-- [`source/libfs/`](../libfs/README.md) — the disc-streaming layer
+- [`source/libgv/resident.c`](../../../../source/libgv/resident.c) —
+  bump allocator for the resident snapshot.
+- [`source/libfs/`](../libfs/index.md) — the disc-streaming layer
   that feeds bytes into loaders.
+- [`source/libdg/display.md`](../libdg/display.md) — KMD / PCX /
+  OAR loaders are registered here.
+
+---
+
+## Port notes
+
+The port's KMD / HZD loaders **rewrite** `tag->ptr` after rebuilding
+the asset to a 64-bit-pointer-friendly representation. The original
+`GV_SetCache` rejected updates if the tag already existed; the port
+patches it to overwrite. See [project_32bit_pointer_blocker](#) for
+context.
+
+If you write a custom loader that needs to enlarge or relocate the
+buffer, you MUST call `GV_SetCache(id, new_ptr)` after the move to
+update the tag — otherwise consumers continue reading the old
+address.

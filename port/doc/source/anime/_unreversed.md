@@ -154,7 +154,7 @@ to identify which effects "leak" into stage-specific call sites.
 
 ## See also
 
-- [README.md](README.md), [animconv.md](animconv.md),
+- [index.md](index.md), [animconv.md](animconv.md),
   [effect.md](effect.md) — the in-context view of each item
   above.
 - [`build/functions.txt`](../../../../build/functions.txt) — the

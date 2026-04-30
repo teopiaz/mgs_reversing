@@ -36,7 +36,9 @@ int  MEMCARD_Delete(int slot, const char *name);
 - `gamed.c::GM_ContinueStart` — load on continue.
 - GCL `save` / `load` directives via `script.c`.
 
-## Port replacement
+---
+
+## Port notes
 
 The port replaces this with a stub
 ([`port/memcard_stub.c`](../../../../port/memcard_stub.c)) that

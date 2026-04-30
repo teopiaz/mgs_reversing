@@ -29,7 +29,9 @@ rationale isn't documented — some are bigger than they need to be
 between V-blank and the PSX `RCntCNT*` counters depends on PAL/NTSC
 mode and isn't centrally captured.
 
-## Port replacement
+---
+
+## Port notes
 
 `port/mts.c` stubs all tasks to no-op or single-callback. The
 threading semantics are completely flattened. This means certain
@@ -37,5 +39,5 @@ PSX behaviours (overlapping tasks) can't reproduce on the port.
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
 - [`port/mts.c`](../../../../port/mts.c) — port replacement.

@@ -100,11 +100,6 @@ The most-called loader. Reads a KMD header, validates magic, fixes
 up vertex / index pointer offsets so they're relative to the
 loaded buffer, registers any embedded textures.
 
-> **Port-specific:** the port's KMD loader rewrites pointer fields
-> from PSX 32-bit → host 64-bit and `GV_SetCache(id, new_ptr)`s
-> back into the cache. Without this, OFFSET_TO_PTR conversions
-> would crash on 64-bit hosts.
-
 ### PCX loader (`DG_LoadInitPcx`)
 
 Reads a PCX, decompresses RLE-style scanlines, uploads to VRAM at
@@ -136,21 +131,26 @@ together. Loader registers the table for later lookup.
   packet. The cache loaders only run during stage transition
   (gamed.c::WAIT_LOAD) when no draw is in flight.
 
+---
+
 ## Port notes
 
-`display.c` is heavily replaced by `port/libdg/gl_renderer.c` — the
-PSX DRAWENV / DISPENV concepts don't map to OpenGL. The port keeps
-the `DG_LookAt` API but rewrites the body to compute a host
+`display.c` is heavily replaced by
+[`port/libdg/gl_renderer.c`](../../../../port/libdg/gl_renderer.c) —
+the PSX DRAWENV / DISPENV concepts don't map to OpenGL. The port
+keeps the `DG_LookAt` API but rewrites the body to compute a host
 view-projection matrix.
 
-`loader.c` is *partly* replaced — KMD loader is patched in-place
-(see [project_32bit_pointer_blocker.md](#)); other loaders run
-unchanged.
+`loader.c` is *partly* replaced — the KMD loader rewrites pointer
+fields from PSX 32-bit → host 64-bit and re-`GV_SetCache`s the
+buffer. Without this, the inline `OFFSET_TO_PTR` conversions would
+crash on 64-bit hosts. PCX, OAR, and the other loaders run
+unmodified. See [project_32bit_pointer_blocker](#) for context.
 
 ## See also
 
 - [pipeline.md](pipeline.md) — what runs after display init
   per-frame.
-- [`source/libfs/`](../libfs/README.md) — feeds bytes into loaders.
+- [`source/libfs/`](../libfs/index.md) — feeds bytes into loaders.
 - [`source/libgv/cache.md`](../libgv/cache.md) — the loader
   registry that `loader.c` populates.

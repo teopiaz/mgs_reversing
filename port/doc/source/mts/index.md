@@ -46,8 +46,8 @@ forward to host equivalents.
 
 - [_unreversed.md](_unreversed.md) — opaque areas (mts_new vs older,
   task priority levels, V-blank timing).
-- [`source/sound/`](../sound/README.md) — the sound system uses
+- [`source/sound/`](../sound/index.md) — the sound system uses
   MTS for the SPU pump task.
-- [`source/libfs/`](../libfs/README.md) — CD streaming uses MTS
+- [`source/libfs/`](../libfs/index.md) — CD streaming uses MTS
   for sector reads.
 - [`port/mts.c`](../../../../port/mts.c) — port replacement.

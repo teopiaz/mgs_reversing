@@ -40,5 +40,5 @@ stages encode in PSX-units, some appear scaled.
 
 ## See also
 
-- [README.md](README.md), [things.md](things.md) — documented
+- [index.md](index.md), [things.md](things.md) — documented
   surfaces.

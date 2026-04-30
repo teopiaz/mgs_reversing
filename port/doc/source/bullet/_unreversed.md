@@ -124,6 +124,6 @@ out (default to ENEMY?) but is fragile. Worth a sweep.
 
 ## See also
 
-- [README.md](README.md) — folder overview.
+- [index.md](index.md) — folder overview.
 - Per-file docs (blast, bakudan, jirai, tenage, rmissile,
   amissile).

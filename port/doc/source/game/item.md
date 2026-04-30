@@ -100,10 +100,10 @@ USE:   weapon_use_socom() → GM_EquipItem(SOCOM) + load weapon
 
 ## See also
 
-- [`source/menu/item.c`](../menu/README.md) — UI for the items
+- [`source/menu/item.c`](../menu/index.md) — UI for the items
   tab.
-- [`source/menu/weapon.c`](../menu/README.md) — UI for the
+- [`source/menu/weapon.c`](../menu/index.md) — UI for the
   weapons tab.
-- [`source/equip/`](../equip/README.md) — wearable items.
-- [`source/okajima/key_item.c`](../okajima/README.md) — pickup
+- [`source/equip/`](../equip/index.md) — wearable items.
+- [`source/okajima/key_item.c`](../okajima/index.md) — pickup
   actor.

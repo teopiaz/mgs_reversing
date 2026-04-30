@@ -43,5 +43,5 @@ specialisation over the libdg primitives isn't documented.
 
 ## See also
 
-- [README.md](README.md), [effects.md](effects.md) — documented
+- [index.md](index.md), [effects.md](effects.md) — documented
   surfaces.

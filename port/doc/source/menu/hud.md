@@ -89,6 +89,6 @@ The jimaku actor self-destroys when its text expires.
 
 - [menuman.md](menuman.md) — the pause menu.
 - [codec.md](codec.md) — the codec sub-system.
-- [`source/font/`](../font/README.md) — text rendering.
+- [`source/font/`](../font/index.md) — text rendering.
 - [`source/game/alert.md`](../game/alert.md) — drives radar
   alert-state colours.

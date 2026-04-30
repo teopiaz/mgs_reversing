@@ -143,7 +143,7 @@ DG_PRIM full-screen quad with a custom shader-equivalent CLUT
 
 - [`source/anime/effect.md`](../anime/effect.md) — sister 2D
   effects library.
-- [`source/okajima/`](../okajima/README.md) — sister 3D effects
+- [`source/okajima/`](../okajima/index.md) — sister 3D effects
   library (different author).
 - [`source/game/camera.md`](../game/camera.md) — consumes
   `camshake.c`.

@@ -112,6 +112,6 @@ because they cover different visual styles.
   "mouse" actors, hiyoko / uji easter eggs, mg_room choreography).
 - [`source/anime/effect/`](../anime/effect.md) — sister 2D effect
   library.
-- [`source/takabe/`](../takabe/README.md) — yet another per-author
+- [`source/takabe/`](../takabe/index.md) — yet another per-author
   effect library.
-- [`source/thing/`](../thing/README.md) — non-character actors.
+- [`source/thing/`](../thing/index.md) — non-character actors.

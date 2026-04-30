@@ -27,6 +27,6 @@ responsibility — same job done two ways.
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
 - [`source/takabe/effects.md`](../takabe/effects.md) — sister
   folder.

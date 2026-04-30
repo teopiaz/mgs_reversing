@@ -54,7 +54,9 @@ The PSX CD has separate data and audio tracks. libfs handles the
 *data* track via sector reads; audio is played via dedicated CD-DA
 hardware (separate path through `sd_drv.c`).
 
-## Port replacement
+---
+
+## Port notes
 
 `port/libfs/libfs.c` replaces the entire backend with stdio:
 

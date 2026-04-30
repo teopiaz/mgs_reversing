@@ -140,6 +140,8 @@ script via a separate metadata block). This is how
 - **Comparison results are 0/1, not C's boolean.** `(x == y) + 1`
   gives 1 or 2, never anything else.
 
+---
+
 ## Port notes
 
 The port replaces the memcard save with a flat file
@@ -151,4 +153,4 @@ serialisation format is unchanged.
 - [bytecode.md](bytecode.md) — operator and variable opcodes.
 - [parse.md](parse.md) — `GCL_GetNextValue` calls into here for
   variable reads.
-- [`source/memcard/`](../memcard/README.md) — save/load surface.
+- [`source/memcard/`](../memcard/index.md) — save/load surface.

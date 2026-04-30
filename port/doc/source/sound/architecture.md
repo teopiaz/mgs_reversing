@@ -98,6 +98,8 @@ on sound type.
   returns the current SPU offset; codec uses it to pick the
   right mouth frame.
 
+---
+
 ## Port notes
 
 The port replaces `sd_drv.c` / `sd_str.c` with a software SPU
@@ -116,7 +118,7 @@ The port has been the focus of several debugging passes — see
 ## See also
 
 - [`source/menu/codec.md`](../menu/codec.md) — biggest VOX consumer.
-- [`source/mts/`](../mts/README.md) — MTS scheduler hosts the
+- [`source/mts/`](../mts/index.md) — MTS scheduler hosts the
   streaming task.
-- [`source/libfs/`](../libfs/README.md) — disc streaming source.
+- [`source/libfs/`](../libfs/index.md) — disc streaming source.
 - [`port/doc/codec/`](../../codec/) — port-side codec deep-dive.

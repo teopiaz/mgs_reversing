@@ -27,4 +27,4 @@ demos than original MGS). Filter logic isn't documented.
 
 ## See also
 
-- [README.md](README.md) — file map.
+- [index.md](index.md) — file map.
