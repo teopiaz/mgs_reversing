@@ -1,18 +1,29 @@
 #include "game/game.h"
 
+typedef struct _Bunsin2SubObj
+{
+    int  counter;
+    char pad[0x104 - sizeof(int)];
+} Bunsin2SubObj;
+
 typedef struct _Work
 {
-    GV_ACT actor;       // 0x00
-    OBJECT body;        // 0x20
-    char   pad1[0x196E - 0x20 - sizeof(OBJECT)];
-    short  field_196E;
-    char   pad2[0x19A8 - 0x196E - sizeof(short)];
-    int    field_19A8;
-    char   pad2b[0x19B0 - 0x19A8 - sizeof(int)];
-    int    field_19B0;
-    char   pad3[0x19CC - 0x19B0 - sizeof(int)];
-    int    field_19CC;
-    int    field_19D0;
+    GV_ACT        actor;          // 0x00
+    OBJECT        body;           // 0x20
+    char          pad1[0x920 - 0x20 - sizeof(OBJECT)];
+    Bunsin2SubObj sub_objs[16];   // 0x920 (16 * 0x104 = 0x1040, ends at 0x1960)
+    char          pad1b[0x1964 - 0x1960];
+    short         field_1964;     // 0x1964 - passed as 2nd arg to 800CEF94
+    short         field_1966;     // 0x1966 - passed as 3rd arg to 800CEF94
+    char          pad1c[0x196E - 0x1966 - sizeof(short)];
+    short         field_196E;
+    char          pad2[0x19A8 - 0x196E - sizeof(short)];
+    int           field_19A8;
+    char          pad2b[0x19B0 - 0x19A8 - sizeof(int)];
+    int           field_19B0;
+    char          pad3[0x19CC - 0x19B0 - sizeof(int)];
+    int           field_19CC;
+    int           field_19D0;
 } Work;
 
 int Bunsin2_800C8F04(void) 
@@ -123,7 +134,17 @@ int s08b_bunsin2_800CD2C0(int a, int b, int c)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEE68.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEEB8.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEF34.s")
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEF94.s")
+int s08b_bunsin2_800CEF94(Bunsin2SubObj *p, int n, int arg2)
+{
+    int sum = 0;
+    int i;
+    for (i = 0; i < n; i++)
+    {
+        sum += p->counter;
+        p++;
+    }
+    return sum + arg2;
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEFC0.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEFF4.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CF150.s")
