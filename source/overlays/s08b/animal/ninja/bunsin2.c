@@ -34,7 +34,8 @@ typedef struct _BunshinWork
     int          field_19F4;     // 0x19F4
     char         pad5[0x1A28 - 0x19F4 - sizeof(int)];
     int          field_1A28;     // 0x1A28
-    char         pad6[0x1A40 - 0x1A28 - sizeof(int)];
+    int          field_1A2C;     // 0x1A2C
+    char         pad6[0x1A40 - 0x1A2C - sizeof(int)];
     void        *field_1A40[8];  // 0x1A40
 } BunshinWork;
 
@@ -321,7 +322,17 @@ int s08b_bunsin2_800D0720(BunshinWork *work)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800D08C8.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800D093C.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800D09C4.s")
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800D0A54.s")
+int s08b_bunsin2_800D0A54(BunshinWork *work)
+{
+    work->field_19B0 = 8;
+    work->field_19B4 = work->field_1A28;
+    if (work->field_1A2C < 2000)
+    {
+        return 1;
+    }
+    work->field_19D0++;
+    return 0;
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800D0A90.s")
 void s08b_bunsin2_800D0B1C(BunshinWork *work)
 {
