@@ -124,7 +124,15 @@ int s08b_bunsin2_800CD2C0(int a, int b, int c)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD770.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD808.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD87C.s")
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD8D8.s")
+extern void s08b_bunsin2_800CD87C(void);
+extern int  s08b_bunsin2_800CD95C(BunshinWork *work, void *cb);
+
+void s08b_bunsin2_800CD8D8(BunshinWork *work)
+{
+    char *p = *(char **)((char *)work + 0x7DC);
+    *(int *)(p + 0x28) &= ~0x80;
+    s08b_bunsin2_800CD95C(work, (void *)s08b_bunsin2_800CD87C);
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD914.s")
 int s08b_bunsin2_800CD95C(BunshinWork *work, void *cb)
 {
