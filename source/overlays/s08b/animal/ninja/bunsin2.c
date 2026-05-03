@@ -48,7 +48,19 @@ int Bunsin2_800C8F04(void)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C908C.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C9120.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C933C.s")
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C9514.s")
+int s08b_bunsin2_800C9514(BunshinWork *work)
+{
+    char *p = *(char **)((char *)work + 0x8C4);
+
+    if (*(unsigned short *)(p + 6) & 4)
+    {
+        int ret = *(short *)(p + 0x3E);
+        *(short *)(p + 0x28) = 0;
+        *(short *)(p + 6) = 0;
+        return ret;
+    }
+    return -1;
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C9548.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C9588.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C9978.s")
