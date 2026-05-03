@@ -15,13 +15,16 @@ typedef struct _Work
     char          pad1b[0x1964 - 0x1960];
     short         field_1964;     // 0x1964 - passed as 2nd arg to 800CEF94
     short         field_1966;     // 0x1966 - passed as 3rd arg to 800CEF94
-    char          pad1c[0x196E - 0x1966 - sizeof(short)];
-    short         field_196E;
+    short         field_1968;     // 0x1968
+    char          pad1c[0x196C - 0x1968 - sizeof(short)];
+    short         field_196C;     // 0x196C
+    short         field_196E;     // 0x196E
     char          pad2[0x19A8 - 0x196E - sizeof(short)];
     int           field_19A8;
     char          pad2b[0x19B0 - 0x19A8 - sizeof(int)];
     int           field_19B0;
-    char          pad3[0x19CC - 0x19B0 - sizeof(int)];
+    int           field_19B4;     // 0x19B4
+    char          pad3[0x19CC - 0x19B4 - sizeof(int)];
     int           field_19CC;
     int           field_19D0;
 } Work;
@@ -132,7 +135,23 @@ int s08b_bunsin2_800CD2C0(int a, int b, int c)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CECB4.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEE18.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEE68.s")
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEEB8.s")
+int s08b_bunsin2_800CEEB8(Work *work, int arg1)
+{
+    SVECTOR vec;
+    int     dx, dz;
+
+    dx = work->field_1968 - *(short *)&work->body.objs;
+    vec.vx = dx;
+    dz = work->field_196C - *(short *)&work->body.flag;
+    vec.vz = dz;
+
+    if (dx > -arg1 && dx < arg1 && dz > -arg1 && dz < arg1)
+    {
+        return 1;
+    }
+    work->field_19B4 = GV_VecDir2(&vec);
+    return 0;
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CEF34.s")
 int s08b_bunsin2_800CEF94(Bunsin2SubObj *p, int n, int arg2)
 {
@@ -170,8 +189,6 @@ int s08b_bunsin2_800CF958(void)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CFA30.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CFA80.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CFB98.s")
-extern void s08b_bunsin2_800CEEB8(Work *work, int arg);
-
 void s08b_bunsin2_800CFC64(Work *work)
 {
     work->field_19D0++;
