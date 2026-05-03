@@ -29,6 +29,8 @@ typedef struct _BunshinWork
     char         pad3[0x19CC - 0x19B4 - sizeof(int)];
     int          field_19CC;
     int          field_19D0;
+    char         pad4[0x19F4 - 0x19D0 - sizeof(int)];
+    int          field_19F4;     // 0x19F4
 } BunshinWork;
 
 int Bunsin2_800C8F04(void) 
@@ -84,7 +86,14 @@ void s08b_bunsin2_800CCD18(BunshinWork *work)
         (unsigned short)work->body.rots[1].vz,
         &work->field_748);
 }
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CCD40.s")
+extern unsigned int jimctrl_helper_80037F68(unsigned int header);
+
+void s08b_bunsin2_800CCD40(BunshinWork *work)
+{
+    work->field_19F4 = 0;
+    work->field_19F4 = jimctrl_helper_80037F68(
+        *(unsigned short *)((char *)work + 0x50)) & 0xFF;
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CCD74.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CCDBC.s")
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CCE34.s")
