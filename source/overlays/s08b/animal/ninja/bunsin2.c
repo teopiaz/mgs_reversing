@@ -10,11 +10,19 @@ typedef struct _BunshinWork
 {
     GV_ACT       actor;          // 0x000
     OBJECT       body;           // 0x020
-    char         pad_after_body[0x748 - 0x20 - sizeof(OBJECT)];
+    char         pad_after_body[0x108 - 0x20 - sizeof(OBJECT)];
+    SVECTOR     *field_108;      // 0x108
+    char         pad_to_748[0x748 - 0x108 - sizeof(SVECTOR *)];
     SVECTOR      field_748;      // 0x748
-    char         pad_before_clones[0x920 - 0x748 - sizeof(SVECTOR)];
-    BunshinClone clones[16];     // 0x920 (16 * 0x104 = 0x1040, ends at 0x1960)
-    char         pad1b[0x1964 - 0x1960];
+    char         pad_to_7DC[0x7DC - 0x748 - sizeof(SVECTOR)];
+    void        *field_7DC;      // 0x7DC
+    char         pad_to_8C4[0x8C4 - 0x7DC - sizeof(void *)];
+    void        *field_8C4;      // 0x8C4
+    char         pad_to_clones[0x920 - 0x8C4 - sizeof(void *)];
+    BunshinClone clones[11];     // 0x920..0x144B (11 * 0x104 = 0xB2C)
+    char         pad_to_1540[0x1540 - (0x920 + 11 * 0x104)];
+    MATRIX       field_1540;     // 0x1540 (size 0x20)
+    char         pad1b[0x1964 - 0x1540 - sizeof(MATRIX)];
     short        field_1964;
     short        field_1966;
     SVECTOR      field_1968;     // 0x1968
@@ -52,7 +60,7 @@ int Bunsin2_800C8F04(void)
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800C933C.s")
 int s08b_bunsin2_800C9514(BunshinWork *work)
 {
-    char *p = *(char **)((char *)work + 0x8C4);
+    char *p = (char *)work->field_8C4;
 
     if (*(unsigned short *)(p + 6) & 4)
     {
@@ -69,7 +77,7 @@ int s08b_bunsin2_800C9548(BunshinWork *work)
 {
     if (s08b_bunsin2_800C933C(work))
     {
-        char *p = *(char **)((char *)work + 0x8C4);
+        char *p = (char *)work->field_8C4;
         *(short *)p = 1;
         return 1;
     }
@@ -128,12 +136,12 @@ void s08b_bunsin2_800CCD74(BunshinWork *work)
 {
     if (work->field_19F8 == 0)
     {
-        char *p = *(char **)((char *)work + 0x7DC);
+        char *p = (char *)work->field_7DC;
         *(int *)(p + 0x28) |= 0x80;
     }
     else
     {
-        char *p = *(char **)((char *)work + 0x7DC);
+        char *p = (char *)work->field_7DC;
         *(int *)(p + 0x28) &= ~0x80;
     }
 }
@@ -168,7 +176,7 @@ extern int  s08b_bunsin2_800CD95C(BunshinWork *work, void *cb);
 
 void s08b_bunsin2_800CD8D8(BunshinWork *work)
 {
-    char *p = *(char **)((char *)work + 0x7DC);
+    char *p = (char *)work->field_7DC;
     *(int *)(p + 0x28) &= ~0x80;
     s08b_bunsin2_800CD95C(work, (void *)s08b_bunsin2_800CD87C);
 }
@@ -635,8 +643,7 @@ void s08b_bunsin2_800D57F0(BunshinWork *work)
     s08b_bunsin2_800D5530(work);
     s08b_bunsin2_800D5600(work);
     s08b_bunsin2_800D5734(work);
-    DG_GetLightMatrix2(*(SVECTOR **)((char *)work + 0x108),
-                       (MATRIX *)((char *)work + 0x1540));
+    DG_GetLightMatrix2(work->field_108, &work->field_1540);
 }
 void s08b_bunsin2_800D5830(BunshinWork *work)
 {
