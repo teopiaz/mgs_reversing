@@ -44,7 +44,9 @@ typedef struct _BunshinWork
     char         pad5[0x1A28 - 0x19F8 - sizeof(int)];
     int          field_1A28;     // 0x1A28
     int          field_1A2C;     // 0x1A2C
-    char         pad6[0x1A40 - 0x1A2C - sizeof(int)];
+    int          field_1A30;     // 0x1A30
+    int          field_1A34;     // 0x1A34
+    char         pad6[0x1A40 - 0x1A34 - sizeof(int)];
     void        *field_1A40[8];  // 0x1A40
 } BunshinWork;
 
@@ -209,7 +211,25 @@ int s08b_bunsin2_800CD95C(BunshinWork *work, void *cb)
     return 0;
 }
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD990.s")
-#pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CD9F0.s")
+void s08b_bunsin2_800CD9F0(BunshinWork *work)
+{
+    char *p = (char *)work->field_8C4;
+    unsigned short flag = *(unsigned short *)(p + 6);
+
+    work->field_1A34 = 0;
+    if (flag & 4)
+    {
+        work->field_1A34 = *(short *)(p + 0x3E);
+        return;
+    }
+    if (flag & 2)
+    {
+        if (*(short *)(p + 0x3E) == 0x24)
+        {
+            work->field_1A34 = 6;
+        }
+    }
+}
 #pragma INCLUDE_ASM("asm/overlays/s08b/s08b_bunsin2_800CDA40.s")
 extern void s08b_bunsin2_800CDA40(BunshinWork *work);
 extern void s08b_bunsin2_800CD9F0(BunshinWork *work);
