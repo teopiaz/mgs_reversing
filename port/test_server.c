@@ -456,20 +456,20 @@ static void cmd_get_collision(void)
 
     HZD_HDL *hdl = GM_IterHazard(NULL);
     while (hdl) {
-        if (!hdl->def) { hdl = GM_IterHazard(hdl); continue; }
+        if (!hdl->header) { hdl = GM_IterHazard(hdl); continue; }
 
         if (!first_map) out_append(",");
         first_map = 0;
 
-        HZD_DEF *hzm = hdl->def;
-        HZD_GRP *grp = hdl->grp;
+        HZD_MAP *hzm = hdl->header;
+        HZD_GRP *grp = hdl->group;
         if (!grp) { hdl = GM_IterHazard(hdl); continue; }
 
         out_append("{\"n_groups\":%d", hzm->n_groups);
         out_append(",\"bounds\":[[%d,%d],[%d,%d]]",
                    hzm->min_x, hzm->min_y, hzm->max_x, hzm->max_y);
 
-        /* Emit the single active group (hdl->grp points to current group) */
+        /* Emit the single active group (hdl->group points to current group) */
         out_append(",\"walls\":[");
         int fw = 1;
         for (int wi = 0; wi < grp->n_walls; wi++) {

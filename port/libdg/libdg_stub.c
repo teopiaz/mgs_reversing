@@ -127,9 +127,9 @@ void port_light_debug_apply(void)
         if (n > 8) n = 8;
         for (int i = 0; i < n; i++) {
             if (port_light_dyn_slot_muted[b][i]) {
-                LightSystems_800B1E48[b].lights[i].field_C_colour.r = 0;
-                LightSystems_800B1E48[b].lights[i].field_C_colour.g = 0;
-                LightSystems_800B1E48[b].lights[i].field_C_colour.b = 0;
+                LightSystems_800B1E48[b].lights[i].field_C_color.r = 0;
+                LightSystems_800B1E48[b].lights[i].field_C_color.g = 0;
+                LightSystems_800B1E48[b].lights[i].field_C_color.b = 0;
             }
         }
     }

@@ -303,7 +303,7 @@ int sna_8004E71C(int a1, HZD_HDL *pHzd, SVECTOR *pVec, int a4)
 
 #ifdef PORT_BUILD
     if (!pHzd || !port_ptr_readable(pHzd) ||
-        !pHzd->def || !port_ptr_readable(pHzd->def)) {
+        !pHzd->header || !port_ptr_readable(pHzd->header)) {
         return 0;
     }
 #endif

@@ -5,6 +5,7 @@
 #include <libgte.h>
 #include "inline_n.h"
 #include <gtemac.h>
+#include "psxdefs.h"    // for SCRPAD_ADDR
 #include "fmt_hzd.h"    // for HZD_VEC
 
 #define	ZONE_HEIGHT (2000)

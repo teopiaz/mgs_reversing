@@ -2192,7 +2192,7 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
         static int _af = 0;
         if (_af++ < 5)
             printf("[ADJ_FAIL] adjust type=%d not found in %d models\n",
-                   adjust->type, lpAct->header->n_models);
+                   adjust->type, work->header->n_models);
 #endif
         return 0;
     }
@@ -2231,7 +2231,7 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
                 printf("[adjust] pos=(%d,%d,%d) step=(%d,%d,%d) step_size=%d hzd_h=%d\n",
                        adjust->pos_x, adjust->pos_y, adjust->pos_z,
                        model->control.step.vx, model->control.step.vy, model->control.step.vz,
-                       model->control.r_sphere, model->control.hzd_height);
+                       model->control.step_size, model->control.hzd_height);
         }
 #endif
         model->control.rot.vx = adjust->rot_x;

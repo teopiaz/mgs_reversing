@@ -13,162 +13,155 @@
 #include "game/map.h"
 #include "strcode.h"
 
-#define MAX_WHERES 96
-
 int SECTION(".sbss") GM_CurrentMap;
-int SECTION(".sbss") GM_N_WhereList;
+int SECTION(".sbss") gControlCount_800AB9B4;
 
 extern CONTROL *GM_WhereList[96];
-extern CONTROL  DummyPlayer;
+extern CONTROL  gDefaultControl_800B5650;
 
-static int QueueWhere(CONTROL *where)
+/* static? */
+int GM_ControlPushBack(CONTROL *control)
 {
-    int num;
-
     // スネーク must always be the first item
-    if (where->name == CHARAID_SNAKE)
+    if (control->name == CHARAID_SNAKE)
     {
-        GM_WhereList[0] = where;
+        GM_WhereList[0] = control;
     }
     else
     {
-        num = GM_N_WhereList;
-
-        if (num >= MAX_WHERES)
+        if (gControlCount_800AB9B4 > MAX_CONTROLS - 1)
         {
             return -1;
         }
-
-        GM_WhereList[num] = where;
-        GM_N_WhereList = num + 1;
+        GM_WhereList[gControlCount_800AB9B4] = control;
+        gControlCount_800AB9B4++;
     }
 
     return 0;
 }
 
-static void DequeueWhere(CONTROL *where)
+/* static? */
+void GM_ControlRemove(CONTROL *control)
 {
-    CONTROL **list;
-    int       i, n;
+    int i = gControlCount_800AB9B4;
+    int totalCount = gControlCount_800AB9B4;
 
-    list = GM_WhereList;
-    n = GM_N_WhereList;
+    CONTROL **pControlIter = GM_WhereList;
 
-    for (i = n; i > 0; i--)
+    while (i > 0)
     {
-        if (*list == where)
+        i--;
+
+        if (*pControlIter == control)
         {
             goto found;
         }
-        list++;
+        pControlIter++;
     }
+
     return;
 
 found:
-    if (list != GM_WhereList)
+
+    if (pControlIter != GM_WhereList)
     {
-        n--;
-        *list = GM_WhereList[n];
-        GM_N_WhereList = n;
+        *pControlIter = GM_WhereList[--totalCount];
+        gControlCount_800AB9B4 = totalCount;
     }
     else
     {
-        GM_WhereList[0] = &DummyPlayer;
+        GM_WhereList[0] = &gDefaultControl_800B5650;
     }
 }
 
 void GM_InitWhereSystem(void)
 {
-    GM_WhereList[0] = &DummyPlayer;
-    GM_N_WhereList = 1;
+    GM_WhereList[0] = &gDefaultControl_800B5650;
+    gControlCount_800AB9B4 = 1;
 }
 
-int GM_InitControl(CONTROL *ctrl, int name, int map)
+int GM_InitControl(CONTROL *control, int scriptData, int scriptBinds)
 {
-    MAP *ctrl_map;
+    MAP *pMapRec;
+    const int mapId = scriptBinds ? scriptBinds : GM_CurrentMap;
+    GM_CurrentMap = mapId;
 
-    if (map == 0)
+    GV_ZeroMemory(control, sizeof(CONTROL));
+
+    pMapRec = GM_GetMap(mapId);
+    control->map = pMapRec;
+    if (!pMapRec)
     {
-        map = GM_CurrentMap;
-    }
-
-    GM_CurrentMap = map;
-
-    GV_ZeroMemory(ctrl, sizeof(CONTROL));
-
-    ctrl_map = GM_GetMap(map);
-    ctrl->map = ctrl_map;
-    if (!ctrl_map)
-    {
-        printf("InitControl : no map %X\n", map);
+        printf("InitControl : no map %X\n", mapId);
         return -1;
     }
 
-    ctrl->name = name;
-    if (name)
+    control->name = scriptData;
+    if (scriptData)
     {
-        HZD_SetEvent(&ctrl->evt, name);
-        if (QueueWhere(ctrl) < 0)
+        HZD_SetEvent(&control->event, scriptData);
+        if (GM_ControlPushBack(control) < 0)
         {
             return -1;
         }
     }
 
-    ctrl->height = 850;
-    ctrl->hzd_height = -32767;
-    ctrl->r_sphere = ctrl->s_sphere = 450;
-    ctrl->seg_flag = 2;
-    ctrl->skip_flag = CTRL_SKIP_TRAP;
-    ctrl->levels[0] = -32000;
-    ctrl->levels[1] = 32000;
+    control->height = 850;
+    control->hzd_height = -32767;
+    control->field_38 = 450;
+    control->step_size = 450;
+    control->exclude_flag = 2;
+    control->skip_flag = CTRL_SKIP_TRAP;
+    control->levels[0] = -32000;
+    control->levels[1] = 32000;
 
     return 0;
 }
 
-static inline void CheckMessage(CONTROL *ctrl)
+static inline void CheckMessage(CONTROL *control)
 {
-    int     name;
-    int     n_msg;
-    GV_MSG *msg;
-    int     map_msg, move_msg;
-    MAP    *ctrl_map;
+    int         scriptData;
+    int         count;
+    GV_MSG     *pMsg;
+    int         map_msg, move_msg;
+    MAP *pMap;
 
-    name = ctrl->name;
+    scriptData = control->name;
 
-    if ((name != 0) && !(ctrl->skip_flag & CTRL_SKIP_MESSAGE))
+    if ((scriptData != 0) && !(control->skip_flag & CTRL_SKIP_MESSAGE))
     {
-        n_msg = GV_ReceiveMessage(name, &ctrl->msg);
-        ctrl->n_msg = n_msg;
+        count = GV_ReceiveMessage(scriptData, &control->messages);
+        control->n_messages = count;
 
-        msg = ctrl->msg;
+        pMsg = control->messages;
 
         map_msg = HASH_MAP;
         move_msg = HASH_MOVE2;
 
-        for (n_msg--; n_msg >= 0; n_msg--, msg++)
+        for (count--; count >= 0; count--, pMsg++)
         {
-            if (msg->message[0] == map_msg)
+            if (pMsg->message[0] == map_msg)
             {
-                ctrl_map = GM_FindMap(msg->message[1]);
+                pMap = GM_FindMap(pMsg->message[1]);
 
-                if (ctrl_map)
+                if (pMap)
                 {
-                    ctrl->map = ctrl_map;
+                    control->map = pMap;
                 }
             }
-            else if (msg->message[0] == move_msg)
+            else if (pMsg->message[0] == move_msg)
             {
-                ctrl->mov.vx = msg->message[1];
-                ctrl->mov.vy = msg->message[2];
-                ctrl->mov.vz = msg->message[3];
-                ctrl->levels[0] = -32000;
-                ctrl->levels[1] = 32000;
+                control->mov.vx = pMsg->message[1];
+                control->mov.vy = pMsg->message[2];
+                control->mov.vz = pMsg->message[3];
+                control->levels[0] = -32000;
+                control->levels[1] = 32000;
             }
         }
     }
 }
 
-static inline void CheckCollide(CONTROL *ctrl, HZD_HDL *hzd)
+static inline void CheckCollide(CONTROL *control, HZD_HDL *hzd)
 {
     SVECTOR vec;
     int     vx;
@@ -176,55 +169,55 @@ static inline void CheckCollide(CONTROL *ctrl, HZD_HDL *hzd)
     int     len;
     int     diff;
 
-    vx = ctrl->step.vx;
-    new_var = ctrl->r_sphere / 2;
+    vx = control->step.vx;
+    new_var = control->step_size / 2;
 
     if (vx < 0)
     {
         vx = -vx;
     }
 
-    if (ctrl->step.vz > 0)
+    if (control->step.vz > 0)
     {
-        vx += ctrl->step.vz;
+        vx += control->step.vz;
     }
     else
     {
-        vx -= ctrl->step.vz;
+        vx -= control->step.vz;
     }
 
-    if ((vx > new_var) || (ctrl->skip_flag & (CTRL_BOTH_CHECK | CTRL_SKIP_NEAR_CHECK)))
+    if ((vx > new_var) || (control->skip_flag & (CTRL_BOTH_CHECK | CTRL_SKIP_NEAR_CHECK)))
     {
-        GV_AddVec3(&ctrl->mov, &ctrl->step, &vec);
+        GV_AddVec3(&control->mov, &control->step, &vec);
 
-        if (HZD_OnlineHazardCheck(hzd, &ctrl->mov, &vec, HZD_CHK_ALL, ctrl->seg_flag))
+        if (HZD_LineCheck(hzd, &control->mov, &vec, HZD_CHECK_ALL, control->exclude_flag))
         {
-            ctrl->n_touches = 0x1;
-            ctrl->segs[0] = HZD_GetOnlineHazard();
-            ctrl->is_edge[0] = HZD_GetOnlineHazardAtr();
+            control->touch_flag = 0x1;
+            control->nears[0] = HZD_LineNearSurface();
+            control->nearflags[0] = HZD_LineNearFlag();
 
-            HZD_GetOnlineVector(ctrl->vecs);
+            HZD_LineNearDir(control->nearvecs);
 
-            len = GV_VecLen3(ctrl->vecs);
+            len = GV_VecLen3(control->nearvecs);
             diff = len - new_var;
 
             if (diff < 0)
             {
                 diff = -diff;
-                GV_LenVec3(ctrl->vecs, &vec, len, diff);
+                GV_LenVec3(control->nearvecs, &vec, len, diff);
                 GV_SubVec3(&DG_ZeroVector, &vec, &vec);
             }
             else
             {
-                GV_LenVec3(ctrl->vecs, &vec, len, diff);
+                GV_LenVec3(control->nearvecs, &vec, len, diff);
             }
 
-            ctrl->step = vec;
+            control->step = vec;
         }
     }
 }
 
-static inline void CheckNear(CONTROL *ctrl, HZD_HDL *hzd)
+static inline void CheckNear(CONTROL *control, HZD_HDL *hzd)
 {
     SVECTOR vec;
     SVECTOR vec2;
@@ -233,41 +226,41 @@ static inline void CheckNear(CONTROL *ctrl, HZD_HDL *hzd)
 
     bVar7 = 0;
 
-    if (ctrl->skip_flag & CTRL_SKIP_NEAR_CHECK)
+    if (control->skip_flag & CTRL_SKIP_NEAR_CHECK)
     {
         return;
     }
 
 retry:
-    i = HZD_NearHazardCheck(hzd, &ctrl->mov, 500, HZD_CHK_SEGMENT, ctrl->seg_flag);
+    i = HZD_PointCheck(hzd,&control->mov, 500, ( HZD_CHECK_DYNSEG | HZD_CHECK_SEG ), control->exclude_flag);
 
     if (i <= 0)
     {
         return;
     }
 
-    ctrl->n_touches = i;
+    control->touch_flag = i;
 
-    HZD_GetNearHazard(ctrl->segs);
-    HZD_GetIsEdge(ctrl->is_edge);
-    HZD_GetNearVector(ctrl->vecs);
+    HZD_PointNearSurface(control->nears);
+    HZD_PointNearFlag(control->nearflags);
+    HZD_PointNearVec(control->nearvecs);
 
-    if (!HZD_HazardReaction(ctrl->vecs, i, ctrl->r_sphere, &vec) && !bVar7)
+    if (!HZD_StepCheck(control->nearvecs, i, control->step_size, &vec) && !bVar7)
     {
-        GV_LenVec3(&ctrl->step, &vec2, GV_VecLen3(&ctrl->step), ctrl->r_sphere / 2);
+        GV_LenVec3(&control->step, &vec2, GV_VecLen3(&control->step), control->step_size / 2);
         bVar7 = 1;
         vec2.vy = 0;
-        GV_SubVec3(&ctrl->mov, &vec2, &ctrl->mov);
+        GV_SubVec3(&control->mov, &vec2, &control->mov);
         goto retry;
     }
     else
     {
-        ctrl->mov.vx += vec.vx;
-        ctrl->mov.vz += vec.vz;
+        control->mov.vx += vec.vx;
+        control->mov.vz += vec.vz;
     }
 }
 
-static inline void CheckHeight(CONTROL *ctrl, HZD_HDL *hzd)
+static inline void CheckHeight(CONTROL *control, HZD_HDL *hzd)
 {
     int levels[2];
     int vy, vz;
@@ -276,16 +269,16 @@ static inline void CheckHeight(CONTROL *ctrl, HZD_HDL *hzd)
     int uVar15;
     int uVar16;
 
-    vy = ctrl->mov.vy + ctrl->step.vy;
-    vz = ctrl->height;
+    vy = control->mov.vy + control->step.vy;
+    vz = control->height;
 
-    ctrl->grounded = 0;
-    uVar14 = HZD_LevelHazardCheck(hzd, &ctrl->mov, HZD_CHK_FLOOR);
-    HZD_GetLevelHeight(levels);
-    ctrl->vecs[0].pad = HZD_GetFloorLevel();
+    control->level_flag = 0;
+    uVar14 = HZD_LevelTestHazard(hzd, &control->mov, 3);
+    HZD_LevelMinMaxHeights(levels);
+    control->nearvecs[0].pad = HZD_LevelMaxHeight();
     uVar15 = uVar14 & 1;
 
-    if (((uVar14 & 2) != 0) && ((levels[1] - ctrl->levels[0]) + 199U < 399))
+    if (((uVar14 & 2) != 0) && ((levels[1] - control->levels[0]) + 199U < 399))
     {
         levels[0] = levels[1];
         uVar14 &= ~2;
@@ -315,7 +308,7 @@ static inline void CheckHeight(CONTROL *ctrl, HZD_HDL *hzd)
     if (iVar11 > vy)
     {
         vy = iVar11;
-        ctrl->grounded = 1;
+        control->level_flag = 1;
     }
     else if (uVar16 != 0)
     {
@@ -324,207 +317,208 @@ static inline void CheckHeight(CONTROL *ctrl, HZD_HDL *hzd)
         if (iVar11 < vy)
         {
             vy = iVar11;
-            ctrl->grounded = 2;
+            control->level_flag = 2;
         }
     }
 
-    ctrl->levels[0] = levels[0];
-    ctrl->levels[1] = levels[1];
-    ctrl->mov.vy = vy;
+    control->levels[0] = levels[0];
+    control->levels[1] = levels[1];
+    control->mov.vy = vy;
 }
 
-void GM_ActControl(CONTROL *ctrl)
+void GM_ActControl(CONTROL *control)
 {
     HZD_HDL *hzd;
     int      vy;
     int      time;
 
-    hzd = ctrl->map->hzd;
+    hzd = control->map->hzd;
 
-    CheckMessage(ctrl);
+    CheckMessage(control);
 
-    GM_CurrentMap = ctrl->map->index;
+    GM_CurrentMap = control->map->index;
 
 #ifdef PORT_BUILD
-    /* When r_sphere==0, neither collision branch runs, leaving segs[]
+    /* When step_size==0, neither collision branch runs, leaving nears[]
        stale from a previous frame. On PSX this was harmless (memory stays
        mapped), but on 64-bit macOS freed memory can be unmapped.
-       Only reset segs[] when r_sphere==0 — keep n_touches intact so
+       Only reset nears[] when step_size==0 — keep touch_flag intact so
        the snake wall-collision state machine still works correctly. */
-    if (ctrl->r_sphere == 0) {
-        ctrl->n_touches = 0;
-        ctrl->segs[0] = NULL;
-        ctrl->segs[1] = NULL;
+    if (control->step_size == 0) {
+        control->touch_flag = 0;
+        control->nears[0] = NULL;
+        control->nears[1] = NULL;
     }
 #endif
 
-    if (ctrl->r_sphere > 0)
+    if (control->step_size > 0)
     {
-        ctrl->n_touches = 0;
+        control->touch_flag = 0;
 
-        if (ctrl->hzd_height != -0x7fff)
+        if (control->hzd_height != -0x7fff)
         {
-            vy = ctrl->mov.vy;
-            ctrl->mov.vy = ctrl->hzd_height;
+            vy = control->mov.vy;
+            control->mov.vy = control->hzd_height;
         }
 
-        CheckCollide(ctrl, hzd);
+        CheckCollide(control, hzd);
 
-        ctrl->mov.vx += ctrl->step.vx;
-        ctrl->mov.vz += ctrl->step.vz;
+        control->mov.vx += control->step.vx;
+        control->mov.vz += control->step.vz;
 
-        CheckNear(ctrl, hzd);
+        CheckNear(control, hzd);
 
-        if (ctrl->hzd_height != -0x7fff)
+        if (control->hzd_height != -0x7fff)
         {
-            ctrl->mov.vy = vy;
+            control->mov.vy = vy;
         }
 
-        time = ctrl->interp;
+        time = control->interp;
 
-        if (ctrl->interp == 0)
+        if (control->interp == 0)
         {
-            GV_NearExp4PV(&ctrl->rot.vx, &ctrl->turn.vx, 3);
+            GV_NearExp4PV(&control->rot.vx, &control->turn.vx, 3);
         }
         else
         {
-            GV_NearTimePV(&ctrl->rot.vx, &ctrl->turn.vx, ctrl->interp, 3);
-            ctrl->interp = time - 1;
+            GV_NearTimePV(&control->rot.vx, &control->turn.vx, control->interp, 3);
+            control->interp = time - 1;
         }
 
-        CheckHeight(ctrl, hzd);
+        CheckHeight(control, hzd);
     }
-    else if (ctrl->r_sphere < 0)
+    else if (control->step_size < 0)
     {
-        ctrl->n_touches = 0;
+        control->touch_flag = 0;
 
-        time = ctrl->interp;
+        time = control->interp;
 
-        ctrl->mov.vx += ctrl->step.vx;
-        ctrl->mov.vz += ctrl->step.vz;
+        control->mov.vx += control->step.vx;
+        control->mov.vz += control->step.vz;
 
         if (time == 0)
         {
-            GV_NearExp4PV(&ctrl->rot.vx, &ctrl->turn.vx, 3);
+            GV_NearExp4PV(&control->rot.vx, &control->turn.vx, 3);
         }
         else
         {
-            GV_NearTimePV(&ctrl->rot.vx, &ctrl->turn.vx, time, 3);
-            ctrl->interp = time - 1;
+            GV_NearTimePV(&control->rot.vx, &control->turn.vx, time, 3);
+            control->interp = time - 1;
         }
 
-        if (ctrl->r_sphere >= -1)
+        if (control->step_size >= -1)
         {
-            CheckHeight(ctrl, hzd);
+            CheckHeight(control, hzd);
         }
     }
 
-    if (!(ctrl->skip_flag & CTRL_SKIP_TRAP))
+    if (!(control->skip_flag & CTRL_SKIP_TRAP))
     {
-        ctrl->evt.mov = ctrl->mov;
-        ctrl->evt.mov.pad = ctrl->rot.vy;
-        HZD_EnterTrap(hzd, &ctrl->evt);
+        control->event.pos = control->mov;
+        control->event.pos.pad = control->rot.vy;
+        HZD_EnterTrap(hzd, &control->event);
     }
 
-    DG_SetPos2(&ctrl->mov, &ctrl->rot);
+    DG_SetPos2(&control->mov, &control->rot);
 }
 
-void GM_FreeControl(CONTROL *ctrl)
+void GM_FreeControl(CONTROL *control)
 {
-    if (ctrl->name)
+    if (control->name)
     {
-        DequeueWhere(ctrl);
-    }
-}
-
-void GM_ConfigControlVector(CONTROL *ctrl, SVECTOR *mov, SVECTOR *rot)
-{
-    if (mov)
-    {
-        ctrl->mov = *mov;
-    }
-
-    if (rot)
-    {
-        ctrl->rot = *rot;
+        GM_ControlRemove(control);
     }
 }
 
-void GM_ConfigControlMatrix(CONTROL *ctrl, MATRIX *world)
+void GM_ConfigControlVector(CONTROL *control, SVECTOR *pVec1, SVECTOR *pVec2)
 {
-    // GV_ConvertVec3
-    ctrl->mov.vx = world->t[0];
-    ctrl->mov.vy = world->t[1];
-    ctrl->mov.vz = world->t[2];
-
-    DG_MatrixRotYXZ(world, &ctrl->rot);
-    ctrl->turn = ctrl->rot;
-}
-
-void GM_ConfigControlString(CONTROL *ctrl, char *mov, char *rot)
-{
-    if (mov)
+    if (pVec1)
     {
-        GCL_StrToSV(mov, (short *)&ctrl->mov);
+        control->mov = *pVec1;
     }
 
-    if (rot)
+    if (pVec2)
     {
-        GCL_StrToSV(rot, (short *)&ctrl->rot);
+        control->rot = *pVec2;
+    }
+}
+
+void GM_ConfigControlMatrix(CONTROL *control, MATRIX *matrix)
+{
+    control->mov.vx = matrix->t[0];
+    control->mov.vy = matrix->t[1];
+    control->mov.vz = matrix->t[2];
+
+    DG_MatrixRotYXZ(matrix, &control->rot);
+
+    control->turn = control->rot;
+}
+
+void GM_ConfigControlString(CONTROL *control, char *param_pos, char *param_dir)
+{
+    if (param_pos)
+    {
+        GCL_StrToSV(param_pos, &control->mov);
     }
 
-    ctrl->turn = ctrl->rot;
+    if (param_dir)
+    {
+        GCL_StrToSV(param_dir, &control->rot);
+    }
+
+    control->turn = control->rot;
 }
 
-void GM_ConfigControlHazard(CONTROL *ctrl, int height, int r_sphere, int s_sphere)
+void GM_ConfigControlHazard(CONTROL *control, short height, short f36, short f38)
 {
-    ctrl->height = height;
-    ctrl->r_sphere = r_sphere;
-    ctrl->s_sphere = s_sphere;
+    control->height = height;
+    control->step_size = f36;
+    control->field_38 = f38;
 }
 
-void GM_ConfigControlAttribute(CONTROL *ctrl, int atr)
+void GM_ConfigControlAttribute(CONTROL *control, int radar_atr)
 {
-    ctrl->radar_atr = atr;
+    control->radar_atr = radar_atr;
 }
 
-void GM_ConfigControlInterp(CONTROL *ctrl, int interp)
+void GM_ConfigControlInterp(CONTROL *control, char interp)
 {
-    ctrl->interp = interp;
+    control->interp = interp;
 }
 
-int GM_CheckControlTouches(CONTROL *ctrl, int range)
+int GM_CheckControlTouches(CONTROL *control, int param_2)
 {
-    int n_touches;
+    HZD_SEG *near;
 
-    n_touches = ctrl->n_touches;
-    if (n_touches == 0)
+    if (control->touch_flag == 0)
     {
         return 0;
     }
 
-    if (ctrl->n_touches == 2)
+    if (control->touch_flag == 2)
     {
+        near = control->nears[1];
 #ifdef PORT_BUILD
-        if (!ctrl->segs[1] || (uintptr_t)ctrl->segs[1] > 0xFFFFFFFFFFULL) {
-            printf("[BUG] GM_CheckControlTouches: segs[1]=%p touch=%d\n", (void*)ctrl->segs[1], ctrl->n_touches);
+        if (!near || (uintptr_t)near > 0xFFFFFFFFFFULL) {
+            printf("[BUG] GM_CheckControlTouches: nears[1]=%p touch=%d\n", (void*)near, control->touch_flag);
             return 0;
         }
 #endif
-        if (ctrl->segs[1]->p1.h < 0 || GV_VecLen3(&ctrl->vecs[1]) <= range)
+        if (near->p1.h < 0 || GV_VecLen3(&control->nearvecs[1]) <= param_2)
         {
             return 2;
         }
     }
 
+    near = control->nears[0];
 #ifdef PORT_BUILD
-    if (!ctrl->segs[0] || (uintptr_t)ctrl->segs[0] > 0xFFFFFFFFFFULL) {
-        printf("[BUG] GM_CheckControlTouches: segs[0]=%p touch=%d segs[1]=%p\n",
-               (void*)ctrl->segs[0], ctrl->n_touches, ctrl->segs[1]);
+    if (!near || (uintptr_t)near > 0xFFFFFFFFFFULL) {
+        printf("[BUG] GM_CheckControlTouches: nears[0]=%p touch=%d nears[1]=%p\n",
+               (void*)near, control->touch_flag, control->nears[1]);
         return 0;
     }
 #endif
-    if (ctrl->segs[0]->p1.h < 0 || GV_VecLen3(&ctrl->vecs[0]) <= range)
+    if (near->p1.h < 0 || GV_VecLen3(&control->nearvecs[0]) <= param_2)
     {
         return 1;
     }
@@ -532,32 +526,30 @@ int GM_CheckControlTouches(CONTROL *ctrl, int range)
     return 0;
 }
 
-// TODO: range should be u_short
-void GM_ConfigControlRadarparam(CONTROL *ctrl, u_short dir, u_short dis, int range, u_short r)
+void GM_ConfigControlRadarparam(CONTROL *control, u_short dir, u_short len, int ang, u_short pad)
 {
-    RADAR_SIGHT_PARAM *r_param;
+    RADAR_CONE *cone;
 
-    r_param = &ctrl->radar_param;
-    r_param->dir = dir;
-    r_param->dis = dis;
-    r_param->range = range;
-    r_param->r = r;
+    cone = &control->radar_cone;
+    cone->dir = dir;
+    cone->len = len;
+    cone->ang = ang;
+    cone->_pad = pad;
 }
 
-void GM_ConfigControlTrapCheck(CONTROL *ctrl)
+void GM_ConfigControlTrapCheck(CONTROL *control)
 {
-    ctrl->skip_flag &= ~CTRL_SKIP_TRAP;
+    control->skip_flag &= ~CTRL_SKIP_TRAP;
 }
 
-GV_MSG *GM_CheckMessage(void *work, int name, int msgcode)
+GV_MSG *GM_CheckMessage(GV_ACT *actor, int msgType, int toFind)
 {
     GV_MSG *msg;
-    int     n_msg;
+    int     len;
 
-    n_msg = GV_ReceiveMessage(name, &msg);
-    while (--n_msg >= 0)
+    for (len = GV_ReceiveMessage(msgType, &msg) - 1; len >= 0; len--)
     {
-        if (msg->message[0] == msgcode)
+        if (msg->message[0] == toFind)
         {
             return msg;
         }

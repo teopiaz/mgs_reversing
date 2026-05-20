@@ -58,3 +58,23 @@ int FogTransChanl_800D63B0(void *a, int b) { return 0; }
 void title_open_800CEF54(void *work, int index) { (void)work; (void)index; }
 void title_open_800D2AFC(void *work) { (void)work; }
 void title_open_800D2CA8(void *work, unsigned long *ot) { (void)work; (void)ot; }
+
+/* Editor branch: additional overlay actors not present on master */
+void *NewPrisonNinja(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewPrisonOtacon(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewPrisonSnake(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewPrisonSnake2(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewTorture(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewTortureBed(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewTortureOcelot(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewJohnny(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewAllItemBox(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewVrWindow(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+
+/* MERYL stubs — same source files excluded as MERYL_*_800D9xxx */
+void MERYL_ExecPutChar(void) { }
+void MERYL_PutMark(void) { }
+int  MERYL_SetPutChar(void *work, int idx) { (void)work; (void)idx; return 0; }
+
+/* s19b jeep — MIPS asm function */
+void s19b_jeep_800D2258(void) { }
