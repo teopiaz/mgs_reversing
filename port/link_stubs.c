@@ -53,3 +53,8 @@ int FogBoundChanl_800D5500(void *a, int b) { return 0; }
 int FogShadeChanl_800D6A04(void *a, int b) { return 0; }
 int FogSortChanl_800D4E98(void *a, int b) { return 0; }
 int FogTransChanl_800D63B0(void *a, int b) { return 0; }
+
+/* Title overlay open functions — MIPS asm only (#pragma INCLUDE_ASM in open.c) */
+void title_open_800CEF54(void *work, int index) { (void)work; (void)index; }
+void title_open_800D2AFC(void *work) { (void)work; }
+void title_open_800D2CA8(void *work, unsigned long *ot) { (void)work; (void)ot; }

@@ -7799,7 +7799,11 @@ void title_open_800D1CB4(Work *work)
 void title_open_800D2374(Work *work)
 {
     int i;
+#ifndef PORT_BUILD
     register int v asm("$4");
+#else
+    int v;
+#endif
 
     for (i = 0; i < 24; i++)
     {

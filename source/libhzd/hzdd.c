@@ -111,10 +111,10 @@ HZD_HDL *HZD_MakeHandler(HZD_DEF *hzd, int areaIndex, int dynamic_segments, int 
     HZD_TRG *trig;
 
     /* Port: use a static to store the route pointer instead of cramming it
-       into the first 4 bytes of HZD_MAP (which truncates on 64-bit) */
+       into the first 4 bytes of HZD_DEF (which truncates on 64-bit) */
     {
         static void *cached_route = NULL;
-        static HZD_MAP *cached_hzd = NULL;
+        static HZD_DEF *cached_hzd = NULL;
         if (cached_hzd != hzd) {
             cached_route = NULL;
             cached_hzd = hzd;

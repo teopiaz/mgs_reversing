@@ -89,6 +89,11 @@ STAGE_OBJ = $(patsubst %,$(OBJDIR)/stage_%.o,$(STAGE_NAMES))
 # Exclude: files that don't compile, and R-variant overlays (duplicate symbols with base)
 OVERLAY_EXCLUDE = $(SRCDIR)/overlays/s12c/takabe/libdg2.c \
 	$(SRCDIR)/overlays/s19b/menu/countdwn.c \
+	$(SRCDIR)/overlays/d18a/animal/snake18/snake18.c \
+	$(SRCDIR)/overlays/s08b/animal/ninja/bunsin2.c \
+	$(SRCDIR)/overlays/s11d/chara/rope/rope.c \
+	$(SRCDIR)/overlays/s11d/chara/hind/hind.c \
+	$(SRCDIR)/overlays/s11d/chara/hind/hind_bul.c \
 	$(shell find $(SRCDIR)/overlays/d18ar $(SRCDIR)/overlays/s08br $(SRCDIR)/overlays/s19br -name "*.c" 2>/dev/null)
 OVERLAY_ALL_SRC = $(shell find $(SRCDIR)/overlays -name "*.c" | sort)
 OVERLAY_SRC = $(filter-out $(OVERLAY_EXCLUDE), $(OVERLAY_ALL_SRC))

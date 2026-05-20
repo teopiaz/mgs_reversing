@@ -562,8 +562,25 @@ static inline void LoadImage2(RECT *rect, u_long *p) { port_LoadImage(rect, p); 
 static inline void StoreImage2(RECT *rect, u_long *p) { port_StoreImage(rect, p); }
 static inline void SetDrawMove(DR_MOVE *p, RECT *rect, int x, int y) { (void)p; (void)rect; (void)x; (void)y; setlen(p, 5); }
 
-#define setXYWH(p, _x, _y, _w, _h) \
-    (p)->x0 = (_x), (p)->y0 = (_y), (p)->w = (_w), (p)->h = (_h)
+/* setXYWH: SPRT/TILE have w/h fields; POLY_FT4 has x0..x3/y0..y3 corners.
+ * Use C11 _Generic to pick the right expansion. */
+static inline void setXYWH_sprt_(SPRT *p, int x, int y, int w, int h) {
+    p->x0 = x; p->y0 = y; p->w = w; p->h = h;
+}
+static inline void setXYWH_tile_(TILE *p, int x, int y, int w, int h) {
+    p->x0 = x; p->y0 = y; p->w = w; p->h = h;
+}
+static inline void setXYWH_polyft4_(POLY_FT4 *p, int x, int y, int w, int h) {
+    p->x0 = x;     p->y0 = y;
+    p->x1 = x + w; p->y1 = y;
+    p->x2 = x;     p->y2 = y + h;
+    p->x3 = x + w; p->y3 = y + h;
+}
+#define setXYWH(p, _x, _y, _w, _h) _Generic((p), \
+    SPRT *:     setXYWH_sprt_, \
+    TILE *:     setXYWH_tile_, \
+    POLY_FT4 *: setXYWH_polyft4_, \
+    default:    setXYWH_sprt_)((p), (_x), (_y), (_w), (_h))
 
 /* Streaming */
 static inline u_long *StGetNext(u_long *addr, u_long **header) { (void)addr; if (header) *header = NULL; return NULL; }

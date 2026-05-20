@@ -16,10 +16,46 @@
 #include "strcode.h"
 
 extern  CAMERA          GM_CameraList[8];
-extern  GM_CAMERA       GM_Camera;
-extern  HZD_BIND        gBindsArray_800b58e0[128];
+/* Port: upstream renamed GM_CAMERA -> unnamed typedef; use opaque struct
+ * since GM_Camera fields needed here (alert_mask, etc) match upstream layout. */
+extern  struct {
+    SVECTOR position, target, rotate;
+    int     flag, track;
+    short   zoom, first_person, alert_mask, interp, type, interp_mode;
+    SVECTOR pan;
+    SVECTOR bound[2][2];
+    SVECTOR limit[2][2];
+    void   *callback[2];
+}                       GM_Camera;
+extern  HZD_BND        gBindsArray_800b58e0[128];
 extern  int             dword_8009F46C;
 extern  SVECTOR         svector_8009F478;
+
+/* GCL command name hashes (GV_StrCode) for command dispatch table */
+#define CMD_mesg      0x22ff
+#define CMD_trap      0xd4cb
+#define CMD_chara     0x9906
+#define CMD_map       0xc091
+#define CMD_mapdef    0x7d50
+#define CMD_camera    0xeee9
+#define CMD_light     0x306a
+#define CMD_start     0x9a1f
+#define CMD_load      0xc8bb
+#define CMD_radio     0x24e1
+#define CMD_restart   0xe43c
+#define CMD_demo      0xa242
+#define CMD_ntrap     0xdbab
+#define CMD_delay     0x430d
+#define CMD_pad       0xcc85
+#define CMD_varsave   0x5c9e
+#define CMD_system    0x4ad9
+#define CMD_sound     0x698d
+#define CMD_menu      0x226d
+#define CMD_rand      0x925e
+#define CMD_func      0xe257
+#define CMD_demodebug 0xa2bf
+#define CMD_print     0xb96e
+#define CMD_jimaku    0xec9d
 
 /*---------------------------------------------------------------------------*/
 
@@ -111,23 +147,23 @@ static int GM_Command_camera(unsigned char *top)
             cam = &GM_CameraList[camera_id];
 
             cam->field_10_param1 = GCL_GetNextParamValue();
-            cam->field_11_param2 = GCL_GetNextParamValue();
-            cam->field_12_param3 = GCL_GetNextParamValue();
-            cam->field_13_param_p = param_p;
+            cam->interp = GCL_GetNextParamValue();
+            cam->type = GCL_GetNextParamValue();
+            cam->pad_type = param_p;
 
             GCL_StrToSV(GCL_GetParamResult(), &cam->pos);
             GCL_StrToSV(GCL_GetParamResult(), (SVECTOR *)&cam->trg);
 
             if (GCL_GetParamResult())
             {
-                cam->field_0e_alertMask = GCL_GetNextParamValue();
+                cam->trg.pad = GCL_GetNextParamValue();
             }
             else
             {
-                cam->field_0e_alertMask = 0;
+                cam->trg.pad = 0;
             }
 
-            GM_CameraSetAlertMask(camera_id, cam->field_0e_alertMask);
+            GM_CameraSetAlertMask(camera_id, cam->trg.pad);
         }
     }
 
@@ -249,7 +285,7 @@ static int GM_Command_mapdef(unsigned char *top)
 
 static int GM_Command_trap(unsigned char *top)
 {
-    HZD_BIND *pBind;
+    HZD_BND *pBind;
     int         i, arg, code;
     intptr_t    value;
     int         tmp;
@@ -290,7 +326,7 @@ static int GM_Command_trap(unsigned char *top)
     gBindsArray_800b58e0[i].field_8_param_i_c_flags = 0;
 
     GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-    gBindsArray_800b58e0[i].field_14_proc_and_block = value;
+    gBindsArray_800b58e0[i].command = value;
     gBindsCount_800ABA64++;
 
     tmp = gBinds_800ABA60;
@@ -305,7 +341,7 @@ static int GM_Command_trap(unsigned char *top)
 static int GM_Command_ntrap(unsigned char *top)
 {
     // int bindIdx;
-    HZD_BIND *pBind;
+    HZD_BND *pBind;
     int         flags;
     int         arg;
     int         tmp;
@@ -329,8 +365,8 @@ static int GM_Command_ntrap(unsigned char *top)
     }
     pBind->field_0 = arg;
     pBind->field_8_param_i_c_flags = 0; // v0
-    pBind->field_10_every = 0;
-    pBind->field_14_proc_and_block = 0;
+    pBind->time = 0;
+    pBind->command = 0;
     flags = 0;                          // still s1
     if (GCL_GetOption('m'))             // mask
     {
@@ -387,12 +423,12 @@ static int GM_Command_ntrap(unsigned char *top)
         {
             printf("ntrap:can't set every\n");
         }
-        pBind->field_10_every = GCL_GetNextParamValue();
+        pBind->time = GCL_GetNextParamValue();
     }
     if (GCL_GetOption('p')) // proc
     {
         flags |= 0x80;
-        pBind->field_14_proc_and_block = GCL_GetNextParamValue();
+        pBind->command = GCL_GetNextParamValue();
     }
     if (GCL_GetOption('e')) // exec
     {
@@ -403,7 +439,7 @@ static int GM_Command_ntrap(unsigned char *top)
             printf("ntrap:can't set proc and block\n");
         }
         GCL_GetNextValue(GCL_GetParamResult(), &code, &value);
-        pBind->field_14_proc_and_block = value;
+        pBind->command = value;
     }
     pBind->field_B_param_e = flags;
     gBindsCount_800ABA64++;
@@ -1127,9 +1163,9 @@ static int GM_Command_print(unsigned char *top)
     while (top)
     {
         top = GCL_GetNextValue(top, &code, &value);
-        if (code == GCLCODE_NULL)
+        if (code == GCL_END)
             break;
-        if (code == GCLCODE_STRING)
+        if (code == GCL_STRING)
             printf("%s ", (char *)(void *)value);
         else
             printf("%d ", value);

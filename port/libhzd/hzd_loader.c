@@ -12,6 +12,10 @@
 #include "libgv/libgv.h"
 #include "libhzd/libhzd.h"
 
+/* Port alias: upstream renamed HZD_MAP -> HZD_DEF. Keep HZD_MAP working in
+ * port code until everything migrates. */
+typedef HZD_DEF HZD_MAP;
+
 #pragma pack(push, 1)
 
 typedef struct {

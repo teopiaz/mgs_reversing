@@ -6,7 +6,12 @@
 
 #include "libgcl/libgcl.h"   /* GCL_StrHash, GCL_GetLong */
 #include "libgv/libgv.h"     /* GV_SetCache */
-#include "strcode.h"         /* GCX_scenerio, GCX_demo */
+#include "strcode.h"
+
+/* Port: GV_StrCode("scenerio") / GV_StrCode("demo"), used to identify
+ * which .gcx overlay script we are dealing with via GCL_StrHash. */
+#define GCX_scenerio  0xea54
+#define GCX_demo      0xa242
 
 extern void font_set_font_addr(int slot, void *data);
 
