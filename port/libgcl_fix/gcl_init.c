@@ -1,8 +1,12 @@
 #include "libgcl.h"
 #include "common.h"
-#include "strcode.h"        // for GCX_* defs
+#include "strcode.h"
 #include "libgv/libgv.h"    // for GV_SetLoader
 #include "gcl_overlay.h"
+
+/* GV_StrCode("scenerio") / GV_StrCode("demo") */
+#define GCX_scenerio  0xea54
+#define GCX_demo      0xa242
 
 extern char *GM_GetArea(int flag);
 

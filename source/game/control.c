@@ -507,7 +507,7 @@ int GM_CheckControlTouches(CONTROL *ctrl, int range)
     {
 #ifdef PORT_BUILD
         if (!ctrl->segs[1] || (uintptr_t)ctrl->segs[1] > 0xFFFFFFFFFFULL) {
-            printf("[BUG] GM_CheckControlTouches: segs[1]=%p touch=%d\n", (void*)ctrl->segs[1], ctrl->touch_flag);
+            printf("[BUG] GM_CheckControlTouches: segs[1]=%p touch=%d\n", (void*)ctrl->segs[1], ctrl->n_touches);
             return 0;
         }
 #endif
@@ -520,7 +520,7 @@ int GM_CheckControlTouches(CONTROL *ctrl, int range)
 #ifdef PORT_BUILD
     if (!ctrl->segs[0] || (uintptr_t)ctrl->segs[0] > 0xFFFFFFFFFFULL) {
         printf("[BUG] GM_CheckControlTouches: segs[0]=%p touch=%d segs[1]=%p\n",
-               (void*)ctrl->segs[0], ctrl->touch_flag, ctrl->segs[1]);
+               (void*)ctrl->segs[0], ctrl->n_touches, ctrl->segs[1]);
         return 0;
     }
 #endif

@@ -760,7 +760,7 @@ STATIC void menu_radio_do_file_mode_helper2_helper_8004A4C4(MenuPrim *pGlue, Rad
     textConfig.xpos  = pUnk2->field_8  >> 16;
     textConfig.ypos  = pUnk2->field_10 >> 16;
     textConfig.flags = 0x12;
-    textConfig.colour = pUnk2->field_18 | 0x66000000;
+    textConfig.color = pUnk2->field_18 | 0x66000000;
 
     _menu_number_draw_string2(pGlue, &textConfig, (char *)pUnk2->field_4);
 #else

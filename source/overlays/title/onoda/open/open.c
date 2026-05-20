@@ -1738,8 +1738,12 @@ void title_open_800D2374(OpenWork *work)
 
     if (work->f24BC)
     {
+#ifndef PORT_BUILD
         register int dummy asm("$4") = work->f24B4;
         asm volatile ("" : : "r" (dummy));
+#else
+        (void)work->f24B4;
+#endif
         return;
     }
 

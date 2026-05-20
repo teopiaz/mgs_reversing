@@ -88,10 +88,10 @@ static int GCL_Command_return(unsigned char *top)
 }
 
 STATIC GCL_COMMANDLIST commlist[] = {
-    { CMD_if,      GCL_Command_if      },   // GV_StrCode("if")
-    { CMD_eval,    GCL_Command_eval    },   // GV_StrCode("eval")
-    { CMD_return,  GCL_Command_return  },   // GV_StrCode("return")
-    { CMD_foreach, GCL_Command_foreach }    // GV_StrCode("foreach")
+    { 0x0d86, GCL_Command_if      },   // GV_StrCode("if")
+    { 0x64c0, GCL_Command_eval    },   // GV_StrCode("eval")
+    { 0xcd3a, GCL_Command_return  },   // GV_StrCode("return")
+    { 0x7636, GCL_Command_foreach }    // GV_StrCode("foreach")
 };
 
 STATIC GCL_COMMANDDEF builtin_commands = { NULL, COUNTOF(commlist), commlist };

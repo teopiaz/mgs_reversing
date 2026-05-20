@@ -118,7 +118,7 @@ STATIC int FindNearPoint(HZD_HDL *hzd, HZD_ZON *zone, SVECTOR *pos)
             break;
         }
 
-        if (ZoneContains(&hzd->header->zones[index], pos))
+        if (ZoneContains(&hzd->def->zones[index], pos))
         {
             return index;
         }
@@ -142,7 +142,7 @@ STATIC int FindBetweenPoint(HZD_HDL *hzd, HZD_ZON *zone, SVECTOR *pos)
             break;
         }
 
-        if (ZoneBetween(zone, &hzd->header->zones[index], pos))
+        if (ZoneBetween(zone, &hzd->def->zones[index], pos))
         {
             return index;
         }
@@ -210,7 +210,7 @@ STATIC int FindClosestZone(HZD_HDL *hzd, SVECTOR *pos)
 {
     int      min_zone;
     int      min_dist;
-    HZD_MAP *header;
+    HZD_DEF *header;
     int      n_zones;
     HZD_ZON *zone;
     int      dist;
@@ -218,9 +218,9 @@ STATIC int FindClosestZone(HZD_HDL *hzd, SVECTOR *pos)
     min_zone = -1;
     min_dist = 0x1000000;
 
-    header = hzd->header;
-    zone = hzd->header->zones;
-    n_zones = hzd->header->n_zones;
+    header = hzd->def;
+    zone = hzd->def->zones;
+    n_zones = hzd->def->n_zones;
 
     while (n_zones > 0)
     {
@@ -249,7 +249,7 @@ STATIC int FindNear(HZD_HDL *hzd, int zone, int target)
     int     i;
     int     index;
 
-    nears = hzd->header->zones[zone].nears;
+    nears = hzd->def->zones[zone].nears;
     for (i = 6; i > 0; i--)
     {
         index = *nears++;
@@ -271,7 +271,7 @@ STATIC int FindZoneDistance(HZD_HDL *hzd, int from, int to)
 {
     if ( from != HZD_NO_ZONE && to != HZD_NO_ZONE )
     {
-        return ZoneDistance(hzd->route, from, to, hzd->header->n_zones);
+        return ZoneDistance(hzd->route, from, to, hzd->def->n_zones);
     }
 
     return HZD_NO_ZONE;
@@ -283,7 +283,7 @@ STATIC int GetNears(HZD_HDL *hzd, int zone, int *out)
     int     i;
     int     index;
 
-    nears = hzd->header->zones[zone].nears;
+    nears = hzd->def->zones[zone].nears;
     for (i = 0; i < 6; i++)
     {
         index = *nears++;
@@ -318,8 +318,8 @@ STATIC int NavigateNext(HZD_HDL *hzd, int from, int to)
     min = 0xFF;
     minzone = from;
 
-    n_zones = hzd->header->n_zones;
-    nears = hzd->header->zones[from].nears;
+    n_zones = hzd->def->n_zones;
+    nears = hzd->def->zones[from].nears;
 
     for (i = 6; i > 0; i--)
     {
@@ -358,8 +358,8 @@ STATIC int NavigateNextEqual(HZD_HDL *hzd, int from, int to)
     min = 0xFF;
     minzone = from;
 
-    n_zones = hzd->header->n_zones;
-    nears = hzd->header->zones[from].nears;
+    n_zones = hzd->def->n_zones;
+    nears = hzd->def->zones[from].nears;
 
     for (i = 6; i > 0; i--)
     {
@@ -394,7 +394,7 @@ int HZD_GetAddress(HZD_HDL *hzd, SVECTOR *pos, int addr)
        it; on PSX that's harmless garbage memory, on 64-bit it traps with
        NULL+0x4 (= the HZD_ZON.y field offset). Return the HZD_NO_ZONE
        sentinel so callers know there's no zone match. */
-    if (!hzd || !hzd->header || hzd->header->n_zones == 0 || !hzd->header->zones)
+    if (!hzd || !hzd->def || hzd->def->n_zones == 0 || !hzd->def->zones)
         return (HZD_NO_ZONE << 8) | HZD_NO_ZONE;
 #endif
 
@@ -410,7 +410,7 @@ int HZD_GetAddress(HZD_HDL *hzd, SVECTOR *pos, int addr)
     {
         if (lo != HZD_NO_ZONE)
         {
-            pNavLo = &hzd->header->zones[lo];
+            pNavLo = &hzd->def->zones[lo];
 
             if (!ZoneContains(pNavLo, pos))
             {
@@ -433,7 +433,7 @@ int HZD_GetAddress(HZD_HDL *hzd, SVECTOR *pos, int addr)
     }
     else
     {
-        pNavLo = &hzd->header->zones[lo];
+        pNavLo = &hzd->def->zones[lo];
 
         if (ZoneContains(pNavLo, pos))
         {
@@ -441,7 +441,7 @@ int HZD_GetAddress(HZD_HDL *hzd, SVECTOR *pos, int addr)
         }
         else
         {
-            pNavHi = &hzd->header->zones[hi];
+            pNavHi = &hzd->def->zones[hi];
 
             if (ZoneContains(pNavHi, pos))
             {
@@ -629,8 +629,8 @@ int HZD_LinkRoute(HZD_HDL *hzd, int from, int to, SVECTOR *pos)
 
         if ( v3 == v4 )
         {
-            v3 = DistToPoint(&hzd->header->zones[from0], pos, 0x7F000000);
-            v4 = DistToPoint(&hzd->header->zones[from1], pos, 0x7F000000);
+            v3 = DistToPoint(&hzd->def->zones[from0], pos, 0x7F000000);
+            v4 = DistToPoint(&hzd->def->zones[from1], pos, 0x7F000000);
         }
 
         if ( v4 < v3 )
@@ -695,8 +695,8 @@ int HZD_LinkRouteEqual(HZD_HDL *hzd, int from, int to, SVECTOR *pos)
 
         if ( v3 == v4 )
         {
-            v3 = DistToPoint(&hzd->header->zones[from0], pos, 0x7F000000);
-            v4 = DistToPoint(&hzd->header->zones[from1], pos, 0x7F000000);
+            v3 = DistToPoint(&hzd->def->zones[from0], pos, 0x7F000000);
+            v4 = DistToPoint(&hzd->def->zones[from1], pos, 0x7F000000);
         }
 
         if ( v4 < v3 )
@@ -708,7 +708,7 @@ int HZD_LinkRouteEqual(HZD_HDL *hzd, int from, int to, SVECTOR *pos)
 
 int HZD_ZoneDistance(HZD_HDL *hzd, int from, int to)
 {
-    HZD_MAP *hzm;
+    HZD_DEF *hzm;
     int      n_zones;
     int      total;
     HZD_ZON *zone;
@@ -719,7 +719,7 @@ int HZD_ZoneDistance(HZD_HDL *hzd, int from, int to)
     int      cur;
     int      dist;
 
-    hzm = hzd->header;
+    hzm = hzd->def;
     n_zones = hzm->n_zones;
 
     total = 0;
@@ -765,7 +765,7 @@ int HZD_ZoneDistance(HZD_HDL *hzd, int from, int to)
 
 int HZD_NavigateLimit(HZD_HDL *hzd, int from, int to, int limit)
 {
-    HZD_MAP *hzm;
+    HZD_DEF *hzm;
     int      n_zones;
     int      total;
     HZD_ZON *zone;
@@ -776,7 +776,7 @@ int HZD_NavigateLimit(HZD_HDL *hzd, int from, int to, int limit)
     int      cur;
     int      dist;
 
-    hzm = hzd->header;
+    hzm = hzd->def;
     n_zones = hzm->n_zones;
 
     total = 0;
@@ -827,7 +827,7 @@ int HZD_NavigateLimit(HZD_HDL *hzd, int from, int to, int limit)
 int HZD_NavigateBound(HZD_HDL *hzd, int from, int to, int limit)
 {
     SVECTOR  pos;
-    HZD_MAP *hzm;
+    HZD_DEF *hzm;
     int      n_zones;
     int      total;
     HZD_ZON *zone;
@@ -838,7 +838,7 @@ int HZD_NavigateBound(HZD_HDL *hzd, int from, int to, int limit)
     int      cur;
     int      dist;
 
-    hzm = hzd->header;
+    hzm = hzd->def;
     n_zones = hzm->n_zones;
 
     total = 0;
@@ -897,7 +897,7 @@ int HZD_NavigateBound(HZD_HDL *hzd, int from, int to, int limit)
 
 int HZD_ZoneContains(HZD_HDL *hzd, SVECTOR *pos, int zone)
 {
-    return ZoneContains(&hzd->header->zones[zone], pos);
+    return ZoneContains(&hzd->def->zones[zone], pos);
 }
 
 int HZD_GetNears(HZD_HDL *hzd, int zone, int *nears)
@@ -923,8 +923,8 @@ int HZD_MaxNear(HZD_HDL *hzd, int from, int to, int *maxdist)
     max = 0;
     maxzone = from;
 
-    n_zones = hzd->header->n_zones;
-    near = hzd->header->zones[from].nears;
+    n_zones = hzd->def->n_zones;
+    near = hzd->def->zones[from].nears;
 
     for (i = 6; i > 0; i--)
     {
@@ -962,8 +962,8 @@ int HZD_MinNearDist(HZD_HDL *hzd, int from, int to)
 
     min = 255;
 
-    n_zones = hzd->header->n_zones;
-    nears = hzd->header->zones[from].nears;
+    n_zones = hzd->def->n_zones;
+    nears = hzd->def->zones[from].nears;
 
     for (i = 6; i > 0; i--)
     {

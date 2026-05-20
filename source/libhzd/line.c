@@ -655,7 +655,7 @@ int HZD_LineCheck(HZD_HDL *hzd, SVECTOR *from, SVECTOR *to, int flag, int exclud
     current_group = HZD_CurrentGroup;
 
 #ifdef PORT_BUILD
-    if (!hzd || !hzd->header || !port_ptr_readable(hzd->header)) {
+    if (!hzd || !hzd->def || !port_ptr_readable(hzd->def)) {
         return 0;
     }
 #endif
