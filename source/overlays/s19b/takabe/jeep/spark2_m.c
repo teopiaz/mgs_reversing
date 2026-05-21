@@ -68,7 +68,16 @@ void s19b_spark2_m_800D8A88(Spark2MWork *work)
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D94C8.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9558.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D95FC.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D964C.s")
+extern void s19b_spark2_m_800D9558(Spark2MWork *work);
+extern void s19b_spark2_m_800D95FC(Spark2MWork *work);
+extern void s19b_spark2_m_800D9C04(Spark2MWork *work);
+
+void s19b_spark2_m_800D964C(Spark2MWork *work)
+{
+    s19b_spark2_m_800D95FC(work);
+    s19b_spark2_m_800D9C04(work);
+    s19b_spark2_m_800D9558(work);
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9680.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9704.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D97A8.s")
