@@ -106,8 +106,22 @@ void s19b_spark2_m_800D8A88(Spark2MWork *work)
     work->sv_7A0.vy = v;
     work->sv_7A8.vy = v;
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8AAC.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8ACC.s")
+void s19b_spark2_m_800D8AAC(Spark2MWork *work)
+{
+    short *p    = (short *)work->map;
+    int    base = work->f930 + 0xCC0;
+    int    v    = base - p[5];
+    work->sv_7A0.vy = v;
+    work->sv_7A8.vy = v;
+}
+void s19b_spark2_m_800D8ACC(Spark2MWork *work)
+{
+    short *p    = (short *)work->map;
+    int    base = work->f930 + 0x340;
+    int    v    = base - p[5];
+    work->sv_7A0.vy = v;
+    work->sv_7A8.vy = v;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8AEC.s")
 extern int s19b_spark2_m_800D899C(Spark2MWork *work);
 
