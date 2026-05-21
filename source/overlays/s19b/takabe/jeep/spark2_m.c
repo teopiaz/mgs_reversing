@@ -1,5 +1,6 @@
 #include "common.h"
 #include "game/game.h"
+#include "linkvar.h"
 #include "psxdefs.h"
 
 typedef struct _Spark2MWork
@@ -20,7 +21,7 @@ typedef struct _Spark2MWork
     SVECTOR  sv_7A0;       // 0x7A0 (vy at 0x7A2)
     SVECTOR  sv_7A8;       // 0x7A8 (vy at 0x7AA)
     char     pad_8E4[0x8E4 - 0x7A8 - sizeof(SVECTOR)];
-    short   *f8E4;         // 0x8E4
+    TARGET  *f8E4;         // 0x8E4
     char     pad_900[0x900 - 0x8E4 - sizeof(short *)];
     int      f900;         // 0x900
     char     pad_910[0x910 - 0x900 - sizeof(int)];
@@ -58,12 +59,32 @@ int s19b_spark2_m_800D88D8(Spark2MWork *work)
 {
     if (s19b_spark2_m_800D87A4(work) != 0)
     {
-        *work->f8E4 = 1;
+        work->f8E4->class = 1;
         return 1;
     }
     return 0;
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8918.s")
+extern int s19b_dword_800C3AB0;
+extern int s19b_dword_800C3AB8;
+
+void s19b_spark2_m_800D8918(Spark2MWork *work)
+{
+    TARGET *target = work->f8E4;
+    int     level  = GM_DifficultyFlag;
+    int     vital;
+
+    if (level > 0)
+    {
+        vital = (level << 6) + 0xBF;
+    }
+    else
+    {
+        vital = 0xBF;
+    }
+
+    GM_SetTarget(target, 20, 2, (SVECTOR *)&s19b_dword_800C3AB0);
+    GM_SetPowerTarget(target, 1, -1, vital, 7, (SVECTOR *)&s19b_dword_800C3AB8);
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D899C.s")
 void s19b_spark2_m_800D8A48(Spark2MWork *work)
 {
