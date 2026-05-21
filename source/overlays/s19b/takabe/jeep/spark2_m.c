@@ -22,7 +22,11 @@ typedef struct _Spark2MWork
     SVECTOR  sv_7A8;       // 0x7A8 (vy at 0x7AA)
     char     pad_8E4[0x8E4 - 0x7A8 - sizeof(SVECTOR)];
     TARGET  *f8E4;         // 0x8E4
-    char     pad_900[0x900 - 0x8E4 - sizeof(short *)];
+    char     pad_8EC[0x8EC - 0x8E4 - sizeof(TARGET *)];
+    void    *f8EC;         // 0x8EC — function pointer to next state
+    char     pad_8F4[0x8F4 - 0x8EC - sizeof(void *)];
+    int      f8F4;         // 0x8F4
+    char     pad_900[0x900 - 0x8F4 - sizeof(int)];
     int      f900;         // 0x900
     char     pad_910[0x910 - 0x900 - sizeof(int)];
     int      f910;         // 0x910
@@ -105,7 +109,29 @@ void s19b_spark2_m_800D8A88(Spark2MWork *work)
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8BC8.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8CEC.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8E10.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8F34.s")
+extern void s19b_spark2_m_800D8AEC(Spark2MWork *work);
+extern int  s19b_spark2_m_800D88D8(Spark2MWork *work);
+extern void s19b_spark2_m_800D8BC8(Spark2MWork *work);
+
+void s19b_spark2_m_800D8F34(Spark2MWork *work, int mode)
+{
+    if (mode == 0)
+    {
+        s19b_spark2_m_800D8AEC(work);
+    }
+    if (s19b_spark2_m_800D88D8(work) != 0)
+    {
+        return;
+    }
+    if (mode == 1)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8BC8;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+    }
+    work->f8E4->class |= 0x14;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8FB0.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D902C.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D90A8.s")
