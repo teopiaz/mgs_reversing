@@ -129,7 +129,21 @@ void s19b_spark2_m_800D8ACC(Spark2MWork *work)
     work->sv_7A0.vy = v;
     work->sv_7A8.vy = v;
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8AEC.s")
+extern void *NewJeepBullet(MATRIX *world, int side, int mode, int mode2);
+extern void  s19b_jblood_800C7FB8(MATRIX *world);
+extern int   s19b_dword_800C3AC0;
+
+void s19b_spark2_m_800D8AEC(Spark2MWork *work)
+{
+    MATRIX m;
+
+    DG_SetPos(&work->obj.objs->objs[4].world);
+    DG_MovePos((SVECTOR *)&s19b_dword_800C3AC0);
+    ReadRotMatrix(&m);
+    NewJeepBullet(&m, 2, 1, 0);
+    GM_SeSet((SVECTOR *)&work->world, 0x2E);
+    s19b_jblood_800C7FB8(&m);
+}
 extern int s19b_spark2_m_800D899C(Spark2MWork *work);
 
 void s19b_spark2_m_800D8B54(Spark2MWork *work, int mode)
