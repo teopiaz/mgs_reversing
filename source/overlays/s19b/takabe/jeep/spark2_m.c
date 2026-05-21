@@ -4,14 +4,20 @@
 
 typedef struct _Spark2MWork
 {
-    GV_ACT   actor;
-    int      map;
-    DG_PRIM *prim;
-    MATRIX   world;
-    SVECTOR  vecs[16];
-    SVECTOR  verts[32];
-    char     pad2[0x28];
-    int      f1F0;
+    GV_ACT   actor;        // 0x000
+    int      map;          // 0x020
+    DG_PRIM *prim;         // 0x024
+    MATRIX   world;        // 0x028
+    SVECTOR  vecs[16];     // 0x048
+    SVECTOR  verts[32];    // 0x0C8
+    char     pad2[0x28];   // 0x1C8
+    int      f1F0;         // 0x1F0 — last allocated field; sizeof = 0x1F4 (literal in NewSpark2M alloc)
+    char     pad_7A2[0x7A2 - 0x1F0 - sizeof(int)];
+    short    f7A2;         // 0x7A2
+    char     pad_7AA[0x7AA - 0x7A2 - sizeof(short)];
+    short    f7AA;         // 0x7AA
+    char     pad_930[0x930 - 0x7AA - sizeof(short)];
+    int      f930;         // 0x930
 } Spark2MWork;
 
 typedef struct _JEEP_SYSTEM_S
@@ -35,7 +41,13 @@ extern void s19b_spark2_m_800DA41C(LINE_F2 *, int, int);
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8918.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D899C.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8A48.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8A88.s")
+void s19b_spark2_m_800D8A88(Spark2MWork *work)
+{
+    short *p = (short *)work->map;
+    int    v = work->f930 - p[5];
+    work->f7A2 = v;
+    work->f7AA = v;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8AAC.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8ACC.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8AEC.s")
@@ -124,7 +136,7 @@ GV_ACT *NewSpark2M_800DA6D8(int arg0)
 {
     Spark2MWork *work;
 
-    work = (Spark2MWork *)GV_NewActor(EXEC_LEVEL, sizeof(Spark2MWork));
+    work = (Spark2MWork *)GV_NewActor(EXEC_LEVEL, 0x1F4);
     if (work != NULL)
     {
         GV_SetNamedActor(&work->actor, s19b_spark2_m_800DA46C, s19b_spark2_m_800DA55C, aSpark2mC_800DDEB0);
