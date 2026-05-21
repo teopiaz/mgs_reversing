@@ -29,7 +29,8 @@ typedef struct _Spark2MWork
     int      f918;         // 0x918
     char     pad_930[0x930 - 0x918 - sizeof(int)];
     int      f930;         // 0x930
-    char     pad_93C[0x93C - 0x930 - sizeof(int)];
+    int      f934;         // 0x934
+    char     pad_93C[0x93C - 0x934 - sizeof(int)];
     int      f93C;         // 0x93C
 } Spark2MWork;
 
@@ -95,7 +96,15 @@ void s19b_spark2_m_800D8A88(Spark2MWork *work)
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9434.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D94C8.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9558.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D95FC.s")
+void s19b_spark2_m_800D95FC(Spark2MWork *work)
+{
+    SVECTOR diff;
+
+    GV_SubVec3(&GM_PlayerPosition, (SVECTOR *)&work->world, &diff);
+    diff.vy = 0;
+    work->f930 = GV_VecDir2(&diff);
+    work->f934 = GV_VecLen3(&diff);
+}
 extern void s19b_spark2_m_800D9558(Spark2MWork *work);
 extern void s19b_spark2_m_800D95FC(Spark2MWork *work);
 extern void s19b_spark2_m_800D9C04(Spark2MWork *work);
