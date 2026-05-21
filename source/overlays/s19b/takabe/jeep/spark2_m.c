@@ -86,7 +86,15 @@ void s19b_spark2_m_800D8A88(Spark2MWork *work)
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA0B4.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA19C.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA314.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA3EC.s")
+void s19b_spark2_m_800DA3EC(LINE_F2 *prims, int count, int unused)
+{
+    (void)unused;
+    while (--count >= 0)
+    {
+        setLineF2(prims);
+        prims++;
+    }
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA41C.s")
 void s19b_spark2_m_800DA46C(Spark2MWork *work)
 {
