@@ -210,7 +210,20 @@ void s19b_spark2_m_800DA3EC(LINE_F2 *prims, int count, int unused)
         prims++;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA41C.s")
+void s19b_spark2_m_800DA41C(LINE_F2 *prims, int count, int shade)
+{
+    int color;
+    u_long *cw;
+
+    color = shade | ((shade / 2) << 8) | ((shade / 2) << 16);
+
+    while (--count >= 0)
+    {
+        cw = (u_long *)&prims->r0;
+        *cw = (*cw & 0xFF000000) | color;
+        prims++;
+    }
+}
 void s19b_spark2_m_800DA46C(Spark2MWork *work)
 {
     int      time;
