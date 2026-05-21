@@ -32,7 +32,8 @@ typedef struct _Spark2MWork
     int      f8FC;         // 0x8FC
     char     pad_900[0x900 - 0x8FC - sizeof(int)];
     int      f900;         // 0x900
-    char     pad_910[0x910 - 0x900 - sizeof(int)];
+    int      f904;         // 0x904
+    char     pad_910[0x910 - 0x904 - sizeof(int)];
     int      f910;         // 0x910
     int      f914;         // 0x914
     int      f918;         // 0x918
@@ -418,7 +419,38 @@ void s19b_spark2_m_800D9704(Spark2MWork *work)
 
     work->f918 += 1;
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D97A8.s")
+extern int s19b_dword_800DE650;
+
+void s19b_spark2_m_800D97A8(Spark2MWork *work)
+{
+    int v;
+
+    if (s19b_spark2_m_800D9680(work) != 0)
+    {
+        return;
+    }
+
+    if (work->f8FC != 1)
+    {
+        work->f918 = 0;
+    }
+
+    if (work->f918 >= 0x4C)
+    {
+        work->f914 = 0;
+        work->f918 = 0;
+        return;
+    }
+
+    v = s19b_dword_800DE650;
+    if (work->f918 == v + 6 || work->f918 == v + 9 || work->f918 == v + 0xC)
+    {
+        work->f900 |= 8;
+    }
+    work->f900 |= 1;
+    work->f904 = work->f930;
+    work->f918 += 1;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D985C.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9910.s")
 void s19b_spark2_m_800D99C4(Spark2MWork *work)
