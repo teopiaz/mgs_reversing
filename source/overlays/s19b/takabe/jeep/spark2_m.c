@@ -33,11 +33,15 @@ typedef struct _Spark2MWork
     char     pad_900[0x900 - 0x8FC - sizeof(int)];
     int      f900;         // 0x900
     int      f904;         // 0x904
-    char     pad_910[0x910 - 0x904 - sizeof(int)];
+    char     pad_90C[0x90C - 0x904 - sizeof(int)];
+    int      f90C;         // 0x90C
+    char     pad_910[0x910 - 0x90C - sizeof(int)];
     int      f910;         // 0x910
     int      f914;         // 0x914
     int      f918;         // 0x918
-    char     pad_930[0x930 - 0x918 - sizeof(int)];
+    char     pad_920[0x920 - 0x918 - sizeof(int)];
+    int      f920;         // 0x920
+    char     pad_930[0x930 - 0x920 - sizeof(int)];
     int      f930;         // 0x930
     int      f934;         // 0x934
     char     pad_93C[0x93C - 0x934 - sizeof(int)];
@@ -586,7 +590,26 @@ void s19b_spark2_m_800D9B88(Spark2MWork *work)
         work->f910 = 0;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9C04.s")
+extern int s19b_dword_800C3AC8;
+
+void s19b_spark2_m_800D9C04(Spark2MWork *work)
+{
+    short *table = (short *)&s19b_dword_800C3AC8;
+    int    idx;
+
+    work->f904 = -1;
+    work->f900 = 0;
+    idx = GM_DifficultyFlag + 1;
+    s19b_dword_800DE650 = table[idx];
+
+    if (work->f90C == 0)
+    {
+        s19b_spark2_m_800D9B88(work);
+    }
+
+    Takabe_JeepSystem.field_54 &= 0xFFFF0000;
+    work->f920 += 1;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9C90.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9EC0.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800DA0B4.s")
