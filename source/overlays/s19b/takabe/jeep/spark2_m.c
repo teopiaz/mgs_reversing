@@ -23,7 +23,8 @@ typedef struct _Spark2MWork
     short   *f8E4;         // 0x8E4
     char     pad_900[0x900 - 0x8E4 - sizeof(short *)];
     int      f900;         // 0x900
-    char     pad_914[0x914 - 0x900 - sizeof(int)];
+    char     pad_910[0x910 - 0x900 - sizeof(int)];
+    int      f910;         // 0x910
     int      f914;         // 0x914
     int      f918;         // 0x918
     char     pad_930[0x930 - 0x918 - sizeof(int)];
@@ -165,7 +166,26 @@ void s19b_spark2_m_800D9B38(Spark2MWork *work)
         break;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9B88.s")
+extern void s19b_spark2_m_800D9AA8(Spark2MWork *work);
+extern void s19b_spark2_m_800D9B38(Spark2MWork *work);
+
+void s19b_spark2_m_800D9B88(Spark2MWork *work)
+{
+    switch (work->f910)
+    {
+    case 0: s19b_spark2_m_800D9AA8(work); break;
+    case 1: s19b_spark2_m_800D9B38(work); break;
+    }
+
+    if (Takabe_JeepSystem.field_54 & 0x10000000)
+    {
+        work->f910 = 1;
+    }
+    else
+    {
+        work->f910 = 0;
+    }
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9C04.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9C90.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9EC0.s")
