@@ -333,7 +333,32 @@ void s19b_spark2_m_800D94C8(Spark2MWork *work, int mode)
         work->vecs[5].vz = 0;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9558.s")
+void s19b_spark2_m_800D9558(Spark2MWork *work)
+{
+    int   old;
+    void *handler;
+
+    work->f8E4->class = 1;
+    old     = work->f8F4;
+    handler = work->f8EC;
+    work->f8F4 = old + 1;
+
+    if (handler == NULL)
+    {
+        s19b_spark2_m_800D8918(work);
+        handler       = (void *)s19b_spark2_m_800D8B54;
+        work->f8EC    = handler;
+    }
+    ((void (*)(Spark2MWork *, int))handler)(work, old);
+
+    s19b_spark2_m_800D8A48(work);
+
+    if (work->f940 != 0)
+    {
+        work->f8E4->class = 1;
+        work->f940 -= 1;
+    }
+}
 void s19b_spark2_m_800D95FC(Spark2MWork *work)
 {
     SVECTOR diff;
