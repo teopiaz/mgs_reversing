@@ -122,7 +122,17 @@ void s19b_spark2_m_800D9A30(Spark2MWork *work)
         work->f918 += 1;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9A74.s")
+void s19b_spark2_m_800D9A74(Spark2MWork *work)
+{
+    int new_f900 = work->f900 | 0x10;
+    int js = Takabe_JeepSystem.field_54;
+    work->f900 = new_f900;
+    if (js & 0x2000)
+    {
+        work->f914 = 0;
+    }
+    work->f918 += 1;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9AA8.s")
 extern void s19b_spark2_m_800D9A74(Spark2MWork *work);
 
