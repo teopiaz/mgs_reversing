@@ -16,7 +16,9 @@ typedef struct _Spark2MWork
     short    f7A2;         // 0x7A2
     char     pad_7AA[0x7AA - 0x7A2 - sizeof(short)];
     short    f7AA;         // 0x7AA
-    char     pad_900[0x900 - 0x7AA - sizeof(short)];
+    char     pad_8E4[0x8E4 - 0x7AA - sizeof(short)];
+    short   *f8E4;         // 0x8E4
+    char     pad_900[0x900 - 0x8E4 - sizeof(short *)];
     int      f900;         // 0x900
     char     pad_914[0x914 - 0x900 - sizeof(int)];
     int      f914;         // 0x914
@@ -44,7 +46,16 @@ extern void s19b_spark2_m_800DA41C(LINE_F2 *, int, int);
 
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8724.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D87A4.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D88D8.s")
+extern int s19b_spark2_m_800D87A4(Spark2MWork *work);
+int s19b_spark2_m_800D88D8(Spark2MWork *work)
+{
+    if (s19b_spark2_m_800D87A4(work) != 0)
+    {
+        *work->f8E4 = 1;
+        return 1;
+    }
+    return 0;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8918.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D899C.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8A48.s")
