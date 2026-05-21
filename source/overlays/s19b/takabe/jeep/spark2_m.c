@@ -292,7 +292,27 @@ void s19b_spark2_m_800D9390(Spark2MWork *work, int mode)
         work->f93C = 0;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9434.s")
+void s19b_spark2_m_800D9434(Spark2MWork *work, int mode)
+{
+    if (s19b_spark2_m_800D899C(work) != 0)
+    {
+        return;
+    }
+    if (mode == 0)
+    {
+        GM_SeSet((SVECTOR *)&work->world, 0x81);
+        s19b_spark2_m_800D8724(work, 5, 1);
+        *work->f944 |= 1;
+    }
+    if (mode < 0x11)
+    {
+        return;
+    }
+    work->f8EC = (void *)s19b_spark2_m_800D8B54;
+    work->f8F4 = 0;
+    work->vecs[6].vx = 0;
+    work->vecs[5].vz = 0;
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D94C8.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9558.s")
 void s19b_spark2_m_800D95FC(Spark2MWork *work)
