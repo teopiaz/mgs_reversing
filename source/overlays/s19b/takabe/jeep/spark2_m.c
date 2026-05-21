@@ -451,8 +451,66 @@ void s19b_spark2_m_800D97A8(Spark2MWork *work)
     work->f904 = work->f930;
     work->f918 += 1;
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D985C.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9910.s")
+void s19b_spark2_m_800D985C(Spark2MWork *work)
+{
+    int v;
+
+    if (s19b_spark2_m_800D9680(work) != 0)
+    {
+        return;
+    }
+
+    if (work->f8FC != 3)
+    {
+        work->f918 = 0;
+    }
+
+    if (work->f918 >= 0x4C)
+    {
+        work->f914 = 0;
+        work->f918 = 0;
+        return;
+    }
+
+    v = s19b_dword_800DE650;
+    if (work->f918 == v + 6 || work->f918 == v + 9 || work->f918 == v + 0xC)
+    {
+        work->f900 |= 8;
+    }
+    work->f900 |= 2;
+    work->f904 = work->f930;
+    work->f918 += 1;
+}
+void s19b_spark2_m_800D9910(Spark2MWork *work)
+{
+    int v;
+
+    if (s19b_spark2_m_800D9680(work) != 0)
+    {
+        return;
+    }
+
+    if (work->f8FC != 2)
+    {
+        work->f918 = 0;
+    }
+
+    if (work->f918 >= 0x4C)
+    {
+        work->f914 = 0;
+        work->f918 = 0;
+        return;
+    }
+
+    v = s19b_dword_800DE650;
+    if (work->f918 == v + 6 || work->f918 == v + 9 || work->f918 == v + 0xC)
+    {
+        work->f900 |= 8;
+    }
+    work->f900 |= 4;
+    work->f904 = work->f930;
+    work->f918 += 1;
+}
 void s19b_spark2_m_800D99C4(Spark2MWork *work)
 {
     int js = Takabe_JeepSystem.field_54;
