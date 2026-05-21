@@ -41,6 +41,8 @@ typedef struct _Spark2MWork
     int      f934;         // 0x934
     char     pad_93C[0x93C - 0x934 - sizeof(int)];
     int      f93C;         // 0x93C
+    int      f940;         // 0x940
+    int     *f944;         // 0x944
 } Spark2MWork;
 
 typedef struct _JEEP_SYSTEM_S
@@ -268,7 +270,28 @@ void s19b_spark2_m_800D932C(Spark2MWork *work, int mode)
         work->vecs[5].vz = 0;
     }
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9390.s")
+extern void s19b_spark2_m_800D8724(Spark2MWork *work, int a, int b);
+
+void s19b_spark2_m_800D9390(Spark2MWork *work, int mode)
+{
+    if (mode == 0)
+    {
+        work->f8FC = 20;
+        GM_ConfigObjectAction((OBJECT *)&work->obj, 20, 0, 4);
+        GM_SeSet((SVECTOR *)&work->world, 0x81);
+        s19b_spark2_m_800D8724(work, 5, 1);
+        *work->f944 |= 1;
+    }
+    if (work->obj.is_end != 0)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8B54;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        work->f940 = 45;
+        work->f93C = 0;
+    }
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9434.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D94C8.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9558.s")
