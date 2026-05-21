@@ -12,11 +12,14 @@ typedef struct _Spark2MWork
     SVECTOR  verts[32];    // 0x0C8
     char     pad2[0x28];   // 0x1C8
     int      f1F0;         // 0x1F0 — last allocated field; sizeof = 0x1F4 (literal in NewSpark2M alloc)
-    char     pad_7A2[0x7A2 - 0x1F0 - sizeof(int)];
-    short    f7A2;         // 0x7A2
-    char     pad_7AA[0x7AA - 0x7A2 - sizeof(short)];
-    short    f7AA;         // 0x7AA
-    char     pad_8E4[0x8E4 - 0x7AA - sizeof(short)];
+    char     pad_730[0x730 - 0x1F0 - sizeof(int)];
+    SVECTOR  sv_730;       // 0x730
+    char     pad_750[0x750 - 0x730 - sizeof(SVECTOR)];
+    SVECTOR  sv_750;       // 0x750
+    char     pad_7A0[0x7A0 - 0x750 - sizeof(SVECTOR)];
+    SVECTOR  sv_7A0;       // 0x7A0 (vy at 0x7A2)
+    SVECTOR  sv_7A8;       // 0x7A8 (vy at 0x7AA)
+    char     pad_8E4[0x8E4 - 0x7A8 - sizeof(SVECTOR)];
     short   *f8E4;         // 0x8E4
     char     pad_900[0x900 - 0x8E4 - sizeof(short *)];
     int      f900;         // 0x900
@@ -58,13 +61,17 @@ int s19b_spark2_m_800D88D8(Spark2MWork *work)
 }
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8918.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D899C.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8A48.s")
+void s19b_spark2_m_800D8A48(Spark2MWork *work)
+{
+    GV_NearExp4PV(&work->sv_730, &work->sv_7A0, 3);
+    GV_NearExp4PV(&work->sv_750, &work->sv_7A8, 3);
+}
 void s19b_spark2_m_800D8A88(Spark2MWork *work)
 {
     short *p = (short *)work->map;
     int    v = work->f930 - p[5];
-    work->f7A2 = v;
-    work->f7AA = v;
+    work->sv_7A0.vy = v;
+    work->sv_7A8.vy = v;
 }
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8AAC.s")
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8ACC.s")
