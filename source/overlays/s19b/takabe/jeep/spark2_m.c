@@ -6,7 +6,7 @@
 typedef struct _Spark2MWork
 {
     GV_ACT   actor;        // 0x000
-    int      map;          // 0x020
+    short   *map;          // 0x020
     DG_PRIM *prim;         // 0x024
     MATRIX   world;        // 0x028
     SVECTOR  vecs[11];     // 0x048..0x0A0
@@ -108,14 +108,14 @@ void s19b_spark2_m_800D8A48(Spark2MWork *work)
 }
 void s19b_spark2_m_800D8A88(Spark2MWork *work)
 {
-    short *p = (short *)work->map;
+    short *p = work->map;
     int    v = work->f930 - p[5];
     work->sv_7A0.vy = v;
     work->sv_7A8.vy = v;
 }
 void s19b_spark2_m_800D8AAC(Spark2MWork *work)
 {
-    short *p    = (short *)work->map;
+    short *p    = work->map;
     int    base = work->f930 + 0xCC0;
     int    v    = base - p[5];
     work->sv_7A0.vy = v;
@@ -123,7 +123,7 @@ void s19b_spark2_m_800D8AAC(Spark2MWork *work)
 }
 void s19b_spark2_m_800D8ACC(Spark2MWork *work)
 {
-    short *p    = (short *)work->map;
+    short *p    = work->map;
     int    base = work->f930 + 0x340;
     int    v    = base - p[5];
     work->sv_7A0.vy = v;
@@ -658,7 +658,7 @@ void s19b_spark2_m_800DA46C(Spark2MWork *work)
     DG_PRIM *prim;
     int      shade;
 
-    GM_CurrentMap = work->map;
+    GM_CurrentMap = (int)work->map;
 
     time = --work->f1F0;
     if (time <= 0)
