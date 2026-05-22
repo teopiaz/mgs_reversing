@@ -198,7 +198,43 @@ void s19b_spark2_m_800D8BC8(Spark2MWork *work, int mode)
     if (s19b_spark2_m_800D899C(work) != 0) return;
     work->f8E4->class |= 0x14;
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8CEC.s")
+extern void s19b_spark2_m_800D8FB0(Spark2MWork *work, int mode);
+
+void s19b_spark2_m_800D8CEC(Spark2MWork *work, int mode)
+{
+    int f900 = work->f900;
+
+    if (mode == 0)
+    {
+        work->f8FC = 3;
+        GM_ConfigObjectAction((OBJECT *)&work->obj, 3, 0, 4);
+    }
+    s19b_spark2_m_800D8AAC(work);
+
+    if (!(f900 & 2))
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8B54;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        work->sv_7A0 = DG_ZeroVector;
+        work->sv_7A8 = DG_ZeroVector;
+        return;
+    }
+
+    if (f900 & 8)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8FB0;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return;
+    }
+
+    if (s19b_spark2_m_800D88D8(work) != 0) return;
+    if (s19b_spark2_m_800D899C(work) != 0) return;
+    work->f8E4->class |= 0x14;
+}
 extern void s19b_spark2_m_800D902C(Spark2MWork *work, int mode);
 
 void s19b_spark2_m_800D8E10(Spark2MWork *work, int mode)
@@ -259,7 +295,7 @@ void s19b_spark2_m_800D8F34(Spark2MWork *work, int mode)
     }
     work->f8E4->class |= 0x14;
 }
-extern void s19b_spark2_m_800D8CEC(Spark2MWork *work);
+/* s19b_spark2_m_800D8CEC declared above */
 
 void s19b_spark2_m_800D8FB0(Spark2MWork *work, int mode)
 {
