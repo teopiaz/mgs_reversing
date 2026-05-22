@@ -363,7 +363,53 @@ void s19b_spark2_m_800D90A8(Spark2MWork *work, int mode)
     }
 }
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9148.s")
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D91DC.s")
+void s19b_spark2_m_800D91DC(Spark2MWork *work, int mode)
+{
+    void *next_state;
+
+    if (mode < 8 && (work->f900 & 0x10))
+    {
+        next_state = (void *)s19b_spark2_m_800D9148;
+        goto shared_write;
+    }
+
+    if (mode >= 8)
+    {
+        work->f8E4->class |= 0x14;
+    }
+
+    if (s19b_spark2_m_800D88D8(work) != 0)
+    {
+        return;
+    }
+
+    if (work->f93C != 0 && mode >= 0xB)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8B54;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        work->f93C = 0;
+    }
+
+    if (mode == 0)
+    {
+        work->f8FC = 0x12;
+        GM_ConfigObjectAction((OBJECT *)&work->obj, 0x12, 0, 4);
+    }
+
+    if (work->obj.is_end == 0)
+    {
+        return;
+    }
+    next_state = (void *)s19b_spark2_m_800D8B54;
+
+shared_write:
+    work->f8EC = next_state;
+    work->f8F4 = 0;
+    work->vecs[6].vx = 0;
+    work->vecs[5].vz = 0;
+}
 void s19b_spark2_m_800D932C(Spark2MWork *work, int mode);
 
 void s19b_spark2_m_800D92C8(Spark2MWork *work, int mode)
