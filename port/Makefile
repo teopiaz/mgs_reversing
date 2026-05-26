@@ -14,10 +14,20 @@ else
 SANITIZE =
 endif
 
-CFLAGS = -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
+ARCHFLAGS =
+ifeq ($(UNAME_S),Darwin)
+	ifeq ($(shell uname -m),arm64)
+		# SDL2 in /usr/local is x86_64; build x86_64 under Rosetta to match.
+		ifeq ($(wildcard /opt/homebrew/lib/libSDL2.dylib),)
+			ARCHFLAGS = -arch x86_64
+		endif
+	endif
+endif
+
+CFLAGS = $(ARCHFLAGS) -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
 		 -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
 		 -Wno-incompatible-pointer-types $(SANITIZE)
-CXXFLAGS = -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
+CXXFLAGS = $(ARCHFLAGS) -std=c++17 -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
 SDL_CFLAGS = $(shell sdl2-config --cflags)
 
 ifeq ($(UNAME_S),Darwin)
@@ -28,7 +38,7 @@ else
 	CODESIGN = true
 endif
 
-LDFLAGS = $(shell sdl2-config --libs) -lm -lc++ $(OPENGL_LIB) $(SANITIZE)
+LDFLAGS = $(ARCHFLAGS) $(shell sdl2-config --libs) -lm -lc++ $(OPENGL_LIB) $(SANITIZE)
 
 OBJDIR = obj
 TARGET = mgs
