@@ -135,6 +135,13 @@ void *port_int_to_ptr(int offset)
     return (void *)(port_mem_base + (unsigned int)offset);
 }
 
+/* Resolve a HZD bind command stored as a 32-bit pool offset back to its full
+   pointer (HZD_BND.command is `int`, which truncates a 64-bit pointer). */
+void *bind_ptr_resolve(int idx)
+{
+    return port_int_to_ptr(idx);
+}
+
 void port_shutdown_memory(void)
 {
     if (port_normal_memory)

@@ -34,9 +34,9 @@ typedef struct {
     ActorNode last;
     short     pause;
     short     kill;
-} ActorList;
+} PortActorList;
 
-extern ActorList gActorsList_800ACC18[7];
+extern PortActorList ActorList[7];
 extern void GV_DestroyActorQuick(void *actor);
 extern int GV_Clock;
 extern int GV_Time;
@@ -518,7 +518,7 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 };
                 int total = 0;
                 for (int lv = 0; lv < 7; lv++) {
-                    ActorList *list = &gActorsList_800ACC18[lv];
+                    PortActorList *list = &ActorList[lv];
                     ActorNode *head = &list->first;
                     ActorNode *cur = head->next;
                     int count = 0;

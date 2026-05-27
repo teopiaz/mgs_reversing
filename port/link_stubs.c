@@ -58,3 +58,35 @@ int FogTransChanl_800D63B0(void *a, int b) { return 0; }
 void title_open_800CEF54(void *work, int index) { (void)work; (void)index; }
 void title_open_800D2AFC(void *work) { (void)work; }
 void title_open_800D2CA8(void *work, unsigned long *ot) { (void)work; (void)ot; }
+
+/* Editor branch: additional overlay actors not present on master */
+void *NewPrisonNinja(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewPrisonOtacon(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewPrisonSnake(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewPrisonSnake2(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewTorture(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewTortureBed(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewTortureOcelot(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewJohnny(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewAllItemBox(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+void *NewVrWindow(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
+
+/* MERYL stubs — same source files excluded as MERYL_*_800D9xxx */
+void MERYL_ExecPutChar(void) { }
+void MERYL_PutMark(void) { }
+int  MERYL_SetPutChar(void *work, int idx) { (void)work; (void)idx; return 0; }
+
+/* s19b jeep — MIPS asm function */
+void s19b_jeep_800D2258(void) { }
+
+/* script.c is excluded from the port build (game/script.c) */
+int GM_ResetScript(void) { return 0; }
+
+/* s11d overlay chara constructors (real defs live in the dynamically-loaded
+   overlay; the main binary's CHARA table needs a stub). */
+void *NewHind(int name, int where) { (void)name; (void)where; return NULL; }
+void *NewRope(int name, int where) { (void)name; (void)where; return NULL; }
+
+/* Camera debug struct referenced by imgui_debug.cpp but absent on fork/master.
+   Provide zeroed storage so the debug UI links (shows zeros for this panel). */
+char gUnkCameraStruct_800B77B8[64] = {0};

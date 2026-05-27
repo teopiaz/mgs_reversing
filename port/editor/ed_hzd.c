@@ -1,5 +1,5 @@
 /* HZD (Hazard) overlay rendering.
-   Walks the loaded HZD_MAP and emits world-space line primitives via
+   Walks the loaded HZD_DEF and emits world-space line primitives via
    gl_submit_line3d. Distinguishes walls / floors / traps / cameras / zones /
    routes by color and toggles visibility per layer.
 
@@ -71,7 +71,7 @@ static const unsigned char COL_ROUTE_SEL[3]={255, 255, 60};
 
 void ed_hzd_render(void)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return;
 
     int wall_idx = 0, floor_idx = 0, trap_idx = 0, cam_idx = 0;
@@ -252,7 +252,7 @@ static void aabb_center(const HZD_VEC *b1, const HZD_VEC *b2,
 
 int ed_hzd_count_walls(void)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int n = 0;
     for (int gi = 0; gi < m->n_groups; gi++) n += m->groups[gi].n_walls;
@@ -261,7 +261,7 @@ int ed_hzd_count_walls(void)
 
 int ed_hzd_count_floors(void)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int n = 0;
     for (int gi = 0; gi < m->n_groups; gi++) n += m->groups[gi].n_floors;
@@ -270,7 +270,7 @@ int ed_hzd_count_floors(void)
 
 int ed_hzd_count_traps(void)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int n = 0;
     for (int gi = 0; gi < m->n_groups; gi++) {
@@ -282,7 +282,7 @@ int ed_hzd_count_traps(void)
 
 int ed_hzd_count_cameras(void)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int n = 0;
     for (int gi = 0; gi < m->n_groups; gi++) {
@@ -294,13 +294,13 @@ int ed_hzd_count_cameras(void)
 
 int ed_hzd_count_routes(void)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     return m ? m->n_routes : 0;
 }
 
 int ed_hzd_get_wall(int idx, EdHzdItem *out)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int seen = 0;
     for (int gi = 0; gi < m->n_groups; gi++) {
@@ -318,7 +318,7 @@ int ed_hzd_get_wall(int idx, EdHzdItem *out)
 
 int ed_hzd_get_floor(int idx, EdHzdItem *out)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int seen = 0;
     for (int gi = 0; gi < m->n_groups; gi++) {
@@ -338,7 +338,7 @@ int ed_hzd_get_floor(int idx, EdHzdItem *out)
 
 int ed_hzd_get_trap(int idx, EdHzdItem *out)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int seen = 0;
     for (int gi = 0; gi < m->n_groups; gi++) {
@@ -366,7 +366,7 @@ int ed_hzd_get_trap(int idx, EdHzdItem *out)
 
 int ed_hzd_get_camera(int idx, EdHzdItem *out)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int seen = 0;
     for (int gi = 0; gi < m->n_groups; gi++) {
@@ -389,7 +389,7 @@ int ed_hzd_get_camera(int idx, EdHzdItem *out)
 
 int ed_hzd_get_route(int idx, EdHzdItem *out)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m || idx < 0 || idx >= m->n_routes) return 0;
     HZD_PAT *r = &m->routes[idx];
     if (!r->points || r->n_points < 1) return 0;
@@ -430,7 +430,7 @@ static int ray_aabb(const float ro[3], const float rd[3],
 
 int ed_hzd_pick_ray(const float ro[3], const float rd[3])
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int   best_kind = 0;
     int   best_idx  = -1;
@@ -471,7 +471,7 @@ int ed_hzd_pick_ray(const float ro[3], const float rd[3])
 
 int ed_hzd_collect_trap_labels(EdHzdLabel *out, int max)
 {
-    HZD_MAP *m = (HZD_MAP *)g_stage.hzd_map;
+    HZD_DEF *m = (HZD_DEF *)g_stage.hzd_map;
     if (!m) return 0;
     int n = 0;
     int trap_idx = 0;

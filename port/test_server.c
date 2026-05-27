@@ -70,7 +70,7 @@ typedef struct {
     short  kill;
 } _AList;
 
-extern _AList gActorsList_800ACC18[7];
+extern _AList ActorList[7];
 
 /* MAP / HZD access — gMapRecs is a global defined in map.c (extern there too) */
 extern MAP gMapRecs_800B7910[16];
@@ -353,7 +353,7 @@ static void cmd_get_actors(void)
     out_append("{\"ok\":true,\"actors\":[");
     int first = 1;
     for (int lv = 0; lv < 7; lv++) {
-        _AList *list = &gActorsList_800ACC18[lv];
+        _AList *list = &ActorList[lv];
         _ANode *head = &list->first;
         _ANode *cur  = head->next;
         int idx = 0;

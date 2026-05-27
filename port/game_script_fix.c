@@ -115,7 +115,7 @@ static int GM_Command_camera(unsigned char *top)
     {
         GCL_StrToSV(GCL_GetParamResult(), &vec1);
         GCL_StrToSV(GCL_GetParamResult(), &vec2);
-        GM_CameraSetBounds(&vec1, &vec2, isEnabled);
+        GM_CameraSetBound(&vec1, &vec2, isEnabled);
     }
 
     if (GCL_GetOption('t')) // track
@@ -127,7 +127,7 @@ static int GM_Command_camera(unsigned char *top)
     {
         GCL_StrToSV(GCL_GetParamResult(), &vec1);
         GCL_StrToSV(GCL_GetParamResult(), &vec2);
-        GM_CameraSetLimits(&vec1, &vec2, isEnabled);
+        GM_CameraSetLimit(&vec1, &vec2, isEnabled);
     }
 
     if (GCL_GetOption('r')) // rotate

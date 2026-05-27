@@ -610,19 +610,19 @@ static void cube_lines_at(int cx, int cy, int cz, int r,
  * the model isn't loaded (common: cinematic references a chara not
  * shipped in the stage's DATACNF). The void* is a DG_DEF; we keep it
  * opaque to avoid dragging libdg through ed_dmo.h. */
-extern GV_CACHE_PAGE GV_CacheSystem;
+extern CACHE Caches[MAX_CACHES];
 
 static void *dmo_cache_lookup(int cache_id)
 {
     int target = cache_id & 0xFFFFFF;
     if (!target) return NULL;
-    int start = target % MAX_CACHE_TAGS;
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        int slot = (start + i) % MAX_CACHE_TAGS;
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[slot];
+    int start = target % MAX_CACHES;
+    for (int i = 0; i < MAX_CACHES; i++) {
+        int slot = (start + i) % MAX_CACHES;
+        CACHE *t = &Caches[slot];
         int cur = t->id & 0xFFFFFF;
         if (cur == 0) return NULL;
-        if (cur == target) return t->ptr;
+        if (cur == target) return t->buf;
     }
     return NULL;
 }

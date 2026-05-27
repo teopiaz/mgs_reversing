@@ -772,7 +772,7 @@ void ed_actors_render(void)
    (CAMERA, DOOR, ITEM, …); others fall back to the cube marker. We look the
    id up directly in GV_CacheSystem so misses don't spam stdout. */
 #include "libgv/libgv.h"
-extern GV_CACHE_PAGE GV_CacheSystem;
+extern CACHE Caches[MAX_CACHES];
 extern int           GV_CacheID2(const char *name, int ext);
 
 static void *quiet_get_cache(int id)
@@ -780,13 +780,13 @@ static void *quiet_get_cache(int id)
     int target = id & 0xFFFFFF;
     if (!target) return NULL;
     /* Same hashing scheme as GetCacheTag (linear-probe from id % MAX). */
-    int start = target % MAX_CACHE_TAGS;
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        int slot = (start + i) % MAX_CACHE_TAGS;
-        GV_CACHE_TAG *tag = &GV_CacheSystem.tags[slot];
+    int start = target % MAX_CACHES;
+    for (int i = 0; i < MAX_CACHES; i++) {
+        int slot = (start + i) % MAX_CACHES;
+        CACHE *tag = &Caches[slot];
         int cur = tag->id & 0xFFFFFF;
         if (cur == 0) return NULL;
-        if (cur == target) return tag->ptr;
+        if (cur == target) return tag->buf;
     }
     return NULL;
 }
@@ -829,12 +829,12 @@ static void *pick_humanoid_kmd(void)
 {
     void *best = NULL;
     int   best_models = 0;
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[i];
+    for (int i = 0; i < MAX_CACHES; i++) {
+        CACHE *t = &Caches[i];
         int id = t->id & 0xFFFFFF;
-        if (id == 0 || !t->ptr) continue;
+        if (id == 0 || !t->buf) continue;
         if (((id >> 16) & 0xFF) != ('k' - 'a')) continue;
-        DG_DEF *d = (DG_DEF *)t->ptr;
+        DG_DEF *d = (DG_DEF *)t->buf;
         if (d->n_models < 5 || d->n_models > 64) continue;
         int hx = d->max.vx - d->min.vx;
         int hy = d->max.vy - d->min.vy;
@@ -842,7 +842,7 @@ static void *pick_humanoid_kmd(void)
         if (hx <= 0 || hy <= 0 || hz <= 0) continue;
         if (hx > 4000 || hy > 4000 || hz > 4000) continue;
         if (d->n_models > best_models) {
-            best = t->ptr;
+            best = t->buf;
             best_models = d->n_models;
         }
     }

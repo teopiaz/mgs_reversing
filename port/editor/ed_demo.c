@@ -48,7 +48,6 @@ float       g_demo_cam_rot_roll  = 0.0f;
 /* Engine entry points — all linked into the editor via port/obj/. */
 extern void GV_ExecActorSystem(void);
 extern void GV_DumpActorSystem(void);
-extern int  GCL_LoadScript(unsigned char *datatop);
 extern void GCL_ExecScript(void);
 extern void GCL_StartDaemon(void);
 extern void GCL_ChangeSenerioCode(int demo_flag);
@@ -126,20 +125,20 @@ void ed_demo_engine_init(void)
  * GV_StrCode("demo") = 0xa242, with the 'g' (GCL bytecode) extension
  * encoded as the high byte. Returns NULL if no demo.gcx is loaded for
  * the current stage (custom stages typically have only scenerio.gcx). */
-extern GV_CACHE_PAGE GV_CacheSystem;
+extern CACHE Caches[MAX_CACHES];
 static unsigned char *find_demo_blob(void)
 {
     /* gv_strcode("demo") = 0xa242. Cache id encoding mirrors GV_CacheID:
      * `name + ((ext - 'a') << 16)`. 'g' - 'a' = 6 → 0x60000 | 0xa242. */
     int target = 0x6a242;
-    int n = MAX_CACHE_TAGS;
+    int n = MAX_CACHES;
     int start = target % n;
     for (int i = 0; i < n; i++) {
         int slot = (start + i) % n;
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[slot];
+        CACHE *t = &Caches[slot];
         int cur = t->id & 0xFFFFFF;
         if (cur == 0) return NULL;
-        if (cur == target) return (unsigned char *)t->ptr;
+        if (cur == target) return (unsigned char *)t->buf;
     }
     return NULL;
 }
@@ -315,14 +314,14 @@ static void update_camera_snapshot(void)
 }
 
 /* Walk the actor list to count live actors per level. Reads the same
- * gActorsList_800ACC18 array GV_DumpActorSystem traverses so the count
+ * ActorList array GV_DumpActorSystem traverses so the count
  * is always in sync with what the system would print. */
-extern ActorList gActorsList_800ACC18[GV_ACTOR_LEVEL];
+extern AList ActorList[GV_ACTOR_LEVEL];
 static int count_active_actors(void)
 {
     int total = 0;
     for (int lv = 0; lv < GV_ACTOR_LEVEL; lv++) {
-        GV_ACT *a = gActorsList_800ACC18[lv].first.next;
+        GV_ACT *a = ActorList[lv].start.next;
         while (a) { if (a->act) total++; a = a->next; }
     }
     return total;

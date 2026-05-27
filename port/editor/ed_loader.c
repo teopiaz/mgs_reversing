@@ -18,7 +18,7 @@
 EditorStage g_stage;
 
 extern void *FS_LoadStageRequest(const char *dirname);
-extern GV_CACHE_PAGE GV_CacheSystem;
+extern CACHE Caches[MAX_CACHES];
 
 /* libfs.c — editor accessors */
 extern int         port_fs_stage_count(void);
@@ -38,7 +38,7 @@ extern void GV_InitCacheSystem(void);
 extern void DG_InitTextureSystem(void);
 
 /* GV memory heap reset. We use this instead of GV_FreeMemory so accumulated
-   per-stage allocations (HZD_MAP allocations from hzd_loader, etc.) don't
+   per-stage allocations (HZD_DEF allocations from hzd_loader, etc.) don't
    fragment the 2 MiB pool — a stage slightly larger than the previous one
    wouldn't fit in the freed hole otherwise. */
 extern void  GV_InitMemorySystem(int which, int dynamic, void *memory, int size);
@@ -62,14 +62,14 @@ const char *ed_stage_name(int idx)
 static void *find_first_with_ext(int ext_char, int *out_id)
 {
     int target_ext = ext_char - 'a';
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[i];
+    for (int i = 0; i < MAX_CACHES; i++) {
+        CACHE *t = &Caches[i];
         int id = t->id & 0xFFFFFF;
-        if (id == 0 || !t->ptr) continue;
+        if (id == 0 || !t->buf) continue;
         int ext = (id >> 16) & 0xFF;
         if (ext == target_ext) {
             if (out_id) *out_id = id;
-            return t->ptr;
+            return t->buf;
         }
     }
     return NULL;
@@ -84,12 +84,12 @@ static void *find_first_with_ext(int ext_char, int *out_id)
 static void collect_map_kmds(EditorStage *s)
 {
     s->n_map_defs = 0;
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[i];
+    for (int i = 0; i < MAX_CACHES; i++) {
+        CACHE *t = &Caches[i];
         int id = t->id & 0xFFFFFF;
-        if (id == 0 || !t->ptr) continue;
+        if (id == 0 || !t->buf) continue;
         if (((id >> 16) & 0xFF) != ('k' - 'a')) continue;
-        DG_DEF *d = (DG_DEF *)t->ptr;
+        DG_DEF *d = (DG_DEF *)t->buf;
         if (d->n_models <= 0 || d->n_models > 256) continue;
         long sx = (long)d->max.vx - d->min.vx;
         long sy = (long)d->max.vy - d->min.vy;
@@ -101,7 +101,7 @@ static void collect_map_kmds(EditorStage *s)
         long max_dim = sx; if (sy > max_dim) max_dim = sy; if (sz > max_dim) max_dim = sz;
         if (max_dim < 10000) continue;
         if (s->n_map_defs >= EDITOR_MAX_MAP_KMDS) break;
-        s->map_defs[s->n_map_defs] = t->ptr;
+        s->map_defs[s->n_map_defs] = t->buf;
         s->map_ids [s->n_map_defs] = id;
         s->n_map_defs++;
     }
@@ -153,10 +153,10 @@ int ed_load_stage(const char *stage_name)
     g_stage.hzd_map = find_first_with_ext('h', &g_stage.hzd_id);
 
     int kmd_count = 0, hzd_count = 0, pcx_count = 0;
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[i];
+    for (int i = 0; i < MAX_CACHES; i++) {
+        CACHE *t = &Caches[i];
         int id = t->id & 0xFFFFFF;
-        if (id == 0 || !t->ptr) continue;
+        if (id == 0 || !t->buf) continue;
         int ext = (id >> 16) & 0xFF;
         if      (ext == 'k' - 'a') kmd_count++;
         else if (ext == 'h' - 'a') hzd_count++;
@@ -167,15 +167,15 @@ int ed_load_stage(const char *stage_name)
            name_buf, kmd_count, g_stage.n_map_defs, hzd_count, pcx_count);
 
     /* Dump every KMD so we can sanity-check which ones the heuristic took. */
-    for (int i = 0; i < MAX_CACHE_TAGS; i++) {
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[i];
+    for (int i = 0; i < MAX_CACHES; i++) {
+        CACHE *t = &Caches[i];
         int id = t->id & 0xFFFFFF;
-        if (id == 0 || !t->ptr) continue;
+        if (id == 0 || !t->buf) continue;
         if (((id >> 16) & 0xFF) != ('k' - 'a')) continue;
-        DG_DEF *d = (DG_DEF *)t->ptr;
+        DG_DEF *d = (DG_DEF *)t->buf;
         int picked = 0;
         for (int k = 0; k < g_stage.n_map_defs; k++)
-            if (g_stage.map_defs[k] == t->ptr) { picked = 1; break; }
+            if (g_stage.map_defs[k] == t->buf) { picked = 1; break; }
         const char *mark = picked ? " *MAP*" : "";
         printf("editor:   KMD id=0x%X models=%d bbox=(%d..%d, %d..%d, %d..%d)%s\n",
                id, d->n_models,
@@ -204,10 +204,10 @@ int ed_load_stage(const char *stage_name)
 int ed_stage_collect_entries(EdStageEntry *out, int max)
 {
     int n = 0;
-    for (int i = 0; i < MAX_CACHE_TAGS && n < max; i++) {
-        GV_CACHE_TAG *t = &GV_CacheSystem.tags[i];
+    for (int i = 0; i < MAX_CACHES && n < max; i++) {
+        CACHE *t = &Caches[i];
         int id = t->id & 0xFFFFFF;
-        if (id == 0 || !t->ptr) continue;
+        if (id == 0 || !t->buf) continue;
         out[n].id = id;
         out[n].ext = (char)('a' + ((id >> 16) & 0xFF));
         out[n].approx_size = -1;

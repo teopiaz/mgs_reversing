@@ -198,7 +198,7 @@ typedef struct DG_LIT
     SVECTOR        pos;
     unsigned short field_8_brightness;
     unsigned short field_A_radius;
-    CVECTOR        field_C_colour;
+    CVECTOR        field_C_color;
 } DG_LIT;
 
 typedef struct DG_FixedLight
@@ -319,10 +319,15 @@ enum DG_PRIM_TYPE {
 enum {
         DG_PRIM_VISIBLE         = 0x0000,
         DG_PRIM_INVISIBLE       = 0x0100,
-        DG_PRIM_WORLD           = 0x0200,
-        DG_PRIM_OFFSET          = 0x0400,
+
+        DG_PRIM_ON_WORLD        = 0x0000,
+        DG_PRIM_ON_CAMERA       = 0x0200,
+
+        DG_PRIM_VERTICES        = 0x0000,
+        DG_PRIM_RECTANGLE       = 0x0400,
+
         DG_PRIM_SORTONLY        = 0x0800,
-        DG_PRIM_ONEFACE         = 0x1000,
+        DG_PRIM_ONESIDE         = 0x1000,
         DG_PRIM_FREEPACKS       = 0x2000,
 };
 // clang-format on
@@ -392,6 +397,11 @@ static inline void DG_AmbientObjs( DG_OBJS *objs )
 static inline void DG_GroupPrim( DG_PRIM *prim, int group_id )
 {
     prim->group_id = group_id;
+}
+
+static inline void DG_RaisePrim( DG_PRIM *prim, int raise )
+{
+    prim->raise = raise;
 }
 
 static inline void DG_VisiblePrim( DG_PRIM *prim )

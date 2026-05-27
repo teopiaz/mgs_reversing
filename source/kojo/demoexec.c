@@ -409,26 +409,16 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     ACTNODE  *iter;
     DMO_ADJ  *adjust;
 
-#ifndef PORT_BUILD
     OFFSET_TO_PTR(data, &data->chara);
     OFFSET_TO_PTR(data, &data->adjust);
-#endif
 
     lpAct->control.mov.vx = data->eye_x;
     lpAct->control.mov.vy = data->eye_y;
     lpAct->control.mov.vz = data->eye_z;
 
-#ifdef PORT_BUILD
-    /* PSX compiler kept intermediate values in registers despite C writing
-       to the same field. Clang would lose the first two values. */
-    diff.vx = (data->center_x - data->eye_x) >> 2;
-    diff.vy = (data->center_y - data->eye_y) >> 2;
-    diff.vz = (data->center_z - data->eye_z) >> 2;
-#else
     diff.vx = (data->center_x - data->eye_x) >> 2;
     diff.vx = (data->center_y - data->eye_y) >> 2;
     diff.vx = (data->center_z - data->eye_z) >> 2;
-#endif
 
     radius = SquareRoot0(diff.vx  * diff.vx  + diff.vz * diff.vz);
     lpAct->control.rot.vx = ratan2(diff.vy, radius);
