@@ -16,6 +16,15 @@ extern void *port_packet_memory0;
 extern void *port_packet_memory1;
 /* These will be #undef'd and redefined in port/libgv/libgv.h */
 
+/* fork/master's libgcl.h does not declare these (PSX is 32-bit, so the
+   implicit-int return is harmless there). On the 64-bit port an implicit-int
+   return TRUNCATES the returned pointer (e.g. menu entry pointer 0x30000325e
+   -> 0x325e), crashing GCL string walks. Force the correct prototypes. */
+char *GCL_GetString(char *ptr);
+char *GCL_NextStr(void);
+int   GCL_GetNextInt(void);
+void  GCL_GetNextSV(short *vec);
+
 /* Fix fundamental type sizes: PSX uses 32-bit long/u_long everywhere.
    On 64-bit macOS, long is 8 bytes which breaks MATRIX, VECTOR, POLY_GT4,
    ordering tables, and many other structures. Force 32-bit. */
