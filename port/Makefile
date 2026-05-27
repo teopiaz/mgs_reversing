@@ -65,8 +65,12 @@ GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_OBJ = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/src_%.o,$(GAME_SRC))
 
 # --- Engine libraries (from source, unmodified) ---
-LIBGV_SRC = $(wildcard $(SRCDIR)/libgv/*.c)
+# gvd.c needs the port memory pool (port_normal_memory etc.) instead of the
+# hardcoded PSX MEM_ADDR; compile the port copy under port/libgv/ instead.
+LIBGV_PORT_COPIES = gvd
+LIBGV_SRC = $(filter-out $(addprefix $(SRCDIR)/libgv/,$(addsuffix .c,$(LIBGV_PORT_COPIES))), $(wildcard $(SRCDIR)/libgv/*.c))
 LIBGV_OBJ = $(patsubst $(SRCDIR)/libgv/%.c,$(OBJDIR)/libgv_%.o,$(LIBGV_SRC))
+LIBGV_OBJ += $(addprefix $(OBJDIR)/libgv_,$(addsuffix .o,$(LIBGV_PORT_COPIES)))
 
 # Patched libgcl (64-bit pointer fix in parse.c/expr.c)
 LIBGCL_SRC = $(wildcard libgcl_fix/*.c)
@@ -287,6 +291,10 @@ $(OBJDIR)/gcl_overlay.o: gcl_overlay.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # --- Original source rules ---
+# Port-adapted libgv copies (take precedence over the source pattern rule below).
+$(OBJDIR)/libgv_%.o: libgv/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -iquote $(SRCDIR)/libgv -c -o $@ $<
+
 $(OBJDIR)/libgv_%.o: $(SRCDIR)/libgv/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
