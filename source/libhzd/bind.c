@@ -158,7 +158,15 @@ void HZD_ExecBind( HZD_BND *bnd, HZD_EVT *ev, int event, int type )
     }
     else
     {
+#ifdef PORT_BUILD
+        {
+            extern void *bind_ptr_resolve(int idx);
+            void *ptr = bind_ptr_resolve( (int)(intptr_t)bnd->command );
+            GCL_ExecBlock( (u_char *)(ptr ? ptr : (void *)(intptr_t)bnd->command), &args );
+        }
+#else
         GCL_ExecBlock( (u_char *)bnd->command, &args );
+#endif
     }
 }
 
