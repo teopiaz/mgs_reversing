@@ -143,12 +143,11 @@ void HZD_ExecBind( HZD_BND *bnd, HZD_EVT *ev, int event, int type )
     if ( bnd->time != 0 )
     {
 #ifdef PORT_BUILD
-        /* On 64-bit, block pointers are positive — negate so delay.c
-           sees proc_id < 0 for the block execution path. */
-        if ( bnd->field_B_param_e & 0x80 )
-            GM_DelayedExecCommand( bnd->command, &args, bnd->time );
-        else
-            GM_DelayedExecCommand( (char *)(-(intptr_t)bnd->command), &args, bnd->time );
+        {
+            extern void *bind_ptr_resolve(int idx);
+            void *ptr = bind_ptr_resolve( (int)(intptr_t)bnd->command );
+            GM_DelayedExecCommand( ptr ? (char *)ptr : (char *)bnd->command, &args, bnd->time );
+        }
 #else
         GM_DelayedExecCommand( bnd->command, &args, bnd->time );
 #endif
@@ -160,13 +159,13 @@ void HZD_ExecBind( HZD_BND *bnd, HZD_EVT *ev, int event, int type )
     else
     {
 #ifdef PORT_BUILD
-        if ( bnd->command ) {
-            extern void *port_int_to_ptr(int offset);
-            GCL_ExecBlock( port_int_to_ptr((int)(intptr_t)bnd->command), &args );
+        {
+            extern void *bind_ptr_resolve(int idx);
+            void *ptr = bind_ptr_resolve( (int)(intptr_t)bnd->command );
+            GCL_ExecBlock( (u_char *)(ptr ? ptr : (void *)(intptr_t)bnd->command), &args );
         }
 #else
-        if ( bnd->command )
-            GCL_ExecBlock( (u_char *)bnd->command, &args );
+        GCL_ExecBlock( (u_char *)bnd->command, &args );
 #endif
     }
 }
