@@ -19,7 +19,7 @@ OBJDIR  := obj
 
 INCLUDES := -I $(PORT)/psx -I $(PORT)/include -I $(PORT) -I $(SRCDIR)/include -I $(SRCDIR) -I $(PORT)/imgui -I $(PORT)/imgui/backends
 
-CFLAGS  := -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -DPORT_BUILD \
+CFLAGS  := -Wno-everything -Wno-error -O0 -g -fcommon -funsigned-char -DINTEGRAL -DPORT_BUILD \
            -include $(PORT)/psx/port_overrides.h $(INCLUDES) \
            -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
            -Wno-incompatible-pointer-types
