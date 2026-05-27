@@ -24,7 +24,7 @@ ifeq ($(UNAME_S),Darwin)
 	endif
 endif
 
-CFLAGS = $(ARCHFLAGS) -Wno-everything -Wno-error -O0 -g -fcommon -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
+CFLAGS = $(ARCHFLAGS) -Wno-everything -Wno-error -O0 -g -fcommon -funsigned-char -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
 		 -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
 		 -Wno-incompatible-pointer-types $(SANITIZE)
 CXXFLAGS = $(ARCHFLAGS) -std=c++17 -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
