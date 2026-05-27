@@ -47,13 +47,13 @@ static inline long Dot2D(SVECTOR *v1, SVECTOR *v2)
     *(short *)(SCRPAD_ADDR + 0x004) = -v2->vy;
     *(short *)(SCRPAD_ADDR + 0x006) = v2->vx;
     gte_NormalClip(0, *(long *)v1, *(long *)(SCRPAD_ADDR + 0x004), (SCRPAD_ADDR + 0x008));
-    return *(long *)(SCRPAD_ADDR + 0x008);
+    return *(int *)(SCRPAD_ADDR + 0x008); /* gte_NormalClip writes a 4-byte int; long is 8 bytes on the 64-bit port and would read stale high bytes */
 }
 
 static inline long Det2D(SVECTOR *v1, SVECTOR *v2)
 {
     gte_NormalClip(0, *(long *)v1, *(long *)v2, (SCRPAD_ADDR + 0x008));
-    return *(long *)(SCRPAD_ADDR + 0x008);
+    return *(int *)(SCRPAD_ADDR + 0x008); /* gte_NormalClip writes a 4-byte int; long is 8 bytes on the 64-bit port and would read stale high bytes */
 }
 
 static inline long Len2D(SVECTOR *vec)
