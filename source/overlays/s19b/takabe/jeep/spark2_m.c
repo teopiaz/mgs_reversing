@@ -115,7 +115,58 @@ void s19b_spark2_m_800D8918(Spark2MWork *work)
     GM_SetTarget(target, 20, 2, (SVECTOR *)&s19b_dword_800C3AB0);
     GM_SetPowerTarget(target, 1, -1, vital, 7, (SVECTOR *)&s19b_dword_800C3AB8);
 }
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D899C.s")
+extern void s19b_spark2_m_800D8BC8();
+extern void s19b_spark2_m_800D8CEC();
+extern void s19b_spark2_m_800D8E10();
+extern void s19b_spark2_m_800D90A8();
+extern void s19b_spark2_m_800D92C8();
+
+int s19b_spark2_m_800D899C(Spark2MWork *work)
+{
+    int v = work->f900;
+
+    if (v & 0x1)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8BC8;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return 1;
+    }
+    if (v & 0x2)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8CEC;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return 1;
+    }
+    if (v & 0x4)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D8E10;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return 1;
+    }
+    if (v & 0x10)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D90A8;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return 1;
+    }
+    if (v & 0x04000000)
+    {
+        work->f8EC = (void *)s19b_spark2_m_800D92C8;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return 1;
+    }
+    return 0;
+}
 void s19b_spark2_m_800D8A48(Spark2MWork *work)
 {
     GV_NearExp4PV(&work->sv_730, &work->sv_7A0, 3);
