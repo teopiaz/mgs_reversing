@@ -197,4 +197,11 @@ unsigned char  *GCL_GetVar(unsigned char *top, int *type_p, intptr_t *value_p);
 unsigned char  *GCL_SetVar(unsigned char *top, unsigned int value);
 unsigned char  *GCL_VarSaveBuffer(unsigned char *top);
 
+#ifndef GCL_IsVariable
+#define GCL_IsVariable(gcl_code) (((gcl_code) & 0xF0) == 0x10)
+#endif
+#ifndef GCL_StrHash
+#define GCL_StrHash(hash)        ((6 << 16) | (hash))
+#endif
+
 #endif // __MGS_LIBGCL_H__

@@ -17,7 +17,7 @@ typedef struct {
     void *map_defs[EDITOR_MAX_MAP_KMDS];
     int   map_ids[EDITOR_MAX_MAP_KMDS];
     int   n_map_defs;
-    void *hzd_map;       /* HZD_MAP * */
+    void *hzd_map;       /* HZD_DEF * */
     int   hzd_id;
     char  stage_name[16];
     int   loaded;

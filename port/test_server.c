@@ -70,7 +70,7 @@ typedef struct {
     short  kill;
 } _AList;
 
-extern _AList gActorsList_800ACC18[7];
+extern _AList ActorList[7];
 
 /* MAP / HZD access — gMapRecs is a global defined in map.c (extern there too) */
 extern MAP gMapRecs_800B7910[16];
@@ -353,7 +353,7 @@ static void cmd_get_actors(void)
     out_append("{\"ok\":true,\"actors\":[");
     int first = 1;
     for (int lv = 0; lv < 7; lv++) {
-        _AList *list = &gActorsList_800ACC18[lv];
+        _AList *list = &ActorList[lv];
         _ANode *head = &list->first;
         _ANode *cur  = head->next;
         int idx = 0;
@@ -456,20 +456,20 @@ static void cmd_get_collision(void)
 
     HZD_HDL *hdl = GM_IterHazard(NULL);
     while (hdl) {
-        if (!hdl->header) { hdl = GM_IterHazard(hdl); continue; }
+        if (!hdl->def) { hdl = GM_IterHazard(hdl); continue; }
 
         if (!first_map) out_append(",");
         first_map = 0;
 
-        HZD_MAP *hzm = hdl->header;
-        HZD_GRP *grp = hdl->group;
+        HZD_DEF *hzm = hdl->def;
+        HZD_GRP *grp = hdl->grp;
         if (!grp) { hdl = GM_IterHazard(hdl); continue; }
 
         out_append("{\"n_groups\":%d", hzm->n_groups);
         out_append(",\"bounds\":[[%d,%d],[%d,%d]]",
                    hzm->min_x, hzm->min_y, hzm->max_x, hzm->max_y);
 
-        /* Emit the single active group (hdl->group points to current group) */
+        /* Emit the single active group (hdl->grp points to current group) */
         out_append(",\"walls\":[");
         int fw = 1;
         for (int wi = 0; wi < grp->n_walls; wi++) {

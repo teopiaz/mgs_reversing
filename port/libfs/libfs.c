@@ -462,7 +462,7 @@ void *FS_LoadStageRequest(const char *dirname)
             /* DAR archive — sequence of DARFILE_TAG entries */
             extern int FS_ResidentCacheDirty;
             FS_ResidentCacheDirty = 1;
-            int region = (tag->mode == 'r') ? GV_REGION_RESIDENT : GV_REGION_NOCACHE;
+            int region = (tag->mode == 'r') ? GV_INIT_RESIDENT : GV_INIT_NOCACHE;
             DARFILE_TAG *dar = (DARFILE_TAG *)data_ptr;
             int remaining = tag->size;
 
@@ -477,7 +477,7 @@ void *FS_LoadStageRequest(const char *dirname)
                 int cache_id = ((dar->ext - 'a') << 16) | dar->id;
                 void *file_data = (void *)(dar + 1); /* data after the tag */
 
-                if (region == GV_REGION_RESIDENT)
+                if (region == GV_INIT_RESIDENT)
                 {
                     /* Allocate from port_malloc (in the mmap'd pool) so pointers
                        survive GCL int truncation. Never freed — lifetime = session. */
@@ -534,7 +534,7 @@ void *FS_LoadStageRequest(const char *dirname)
                     /* GCL bytecode is stored in big-endian format.
                        GCL_GetLong reads big-endian, so no byte-swap needed. */
 
-                    GV_LoadInit(entry_data, cache_id, GV_REGION_CACHE);
+                    GV_LoadInit(entry_data, cache_id, GV_INIT_CACHE);
                 }
                 else
                 {
@@ -572,7 +572,7 @@ void *FS_LoadStageRequest(const char *dirname)
 
                     /* nocache dar print silenced */
 
-                    GV_LoadInit(file_data, cache_id, GV_REGION_NOCACHE);
+                    GV_LoadInit(file_data, cache_id, GV_INIT_NOCACHE);
                     nc_count++;
 
                     remaining -= entry_size;
@@ -597,7 +597,7 @@ void *FS_LoadStageRequest(const char *dirname)
             }
             if (tag->ext == 'b') {
                 int cache_id = (('b' - 'a') << 16) | tag->id;
-                GV_LoadInit(data_ptr, cache_id, GV_REGION_NOCACHE);
+                GV_LoadInit(data_ptr, cache_id, GV_INIT_NOCACHE);
             }
             else if (tag->ext == 'w') {
                 /* .wvx wave data — load directly to SPU RAM.

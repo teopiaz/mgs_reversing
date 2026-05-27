@@ -393,7 +393,7 @@ int ed_compute_active_aabb(float bmin[3], float bmax[3])
  * lives in source/data/bss.c with external linkage — we just declare it
  * extern here. Same for TexSets in source/libdg/text.c. */
 
-extern GV_HEAP MemorySystems_800AD2F0[GV_MEMORY_MAX];
+extern GV_HEAP MemorySystems_800AD2F0[MAX_MEMSYS];
 extern DG_TEX  TexSets[DG_MAX_TEXTURES];
 
 static void collect_one_heap(int which, EdHeapStat *out)

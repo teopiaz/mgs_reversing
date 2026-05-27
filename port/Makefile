@@ -72,8 +72,13 @@ LIBGV_OBJ = $(patsubst $(SRCDIR)/libgv/%.c,$(OBJDIR)/libgv_%.o,$(LIBGV_SRC))
 LIBGCL_SRC = $(wildcard libgcl_fix/*.c)
 LIBGCL_OBJ = $(patsubst libgcl_fix/%.c,$(OBJDIR)/libgcl_%.o,$(LIBGCL_SRC))
 
-LIBHZD_SRC = $(wildcard $(SRCDIR)/libhzd/*.c)
+# online.c and near.c have port-specific 64-bit adaptations (scratchpad address
+# remap + pointer side-channels); compile the fully-adapted port copies under
+# port/libhzd/ instead of the pristine upstream sources.
+LIBHZD_PORT_COPIES = online near vector trap
+LIBHZD_SRC = $(filter-out $(addprefix $(SRCDIR)/libhzd/,$(addsuffix .c,$(LIBHZD_PORT_COPIES))), $(wildcard $(SRCDIR)/libhzd/*.c))
 LIBHZD_OBJ = $(patsubst $(SRCDIR)/libhzd/%.c,$(OBJDIR)/libhzd_%.o,$(LIBHZD_SRC))
+LIBHZD_OBJ += $(addprefix $(OBJDIR)/libhzd_,$(addsuffix .o,$(LIBHZD_PORT_COPIES)))
 
 # --- All stage definition files ---
 STAGE_NAMES = abst brf camera change d00a d01a d03a d11c d16e d18a d18ar \
@@ -140,6 +145,7 @@ PORT_OBJ = \
 	$(OBJDIR)/libdg_light.o \
 	$(OBJDIR)/libdg_matrix.o \
 	$(OBJDIR)/libdg_obj.o \
+	$(OBJDIR)/libdg_pos.o \
 	$(OBJDIR)/libdg_opack.o \
 	$(OBJDIR)/libdg_palette.o \
 	$(OBJDIR)/libdg_prim.o \
@@ -286,6 +292,10 @@ $(OBJDIR)/libgv_%.o: $(SRCDIR)/libgv/%.c | $(OBJDIR)
 
 $(OBJDIR)/libgcl_%.o: libgcl_fix/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -iquote libgcl_fix -c -o $@ $<
+
+# Port-adapted collision copies (take precedence over the pattern rule below).
+$(OBJDIR)/libhzd_%.o: libhzd/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -iquote $(SRCDIR)/libhzd -c -o $@ $<
 
 $(OBJDIR)/libhzd_%.o: $(SRCDIR)/libhzd/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<

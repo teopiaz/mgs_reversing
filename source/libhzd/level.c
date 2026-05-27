@@ -291,8 +291,8 @@ int HZD_LevelHazardCheck( HZD_HDL *hzd, SVECTOR *from, int chk_flag )
 void HZD_GetLevelHazard( HZD_FLR **flr )
 {
 #ifdef PORT_BUILD
-    floors[0] = port_max_floor;
-    floors[1] = port_min_floor;
+    flr[0] = port_max_floor;
+    flr[1] = port_min_floor;
 #else
     SCRPAD_DATA *scrpad = (SCRPAD_DATA *)SCRPAD_ADDR;
     flr[0] = scrpad->max_floor;

@@ -298,3 +298,10 @@ void GCL_ParseInit(void)
     GCL_InitArgStack();
     GCL_InitCommandLineBuffer();
 }
+
+/* Port: aliases for fork/master's renamed GCL API (the editor's libgcl_fix
+   uses the older Param-suffixed names; upstream callers use these names). */
+char *GCL_GetString(char *ptr)  { return GCL_ReadString(ptr); }
+char *GCL_NextStr(void)         { return (char *)GCL_GetParamResult(); }
+int   GCL_GetNextInt(void)      { return GCL_GetNextParamValue(); }
+void  GCL_GetNextSV(short *vec) { GCL_ReadParamVector((SVECTOR *)vec); }
