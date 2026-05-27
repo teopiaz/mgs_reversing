@@ -408,8 +408,10 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     ACTNODE  *iter;
     DMO_ADJ  *adjust;
 
+#ifndef PORT_BUILD
     OFFSET_TO_PTR(data, &data->chara);
     OFFSET_TO_PTR(data, &data->adjust);
+#endif
 
     lpAct->control.mov.vx = data->eye_x;
     lpAct->control.mov.vy = data->eye_y;
