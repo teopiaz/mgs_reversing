@@ -67,7 +67,22 @@ extern void s19b_spark2_m_800DA314(void *, SVECTOR *, int);
 extern void s19b_spark2_m_800DA3EC(LINE_F2 *, int, int);
 extern void s19b_spark2_m_800DA41C(LINE_F2 *, int, int);
 
-#pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D8724.s")
+extern int s19b_dword_800C3AA0;
+extern int s19b_dword_800C3AA8;
+extern void *NewJeepBlood(MATRIX *world, int count, MATRIX *root);
+extern void ReadRotMatrix(MATRIX *m);
+
+void s19b_spark2_m_800D8724(Spark2MWork *work, int arg1, int arg2)
+{
+    MATRIX  m;
+    DG_OBJ *obj = &work->obj.objs->objs[arg1];
+
+    DG_SetPos(&obj->world);
+    DG_MovePos((SVECTOR *)&s19b_dword_800C3AA0);
+    DG_RotatePos((SVECTOR *)&s19b_dword_800C3AA8);
+    ReadRotMatrix(&m);
+    NewJeepBlood(&m, arg2, &obj->world);
+}
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D87A4.s")
 extern int s19b_spark2_m_800D87A4(Spark2MWork *work);
 int s19b_spark2_m_800D88D8(Spark2MWork *work)
