@@ -155,6 +155,18 @@ Got a struct/typedef/header type-width fix?
    any new upstream changes to the port copy by hand (semantic merge — the
    ifdef branches don't matter because the port copy already strips them).
 
+   The `port/scripts/port-sync.py` tool automates the discovery half of step 4:
+
+   ```bash
+   port/scripts/port-sync.py status        # which copies drifted, and how
+   # ...semantic-merge each drifted copy by hand...
+   port/scripts/port-sync.py mark port/<subdir>/<file>.c
+   ```
+
+   State lives in `.port-sync-state.json` at the repo root. After adding a
+   new entry to a `*_PORT_COPIES` list in the Makefile, run
+   `port/scripts/port-sync.py discover` to register it.
+
 ## What's NOT covered by this scheme
 
 - **Headers** (`source/menu/radio.h`, `source/include/fmt_hzd.h`,
