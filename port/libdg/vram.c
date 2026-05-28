@@ -454,7 +454,13 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
                     tb = (tb * ib) >> 7; if (tb > 31) tb = 31;
                     c = stp | (tb << 10) | (tg << 5) | tr;
 
-                    if (port_tex_semi_trans && (c & 0x8000)) {
+                    /* Blend at the PRIM level (matching the GL backend), not
+                       per-texel STP. PSX gates blending on the texel's bit 15,
+                       but the GL path blends any semi-trans prim regardless of
+                       texel STP; some VFX textures (light glows) have STP=0 in
+                       our VRAM, so the per-texel test left them opaque only in
+                       software. The c!=0 skip above already mirrors GL discard. */
+                    if (port_tex_semi_trans) {
                         uint16_t bg = *row;
                         int br = bg & 0x1F, bg2 = (bg>>5)&0x1F, bbb = (bg>>10)&0x1F;
                         int fr = c & 0x1F,  fg = (c>>5)&0x1F,   fb = (c>>10)&0x1F;
