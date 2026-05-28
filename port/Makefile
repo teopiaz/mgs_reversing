@@ -67,11 +67,14 @@ GAME_ALL_SRC = $(shell find $(SRCDIR)/game $(SRCDIR)/chara $(SRCDIR)/enemy \
 # file that diverges enough on the port to deserve a full copy (~4+ ifdefs,
 # rebase-hot zone, or struct-layout / GTE-light tweaks).
 TAKABE_PORT_COPIES = gas_efct
+EQUIP_PORT_COPIES  = jpegcam
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
+GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/equip/, $(addsuffix .c,$(EQUIP_PORT_COPIES))),  $(GAME_SRC))
 GAME_OBJ = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/src_%.o,$(GAME_SRC))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_takabe/,$(addsuffix .o,$(TAKABE_PORT_COPIES)))
+GAME_OBJ += $(addprefix $(OBJDIR)/src_equip/, $(addsuffix .o,$(EQUIP_PORT_COPIES)))
 
 # --- Engine libraries (from source, unmodified) ---
 # gvd.c needs the port memory pool (port_normal_memory etc.) instead of the
@@ -334,6 +337,11 @@ $(OBJDIR)/bss.o: $(SRCDIR)/data/bss.c | $(OBJDIR)
 $(OBJDIR)/src_takabe/%.o: takabe/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -iquote $(SRCDIR)/takabe -c -o $@ $<
+
+# Port-adapted equip copies (same pattern).
+$(OBJDIR)/src_equip/%.o: equip/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -iquote $(SRCDIR)/equip -c -o $@ $<
 
 # Game source files — flatten directory structure in obj names
 $(OBJDIR)/src_%.o: $(SRCDIR)/%.c | $(OBJDIR)
