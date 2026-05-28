@@ -254,7 +254,7 @@ LIBDG_CFLAGS = $(CFLAGS) -include $(CURDIR)/libdg/libdg.h
 # have a port-adapted copy under port/libdg/. The pattern rule below picks the
 # port copy automatically because Make prefers a rule whose prerequisite
 # actually exists; this list is just for human reference / future reviewers.
-LIBDG_PORT_COPIES = opack
+LIBDG_PORT_COPIES = opack bound
 
 # Port-adapted libdg copies (take precedence over the source rule below).
 $(OBJDIR)/libdg_%.o: libdg/%.c | $(OBJDIR)
