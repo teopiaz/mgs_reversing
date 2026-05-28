@@ -250,6 +250,16 @@ $(OBJDIR)/kmd_loader.o: libdg/kmd_loader.c | $(OBJDIR)
 # Original libdg source files — need -include of patched libdg.h to fix enum conflict
 LIBDG_CFLAGS = $(CFLAGS) -include $(CURDIR)/libdg/libdg.h
 
+# Documentation for the port-copy mechanism: list libdg/<stem>.c files that
+# have a port-adapted copy under port/libdg/. The pattern rule below picks the
+# port copy automatically because Make prefers a rule whose prerequisite
+# actually exists; this list is just for human reference / future reviewers.
+LIBDG_PORT_COPIES = opack
+
+# Port-adapted libdg copies (take precedence over the source rule below).
+$(OBJDIR)/libdg_%.o: libdg/%.c | $(OBJDIR)
+	$(CC) $(LIBDG_CFLAGS) -iquote $(SRCDIR)/libdg -c -o $@ $<
+
 $(OBJDIR)/libdg_%.o: $(SRCDIR)/libdg/%.c | $(OBJDIR)
 	$(CC) $(LIBDG_CFLAGS) -c -o $@ $<
 
