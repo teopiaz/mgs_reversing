@@ -88,7 +88,7 @@ LIBGCL_OBJ = $(patsubst libgcl_fix/%.c,$(OBJDIR)/libgcl_%.o,$(LIBGCL_SRC))
 # online.c and near.c have port-specific 64-bit adaptations (scratchpad address
 # remap + pointer side-channels); compile the fully-adapted port copies under
 # port/libhzd/ instead of the pristine upstream sources.
-LIBHZD_PORT_COPIES = online near vector trap
+LIBHZD_PORT_COPIES = online near vector trap level
 LIBHZD_SRC = $(filter-out $(addprefix $(SRCDIR)/libhzd/,$(addsuffix .c,$(LIBHZD_PORT_COPIES))), $(wildcard $(SRCDIR)/libhzd/*.c))
 LIBHZD_OBJ = $(patsubst $(SRCDIR)/libhzd/%.c,$(OBJDIR)/libhzd_%.o,$(LIBHZD_SRC))
 LIBHZD_OBJ += $(addprefix $(OBJDIR)/libhzd_,$(addsuffix .o,$(LIBHZD_PORT_COPIES)))
