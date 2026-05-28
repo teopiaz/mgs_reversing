@@ -69,15 +69,18 @@ GAME_ALL_SRC = $(shell find $(SRCDIR)/game $(SRCDIR)/chara $(SRCDIR)/enemy \
 TAKABE_PORT_COPIES = gas_efct
 EQUIP_PORT_COPIES  = jpegcam
 KOJO_PORT_COPIES   = demothrd demoexec
+MENU_PORT_COPIES   = radio
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/equip/, $(addsuffix .c,$(EQUIP_PORT_COPIES))),  $(GAME_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/kojo/,  $(addsuffix .c,$(KOJO_PORT_COPIES))),   $(GAME_SRC))
+GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/menu/,  $(addsuffix .c,$(MENU_PORT_COPIES))),   $(GAME_SRC))
 GAME_OBJ = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/src_%.o,$(GAME_SRC))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_takabe/,$(addsuffix .o,$(TAKABE_PORT_COPIES)))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_equip/, $(addsuffix .o,$(EQUIP_PORT_COPIES)))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_kojo/,  $(addsuffix .o,$(KOJO_PORT_COPIES)))
+GAME_OBJ += $(addprefix $(OBJDIR)/src_menu/,  $(addsuffix .o,$(MENU_PORT_COPIES)))
 
 # --- Engine libraries (from source, unmodified) ---
 # gvd.c needs the port memory pool (port_normal_memory etc.) instead of the
@@ -350,6 +353,11 @@ $(OBJDIR)/src_equip/%.o: equip/%.c | $(OBJDIR)
 $(OBJDIR)/src_kojo/%.o: kojo/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -iquote $(SRCDIR)/kojo -c -o $@ $<
+
+# Port-adapted menu copies (same pattern).
+$(OBJDIR)/src_menu/%.o: menu/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -iquote $(SRCDIR)/menu -c -o $@ $<
 
 # Game source files — flatten directory structure in obj names
 $(OBJDIR)/src_%.o: $(SRCDIR)/%.c | $(OBJDIR)
