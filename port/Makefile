@@ -72,6 +72,7 @@ KOJO_PORT_COPIES   = demothrd demoexec
 MENU_PORT_COPIES   = radio datasave
 THING_PORT_COPIES  = sight
 SOUND_PORT_COPIES  = sd_main sd_file
+GAME_PORT_COPIES   = control gamed jimctrl
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
@@ -80,6 +81,7 @@ GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/kojo/,  $(addsuffix .c,$(KOJO_POR
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/menu/,  $(addsuffix .c,$(MENU_PORT_COPIES))),   $(GAME_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/thing/, $(addsuffix .c,$(THING_PORT_COPIES))),  $(GAME_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/sound/, $(addsuffix .c,$(SOUND_PORT_COPIES))),  $(GAME_SRC))
+GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/game/,  $(addsuffix .c,$(GAME_PORT_COPIES))),   $(GAME_SRC))
 GAME_OBJ = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/src_%.o,$(GAME_SRC))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_takabe/,$(addsuffix .o,$(TAKABE_PORT_COPIES)))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_equip/, $(addsuffix .o,$(EQUIP_PORT_COPIES)))
@@ -87,6 +89,7 @@ GAME_OBJ += $(addprefix $(OBJDIR)/src_kojo/,  $(addsuffix .o,$(KOJO_PORT_COPIES)
 GAME_OBJ += $(addprefix $(OBJDIR)/src_menu/,  $(addsuffix .o,$(MENU_PORT_COPIES)))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_thing/, $(addsuffix .o,$(THING_PORT_COPIES)))
 GAME_OBJ += $(addprefix $(OBJDIR)/src_sound/, $(addsuffix .o,$(SOUND_PORT_COPIES)))
+GAME_OBJ += $(addprefix $(OBJDIR)/src_game/,  $(addsuffix .o,$(GAME_PORT_COPIES)))
 
 # --- Engine libraries (from source, unmodified) ---
 # gvd.c needs the port memory pool (port_normal_memory etc.) instead of the
@@ -374,6 +377,11 @@ $(OBJDIR)/src_thing/%.o: thing/%.c | $(OBJDIR)
 $(OBJDIR)/src_sound/%.o: sound/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -iquote $(SRCDIR)/sound -c -o $@ $<
+
+# Port-adapted game copies (same pattern).
+$(OBJDIR)/src_game/%.o: game/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -iquote $(SRCDIR)/game -c -o $@ $<
 
 # Game source files — flatten directory structure in obj names
 $(OBJDIR)/src_%.o: $(SRCDIR)/%.c | $(OBJDIR)
