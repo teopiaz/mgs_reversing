@@ -528,6 +528,38 @@ void draw_flat_tri(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t colo
     }
 }
 
+/* Clip a 2D line to the current draw area [clip_x0..clip_x1]x[clip_y0..clip_y1]
+   (Liang-Barsky) and submit to the GL batcher. The software rasterizer clips
+   per-pixel; the GL path draws whole segments, so without this the radar's
+   wireframe lines spill outside its box. Endpoint colours are interpolated at
+   the clipped parameter so gouraud lines stay correct. */
+static void gl_submit_line_clipped(const int a[2], const int b[2],
+                                   const unsigned char ca[3], const unsigned char cb[3],
+                                   unsigned short fl)
+{
+    float x0 = a[0], y0 = a[1];
+    float dx = (float)(b[0] - a[0]), dy = (float)(b[1] - a[1]);
+    float t0 = 0.0f, t1 = 1.0f;
+    float p[4] = { -dx, dx, -dy, dy };
+    float q[4] = { x0 - clip_x0, clip_x1 - x0, y0 - clip_y0, clip_y1 - y0 };
+    for (int i = 0; i < 4; i++) {
+        if (p[i] == 0.0f) { if (q[i] < 0.0f) return; }     /* parallel & outside */
+        else {
+            float r = q[i] / p[i];
+            if (p[i] < 0.0f) { if (r > t1) return; if (r > t0) t0 = r; }
+            else             { if (r < t0) return; if (r < t1) t1 = r; }
+        }
+    }
+    int na[2] = { (int)(x0 + t0 * dx + 0.5f), (int)(y0 + t0 * dy + 0.5f) };
+    int nb[2] = { (int)(x0 + t1 * dx + 0.5f), (int)(y0 + t1 * dy + 0.5f) };
+    unsigned char nca[3], ncb[3];
+    for (int k = 0; k < 3; k++) {
+        nca[k] = (unsigned char)(ca[k] + (cb[k] - ca[k]) * t0);
+        ncb[k] = (unsigned char)(ca[k] + (cb[k] - ca[k]) * t1);
+    }
+    gl_submit_line(na, nb, nca, ncb, fl);
+}
+
 /*---------------------------------------------------------------------------*/
 /* OT traversal — walk the ordering table and render primitives              */
 /*---------------------------------------------------------------------------*/
@@ -1021,7 +1053,7 @@ void port_DrawOTag(unsigned long *ot)
                     int a[2]={x0+draw_x,y0+draw_y}, b_[2]={x1+draw_x,y1+draw_y};
                     unsigned char c[3]={r,g,b};
                     unsigned short fl = (code & 0x02) ? 2 : 0;
-                    gl_submit_line(a, b_, c, c, fl);
+                    gl_submit_line_clipped(a, b_, c, c, fl);
                 } else {
                     uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
                     /* Bresenham line with draw area clipping */
@@ -1057,7 +1089,7 @@ void port_DrawOTag(unsigned long *ot)
                     for (int seg = 0; seg < 3; seg++) {
                         int a[2]={px[seg]+draw_x,py[seg]+draw_y};
                         int b_[2]={px[seg+1]+draw_x,py[seg+1]+draw_y};
-                        gl_submit_line(a, b_, c, c, fl);
+                        gl_submit_line_clipped(a, b_, c, c, fl);
                     }
                 } else {
                     uint16_t color = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
@@ -1093,7 +1125,7 @@ void port_DrawOTag(unsigned long *ot)
                     int a[2]={x0+draw_x,y0+draw_y}, b_[2]={x1+draw_x,y1+draw_y};
                     unsigned char c0[3]={r0,g0,b0}, c1[3]={r1,g1,b1};
                     unsigned short fl = (code & 0x02) ? 2 : 0;
-                    gl_submit_line(a, b_, c0, c1, fl);
+                    gl_submit_line_clipped(a, b_, c0, c1, fl);
                 } else {
                     uint16_t color = ((b0 >> 3) << 10) | ((g0 >> 3) << 5) | (r0 >> 3);
                     int dx = abs(x1 - x0), dy = abs(y1 - y0);
