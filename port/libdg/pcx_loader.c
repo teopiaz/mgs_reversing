@@ -120,8 +120,21 @@ static void DG_PcxReadPalette(unsigned char *pcxPalette, unsigned char *imageDat
         unsigned char r = pcxPalette[0];
         unsigned char g = pcxPalette[1];
         unsigned char b = pcxPalette[2];
-        /* Convert RGB888 to PSX 16-bit (1555 BGR) */
-        *out++ = ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+        /* Convert RGB888 to PSX 16-bit (1555 BGR). Match the original
+           DG_PcxReadPalette (source/libdg/loader.c): set the STP/opaque bit
+           (15) for any non-pure-black colour so dark colours that truncate to
+           15-bit zero stay opaque instead of decoding to 0x0000 (transparent).
+           Pure black stays 0x0000 (genuinely transparent). */
+        unsigned short color = !!((r | g | b) & 7) << 5;
+        if (r || g || b)
+        {
+            color |= b >> 3;
+            color <<= 5;
+            color |= g >> 3;
+            color <<= 5;
+            color |= r >> 3;
+        }
+        *out++ = color;
         pcxPalette += 3;
     }
 }
