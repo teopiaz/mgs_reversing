@@ -61,8 +61,17 @@ GAME_ALL_SRC = $(shell find $(SRCDIR)/game $(SRCDIR)/chara $(SRCDIR)/enemy \
 	$(SRCDIR)/kojo $(SRCDIR)/okajima $(SRCDIR)/onoda $(SRCDIR)/takabe \
 	$(SRCDIR)/contrib $(SRCDIR)/sound -name "*.c" -not -path "*/snake_vr/*" -not -path "*/torture/*" | sort)
 
+# Per-subdir port copies for game/* files. Same mechanism as LIBGV_PORT_COPIES:
+# list a stem (no extension), the source is filtered out, and the port copy at
+# port/<subdir>/<stem>.c is compiled instead. Add new entries for any source/
+# file that diverges enough on the port to deserve a full copy (~4+ ifdefs,
+# rebase-hot zone, or struct-layout / GTE-light tweaks).
+TAKABE_PORT_COPIES = gas_efct
+
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
+GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
 GAME_OBJ = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/src_%.o,$(GAME_SRC))
+GAME_OBJ += $(addprefix $(OBJDIR)/src_takabe/,$(addsuffix .o,$(TAKABE_PORT_COPIES)))
 
 # --- Engine libraries (from source, unmodified) ---
 # gvd.c needs the port memory pool (port_normal_memory etc.) instead of the
@@ -310,6 +319,11 @@ $(OBJDIR)/libhzd_%.o: $(SRCDIR)/libhzd/%.c | $(OBJDIR)
 
 $(OBJDIR)/bss.o: $(SRCDIR)/data/bss.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Port-adapted takabe copies (take precedence over the generic src_%.o below).
+$(OBJDIR)/src_takabe/%.o: takabe/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -iquote $(SRCDIR)/takabe -c -o $@ $<
 
 # Game source files — flatten directory structure in obj names
 $(OBJDIR)/src_%.o: $(SRCDIR)/%.c | $(OBJDIR)
