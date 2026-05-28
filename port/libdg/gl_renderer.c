@@ -356,18 +356,20 @@ static const char *TRI3D_FS =
     "    bool fb_readback = (vFlags & 32u) != 0u && (uNoTextures == 0);\n"
     "    bool per_pixel   = (vFlags & 16u) != 0u;\n"
     "    if (fb_readback) {\n"
-    "        // Stealth / Optical Camo (source/equip/kogaku2.c) points Snake's\n"
-    "        // POLY_GT4 packs at a framebuffer-region tpage and sets each\n"
-    "        // vertex's UV to its screen position, so the model samples the\n"
-    "        // previous frame as a texture. Mirror what the 2D shader does.\n"
-    "        int bx = int(vTPage & 0xFu) * 64;\n"
-    "        int by = int((vTPage >> 4u) & 1u) * 256;\n"
-    "        if ((vTPage & 0x800u) != 0u) by += 512;\n"
-    "        int u = int(clamp(vUV.x, 0.0, 255.0));\n"
-    "        int v = int(clamp(vUV.y, 0.0, 255.0));\n"
-    "        float fx = float((bx + u) % 320) / 320.0;\n"
-    "        float fy = 1.0 - float(by + v) / 224.0;\n"
-    "        tex = texture(uPrevFB, vec2(fx, fy)).rgb;\n"
+    "        // Stealth / Optical Camo. The 3D run-batcher snapshots the FBO\n"
+    "        // into uPrevFB right before this run draws (after level geo,\n"
+    "        // before Snake) so we sample the scene-without-Snake -- no\n"
+    "        // accumulation. PSX kogaku2 uses a (3/4)*x + 160 horizontal\n"
+    "        // remap that compresses the sampled UV toward screen centre,\n"
+    "        // producing the iconic 'lensed' refraction. Replicated here\n"
+    "        // by squeezing uv.x by 25% around the centre.\n"
+    "        vec2 ts = vec2(textureSize(uPrevFB, 0));\n"
+    "        vec2 uv = gl_FragCoord.xy / ts;\n"
+    "        uv.x = 0.5 + (uv.x - 0.5) * 0.75;\n"
+    "        vec3 prev = texture(uPrevFB, uv).rgb;\n"
+    "        vec3 tint = vCol.rgb * 2.0;   // 128 = neutral, SNAKE_COLOR = 1.0,1.25,0.75\n"
+    "        oColor = vec4(clamp(prev * tint, 0.0, 1.0), 1.0);\n"
+    "        return;\n"
     "    } else if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
     "        int base_x = int(vTPage & 0xFu) * 64;\n"
@@ -1720,28 +1722,46 @@ void gl_renderer_present(void)
         glFrontFace(gl_debug_cull_cw ? GL_CW : GL_CCW);
 
         /* Walk the 3D buffer in runs sharing the same (semi_trans, abr,
-           no_cull) bucket. Submission order is PSX-OT order (back-to-front)
-           so a simple bucket-change detector preserves painter's semantics.
-           Opaque runs: blend OFF, depth write ON. Semi-trans runs: blend
-           via apply_abr, depth write OFF (depth test still on). */
+           no_cull, fb_readback) bucket. Submission order is PSX-OT order
+           (back-to-front) so a simple bucket-change detector preserves
+           painter's semantics. Opaque runs: blend OFF, depth write ON.
+           Semi-trans runs: blend via apply_abr, depth write OFF.
+           fb_readback runs (Stealth / Optical Camo): force standard
+           src-alpha / one-minus-src-alpha blend so the FS's low-alpha tint
+           composites against the level geometry already in the FBO. */
         size_t i = 0;
         while (i < g_tri3d_count) {
             unsigned short f0 = g_tri3d_buf[i].flags;
             int semi0   = (f0 >> 1) & 1;
             int abr0    = (f0 >> 2) & 3;
             int nocull0 = (f0 >> 6) & 1;
+            int fb0     = (f0 >> 5) & 1;
             size_t run_start = i;
             /* 3 verts per triangle — stride through whole triangles. */
             size_t j = i;
             while (j + 3 <= g_tri3d_count) {
                 unsigned short f = g_tri3d_buf[j].flags;
-                int s = (f >> 1) & 1;
-                int a = (f >> 2) & 3;
+                int s  = (f >> 1) & 1;
+                int a  = (f >> 2) & 3;
                 int nc = (f >> 6) & 1;
-                if (s != semi0 || (s && a != abr0) || nc != nocull0) break;
+                int fb = (f >> 5) & 1;
+                if (s != semi0 || (s && a != abr0) || nc != nocull0 || fb != fb0) break;
                 j += 3;
             }
-            if (semi0) {
+            if (fb0) {
+                /* Mid-frame snapshot. By construction the buffer ahead of
+                   this run is OT-earlier 3D (level geometry, props), drawn
+                   before Snake -- so copying the FBO now gives us a clean
+                   "scene without Snake" the FS can sample for refraction.
+                   This avoids the accumulation problem you'd get sampling
+                   the end-of-previous-frame capture (which contains Snake). */
+                glActiveTexture(GL_TEXTURE2);
+                glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                                    0, 0, g_fbo_w, g_fbo_h);
+                glActiveTexture(GL_TEXTURE0);
+                glDisable(GL_BLEND);
+                glDepthMask(GL_FALSE);   /* don't occlude later geometry */
+            } else if (semi0) {
                 glEnable(GL_BLEND);
                 glDepthMask(GL_FALSE);
                 apply_abr(abr0);
