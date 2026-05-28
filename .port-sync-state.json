@@ -1,0 +1,109 @@
+{
+  "_format": 1,
+  "copies": {
+    "port/equip/jpegcam.c": {
+      "source": "source/equip/jpegcam.c",
+      "source_sha": "489181eafaeda638d67f48a74d6792b85c21fc0a"
+    },
+    "port/game/control.c": {
+      "source": "source/game/control.c",
+      "source_sha": "0900abb4c9ca05dc24d67b1b01b2e6499d4dd339"
+    },
+    "port/game/gamed.c": {
+      "source": "source/game/gamed.c",
+      "source_sha": "a64bdc3ea793cb9486cbc955dcb6aac969e10996"
+    },
+    "port/game/jimctrl.c": {
+      "source": "source/game/jimctrl.c",
+      "source_sha": "6ac2008116ed480ba6ebcfa14b562ad916e5578f"
+    },
+    "port/kojo/demoexec.c": {
+      "source": "source/kojo/demoexec.c",
+      "source_sha": "02e57dd25e641474d9d001619465db389277f4c3"
+    },
+    "port/kojo/demothrd.c": {
+      "source": "source/kojo/demothrd.c",
+      "source_sha": "d1b32ce37c13035f9e3751a626e08512baf03367"
+    },
+    "port/libdg/bound.c": {
+      "source": "source/libdg/bound.c",
+      "source_sha": "733f068cc0df570af1b83634340cef70c3bb1298"
+    },
+    "port/libdg/obj.c": {
+      "source": "source/libdg/obj.c",
+      "source_sha": "b16c5aa5c6774a6cbcdad74e61648809cccedfd4"
+    },
+    "port/libdg/opack.c": {
+      "source": "source/libdg/opack.c",
+      "source_sha": "b16c5aa5c6774a6cbcdad74e61648809cccedfd4"
+    },
+    "port/libdg/prim.c": {
+      "source": "source/libdg/prim.c",
+      "source_sha": "b5431631de44b8771af816234ed130345492dcfb"
+    },
+    "port/libdg/trans.c": {
+      "source": "source/libdg/trans.c",
+      "source_sha": "6c943dd8a480aa21841038d592729d18950663cd"
+    },
+    "port/libgv/actor.c": {
+      "source": "source/libgv/actor.c",
+      "source_sha": "489181eafaeda638d67f48a74d6792b85c21fc0a"
+    },
+    "port/libgv/gvd.c": {
+      "source": "source/libgv/gvd.c",
+      "source_sha": "3921c1228ea0a6eb2078177de74aa286e61eef5c"
+    },
+    "port/libhzd/bind.c": {
+      "source": "source/libhzd/bind.c",
+      "source_sha": "0ffebf3ed2e4542dae281337986117d97f64f38c"
+    },
+    "port/libhzd/hzdd.c": {
+      "source": "source/libhzd/hzdd.c",
+      "source_sha": "0900abb4c9ca05dc24d67b1b01b2e6499d4dd339"
+    },
+    "port/libhzd/level.c": {
+      "source": "source/libhzd/level.c",
+      "source_sha": "0900abb4c9ca05dc24d67b1b01b2e6499d4dd339"
+    },
+    "port/libhzd/near.c": {
+      "source": "source/libhzd/near.c",
+      "source_sha": "ca807f091d6dc537b24b8b6960bc492a0ab6cbe1"
+    },
+    "port/libhzd/online.c": {
+      "source": "source/libhzd/online.c",
+      "source_sha": "ca807f091d6dc537b24b8b6960bc492a0ab6cbe1"
+    },
+    "port/libhzd/trap.c": {
+      "source": "source/libhzd/trap.c",
+      "source_sha": "0900abb4c9ca05dc24d67b1b01b2e6499d4dd339"
+    },
+    "port/libhzd/vector.c": {
+      "source": "source/libhzd/vector.c",
+      "source_sha": "ca807f091d6dc537b24b8b6960bc492a0ab6cbe1"
+    },
+    "port/menu/datasave.c": {
+      "source": "source/menu/datasave.c",
+      "source_sha": "b5431631de44b8771af816234ed130345492dcfb"
+    },
+    "port/menu/radio.c": {
+      "source": "source/menu/radio.c",
+      "source_sha": "7e9af81831c546521f8a3f5dc6f2be88c0e7d53c"
+    },
+    "port/sound/sd_file.c": {
+      "source": "source/sound/sd_file.c",
+      "source_sha": "b2e9e62cc94cb3740def8d8e2c7ec474008ee9b2"
+    },
+    "port/sound/sd_main.c": {
+      "source": "source/sound/sd_main.c",
+      "source_sha": "25cad8d7474ba9d637235792d82d13f6661014eb"
+    },
+    "port/takabe/gas_efct.c": {
+      "source": "source/takabe/gas_efct.c",
+      "source_sha": "f0744a51d19348a9bc542eb67b5919e3fa7fe218"
+    },
+    "port/thing/sight.c": {
+      "source": "source/thing/sight.c",
+      "source_sha": "19f7afb3b668de29da98388e7347c40b9805d14e"
+    }
+  }
+}
