@@ -598,9 +598,12 @@ void port_DrawOTag(unsigned long *ot)
            are rejected by the bounding-box guard in gl_submit_tri2d. */
         if (p >= ch_world_ot && p < ch_world_ot + ch_world_size) {
             long slot = (u_long *)p - ch_world_ot;
-            port_2d_depth_flag = (slot >= ch_world_size - 32) ? 1 : 0;
+            if (slot >= ch_world_size - 32)
+                port_2d_depth_flag = 1;                            /* skybox -> bg buffer (before 3D) */
+            else
+                port_2d_depth_flag = (unsigned short)(slot + 2);   /* world VFX -> depth-tested at OT slot (eye_z = slot<<8) */
         } else if (p >= ch_ovly_ot && p < ch_ovly_ot + ch_ovly_size) {
-            port_2d_depth_flag = 0;
+            port_2d_depth_flag = 0;                                /* overlay HUD -> always on top */
         }
         /* Prim pointers inherit whatever the last OT-cell set. */
 
