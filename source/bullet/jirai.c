@@ -54,7 +54,14 @@ static MATRIX *jirai_loader_helper_8006A798(MATRIX *arg0, MATRIX *arg1, HZD_FLR 
     }
     else
     {
+#ifdef PORT_BUILD
+        /* No KSEG cached/uncached bit on the port; the pointer is already
+           full-width. The PSX OR was undone where GM_BombSeg is stored
+           (source/chara/snake/snake.c) so this is a no-op here. */
+        flr = floor;
+#else
         flr = (HZD_FLR *)((int)floor | 0x80000000); // cached
+#endif
 
         var_a2 = flr->p1.h * 16;
         var_v1 = flr->p2.h * 16;

@@ -285,7 +285,15 @@ int sub_8004E5E8(SnaInitWork *work, int flag)
             }
             else
             {
+#ifdef PORT_BUILD
+                /* PSX flr[i] has bit 31 set for KSEG-cached addresses.
+                   On 64-bit, casting through int truncates and produces a
+                   bogus low-4GB pointer that jirai_loader_helper later
+                   dereferences (fault_addr=0xcddee). Keep the full pointer. */
+                GM_BombSeg = flr[i];
+#else
                 GM_BombSeg = (void *)((int)flr[i] & ~0x80000000);
+#endif
             }
 
             return 1;
