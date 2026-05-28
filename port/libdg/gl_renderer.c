@@ -58,7 +58,11 @@ typedef struct {
     unsigned char rgba[4];/* Gouraud fallback color (used when !per-pixel) */
     unsigned short tpage;
     unsigned short clut;
-    unsigned short flags; /* b0 textured, b1 semi-trans, b2-3 ABR, b4 per-pixel lit */
+    unsigned short flags; /* b0 textured, b1 semi-trans, b2-3 ABR, b4 per-pixel lit,
+                             b5 sample-previous-framebuffer (Stealth/Optical Camo:
+                             set by gl_submit_tri3d when tpage points into the PSX
+                             displayed-framebuffer region; the FS branches to
+                             sample uPrevFB), b6 no-cull */
     unsigned short _pad;
     /* Per-pixel lighting (PSX NCS formula). All stored as floats in
        "fixed-point /4096" convention -- see PSX 4.12 SVECTOR/MATRIX. */
@@ -316,6 +320,7 @@ static const char *TRI3D_FS =
     "flat in mat3 vLightColor;\n"
     "flat in vec3 vAmbient;\n"
     "uniform usampler2D uVRAM;\n"
+    "uniform sampler2D  uPrevFB;     // captured previous frame (Stealth)\n"
     "uniform int uNoTextures;    // debug: 1 => skip texture sample\n"
     "uniform int uFaceId;        // debug: 1 => color tri by gl_PrimitiveID\n"
     "uniform int uShowNormals;   // debug: 1 => output normal.xyz*0.5+0.5\n"
@@ -347,9 +352,23 @@ static const char *TRI3D_FS =
     "        return;\n"
     "    }\n"
     "    vec3 tex = vec3(1.0);\n"
-    "    bool textured = (vFlags & 1u) != 0u && (uNoTextures == 0);\n"
-    "    bool per_pixel = (vFlags & 16u) != 0u;\n"
-    "    if (textured) {\n"
+    "    bool textured    = (vFlags & 1u)  != 0u && (uNoTextures == 0);\n"
+    "    bool fb_readback = (vFlags & 32u) != 0u && (uNoTextures == 0);\n"
+    "    bool per_pixel   = (vFlags & 16u) != 0u;\n"
+    "    if (fb_readback) {\n"
+    "        // Stealth / Optical Camo (source/equip/kogaku2.c) points Snake's\n"
+    "        // POLY_GT4 packs at a framebuffer-region tpage and sets each\n"
+    "        // vertex's UV to its screen position, so the model samples the\n"
+    "        // previous frame as a texture. Mirror what the 2D shader does.\n"
+    "        int bx = int(vTPage & 0xFu) * 64;\n"
+    "        int by = int((vTPage >> 4u) & 1u) * 256;\n"
+    "        if ((vTPage & 0x800u) != 0u) by += 512;\n"
+    "        int u = int(clamp(vUV.x, 0.0, 255.0));\n"
+    "        int v = int(clamp(vUV.y, 0.0, 255.0));\n"
+    "        float fx = float((bx + u) % 320) / 320.0;\n"
+    "        float fy = 1.0 - float(by + v) / 224.0;\n"
+    "        tex = texture(uPrevFB, vec2(fx, fy)).rgb;\n"
+    "    } else if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
     "        int base_x = int(vTPage & 0xFu) * 64;\n"
     "        int base_y = int((vTPage >> 4u) & 1u) * 256;\n"
@@ -399,7 +418,8 @@ static const char *TRI3D_FS =
     "        // Gouraud: match the software path (tex * vCol * 2, neutral at 0.5)\n"
     "        shade = vCol.rgb * 2.0;\n"
     "    }\n"
-    "    vec3 rgb = textured ? tex * shade : (per_pixel ? shade : vCol.rgb);\n"
+    "    bool sampled = textured || fb_readback;\n"
+    "    vec3 rgb = sampled ? tex * shade : (per_pixel ? shade : vCol.rgb);\n"
     "    oColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);\n"
     "}\n";
 
@@ -651,8 +671,8 @@ int gl_renderer_init(void *window_)
     g_tri3d_u_ortho       = glGetUniformLocation(g_tri3d_prog, "uOrtho");
     g_tri3d_u_ortho_lrbt  = glGetUniformLocation(g_tri3d_prog, "uOrthoLRBT");
     glUseProgram(g_tri3d_prog);
-    GLint u_tex3d = glGetUniformLocation(g_tri3d_prog, "uVRAM");
-    glUniform1i(u_tex3d, 0);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uVRAM"),   0);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uPrevFB"), 2);
     glUseProgram(0);
 
     glGenVertexArrays(1, &g_tri3d_vao);
@@ -1213,6 +1233,29 @@ void gl_submit_tri3d(
     unsigned short tpage, unsigned short clut, unsigned short flags)
 {
     if (!g_enabled) return;
+
+    /* Same fb-region detection as gl_submit_tri2d. Stealth/Optical Camo
+       (source/equip/kogaku2.c) rewrites Snake's POLY_GT4 packs to point at
+       a framebuffer tpage and uses per-vertex screen-space UVs so the model
+       appears to refract whatever's behind it. */
+    if ((flags & 0x1u) != 0u) {
+        int tp = (tpage >> 7) & 3;
+        int by = ((tpage >> 4) & 1) * 256;
+        if (tpage & 0x800) by += 512;
+        int bx = (tpage & 0xF) * 64;
+        if (tp == 2 && by == 0 && bx < 640) {
+            flags |= 0x20u;
+            static int s_fb_readback_3d_logged = 0;
+            if (s_fb_readback_3d_logged < 5) {
+                fprintf(stderr,
+                        "[gl] fb-readback 3D prim: tpage=0x%04x base=(%d,%d) "
+                        "(Stealth / Optical Camo firing)\n",
+                        tpage, bx, by);
+                s_fb_readback_3d_logged++;
+            }
+        }
+    }
+
     tri3d_reserve(3);
     pack_vert(&g_tri3d_buf[g_tri3d_count++], a, uv_a, col_a, na, light, dist, face_z, tpage, clut, flags);
     pack_vert(&g_tri3d_buf[g_tri3d_count++], b, uv_b, col_b, nb, light, dist, face_z, tpage, clut, flags);
@@ -1659,6 +1702,11 @@ void gl_renderer_present(void)
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, g_vram_tex);
+        /* Previous-frame capture on unit 2 for tris with the fb-readback flag
+           (Stealth / Optical Camo -- source/equip/kogaku2.c). */
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+        glActiveTexture(GL_TEXTURE0);
 
         /* GPU backface cull. Our vertex shader flips Y (PSX screen is Y-down,
            GL NDC is Y-up), which inverts 2D winding, so PSX-front (CW in
