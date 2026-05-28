@@ -173,6 +173,14 @@ void *NewBlurPure(void)
 {
     Work *work;
 
+#ifdef PORT_BUILD
+    /* PSX-hardware-specific effect: opaque black fullscreen tile + SetDrawStp
+       mask-bit + framebuffer-readback blur sprites. The port honours none of
+       those, so it produces an opaque overlay (s02b CHARA_0044_GHOST). Skip
+       until the readback+mask machinery is in place. */
+    return NULL;
+#endif
+
     work = GV_NewActor(EXEC_LEVEL, sizeof(Work));
     if (work != NULL)
     {
@@ -193,6 +201,12 @@ void *NewBlurPure(void)
 void *NewBlurPureSet(int name, int where, int argc, char **argv)
 {
     Work *work;
+
+#ifdef PORT_BUILD
+    /* See NewBlurPure for why this is disabled on the port. */
+    (void)name; (void)where; (void)argc; (void)argv;
+    return NULL;
+#endif
 
     work = GV_NewActor(EXEC_LEVEL, sizeof(Work));
     if (work != NULL)

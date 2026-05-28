@@ -362,6 +362,16 @@ void *NewBlurSet(int name, int where, int argc, char **argv)
 {
     Work *work;
 
+#ifdef PORT_BUILD
+    /* Same architectural pattern as blurpure.c (CHARA_0044_GHOST): uses
+       framebuffer-readback for the blur sprites and DR_STP mask-bit gating to
+       leave a sharp center. The port has neither, so the 4 surround POLY_FT4
+       quads sample garbage and end up as opaque overlays. Spawned dynamically
+       via demoexec CHARAID_0025_BLUR. Skip until readback+mask are in place. */
+    (void)name; (void)where; (void)argc; (void)argv;
+    return NULL;
+#endif
+
     work = GV_NewActor(EXEC_LEVEL, sizeof(Work));
     if (work != NULL)
     {
@@ -386,6 +396,12 @@ void *NewBlur(int arg0)
     int     var_s2;
     int     var_s3;
     int     var_s4;
+
+#ifdef PORT_BUILD
+    /* See NewBlurSet for why this is disabled on the port. */
+    (void)arg0;
+    return NULL;
+#endif
 
     var_s4 = 0;
     var_s3 = 0;
