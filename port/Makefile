@@ -194,7 +194,8 @@ PORT_OBJ = \
 	$(OBJDIR)/link_stubs.o \
 	$(OBJDIR)/test_server.o \
 	$(OBJDIR)/strcode_lookup.o \
-	$(OBJDIR)/gcl_overlay.o
+	$(OBJDIR)/gcl_overlay.o \
+	$(OBJDIR)/chara_overrides.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
 
@@ -325,6 +326,9 @@ $(OBJDIR)/test_server.o: test_server.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/gcl_overlay.o: gcl_overlay.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/chara_overrides.o: chara_overrides.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # --- Original source rules ---
