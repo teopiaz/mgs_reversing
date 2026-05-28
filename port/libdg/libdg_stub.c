@@ -678,16 +678,18 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         port_tex_enabled = 1;
 
                         /* Stealth / Optical Camo (source/equip/kogaku2.c):
-                           on PSX the POLY_GT4 pack's own tpage+UVs override
-                           whatever material the model has. kogaku2 writes a
-                           framebuffer-region tpage and screen-space UVs into
-                           the pack so the model samples the prior frame and
-                           appears to refract whatever's behind it. The port
-                           normally renders from the material-atlas lookup
-                           above (correct for static models), so we have to
-                           honour the pack override here for kogaku2 to work
-                           at all. The fb-readback flag bit is OR'd into the
-                           vertex flags downstream in gl_submit_tri3d. */
+                           kogaku2 rewrites each POLY_GT4 pack to (a) point
+                           at a framebuffer-region tpage and (b) carry a flat
+                           SNAKE_COLOR / NINJA_COLOR on every vertex. The port
+                           normally uses tex->{tpage,clut} from the material
+                           atlas and per-vertex RGBs from obj->rgbs (DG_FLAG_
+                           PAINT preshade), both of which BYPASS kogaku2's
+                           pack rewrites. Detect the pack-level fb-region
+                           tpage and override both the tpage and the per-
+                           vertex color so the FS branch downstream gets
+                           the right inputs. The actual UV mapping is done
+                           in the FS via gl_FragCoord (it ignores vUV), so
+                           we don't bother copying the pack's u/v fields. */
                         {
                             POLY_GT4 *kpk = obj->packs[idx]
                                 ? &((POLY_GT4 *)obj->packs[idx])[fi]
@@ -701,10 +703,12 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                                     port_tex_tpage = pt;
                                     port_tex_clut  = kpk->clut;
                                     port_tex_abr   = (pt >> 5) & 0x3;
-                                    uv[0][0] = kpk->u0; uv[0][1] = kpk->v0;
-                                    uv[1][0] = kpk->u1; uv[1][1] = kpk->v1;
-                                    uv[2][0] = kpk->u2; uv[2][1] = kpk->v2;
-                                    uv[3][0] = kpk->u3; uv[3][1] = kpk->v3;
+                                    /* kogaku2 writes the same flat color to
+                                       r0/r1/r2/r3 so we can copy one to all
+                                       four vertices and skip the KMD swap. */
+                                    cr[0]=cr[1]=cr[2]=cr[3] = kpk->r0;
+                                    cg[0]=cg[1]=cg[2]=cg[3] = kpk->g0;
+                                    cb[0]=cb[1]=cb[2]=cb[3] = kpk->b0;
                                 }
                             }
                         }
