@@ -156,7 +156,11 @@ typedef struct {
     unsigned char rgba[4];
     unsigned short tpage;     /* PSX tpage */
     unsigned short clut;      /* PSX CLUT */
-    unsigned short flags;     /* bit 0 textured, bit 1 semi-trans, bits 2..3 ABR */
+    unsigned short flags;     /* bit 0 textured, bit 1 semi-trans, bits 2..3 ABR,
+                                 bit 5 sample-previous-framebuffer (route to
+                                 g_prev_fb_tex instead of CLUT path; set by
+                                 gl_submit_tri2d when tpage points into the
+                                 PSX displayed-framebuffer region). */
     unsigned short depth_flag;/* 0 = foreground (z=0.0, on top of 3D),
                                  non-zero = background (z=0.999, behind 3D
                                  via depth test; used for skybox tiles). */
@@ -451,6 +455,7 @@ static const char *TRI2D_FS =
     "flat in uint vCLUT;\n"
     "flat in uint vFlags;\n"
     "uniform usampler2D uVRAM;\n"
+    "uniform sampler2D  uPrevFB;     // RGBA8 capture of the previous frame's FBO\n"
     "uniform int uNoTextures;\n"
     "out vec4 oColor;\n"
     "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
@@ -461,9 +466,30 @@ static const char *TRI2D_FS =
     "        float((p >> 10) & 0x1Fu) / 31.0);\n"
     "}\n"
     "void main() {\n"
-    "    bool textured = (vFlags & 1u) != 0u && (uNoTextures == 0);\n"
+    "    bool textured     = (vFlags & 1u)  != 0u && (uNoTextures == 0);\n"
+    "    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0);\n"
     "    vec3 out_rgb;\n"
-    "    if (textured) {\n"
+    "    if (fb_readback) {\n"
+    "        // PSX framebuffer-readback effect (NewBlur, NewBlurPure). The\n"
+    "        // tpage's base coords point into the displayed framebuffer; sample\n"
+    "        // the previous-frame capture instead of doing a CLUT lookup.\n"
+    "        int bx = int(vTPage & 0xFu) * 64;\n"
+    "        int by = int((vTPage >> 4u) & 1u) * 256;\n"
+    "        if ((vTPage & 0x800u) != 0u) by += 512;\n"
+    "        int u = int(clamp(vUV.x, 0.0, 255.0));\n"
+    "        int v = int(clamp(vUV.y, 0.0, 255.0));\n"
+    "        // The PSX double-buffer pair lives at x=[0..319] and [320..639];\n"
+    "        // both hold the same display surface, just at different VRAM\n"
+    "        // offsets. mod 320 collapses to the buffer-local x. Y is shared.\n"
+    "        float fx = float((bx + u) % 320) / 320.0;\n"
+    "        float fy = float(by + v)         / 224.0;\n"
+    "        // FBO row 0 is GL-bottom (the 2D VS flips Y at projection time);\n"
+    "        // glCopyTexSubImage2D preserved that orientation. Flip back so\n"
+    "        // PSX-pixel-row 0 reads the GL-top texel.\n"
+    "        fy = 1.0 - fy;\n"
+    "        vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;\n"
+    "        out_rgb = clamp(tex * (vCol.rgb * 2.0), 0.0, 1.0);\n"
+    "    } else if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
     "        int base_x = int(vTPage & 0xFu) * 64;\n"
     "        int base_y = int((vTPage >> 4u) & 1u) * 256;\n"
@@ -735,7 +761,8 @@ int gl_renderer_init(void *window_)
 
     /* Sampler unit for 2D textured prims. */
     glUseProgram(g_tri2d_prog);
-    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uVRAM"), 0);
+    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uVRAM"),   0);
+    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uPrevFB"), 2);
     glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"), 1.0f);
     glUniform2f(glGetUniformLocation(g_tri2d_prog, "uNearFar"), 4.0f, 32768.0f);
     glUseProgram(0);
@@ -1273,6 +1300,32 @@ void gl_submit_tri2d(
 {
     if (!g_enabled) return;
 
+    /* Framebuffer-readback detection: PSX blur/ghost effects (NewBlur,
+       NewBlurPure) source pixels from the displayed framebuffer in VRAM by
+       pointing a textured primitive's tpage into the framebuffer region. We
+       detect this here, the single chokepoint for textured 2D primitives,
+       and OR bit 5 into the vertex flags so the FS branches to sample
+       uPrevFB. The match is restricted to tp=2 (16-bit direct color) at
+       base_y=0 -- the MGS framebuffer's exact VRAM location -- to avoid
+       catching genuine 16-bit textures living elsewhere in VRAM. */
+    if ((flags & 0x1u) != 0u) {
+        int tp = (tpage >> 7) & 3;
+        int by = ((tpage >> 4) & 1) * 256;
+        if (tpage & 0x800) by += 512;
+        int bx = (tpage & 0xF) * 64;
+        if (tp == 2 && by == 0 && bx < 640) {
+            flags |= 0x20u;
+            static int s_fb_readback_logged = 0;
+            if (s_fb_readback_logged < 5) {
+                fprintf(stderr,
+                        "[gl] fb-readback prim: tpage=0x%04x base=(%d,%d) "
+                        "(NewBlur / NewBlurPure firing)\n",
+                        tpage, bx, by);
+                s_fb_readback_logged++;
+            }
+        }
+    }
+
     /* PSX GPU silently rejects polygons whose vertex deltas exceed the
        drawing-area limits (1023 horizontal, 511 vertical). Our transformed
        2D prims come from the emulated GTE, which clamps vertices behind the
@@ -1383,6 +1436,10 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
                 320.0f / (float)g_render_w);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_vram_tex);
+    /* Previous-frame capture on unit 2 for tris with the fb-readback flag. */
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+    glActiveTexture(GL_TEXTURE0);
     /* Foreground tris depth-test against the 3D scene (so world VFX get
        occluded) but don't WRITE depth -- HUD/overlay encode z=-1 and always
        pass, and 2D-vs-2D order stays painter's (OT order). */
