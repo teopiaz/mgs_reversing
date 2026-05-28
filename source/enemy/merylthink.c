@@ -127,7 +127,11 @@ void s07a_meryl_unk_800DB590( WatcherWork *work )
     HZD_ZON *zone;
     HZD_ZON *zone2;
     HZD_ZON *zone3;
+#ifdef PORT_BUILD
+    int unk[6]; // NearZones writes up to 6 entries (see navigate.c); [5] overflows on the port (stack-protector abort)
+#else
     int unk[5]; //?
+#endif
 
     ctrl = &work->control;
     hzd = work->control.map->hzd;
