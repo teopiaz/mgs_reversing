@@ -300,14 +300,19 @@ static void mat_transform(MATRIX *m, SVECTOR *in, int *ox, int *oy, int *oz)
 }
 
 /* Perspective project: world → screen */
-static void project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, int *sz)
+/* Returns the TRUE eye-space z (pre-clamp). *sz still gets the clamped cz so
+   existing depth/ordering callers are unaffected; the return lets the software
+   path detect verts at/behind the camera (which the clamp would otherwise hide). */
+static int project(MATRIX *screen, SVECTOR *vert, int dist, int *sx, int *sy, int *sz)
 {
     int cx, cy, cz;
     mat_transform(screen, vert, &cx, &cy, &cz);
+    int true_cz = cz;
     if (cz < 4) cz = 4;
     *sx = (int)((long long)cx * dist / cz);
     *sy = (int)((long long)cy * dist / cz);
     *sz = cz;
+    return true_cz;
 }
 
 /* Multiply two MATRIX: out = a * b (fixed-point 4.12) */
@@ -461,10 +466,10 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
 
                 int sx0, sy0, sz0, sx1, sy1, sz1, sx2, sy2, sz2, sx3, sy3, sz3;
 
-                project(&screen_mat, &verts[i0], dist, &sx0, &sy0, &sz0);
-                project(&screen_mat, &verts[i1], dist, &sx1, &sy1, &sz1);
-                project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2);
-                project(&screen_mat, &verts[i3], dist, &sx3, &sy3, &sz3);
+                int tcz0 = project(&screen_mat, &verts[i0], dist, &sx0, &sy0, &sz0);
+                int tcz1 = project(&screen_mat, &verts[i1], dist, &sx1, &sy1, &sz1);
+                int tcz2 = project(&screen_mat, &verts[i2], dist, &sx2, &sy2, &sz2);
+                int tcz3 = project(&screen_mat, &verts[i3], dist, &sx3, &sy3, &sz3);
 
                 /* Off-screen cull */
                 {
@@ -485,11 +490,19 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                    triangle and producing visible holes in the mesh. Faces
                    that straddle the near plane are clipped correctly by GL
                    in clip space; the vertex shader clamps cz < 4 to avoid
-                   perspective-divide blowup. */
-                if (sz0 < 1 && sz1 < 1 && sz2 < 1 && sz3 < 1) continue;
+                   perspective-divide blowup. (Uses the true pre-clamp cz —
+                   sz is clamped to >=4 and would never be < 1.) */
+                if (tcz0 < 1 && tcz1 < 1 && tcz2 < 1 && tcz3 < 1) continue;
 
                 int gl_on = gl_renderer_enabled();
                 extern int gl_debug_no_cull;
+
+                /* Software path (PORT_GL=0) has no near-plane clipping. A vertex
+                   at/behind the camera (true cz <= 0) projects via the cz<4 clamp
+                   to a bogus on-screen position, splattering the face across the
+                   view in first-person. GL clips these in clip space; for the
+                   software fallback, drop any face that crosses the camera plane. */
+                if (!gl_on && (tcz0 < 1 || tcz1 < 1 || tcz2 < 1 || tcz3 < 1)) continue;
                 /* Characters / dynamic props use DG_FLAG_SHADE (per-frame
                    lighting, skeletal animation). Level geometry and static
                    props use DG_FLAG_PAINT (preshaded). Snake has SHADE +
