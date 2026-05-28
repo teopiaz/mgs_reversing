@@ -71,7 +71,7 @@ EQUIP_PORT_COPIES  = jpegcam
 KOJO_PORT_COPIES   = demothrd demoexec
 MENU_PORT_COPIES   = radio datasave
 THING_PORT_COPIES  = sight
-SOUND_PORT_COPIES  = sd_main
+SOUND_PORT_COPIES  = sd_main sd_file
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
@@ -91,7 +91,7 @@ GAME_OBJ += $(addprefix $(OBJDIR)/src_sound/, $(addsuffix .o,$(SOUND_PORT_COPIES
 # --- Engine libraries (from source, unmodified) ---
 # gvd.c needs the port memory pool (port_normal_memory etc.) instead of the
 # hardcoded PSX MEM_ADDR; compile the port copy under port/libgv/ instead.
-LIBGV_PORT_COPIES = gvd
+LIBGV_PORT_COPIES = gvd actor
 LIBGV_SRC = $(filter-out $(addprefix $(SRCDIR)/libgv/,$(addsuffix .c,$(LIBGV_PORT_COPIES))), $(wildcard $(SRCDIR)/libgv/*.c))
 LIBGV_OBJ = $(patsubst $(SRCDIR)/libgv/%.c,$(OBJDIR)/libgv_%.o,$(LIBGV_SRC))
 LIBGV_OBJ += $(addprefix $(OBJDIR)/libgv_,$(addsuffix .o,$(LIBGV_PORT_COPIES)))
@@ -103,7 +103,7 @@ LIBGCL_OBJ = $(patsubst libgcl_fix/%.c,$(OBJDIR)/libgcl_%.o,$(LIBGCL_SRC))
 # online.c and near.c have port-specific 64-bit adaptations (scratchpad address
 # remap + pointer side-channels); compile the fully-adapted port copies under
 # port/libhzd/ instead of the pristine upstream sources.
-LIBHZD_PORT_COPIES = online near vector trap level
+LIBHZD_PORT_COPIES = online near vector trap level hzdd bind
 LIBHZD_SRC = $(filter-out $(addprefix $(SRCDIR)/libhzd/,$(addsuffix .c,$(LIBHZD_PORT_COPIES))), $(wildcard $(SRCDIR)/libhzd/*.c))
 LIBHZD_OBJ = $(patsubst $(SRCDIR)/libhzd/%.c,$(OBJDIR)/libhzd_%.o,$(LIBHZD_SRC))
 LIBHZD_OBJ += $(addprefix $(OBJDIR)/libhzd_,$(addsuffix .o,$(LIBHZD_PORT_COPIES)))
