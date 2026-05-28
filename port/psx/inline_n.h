@@ -767,13 +767,26 @@ void gte_op_lc(void);
 
 /* gte_NormalClip — custom MGS function (NOT a standard GTE inline macro).
    Computes 2D cross product from three packed (x,y) short pairs.
-   sxy0, sxy1, sxy2 are int-packed DVECTOR values, result stored at *out. */
+   sxy0, sxy1, sxy2 are int-packed DVECTOR values, result stored at *out.
+
+   IMPORTANT: on PSX this is implemented by LOADING the three inputs into
+   GTE registers SXY0/SXY1/SXY2 and running the NCLIP instruction -- the
+   loads are an observable side-effect. callers in libdg/prim.c
+   (_MakeXYZOneface) and libdg/divide.c immediately follow up with
+   gte_stsxy0/1/2 to read those SXY registers back out. If we don't update
+   them here, the subsequent stsxy*'s return stale data from whatever GTE
+   op ran last (typically _RotTransPers's final triple), and the prim's
+   XY's get attached to the WRONG vertex. Bug surfaces on the elevator
+   panel as collapsed-quad / solid-color buttons. */
 static inline void gte_NormalClip(int sxy0, int sxy1, int sxy2, void *out)
 {
     short x0 = (short)(sxy0 & 0xffff), y0 = (short)(sxy0 >> 16);
     short x1 = (short)(sxy1 & 0xffff), y1 = (short)(sxy1 >> 16);
     short x2 = (short)(sxy2 & 0xffff), y2 = (short)(sxy2 >> 16);
     *(int *)out = (int)((long)(x1 - x0) * (long)(y2 - y0) - (long)(x2 - x0) * (long)(y1 - y0));
+    gte_state.SXY0.vx = x0; gte_state.SXY0.vy = y0;
+    gte_state.SXY1.vx = x1; gte_state.SXY1.vy = y1;
+    gte_state.SXY2.vx = x2; gte_state.SXY2.vy = y2;
 }
 
 /* CompMatrix macro - composite two matrices */
