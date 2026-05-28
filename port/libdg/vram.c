@@ -613,6 +613,8 @@ void port_DrawOTag(unsigned long *ot)
        prims must sit behind 3D geometry via depth test; overlay prims
        must always draw on top. */
     extern DG_CHANL DG_Chanls[3];
+    u_long *ch_root_ot    = DG_Chanls[0].ot[port_ot_buffer_index];
+    int     ch_root_size  = (1 << DG_Chanls[0].ot_size) + 1;
     u_long *ch_world_ot   = DG_Chanls[1].ot[port_ot_buffer_index];
     int     ch_world_size = (1 << DG_Chanls[1].ot_size) + 1;
     u_long *ch_ovly_ot    = DG_Chanls[2].ot[port_ot_buffer_index];
@@ -642,8 +644,14 @@ void port_DrawOTag(unsigned long *ot)
                 port_2d_depth_flag = (unsigned short)(slot + 2);   /* world VFX -> depth-tested at OT slot (eye_z = slot<<8) */
         } else if (p >= ch_ovly_ot && p < ch_ovly_ot + ch_ovly_size) {
             port_2d_depth_flag = 0;                                /* overlay HUD -> always on top */
+        } else if (p >= ch_root_ot && p < ch_root_ot + ch_root_size) {
+            /* Chanl 0 root/carrier (subtitle text, codec UI route here on the
+               PORT). Without this reset, prims in chanl 0 inherited the prior
+               world-VFX depth from the chanl-1 walk and got occluded by 3D. */
+            port_2d_depth_flag = 0;
         }
-        /* Prim pointers inherit whatever the last OT-cell set. */
+        /* Prim pointers (outside every chanl OT array) inherit whatever the
+           last OT-cell set — they're entries inside a chanl's prim list. */
 
         if (node_count > 100000) {
             printf("[ot] ABORT: >100000 nodes, likely cycle\n");
