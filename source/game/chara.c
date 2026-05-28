@@ -59,13 +59,13 @@ void *GM_GetCharaID(int chara_id)
             if (chara->class_id == chara_id)
             {
 #ifdef PORT_BUILD
-                /* Some stage tables still have raw PSX addresses (0x80XXXXXX)
-                   for characters that weren't mapped to port functions.
-                   Treat these as missing rather than calling a PSX address. */
-                if ((uintptr_t)chara->func < 0x100000000ULL)
-                    return NULL;
-#endif
+                /* All port-side "disable / replace this actor" rules live in
+                   port/chara_overrides.c — see that file. */
+                extern NEWCHARA *port_chara_override(int, NEWCHARA *);
+                return port_chara_override(chara_id, chara->func);
+#else
                 return chara->func;
+#endif
             }
         }
     }
