@@ -69,7 +69,7 @@ GAME_ALL_SRC = $(shell find $(SRCDIR)/game $(SRCDIR)/chara $(SRCDIR)/enemy \
 TAKABE_PORT_COPIES = gas_efct
 EQUIP_PORT_COPIES  = jpegcam
 KOJO_PORT_COPIES   = demothrd demoexec
-MENU_PORT_COPIES   = radio
+MENU_PORT_COPIES   = radio datasave
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
