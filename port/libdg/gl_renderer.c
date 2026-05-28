@@ -117,6 +117,14 @@ static GLuint g_fbo       = 0;
 static GLuint g_fbo_color = 0;
 static GLuint g_fbo_depth = 0;
 
+/* Captured previous-frame color at FBO resolution. Updated at the end of
+   every gl_renderer_present() by copying g_fbo_color. PSX framebuffer-readback
+   effects (NewBlur, NewBlurPure — the blur / "ghost" actors) sample VRAM at
+   the displayed framebuffer region; the GL backend routes those sampling
+   ops to this texture in the 2D fragment shader.  Created/destroyed alongside
+   g_fbo_color; resized in lockstep with it. */
+static GLuint g_prev_fb_tex = 0;
+
 /* Per-viewport projection/render mode. uOrtho=1 switches the vertex
  * shader to orthographic projection; uWireframe=1 makes the rasterizer
  * draw outlines only and the fragment shader emit a flat colour. */
@@ -780,6 +788,16 @@ int gl_renderer_init(void *window_)
             g_ctx = NULL;
             return -1;
         }
+        /* Previous-frame capture target — same dims as g_fbo_color. */
+        glGenTextures(1, &g_prev_fb_tex);
+        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         printf("[gl] FBO %dx%d (PORT_GL_SCALE=%d)\n", g_fbo_w, g_fbo_h, n);
 
@@ -822,9 +840,10 @@ void gl_renderer_shutdown(void)
     g_tri2d_buf = g_line2d_buf = NULL;
     g_tri2d_cap = g_tri2d_count = 0;
     g_line2d_cap = g_line2d_count = 0;
-    if (g_fbo_depth) glDeleteRenderbuffers(1, &g_fbo_depth);
-    if (g_fbo_color) glDeleteTextures(1, &g_fbo_color);
-    if (g_fbo)       glDeleteFramebuffers(1, &g_fbo);
+    if (g_fbo_depth)   glDeleteRenderbuffers(1, &g_fbo_depth);
+    if (g_fbo_color)   glDeleteTextures(1, &g_fbo_color);
+    if (g_prev_fb_tex) glDeleteTextures(1, &g_prev_fb_tex);
+    if (g_fbo)         glDeleteFramebuffers(1, &g_fbo);
     if (g_blit_prog) glDeleteProgram(g_blit_prog);
     if (g_vram_tex)  glDeleteTextures(1, &g_vram_tex);
     if (g_zbuf_tex)  glDeleteTextures(1, &g_zbuf_tex);
@@ -902,6 +921,11 @@ void gl_renderer_set_scale(int n)
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
                           g_fbo_w, g_fbo_h);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    if (g_prev_fb_tex) {
+        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    }
     printf("[gl] FBO resized to %dx%d (scale=%d)\n", g_fbo_w, g_fbo_h, g_scale);
 }
 
@@ -1698,6 +1722,20 @@ void gl_renderer_present(void)
        redraw the same accumulated content. The buffers are reset when the
        game logic starts a new tick (port_RenderObjects -> gl_renderer_begin_3d,
        port_DrawOTag -> gl_renderer_begin_2d). */
+
+    /* --- Capture the just-drawn frame into g_prev_fb_tex --------------- */
+    /* PSX framebuffer-readback effects (NewBlur, NewBlurPure) source pixels
+       from the previously-displayed framebuffer in VRAM.  We mirror this by
+       snapshotting the rendered FBO into a GPU-side texture *now*, before the
+       next tick's 2D actors run.  The 2D shader's framebuffer-sampling branch
+       reads from g_prev_fb_tex when a tri's tpage points into the PSX display
+       region.  GPU-to-GPU copy: no readback stall. */
+    if (g_prev_fb_tex && !debug_view) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
+        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, g_fbo_w, g_fbo_h);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);  /* restore for blit below */
+    }
 
     /* --- Upscale FBO -> window ----------------------------------------- */
     /* Editor docking mode skips this blit and shows the FBO via
