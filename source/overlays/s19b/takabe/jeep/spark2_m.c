@@ -431,12 +431,13 @@ void s19b_spark2_m_800D90A8(Spark2MWork *work, int mode)
 #pragma INCLUDE_ASM("asm/overlays/s19b/s19b_spark2_m_800D9148.s")
 void s19b_spark2_m_800D91DC(Spark2MWork *work, int mode)
 {
-    void *next_state;
-
     if (mode < 8 && (work->f900 & 0x10))
     {
-        next_state = (void *)s19b_spark2_m_800D9148;
-        goto shared_write;
+        work->f8EC = (void *)s19b_spark2_m_800D9148;
+        work->f8F4 = 0;
+        work->vecs[6].vx = 0;
+        work->vecs[5].vz = 0;
+        return;
     }
 
     if (mode >= 8)
@@ -468,10 +469,8 @@ void s19b_spark2_m_800D91DC(Spark2MWork *work, int mode)
     {
         return;
     }
-    next_state = (void *)s19b_spark2_m_800D8B54;
 
-shared_write:
-    work->f8EC = next_state;
+    work->f8EC = (void *)s19b_spark2_m_800D8B54;
     work->f8F4 = 0;
     work->vecs[6].vx = 0;
     work->vecs[5].vz = 0;
