@@ -401,15 +401,33 @@ static const char *TRI2D_VS =
     "layout(location=2) in vec4 aCol;\n"
     "layout(location=3) in uvec4 aTex;   // tpage, clut, flags, depth_flag\n"
     "uniform float uXScale;              // 1.0 in 4:3, 320/render_w in widescreen\n"
+    "uniform vec2 uNearFar;              // (near, far) -- matches the 3D pass\n"
     "out vec2 vUV;\n"
     "out vec4 vCol;\n"
     "flat out uint vTPage;\n"
     "flat out uint vCLUT;\n"
     "flat out uint vFlags;\n"
     "void main() {\n"
+    "    /* NDC depth from the PSX OT slot encoded in aTex.w (depth_flag):\n"
+    "         0 / 1 -> front (z=-1), always on top (HUD/menu/skybox-bg pass);\n"
+    "         >=2   -> world VFX at OT slot (aTex.w-2); eye_z = slot<<8, mapped\n"
+    "                  through the SAME near/far curve as the 3D pass so the\n"
+    "                  fragment depth-tests against 3D geometry and gets\n"
+    "                  occluded by closer surfaces. */\n"
+    "    float z2d;\n"
+    "    if (aTex.w <= 1u) {\n"
+    "        z2d = -1.0;\n"
+    "    } else {\n"
+    "        float n = uNearFar.x, f = uNearFar.y;\n"
+    "        float Z = float((aTex.w - 2u) << 8u);\n"
+    "        if (Z < n) Z = n;\n"
+    "        float A = (f + n) / (f - n);\n"
+    "        float B = -2.0 * f * n / (f - n);\n"
+    "        z2d = (A * Z + B) / Z;\n"
+    "    }\n"
     "    gl_Position = vec4((aPos.x / 160.0 - 1.0) * uXScale,\n"
     "                       1.0 - aPos.y / 112.0,\n"
-    "                       0.0, 1.0);\n"
+    "                       z2d, 1.0);\n"
     "    vUV = aUV;\n"
     "    vCol = aCol;\n"
     "    vTPage = aTex.x;\n"
@@ -711,6 +729,7 @@ int gl_renderer_init(void *window_)
     glUseProgram(g_tri2d_prog);
     glUniform1i(glGetUniformLocation(g_tri2d_prog, "uVRAM"), 0);
     glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"), 1.0f);
+    glUniform2f(glGetUniformLocation(g_tri2d_prog, "uNearFar"), 4.0f, 32768.0f);
     glUseProgram(0);
 
     glBindVertexArray(0);
@@ -1217,7 +1236,9 @@ static void pack_vert2d(GL2DVert *v,
     v->tpage = tpage;
     v->clut  = clut;
     v->flags = flags;
-    v->depth_flag = 0;
+    /* Carry the OT-slot depth class (set by port_DrawOTag) into the vertex so
+       the 2D shader can depth-test world VFX while keeping HUD/overlay on top. */
+    v->depth_flag = port_2d_depth_flag;
 }
 
 void gl_submit_tri2d(
@@ -1247,8 +1268,10 @@ void gl_submit_tri2d(
     /* Route world-chanl 2D prims (notably the sphere skybox) to a separate
      * buffer that gets flushed BEFORE 3D geometry. This gives real skybox
      * semantics -- 3D is drawn over the sky with the normal depth test --
-     * without any per-vertex z trickery. */
-    if (port_2d_depth_flag) {
+     * without any per-vertex z trickery. Only the deep skybox slots (flag==1)
+     * go here; shallow world VFX (flag>=2) stay in the fg buffer and are
+     * depth-tested via their encoded OT slot. */
+    if (port_2d_depth_flag == 1) {
         tri2d_bg_reserve(3);
         pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], a, uv_a, col_a, tpage, clut, flags);
         pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], b, uv_b, col_b, tpage, clut, flags);
@@ -1319,7 +1342,8 @@ static void apply_abr(int abr)
  * issues draws in runs that share (semi_trans, abr). prim_type is GL_TRIANGLES
  * or GL_LINES; stride is the number of verts per primitive (3 or 2). */
 static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
-                         size_t count, GLenum prim_type, size_t stride)
+                         size_t count, GLenum prim_type, size_t stride,
+                         int depth_test)
 {
     if (count == 0) return;
     glBindVertexArray(vao);
@@ -1335,7 +1359,16 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
                 320.0f / (float)g_render_w);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_vram_tex);
-    glDisable(GL_DEPTH_TEST);
+    /* Foreground tris depth-test against the 3D scene (so world VFX get
+       occluded) but don't WRITE depth -- HUD/overlay encode z=-1 and always
+       pass, and 2D-vs-2D order stays painter's (OT order). */
+    if (depth_test) {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
+        glDepthMask(GL_FALSE);
+    } else {
+        glDisable(GL_DEPTH_TEST);
+    }
 
     size_t i = 0;
     while (i < count) {
@@ -1363,6 +1396,10 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
 
     glDisable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
+    if (depth_test) {           /* leave state as other passes expect */
+        glDepthMask(GL_TRUE);
+        glDisable(GL_DEPTH_TEST);
+    }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     glUseProgram(0);
@@ -1372,7 +1409,7 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
 static void flush_tri2d(void)
 {
     flush_2d_buf(g_tri2d_vao, g_tri2d_vbo, g_tri2d_buf, g_tri2d_count,
-                 GL_TRIANGLES, 3);
+                 GL_TRIANGLES, 3, 1 /* depth-test world VFX vs 3D */);
 }
 
 static void flush_tri2d_bg(void)
@@ -1380,13 +1417,13 @@ static void flush_tri2d_bg(void)
     /* Background 2D (sphere skybox) -- reuse the fg VAO/VBO, just hand in
      * the bg buffer. Called from gl_renderer_present BEFORE the 3D pass. */
     flush_2d_buf(g_tri2d_vao, g_tri2d_vbo, g_tri2d_bg_buf, g_tri2d_bg_count,
-                 GL_TRIANGLES, 3);
+                 GL_TRIANGLES, 3, 0);
 }
 
 static void flush_line2d(void)
 {
     flush_2d_buf(g_line2d_vao, g_line2d_vbo, g_line2d_buf, g_line2d_count,
-                 GL_LINES, 2);
+                 GL_LINES, 2, 0);
 }
 
 void gl_renderer_mark_vram_dirty(int y0, int y1)
