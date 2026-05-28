@@ -33,11 +33,13 @@ typedef struct {
 } PortCharaOverride;
 
 static const PortCharaOverride k_overrides[] = {
-    /* PSX-hardware-only effects: framebuffer-readback blur + DR_STP mask.
-       Without these PSX features the port renders opaque overlays — see
-       commit fad64d75a for the original symptom (s02b duct iris). */
-    { CHARAID_0025_BLUR,  NULL },   /* okajima/blur.c       NewBlurSet     */
-    { CHARAID_0044_GHOST, NULL },   /* okajima/blurpure.c   NewBlurPure    */
+    /* Re-enabled now that the GL backend implements framebuffer-to-texture
+       readback (see port/libdg/gl_renderer.c -- g_prev_fb_tex). Leaving the
+       slots here as documentation of what these actors do. If they ever
+       regress (e.g. DR_STP-masked semi-trans starts producing wrong colors),
+       set replacement back to NULL to disable. */
+    /* { CHARAID_0025_BLUR,  NULL }, // okajima/blur.c     NewBlurSet  */
+    /* { CHARAID_0044_GHOST, NULL }, // okajima/blurpure.c NewBlurPure */
     /* { CHARAID_X, NewPortReplacementY }, // future overrides go here */
     { 0, NULL }   /* sentinel */
 };
