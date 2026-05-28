@@ -500,8 +500,10 @@ static inline int sub_helper2_80027F10(void)
     return 1;
 }
 
-//todo: include proper
-#define UNTAG_PTR(_type, _ptr) (_type *)((unsigned int)_ptr & 0x7fffffff)
+/* 64-bit-safe: clear bit 31 (PSX KSEG cached marker) without truncating
+   the high half of a 64-bit pointer. Using unsigned int here was the cause
+   of post-detonation 0xcdbde-style faults inside claymore_loader_helper. */
+#define UNTAG_PTR(_type, _ptr) (_type *)((uintptr_t)(_ptr) & ~(uintptr_t)0x80000000)
 
 STATIC void TestFloor(HZD_FLR *floor)
 {
