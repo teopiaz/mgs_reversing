@@ -68,7 +68,7 @@ GAME_ALL_SRC = $(shell find $(SRCDIR)/game $(SRCDIR)/chara $(SRCDIR)/enemy \
 # rebase-hot zone, or struct-layout / GTE-light tweaks).
 TAKABE_PORT_COPIES = gas_efct
 EQUIP_PORT_COPIES  = jpegcam
-KOJO_PORT_COPIES   = demothrd
+KOJO_PORT_COPIES   = demothrd demoexec
 
 GAME_SRC = $(filter-out $(EXCLUDE_FILES), $(GAME_ALL_SRC))
 GAME_SRC := $(filter-out $(addprefix $(SRCDIR)/takabe/,$(addsuffix .c,$(TAKABE_PORT_COPIES))), $(GAME_SRC))
