@@ -472,6 +472,11 @@ static void Act(Work *work)
         ancField1Anded = tPageInfo & 0x3f; // This keeps the 6 LSBs.
         ancField1Shifted = tPageInfo >> 6;
 
+        if (frameCountPositive != 0 && offsetIndicesIndex != 0)
+        {
+            sight_800711C0(work, frameCount, offsetPrimBuf, offsetIndicesIndex, primOffsetIndicesArray,
+                           primOffsetInfoArray, primOffset, field54Flags);
+        }
 
         if (ancField1Anded != 0)
         {
@@ -482,6 +487,43 @@ static void Act(Work *work)
             if (frameCountMod < infoField14Field1)
             {
                 continue;
+            }
+        }
+
+        if (field30 != 0 && xyOffsetBuffer != (short *)0x0)
+        {
+            sight_act_helper_80071320(work, offsetPrimBuf, xyOffsetBuffer, primOffset);
+        }
+
+        /* Primitive rendering. addPrim uses the port's 24-bit handle table
+           (port/psx/libgpu.h _ptr_to_handle), so 64-bit pointers work fine --
+           the earlier comment claiming "32-bit tag" incompatibility was wrong.
+           The tag's high byte (length) and low 24 bits (OT link) are managed
+           by addPrim; text pseudo-prims are distinguished by their first word
+           sentinel 0xff which we test before linking. */
+        tag = *(int *)offsetPrimBuf;
+        if (tag == 0xff)
+        {
+            if (!(dword_8009F608 & 1) && !(GM_PlayerStatus & PLAYER_NOT_SIGHT))
+            {
+                sight_act_helper_80071498(offsetPrimBuf);
+            }
+        }
+        else
+        {
+            if (!(dword_8009F608 & 1) && !(GM_PlayerStatus & PLAYER_NOT_SIGHT))
+            {
+                addPrim(ot, offsetPrimBuf);
+            }
+            code = getcode(offsetPrimBuf);
+            if ((code & 2) != 0) // semi-transparency
+            {
+                SetDrawTPage(tPageBuf, 0, 1, ancField1Shifted << 5);
+                if (!(dword_8009F608 & 1) && !(GM_PlayerStatus & PLAYER_NOT_SIGHT))
+                {
+                    addPrim(ot, tPageBuf);
+                }
+                tPageBuf += 1;
             }
         }
     }
