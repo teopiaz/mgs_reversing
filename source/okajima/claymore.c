@@ -393,9 +393,16 @@ void *NewClaymore(SVECTOR *noise_position, SVECTOR *new_field_2C, int pCnt, int 
         NewAnime_8005DF50(&new_field_24, new_field_2C);
     }
 
+#ifdef PORT_BUILD
+    /* On 64-bit (int) truncates the pointer and breaks claymore_MAP_*->hzd
+       deref inside claymore_loader_helper_800735A0. Keep full width. */
+    claymore_MAP_800bdf08 = GM_GetMap(GM_CurrentMap);
+    current_map = (int)GM_CurrentMap;
+#else
     // from MAP* to int, back to MAP*: (to get a match)
     current_map = (int)GM_GetMap(GM_CurrentMap);
     claymore_MAP_800bdf08 = (MAP *)current_map;
+#endif
 
     for (i = 0; i < pCnt; i++)
     {
