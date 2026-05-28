@@ -677,6 +677,38 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         port_tex_abr = (tex->tpage >> 5) & 0x3;
                         port_tex_enabled = 1;
 
+                        /* Stealth / Optical Camo (source/equip/kogaku2.c):
+                           on PSX the POLY_GT4 pack's own tpage+UVs override
+                           whatever material the model has. kogaku2 writes a
+                           framebuffer-region tpage and screen-space UVs into
+                           the pack so the model samples the prior frame and
+                           appears to refract whatever's behind it. The port
+                           normally renders from the material-atlas lookup
+                           above (correct for static models), so we have to
+                           honour the pack override here for kogaku2 to work
+                           at all. The fb-readback flag bit is OR'd into the
+                           vertex flags downstream in gl_submit_tri3d. */
+                        {
+                            POLY_GT4 *kpk = obj->packs[idx]
+                                ? &((POLY_GT4 *)obj->packs[idx])[fi]
+                                : NULL;
+                            if (kpk) {
+                                uint16_t pt = kpk->tpage;
+                                int kp_tp = (pt >> 7) & 3;
+                                int kp_by = ((pt >> 4) & 1) * 256;
+                                int kp_bx = (pt & 0xF) * 64;
+                                if (kp_tp == 2 && kp_by == 0 && kp_bx < 640) {
+                                    port_tex_tpage = pt;
+                                    port_tex_clut  = kpk->clut;
+                                    port_tex_abr   = (pt >> 5) & 0x3;
+                                    uv[0][0] = kpk->u0; uv[0][1] = kpk->v0;
+                                    uv[1][0] = kpk->u1; uv[1][1] = kpk->v1;
+                                    uv[2][0] = kpk->u2; uv[2][1] = kpk->v2;
+                                    uv[3][0] = kpk->u3; uv[3][1] = kpk->v3;
+                                }
+                            }
+                        }
+
                         int cu = (uv[0][0]+uv[1][0]+uv[2][0]+uv[3][0])/4;
                         int cv = (uv[0][1]+uv[1][1]+uv[2][1]+uv[3][1])/4;
                         uint16_t texel = sample_vram_texel(tex->tpage, tex->clut, cu, cv);
@@ -699,18 +731,21 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             if (port_tex_semi_trans) fflags |= 2 | ((port_tex_abr & 3) << 2);
                             if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
                             const GLLight *lp = light_flag_bit ? &gl_light : NULL;
-                            /* tri 1: v0, v1, v3 */
+                            /* tri 1: v0, v1, v3.  tpage/clut come from the
+                               port_tex_* vars so the kogaku2 fb-readback
+                               override above takes effect; otherwise they
+                               equal tex->tpage / tex->clut as before. */
                             gl_submit_tri3d(eye[0], eye[1], eye[3],
                                             uv[0], uv[1], uv[3],
                                             ca, cb_, cd_,
                                             nvecs[0], nvecs[1], nvecs[3], lp,
-                                            dist, face_z, tex->tpage, tex->clut, fflags);
+                                            dist, face_z, port_tex_tpage, port_tex_clut, fflags);
                             /* tri 2: v1, v2, v3 */
                             gl_submit_tri3d(eye[1], eye[2], eye[3],
                                             uv[1], uv[2], uv[3],
                                             cb_, cc_, cd_,
                                             nvecs[1], nvecs[2], nvecs[3], lp,
-                                            dist, face_z, tex->tpage, tex->clut, fflags);
+                                            dist, face_z, port_tex_tpage, port_tex_clut, fflags);
                         } else {
                             /* Tri 1: v0, v1, v3 */
                             port_tri_u[0]=uv[0][0]; port_tri_v[0]=uv[0][1];
