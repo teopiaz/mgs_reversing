@@ -1328,6 +1328,45 @@ static void pack_light(GL3DVert *v, const short *normal, const GLLight *light)
     }
 }
 
+/* --- PSX framebuffer-readback detection -------------------------------- */
+/*
+ * NewBlur / NewBlurPure (source/okajima/blur*.c) and kogaku2 Stealth /
+ * Optical Camo (source/equip/kogaku2.c) all texture geometry with the
+ * framebuffer itself by pointing a primitive's tpage into the PSX display
+ * region. The GL backend routes those prims to a different shader branch
+ * (vertex flag bit 5) that samples either the captured previous-frame
+ * texture (2D blur) or a mid-frame FBO snapshot (3D stealth) instead of
+ * the normal CLUT lookup.
+ *
+ * Detection rule: tp == 2 (16-bit direct), base_y == 0, base_x < 640 --
+ * exactly where MGS's double-buffered display lives. Real texture atlases
+ * on every disc stage are at y >= 256, so the filter is unambiguous.
+ *
+ * Centralised here so both gl_submit_tri2d and gl_submit_tri3d use the
+ * same rule -- previously inlined twice, easy to drift.
+ */
+#define PORT_VERT_FLAG_FB_READBACK  0x20u
+
+static inline int port_is_fb_readback_tpage(unsigned short tpage)
+{
+    int tp = (tpage >> 7) & 3;
+    int by = ((tpage >> 4) & 1) * 256;
+    if (tpage & 0x800) by += 512;
+    int bx = (tpage & 0xF) * 64;
+    return (tp == 2 && by == 0 && bx < 640);
+}
+
+/* Decode tpage to its (base_x, base_y) corner -- used by the first-5-hit
+   stderr traces below so the message says "base=(128,0)" etc. */
+static inline void port_fb_readback_tpage_base(unsigned short tpage,
+                                               int *out_bx, int *out_by)
+{
+    int by = ((tpage >> 4) & 1) * 256;
+    if (tpage & 0x800) by += 512;
+    *out_bx = (tpage & 0xF) * 64;
+    *out_by = by;
+}
+
 static void pack_vert(GL3DVert *v,
     const int xyz[3], const int uv[2], const unsigned char rgb[3],
     const short *normal, const GLLight *light,
@@ -1363,25 +1402,19 @@ void gl_submit_tri3d(
 {
     if (!g_enabled) return;
 
-    /* Same fb-region detection as gl_submit_tri2d. Stealth/Optical Camo
-       (source/equip/kogaku2.c) rewrites Snake's POLY_GT4 packs to point at
-       a framebuffer tpage and uses per-vertex screen-space UVs so the model
-       appears to refract whatever's behind it. */
-    if ((flags & 0x1u) != 0u) {
-        int tp = (tpage >> 7) & 3;
-        int by = ((tpage >> 4) & 1) * 256;
-        if (tpage & 0x800) by += 512;
-        int bx = (tpage & 0xF) * 64;
-        if (tp == 2 && by == 0 && bx < 640) {
-            flags |= 0x20u;
-            static int s_fb_readback_3d_logged = 0;
-            if (s_fb_readback_3d_logged < 5) {
-                fprintf(stderr,
-                        "[gl] fb-readback 3D prim: tpage=0x%04x base=(%d,%d) "
-                        "(Stealth / Optical Camo firing)\n",
-                        tpage, bx, by);
-                s_fb_readback_3d_logged++;
-            }
+    /* Stealth / Optical Camo (source/equip/kogaku2.c) rewrites Snake's
+       POLY_GT4 packs to a framebuffer tpage + screen-space UVs. The same
+       fb-readback detection runs in gl_submit_tri2d for blur (POLY_FT4 /
+       SPRT). See port_is_fb_readback_tpage() above for the rule. */
+    if ((flags & 0x1u) && port_is_fb_readback_tpage(tpage)) {
+        flags |= PORT_VERT_FLAG_FB_READBACK;
+        static int s_logged_3d = 0;
+        if (s_logged_3d < 5) {
+            int bx, by; port_fb_readback_tpage_base(tpage, &bx, &by);
+            fprintf(stderr,
+                "[gl] fb-readback 3D prim: tpage=0x%04x base=(%d,%d) "
+                "(Stealth / Optical Camo firing)\n", tpage, bx, by);
+            s_logged_3d++;
         }
     }
 
@@ -1472,29 +1505,18 @@ void gl_submit_tri2d(
 {
     if (!g_enabled) return;
 
-    /* Framebuffer-readback detection: PSX blur/ghost effects (NewBlur,
-       NewBlurPure) source pixels from the displayed framebuffer in VRAM by
-       pointing a textured primitive's tpage into the framebuffer region. We
-       detect this here, the single chokepoint for textured 2D primitives,
-       and OR bit 5 into the vertex flags so the FS branches to sample
-       uPrevFB. The match is restricted to tp=2 (16-bit direct color) at
-       base_y=0 -- the MGS framebuffer's exact VRAM location -- to avoid
-       catching genuine 16-bit textures living elsewhere in VRAM. */
-    if ((flags & 0x1u) != 0u) {
-        int tp = (tpage >> 7) & 3;
-        int by = ((tpage >> 4) & 1) * 256;
-        if (tpage & 0x800) by += 512;
-        int bx = (tpage & 0xF) * 64;
-        if (tp == 2 && by == 0 && bx < 640) {
-            flags |= 0x20u;
-            static int s_fb_readback_logged = 0;
-            if (s_fb_readback_logged < 5) {
-                fprintf(stderr,
-                        "[gl] fb-readback prim: tpage=0x%04x base=(%d,%d) "
-                        "(NewBlur / NewBlurPure firing)\n",
-                        tpage, bx, by);
-                s_fb_readback_logged++;
-            }
+    /* 2D blur (NewBlur / NewBlurPure) -- the same fb-readback detection as
+       the 3D Stealth path in gl_submit_tri3d. See port_is_fb_readback_tpage()
+       above. */
+    if ((flags & 0x1u) && port_is_fb_readback_tpage(tpage)) {
+        flags |= PORT_VERT_FLAG_FB_READBACK;
+        static int s_logged_2d = 0;
+        if (s_logged_2d < 5) {
+            int bx, by; port_fb_readback_tpage_base(tpage, &bx, &by);
+            fprintf(stderr,
+                "[gl] fb-readback prim: tpage=0x%04x base=(%d,%d) "
+                "(NewBlur / NewBlurPure firing)\n", tpage, bx, by);
+            s_logged_2d++;
         }
     }
 
