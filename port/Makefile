@@ -163,6 +163,7 @@ PORT_OBJ = \
 	$(OBJDIR)/asm_stubs.o \
 	$(OBJDIR)/gte_math.o \
 	$(OBJDIR)/gpu_stubs.o \
+	$(OBJDIR)/struct_assertions.o \
 	$(OBJDIR)/mts.o \
 	$(OBJDIR)/libdg_stub.o \
 	$(OBJDIR)/vram.o \
@@ -246,6 +247,9 @@ $(OBJDIR)/gte_math.o: psx/gte_math.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/gpu_stubs.o: psx/gpu_stubs.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/struct_assertions.o: psx/struct_assertions.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/mts.o: mts/mts.c | $(OBJDIR)
