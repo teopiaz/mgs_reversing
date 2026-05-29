@@ -406,6 +406,16 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     if (ImGui::Checkbox("Draw 2D lines", &b)) gl_debug_skip_lines = !b;
                 }
 
+                if (ImGui::CollapsingHeader("Shaders"))
+                {
+                    ImGui::TextDisabled("GLSL lives in port/libdg/shaders/*.{vert,frag}.");
+                    ImGui::TextDisabled("Edit, save, click reload -- no rebuild needed.");
+                    extern int gl_renderer_reload_shaders(void);
+                    if (ImGui::Button("Reload shaders (F5)")) {
+                        gl_renderer_reload_shaders();
+                    }
+                }
+
                 if (ImGui::CollapsingHeader("Quality / Output"))
                 {
                     int scale = gl_renderer_get_scale();

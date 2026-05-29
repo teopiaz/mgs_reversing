@@ -83,6 +83,14 @@ int gl_renderer_read_psx_region(int psx_x, int psx_y, int psx_w, int psx_h,
                                 unsigned char *out_rgb,
                                 int *out_w, int *out_h);
 
+/* Hot-reload the shader programs from their on-disk source files
+ * (port/libdg/shaders/{blit,tri3d,tri2d}.{vert,frag}). Useful for iterating
+ * on GLSL without rebuilding. Returns 1 if every program reloaded
+ * successfully, 0 if any compile/link failed (in which case the previous
+ * programs are kept). Safe to call between frames; bound to a debug-pane
+ * button in imgui_debug.cpp. */
+int gl_renderer_reload_shaders(void);
+
 /* Recreate the hi-res FBO at a new PORT_GL_SCALE. Safe to call between frames
  * (typically from the debug menu). n clamped to [1, 8]. */
 void gl_renderer_set_scale(int n);

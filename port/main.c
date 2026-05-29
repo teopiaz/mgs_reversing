@@ -213,6 +213,11 @@ static void port_poll_events(void)
             }
             if (event.key.keysym.sym == SDLK_F1)
                 imgui_toggle_debug();
+            if (event.key.keysym.sym == SDLK_F5)
+            {
+                extern int gl_renderer_reload_shaders(void);
+                gl_renderer_reload_shaders();
+            }
             if (event.key.keysym.sym == SDLK_F11 ||
                 (event.key.keysym.sym == SDLK_RETURN &&
                  (event.key.keysym.mod & KMOD_ALT)))
