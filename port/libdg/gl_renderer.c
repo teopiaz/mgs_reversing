@@ -1736,35 +1736,29 @@ static void upload_dirty_vram_rows(void)
     g_dirty_y1 = 0;
 }
 
-void gl_renderer_present(void)
+/* ---- gl_renderer_present and its passes -------------------------------- */
+/*
+ * Each frame's render does six discrete passes against the hi-res FBO:
+ *
+ *   1.  upload_dirty_vram_rows         -- VRAM CPU->GPU sync
+ *   2.  begin_frame_clear              -- bind FBO, set viewport, clear
+ *   3.  flush_tri2d_bg                 -- 2D background (sphere skybox)
+ *   4.  pass_3d_world                  -- 3D pass with run-batcher and
+ *                                          mid-frame fb-readback snapshot
+ *   5.  pass_3d_lines                  -- editor wireframe overlay
+ *   6a. flush_tri2d + flush_line2d     -- 2D foreground (HUD + menu)
+ *   6b. pass_debug_vram                -- alternative VRAM overlay
+ *   7.  capture_prev_fb                -- end-of-frame snapshot for blur
+ *   8.  blit_fbo_to_window             -- final upscale to window
+ *
+ * Each pass is its own static function; gl_renderer_present is just the
+ * orchestrator. Functions take the minimum context they need (debug_view
+ * flag, viewport rect for the final blit) and pull everything else from
+ * the module-scope globals. */
+
+static void begin_frame_clear(void)
 {
-    if (!g_enabled) return;
-
-    /* The game just finished writing 2D primitives into vram[][0..223]; push
-       dirty rows to the GPU. We unconditionally mark framebuffer rows dirty
-       because the 2D OT walker doesn't track them per-pixel yet. */
-    gl_renderer_mark_vram_dirty(0, 224);
-    upload_dirty_vram_rows();
-
-    int fb_w = 0, fb_h = 0;
-    SDL_GL_GetDrawableSize(g_window, &fb_w, &fb_h);
-    if (fb_w <= 0 || fb_h <= 0) { fb_w = 640; fb_h = 448; }
-
-    /* Aspect-correct render_w:224 inside the window (4:3 normally, 16:9 when
-       widescreen is enabled via gl_renderer_set_widescreen). */
-    const float target = (float)g_render_w / 224.0f;
-    float wf = (float)fb_w;
-    float hf = (float)fb_h;
-    int vp_w = fb_w, vp_h = fb_h, vp_x = 0, vp_y = 0;
-    if (wf / hf > target) {
-        vp_w = (int)(hf * target + 0.5f);
-        vp_x = (fb_w - vp_w) / 2;
-    } else {
-        vp_h = (int)(wf / target + 0.5f);
-        vp_y = (fb_h - vp_h) / 2;
-    }
-
-    /* Render everything into the hi-res FBO at 320*scale x 224*scale. */
+    /* Hi-res FBO at 320*scale x 224*scale. */
     glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
     glDisable(GL_SCISSOR_TEST);
     glViewport(0, 0, g_fbo_w, g_fbo_h);
@@ -1794,227 +1788,212 @@ void gl_renderer_present(void)
         glClearColor(g_clear_rgb[0], g_clear_rgb[1], g_clear_rgb[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
+}
 
-    /* Debug VRAM view: skip 3D, just dump VRAM as before. */
-    extern int port_vram_debug_view(void);
-    int debug_view = port_vram_debug_view();
-
-    /* Apply wireframe polygon mode if the debug flag or the active
-     * viewport's wireframe flag is set. Cleared later. */
-    int vp_wireframe = gl_debug_wireframe || g_vp_wireframe[g_active_vp];
-    if (vp_wireframe)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-    /* --- Background 2D pass (sphere skybox) ---------------------------- */
-    /* World-chanl 2D prims are drawn FIRST so the 3D pass below paints
-     * over them using the normal depth test. Real skybox semantics:
-     * sky fills the framebuffer, 3D geometry occludes it. */
-    if (!debug_view && !g_codec_mode && !gl_debug_skip_2d)
-        flush_tri2d_bg();
-
-    /* --- 3D pass -------------------------------------------------------- */
+/* The big 3D pass: textured/Gouraud world geometry, run-batched by
+   (semi_trans, abr, no_cull, fb_readback) so consecutive prims sharing
+   the same bucket use one glDrawArrays. fb_readback (Stealth / Optical
+   Camo) runs also trigger a mid-frame glCopyTexSubImage2D into g_prev_fb_tex
+   right before they draw -- see port_is_fb_readback_tpage. */
+static void pass_3d_world(int debug_view)
+{
     /* In codec mode (DG_FrameRate == 2) the PSX pipeline disables 3D and the
        screen is meant to be pure 2D. Skip the 3D batch entirely so stale
        triangles from the pre-codec stage don't bleed through the codec UI. */
-    if (!debug_view && !g_codec_mode && !gl_debug_skip_3d && g_tri3d_count > 0) {
-        /* flush_tri2d_bg above ran flush_2d_buf, which disables depth test.
-           Re-enable it here so the 3D pass actually depth-sorts. Without this
-           the whole scene draws in submission order, which looks like geometry
-           is flipped / missing. */
-        glEnable(GL_DEPTH_TEST);
+    if (debug_view || g_codec_mode || gl_debug_skip_3d || g_tri3d_count == 0)
+        return;
 
-        /* PSX has no real far clip -- the original hardware uses the OT for
-           ordering, not a z clip plane. GL will cull any vertex with
-           z_ndc > 1 or z_ndc < -1, which hides distant stage geometry (e.g.
-           the s01a docks, eye-z > ~32k) and makes the sphere skybox appear
-           to sit in front of the world. GL_DEPTH_CLAMP clamps such vertices
-           to the depth range instead of discarding the primitive, matching
-           PSX semantics. */
-        glEnable(GL_DEPTH_CLAMP);
+    /* flush_tri2d_bg above ran flush_2d_buf, which disables depth test.
+       Re-enable it here so the 3D pass actually depth-sorts. Without this
+       the whole scene draws in submission order, which looks like geometry
+       is flipped / missing. */
+    glEnable(GL_DEPTH_TEST);
 
-        glBindVertexArray(g_tri3d_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, g_tri3d_vbo);
-        glBufferData(GL_ARRAY_BUFFER,
-                     (GLsizeiptr)(g_tri3d_count * sizeof(GL3DVert)),
-                     g_tri3d_buf, GL_STREAM_DRAW);
+    /* PSX has no real far clip -- the original hardware uses the OT for
+       ordering, not a z clip plane. GL will cull any vertex with
+       z_ndc > 1 or z_ndc < -1, which hides distant stage geometry (e.g.
+       the s01a docks, eye-z > ~32k) and makes the sphere skybox appear
+       to sit in front of the world. GL_DEPTH_CLAMP clamps such vertices
+       to the depth range instead of discarding the primitive, matching
+       PSX semantics. */
+    glEnable(GL_DEPTH_CLAMP);
 
-        glUseProgram(g_tri3d_prog);
-        glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
-        glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
-        /* Per-viewport projection: editor's ortho panes flip uOrtho on. */
-        glUniform1i(g_tri3d_u_ortho, g_vp_ortho[g_active_vp]);
-        glUniform4fv(g_tri3d_u_ortho_lrbt, 1, g_vp_ortho_lrbt[g_active_vp]);
-        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"),
-                    (gl_debug_no_textures || g_vp_wireframe[g_active_vp]) ? 1 : 0);
-        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"),
-                    gl_debug_face_id ? 1 : 0);
-        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"),
-                    gl_debug_show_normals ? 1 : 0);
+    glBindVertexArray(g_tri3d_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, g_tri3d_vbo);
+    glBufferData(GL_ARRAY_BUFFER,
+                 (GLsizeiptr)(g_tri3d_count * sizeof(GL3DVert)),
+                 g_tri3d_buf, GL_STREAM_DRAW);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, g_vram_tex);
-        /* Previous-frame capture on unit 2 for tris with the fb-readback flag
-           (Stealth / Optical Camo -- source/equip/kogaku2.c). */
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
-        glActiveTexture(GL_TEXTURE0);
+    glUseProgram(g_tri3d_prog);
+    glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
+    glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
+    /* Per-viewport projection: editor's ortho panes flip uOrtho on. */
+    glUniform1i(g_tri3d_u_ortho, g_vp_ortho[g_active_vp]);
+    glUniform4fv(g_tri3d_u_ortho_lrbt, 1, g_vp_ortho_lrbt[g_active_vp]);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"),
+                (gl_debug_no_textures || g_vp_wireframe[g_active_vp]) ? 1 : 0);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"),
+                gl_debug_face_id ? 1 : 0);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"),
+                gl_debug_show_normals ? 1 : 0);
 
-        /* GPU backface cull. Our vertex shader flips Y (PSX screen is Y-down,
-           GL NDC is Y-up), which inverts 2D winding, so PSX-front (CW in
-           Y-down / NCLIP area > 0) becomes GL-CCW after projection. Default
-           front-face GL_CCW + cull GL_BACK reproduces PSX NCLIP exactly and
-           handles mirror matrices for free (GPU sees the real post-projection
-           winding). Per-tri "no cull" flag (bit 6) disables for characters /
-           DG_MODEL_BOTHFACE. */
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(gl_debug_cull_cw ? GL_CW : GL_CCW);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, g_vram_tex);
+    /* Previous-frame capture on unit 2 for tris with the fb-readback flag
+       (Stealth / Optical Camo -- source/equip/kogaku2.c). */
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+    glActiveTexture(GL_TEXTURE0);
 
-        /* Walk the 3D buffer in runs sharing the same (semi_trans, abr,
-           no_cull, fb_readback) bucket. Submission order is PSX-OT order
-           (back-to-front) so a simple bucket-change detector preserves
-           painter's semantics. Opaque runs: blend OFF, depth write ON.
-           Semi-trans runs: blend via apply_abr, depth write OFF.
-           fb_readback runs (Stealth / Optical Camo): force standard
-           src-alpha / one-minus-src-alpha blend so the FS's low-alpha tint
-           composites against the level geometry already in the FBO. */
-        size_t i = 0;
-        while (i < g_tri3d_count) {
-            unsigned short f0 = g_tri3d_buf[i].flags;
-            int semi0   = (f0 >> 1) & 1;
-            int abr0    = (f0 >> 2) & 3;
-            int nocull0 = (f0 >> 6) & 1;
-            int fb0     = (f0 >> 5) & 1;
-            size_t run_start = i;
-            /* 3 verts per triangle — stride through whole triangles. */
-            size_t j = i;
-            while (j + 3 <= g_tri3d_count) {
-                unsigned short f = g_tri3d_buf[j].flags;
-                int s  = (f >> 1) & 1;
-                int a  = (f >> 2) & 3;
-                int nc = (f >> 6) & 1;
-                int fb = (f >> 5) & 1;
-                if (s != semi0 || (s && a != abr0) || nc != nocull0 || fb != fb0) break;
-                j += 3;
-            }
-            if (fb0) {
-                /* Mid-frame snapshot. By construction the buffer ahead of
-                   this run is OT-earlier 3D (level geometry, props), drawn
-                   before Snake -- so copying the FBO now gives us a clean
-                   "scene without Snake" the FS can sample for refraction.
-                   This avoids the accumulation problem you'd get sampling
-                   the end-of-previous-frame capture (which contains Snake). */
-                glActiveTexture(GL_TEXTURE2);
-                glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                                    0, 0, g_fbo_w, g_fbo_h);
-                glActiveTexture(GL_TEXTURE0);
-                glDisable(GL_BLEND);
-                glDepthMask(GL_FALSE);   /* don't occlude later geometry */
-            } else if (semi0) {
-                glEnable(GL_BLEND);
-                glDepthMask(GL_FALSE);
-                apply_abr(abr0);
-            } else {
-                glDisable(GL_BLEND);
-                glDepthMask(GL_TRUE);
-            }
-            if (nocull0) glDisable(GL_CULL_FACE);
-            else         glEnable(GL_CULL_FACE);
-            glDrawArrays(GL_TRIANGLES, (GLint)run_start, (GLsizei)(j - run_start));
-            i = j;
+    /* GPU backface cull. Our vertex shader flips Y (PSX screen is Y-down,
+       GL NDC is Y-up), which inverts 2D winding, so PSX-front (CW in
+       Y-down / NCLIP area > 0) becomes GL-CCW after projection. Default
+       front-face GL_CCW + cull GL_BACK reproduces PSX NCLIP exactly and
+       handles mirror matrices for free (GPU sees the real post-projection
+       winding). Per-tri "no cull" flag (bit 6) disables for characters /
+       DG_MODEL_BOTHFACE. */
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(gl_debug_cull_cw ? GL_CW : GL_CCW);
+
+    /* Walk the 3D buffer in runs sharing the same (semi_trans, abr,
+       no_cull, fb_readback) bucket. Submission order is PSX-OT order
+       (back-to-front) so a simple bucket-change detector preserves
+       painter's semantics. Opaque runs: blend OFF, depth write ON.
+       Semi-trans runs: blend via apply_abr, depth write OFF.
+       fb_readback runs (Stealth / Optical Camo): mid-frame FBO snapshot
+       into g_prev_fb_tex, then opaque write (the FS samples uPrevFB for
+       the refraction tint). */
+    size_t i = 0;
+    while (i < g_tri3d_count) {
+        unsigned short f0 = g_tri3d_buf[i].flags;
+        int semi0   = (f0 >> 1) & 1;
+        int abr0    = (f0 >> 2) & 3;
+        int nocull0 = (f0 >> 6) & 1;
+        int fb0     = (f0 >> 5) & 1;
+        size_t run_start = i;
+        /* 3 verts per triangle - stride through whole triangles. */
+        size_t j = i;
+        while (j + 3 <= g_tri3d_count) {
+            unsigned short f = g_tri3d_buf[j].flags;
+            int s  = (f >> 1) & 1;
+            int a  = (f >> 2) & 3;
+            int nc = (f >> 6) & 1;
+            int fb = (f >> 5) & 1;
+            if (s != semi0 || (s && a != abr0) || nc != nocull0 || fb != fb0) break;
+            j += 3;
         }
-        glDepthMask(GL_TRUE);
-        glDisable(GL_BLEND);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_CLAMP);
-        glBlendEquation(GL_FUNC_ADD);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+        if (fb0) {
+            /* Mid-frame snapshot. By construction the buffer ahead of
+               this run is OT-earlier 3D (level geometry, props), drawn
+               before Snake -- so copying the FBO now gives us a clean
+               "scene without Snake" the FS can sample for refraction.
+               This avoids the accumulation problem you'd get sampling
+               the end-of-previous-frame capture (which contains Snake). */
+            glActiveTexture(GL_TEXTURE2);
+            glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                                0, 0, g_fbo_w, g_fbo_h);
+            glActiveTexture(GL_TEXTURE0);
+            glDisable(GL_BLEND);
+            glDepthMask(GL_FALSE);   /* don't occlude later geometry */
+        } else if (semi0) {
+            glEnable(GL_BLEND);
+            glDepthMask(GL_FALSE);
+            apply_abr(abr0);
+        } else {
+            glDisable(GL_BLEND);
+            glDepthMask(GL_TRUE);
+        }
+        if (nocull0) glDisable(GL_CULL_FACE);
+        else         glEnable(GL_CULL_FACE);
+        glDrawArrays(GL_TRIANGLES, (GLint)run_start, (GLsizei)(j - run_start));
+        i = j;
     }
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_CLAMP);
+    glBlendEquation(GL_FUNC_ADD);
 
-    /* --- Editor wireframe overlay (world-space lines) ------------------- */
-    if (!debug_view && !g_codec_mode && g_line3d_count > 0) {
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_DEPTH_CLAMP);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_BLEND);
-        glDepthMask(GL_TRUE);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
 
-        glBindVertexArray(g_line3d_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, g_line3d_vbo);
-        glBufferData(GL_ARRAY_BUFFER,
-                     (GLsizeiptr)(g_line3d_count * sizeof(GL3DVert)),
-                     g_line3d_buf, GL_STREAM_DRAW);
+/* Editor wireframe overlay: world-space lines drawn over the 3D pass.
+   Used by ed_render.c for axis gizmos / bound visualisations. Only fires
+   when the editor populated g_line3d_buf. */
+static void pass_3d_lines(int debug_view)
+{
+    if (debug_view || g_codec_mode || g_line3d_count == 0) return;
 
-        glUseProgram(g_tri3d_prog);
-        glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
-        glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
-        glUniform1i(g_tri3d_u_ortho, g_vp_ortho[g_active_vp]);
-        glUniform4fv(g_tri3d_u_ortho_lrbt, 1, g_vp_ortho_lrbt[g_active_vp]);
-        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"), 1);
-        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"), 0);
-        glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"), 0);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_CLAMP);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
 
-        glLineWidth(1.5f);
-        glDrawArrays(GL_LINES, 0, (GLsizei)g_line3d_count);
+    glBindVertexArray(g_line3d_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, g_line3d_vbo);
+    glBufferData(GL_ARRAY_BUFFER,
+                 (GLsizeiptr)(g_line3d_count * sizeof(GL3DVert)),
+                 g_line3d_buf, GL_STREAM_DRAW);
 
-        glDisable(GL_DEPTH_CLAMP);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
+    glUseProgram(g_tri3d_prog);
+    glUniform2f(g_tri3d_u_half_screen, g_render_w / 2.0f, 112.0f);
+    glUniform2f(g_tri3d_u_near_far, 4.0f, 32768.0f);
+    glUniform1i(g_tri3d_u_ortho, g_vp_ortho[g_active_vp]);
+    glUniform4fv(g_tri3d_u_ortho_lrbt, 1, g_vp_ortho_lrbt[g_active_vp]);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uNoTextures"), 1);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uFaceId"), 0);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"), 0);
 
-    /* --- 2D pass (triangles + lines) ----------------------------------- */
-    /* All 2D primitives now go through GL directly. VRAM is still uploaded
-       so the shader can sample PSX textures/CLUTs from it, but we no longer
-       blit the whole framebuffer region as a compositor. */
-    if (!debug_view) {
-        if (!gl_debug_skip_2d)    flush_tri2d();
-        if (!gl_debug_skip_lines) flush_line2d();
-    }
+    glLineWidth(1.5f);
+    glDrawArrays(GL_LINES, 0, (GLsizei)g_line3d_count);
 
-    /* Restore fill polygon mode so the overlay/blit pass isn't wireframed. */
-    if (vp_wireframe)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDisable(GL_DEPTH_CLAMP);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
 
-    /* --- VRAM debug overlay (only when explicitly enabled) ------------- */
-    if (debug_view) {
-        glDisable(GL_DEPTH_TEST);
-        glUseProgram(g_blit_prog);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, g_vram_tex);
-        glUniform4f(g_blit_u_region, 0.0f, 0.0f, 1024.0f, 512.0f);
-        glUniform1i(glGetUniformLocation(g_blit_prog, "uDiscardZero"), 0);
-        glBindVertexArray(g_vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(0);
-        glUseProgram(0);
-    }
+/* "Debug VRAM view" pass: when port_vram_debug_view() is on, dump the
+   full 1024x512 VRAM texture to the FBO instead of the normal world. Lets
+   us inspect texture layouts / CLUT positions live in the game window. */
+static void pass_debug_vram(int debug_view)
+{
+    if (!debug_view) return;
 
-    /* Note: we do NOT reset g_tri3d_count / g_tri2d_count here. The game logic
-       runs at 30 Hz but rendering runs at 60 Hz, so "idle" render frames must
-       redraw the same accumulated content. The buffers are reset when the
-       game logic starts a new tick (port_RenderObjects -> gl_renderer_begin_3d,
-       port_DrawOTag -> gl_renderer_begin_2d). */
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(g_blit_prog);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, g_vram_tex);
+    glUniform4f(g_blit_u_region, 0.0f, 0.0f, 1024.0f, 512.0f);
+    glUniform1i(glGetUniformLocation(g_blit_prog, "uDiscardZero"), 0);
+    glBindVertexArray(g_vao);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
 
-    /* --- Capture the just-drawn frame into g_prev_fb_tex --------------- */
-    /* PSX framebuffer-readback effects (NewBlur, NewBlurPure) source pixels
-       from the previously-displayed framebuffer in VRAM.  We mirror this by
-       snapshotting the rendered FBO into a GPU-side texture *now*, before the
-       next tick's 2D actors run.  The 2D shader's framebuffer-sampling branch
-       reads from g_prev_fb_tex when a tri's tpage points into the PSX display
-       region.  GPU-to-GPU copy: no readback stall. */
-    if (g_prev_fb_tex && !debug_view) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
-        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
-        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, g_fbo_w, g_fbo_h);
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);  /* restore for blit below */
-    }
+/* End-of-frame snapshot of the rendered FBO into g_prev_fb_tex. PSX
+   framebuffer-readback effects (NewBlur, NewBlurPure) source pixels from
+   the *previously-displayed* framebuffer; the 2D shader's fb_readback
+   branch reads from this texture. GPU-to-GPU copy, no readback stall. */
+static void capture_prev_fb(int debug_view)
+{
+    if (!g_prev_fb_tex || debug_view) return;
 
-    /* --- Upscale FBO -> window ----------------------------------------- */
-    /* Editor docking mode skips this blit and shows the FBO via
-     * ImGui::Image inside a dockable "3D View" panel. The default
-     * framebuffer is left for ImGui to paint dockspace + windows over. */
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
+    glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, g_fbo_w, g_fbo_h);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);  /* restore for blit below */
+}
+
+/* Final upscale: blit the hi-res FBO into the window with aspect-correct
+   letterboxing. Editor docking mode skips this entirely (ImGui::Image
+   shows the FBO inside a dockable panel instead). */
+static void blit_fbo_to_window(int fb_w, int fb_h,
+                               int vp_x, int vp_y, int vp_w, int vp_h)
+{
     if (g_present_to_window) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, g_fbo);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -2027,6 +2006,73 @@ void gl_renderer_present(void)
                           gl_debug_blit_nearest ? GL_NEAREST : GL_LINEAR);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void gl_renderer_present(void)
+{
+    if (!g_enabled) return;
+
+    /* The game just finished writing 2D primitives into vram[][0..223]; push
+       dirty rows to the GPU. We unconditionally mark framebuffer rows dirty
+       because the 2D OT walker doesn't track them per-pixel yet. */
+    gl_renderer_mark_vram_dirty(0, 224);
+    upload_dirty_vram_rows();
+
+    int fb_w = 0, fb_h = 0;
+    SDL_GL_GetDrawableSize(g_window, &fb_w, &fb_h);
+    if (fb_w <= 0 || fb_h <= 0) { fb_w = 640; fb_h = 448; }
+
+    /* Aspect-correct render_w:224 inside the window (4:3 normally, 16:9 when
+       widescreen is enabled via gl_renderer_set_widescreen). */
+    const float target = (float)g_render_w / 224.0f;
+    int vp_w = fb_w, vp_h = fb_h, vp_x = 0, vp_y = 0;
+    if ((float)fb_w / (float)fb_h > target) {
+        vp_w = (int)((float)fb_h * target + 0.5f);
+        vp_x = (fb_w - vp_w) / 2;
+    } else {
+        vp_h = (int)((float)fb_w / target + 0.5f);
+        vp_y = (fb_h - vp_h) / 2;
+    }
+
+    begin_frame_clear();
+
+    extern int port_vram_debug_view(void);
+    const int debug_view   = port_vram_debug_view();
+    const int vp_wireframe = gl_debug_wireframe || g_vp_wireframe[g_active_vp];
+
+    if (vp_wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    /* Background 2D first (sphere skybox); 3D paints on top of it via the
+       normal depth test, giving real "sky fills the frame, geometry occludes"
+       semantics. */
+    if (!debug_view && !g_codec_mode && !gl_debug_skip_2d)
+        flush_tri2d_bg();
+
+    pass_3d_world(debug_view);
+    pass_3d_lines(debug_view);
+
+    /* Foreground 2D (HUD, menu, subtitles). VRAM stays uploaded so the FS
+       can sample PSX textures/CLUTs from it. */
+    if (!debug_view) {
+        if (!gl_debug_skip_2d)    flush_tri2d();
+        if (!gl_debug_skip_lines) flush_line2d();
+    }
+
+    /* Restore fill mode so the overlay/blit pass isn't wireframed. */
+    if (vp_wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    pass_debug_vram(debug_view);
+
+    /* Note: we do NOT reset g_tri3d_count / g_tri2d_count here. Game logic
+       runs at 30Hz but rendering runs at 60Hz, so "idle" render frames must
+       redraw the same accumulated content. The buffers reset when game logic
+       starts a new tick (port_RenderObjects -> gl_renderer_begin_3d,
+       port_DrawOTag -> gl_renderer_begin_2d). */
+
+    capture_prev_fb(debug_view);
+    blit_fbo_to_window(fb_w, fb_h, vp_x, vp_y, vp_w, vp_h);
 
     /* SwapWindow happens in port_render after ImGui draws. */
 }
