@@ -681,11 +681,20 @@ long SquareRoot12(long a)
     return (int)(sqrt((double)a / 4096.0) * 4096.0);
 }
 
-long Square0(SVECTOR *v0, VECTOR *v1)
+/* PSX SDK: long Square0(VECTOR *v0, VECTOR *v1) -- BOTH are VECTOR (4-byte
+   int components). Port had this typed as SVECTOR* for v0, which made
+   v0->vx/vy/vz read shorts at offsets 0/2/4 instead of ints at 0/4/8.
+   GV_VecLen3 calls Square0(&tmp, &tmp) where tmp is VECTOR; the wrong
+   type read the low 16 bits of vx as vx, the high 16 bits of vx as vy,
+   etc. -- corrupting the sum of squares and making track converge to 0
+   over a few frames (visible in the elevator panel: track 6000 -> 421
+   -> 29 -> 2 -> 0, after which target==position and the view matrix
+   becomes singular and no faces render). */
+long Square0(VECTOR *v0, VECTOR *v1)
 {
-    v1->vx = (int)v0->vx * v0->vx;
-    v1->vy = (int)v0->vy * v0->vy;
-    v1->vz = (int)v0->vz * v0->vz;
+    v1->vx = v0->vx * v0->vx;
+    v1->vy = v0->vy * v0->vy;
+    v1->vz = v0->vz * v0->vz;
     return v1->vx + v1->vy + v1->vz;
 }
 

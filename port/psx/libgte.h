@@ -135,7 +135,7 @@ void OuterProduct12(VECTOR *v0, VECTOR *v1, VECTOR *v2);
 long VectorNormal(VECTOR *v0, VECTOR *v1);
 long VectorNormalS(VECTOR *v0, SVECTOR *v1);
 long VectorNormalSS(SVECTOR *v0, SVECTOR *v1);
-long Square0(SVECTOR *v0, VECTOR *v1);
+long Square0(VECTOR *v0, VECTOR *v1);
 
 /*---------------------------------------------------------------------------*/
 /* Math operations                                                           */
