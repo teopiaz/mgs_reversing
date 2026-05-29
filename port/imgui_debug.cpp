@@ -48,14 +48,25 @@ extern int GM_AlertLevel;
 typedef struct { short m[3][3]; short pad; int t[3]; } PortMATRIX;
 typedef struct { short vx, vy, vz, pad; } PortSVECTOR;
 typedef struct {
-    unsigned long *ot[2];
-    short ot_size, link, dblbuf, dirty;
-    PortMATRIX eye_inv;
-    PortMATRIX eye;
-    short clip_distance;
-    short queue_size;
-    short prim_index;
-    short objs_index;
+    unsigned long *ot[2];                 /*  0..15  */
+    short ot_size, link, dblbuf, dirty;   /* 16..23  */
+    PortMATRIX eye_inv;                   /* 24..55  */
+    PortMATRIX eye;                       /* 56..87  */
+    short clip_distance;                  /* 88      */
+    short queue_size;                     /* 90      */
+    short prim_index;                     /* 92      */
+    short objs_index;                     /* 94      */
+    /* Real DG_CHANL on port continues with:
+         DG_OBJS **queue;        // 8 bytes  (96..103)
+         RECT     clip_rect;     // 8 bytes  (104..111)
+         RECT     new_clip_rect; // 8 bytes  (112..119)
+         DR_ENV   env1[2];       // 128 bytes (120..247) — 2x (u_long tag + u_long code[15])
+         DR_ENV   env2[2];       // 128 bytes (248..375)
+         DR_ENV   new_env[2];    // 128 bytes (376..503)
+       Total real sizeof(DG_CHANL) == 504 on port. Pad here so DG_Chanls[1]
+       and DG_Chanls[2] read from the correct array stride; without this the
+       imgui debug pane was reading garbage from inside DG_Chanls[0]. */
+    char _pad_to_real_size[504 - 96];
 } PortDG_CHANL_Partial;
 
 extern PortDG_CHANL_Partial DG_Chanls[];
@@ -265,6 +276,41 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     io.Framerate, 1000.0f / (io.Framerate > 1.0f ? io.Framerate : 1.0f),
                     g_imgui_use_gl ? "on" : "off", GV_Time);
         ImGui::Separator();
+
+        /* Actor speed: throttle / accelerate / pause / single-step the actor
+           system (GV_ExecActorSystem). Rendering keeps running at 60fps so
+           paused-state frames stay visible. Useful for stepping through
+           camera transitions, animation glitches, etc. */
+        {
+            extern int port_actor_speed;
+            extern int port_actor_step;
+
+            const char *label;
+            char buf[32];
+            if (port_actor_speed == 0)       label = "Paused";
+            else if (port_actor_speed == 1)  label = "Normal (1x)";
+            else if (port_actor_speed >  0)  { snprintf(buf, sizeof buf, "%dx faster", port_actor_speed); label = buf; }
+            else                              { snprintf(buf, sizeof buf, "1/%dx slower", 1 - port_actor_speed); label = buf; }
+
+            ImGui::Text("Actor speed:");
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.7f, 0.9f, 1.0f, 1.0f), "%s", label);
+
+            ImGui::SliderInt("##actor_speed", &port_actor_speed, -8, 8, "");
+            ImGui::SameLine();
+            if (ImGui::Button("1x##actor_reset"))    port_actor_speed = 1;
+            ImGui::SameLine();
+            if (ImGui::Button(port_actor_speed == 0 ? "Resume" : "Pause"))
+                port_actor_speed = (port_actor_speed == 0) ? 1 : 0;
+            ImGui::SameLine();
+            ImGui::BeginDisabled(port_actor_speed != 0);
+            if (ImGui::Button("Step"))    port_actor_step  = 1;
+            ImGui::SameLine();
+            if (ImGui::Button("Step 10")) port_actor_step  = 10;
+            ImGui::EndDisabled();
+
+            ImGui::Separator();
+        }
 
         if (ImGui::BeginTabBar("##mgs_tabs", ImGuiTabBarFlags_Reorderable)) {
             /* ---------------------------------------------------------- */

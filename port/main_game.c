@@ -24,6 +24,12 @@ static volatile int render_fault_sig = 0;
 static void *render_fault_bt[RENDER_BT_MAX];
 static volatile int render_fault_bt_n = 0;
 static volatile int render_bt_logged = 0;
+
+/* Debug-controlled actor speed (imgui "Game speed" slider). Defined here
+   because game_tick reads them; UI lives in port/imgui_debug.cpp. */
+int port_actor_speed = 1;   /* +N=Nx fast, 0=paused, -N=1/(N+1)x slow */
+int port_actor_step  = 0;   /* set >0 from imgui to advance N actor frames */
+
 static void render_signal_handler(int sig, siginfo_t *info, void *uctx) {
     (void)uctx;
     render_fault_sig = sig;
@@ -321,21 +327,49 @@ void game_tick(void)
         }
 
         /* Actor system + render frame: wrapped in signal handler to catch
-           stale DG_OBJS pointer crashes during stage transitions. */
+           stale DG_OBJS pointer crashes during stage transitions.
+
+           Debug speed control (driven by imgui_debug):
+             port_actor_speed > 0  -> run actor system N times per tick (Nx)
+             port_actor_speed == 0 -> paused (actors frozen, render continues)
+             port_actor_speed < 0  -> run once every (1 + |speed|) ticks
+             port_actor_step       -> single-step N frames then re-pause
+        */
         #ifdef __APPLE__
         uint64_t ta0 = mach_absolute_time();
         #endif
         {
+            extern int port_actor_speed;
+            extern int port_actor_step;
+            static int s_slow_count = 0;
+            int runs = 0;
+            if (port_actor_step > 0) {
+                runs = port_actor_step;
+                port_actor_step = 0;
+            } else if (port_actor_speed > 0) {
+                runs = port_actor_speed;
+                s_slow_count = 0;
+            } else if (port_actor_speed < 0) {
+                int period = 1 + (-port_actor_speed);  /* 2, 3, ..., 9 */
+                if (++s_slow_count >= period) {
+                    s_slow_count = 0;
+                    runs = 1;
+                }
+            } /* port_actor_speed == 0 -> runs stays 0 (paused) */
+
             struct sigaction sa = {.sa_sigaction = render_signal_handler, .sa_flags = SA_SIGINFO};
             struct sigaction old_segv, old_bus;
             sigaction(SIGSEGV, &sa, &old_segv);
             sigaction(SIGBUS, &sa, &old_bus);
             render_guard_active = 1;
-            if (sigsetjmp(render_jmp, 1) == 0) {
-                GV_ExecActorSystem();
-            } else {
-                printf("[game] Signal caught in actor system, sig=%d addr=%p\n",
-                       render_fault_sig, (void *)render_fault_addr);
+            for (int i = 0; i < runs; i++) {
+                if (sigsetjmp(render_jmp, 1) == 0) {
+                    GV_ExecActorSystem();
+                } else {
+                    printf("[game] Signal caught in actor system, sig=%d addr=%p\n",
+                           render_fault_sig, (void *)render_fault_addr);
+                    break;
+                }
             }
             render_guard_active = 0;
             sigaction(SIGSEGV, &old_segv, NULL);
