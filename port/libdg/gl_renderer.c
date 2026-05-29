@@ -541,7 +541,7 @@ static const char *TRI2D_FS =
     "    oColor = vec4(out_rgb, 1.0);\n"
     "}\n";
 
-static GLuint compile_shader(GLenum type, const char *src)
+static GLuint compile_shader(GLenum type, const char *src, const char *src_label)
 {
     GLuint s = glCreateShader(type);
     glShaderSource(s, 1, &src, NULL);
@@ -549,19 +549,21 @@ static GLuint compile_shader(GLenum type, const char *src)
     GLint ok = 0;
     glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
     if (!ok) {
-        char log[1024];
+        char log[2048];
         glGetShaderInfoLog(s, sizeof log, NULL, log);
-        fprintf(stderr, "[gl] shader compile failed: %s\n", log);
+        fprintf(stderr, "[gl] shader compile failed (%s):\n%s\n",
+                src_label ? src_label : "<embedded>", log);
         glDeleteShader(s);
         return 0;
     }
     return s;
 }
 
-static GLuint link_program(const char *vs_src, const char *fs_src)
+static GLuint link_program(const char *vs_src, const char *fs_src,
+                           const char *vs_label, const char *fs_label)
 {
-    GLuint vs = compile_shader(GL_VERTEX_SHADER, vs_src);
-    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, fs_src);
+    GLuint vs = compile_shader(GL_VERTEX_SHADER,   vs_src, vs_label);
+    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, fs_src, fs_label);
     if (!vs || !fs) return 0;
 
     GLuint p = glCreateProgram();
@@ -577,10 +579,71 @@ static GLuint link_program(const char *vs_src, const char *fs_src)
     if (!ok) {
         char log[1024];
         glGetProgramInfoLog(p, sizeof log, NULL, log);
-        fprintf(stderr, "[gl] program link failed: %s\n", log);
+        fprintf(stderr, "[gl] program link failed (%s + %s):\n%s\n",
+                vs_label ? vs_label : "<embedded>",
+                fs_label ? fs_label : "<embedded>", log);
         glDeleteProgram(p);
         return 0;
     }
+    return p;
+}
+
+/* Read an entire file into a malloc'd null-terminated buffer. Returns NULL
+   on any failure. Caller frees. Searches a small set of candidate paths so
+   the binary works whether you run it from port/ or the repo root. */
+static char *load_text_file(const char *rel_path)
+{
+    const char *candidates[] = {
+        rel_path,                       /* cwd is port/  (normal: ./mgs ISO/...) */
+        NULL, NULL,                     /* filled below if we can synthesise more */
+    };
+    char p1[1024], p2[1024];
+    snprintf(p1, sizeof p1, "port/%s", rel_path);  /* cwd is repo root */
+    snprintf(p2, sizeof p2, "../port/%s", rel_path); /* cwd is repo/build etc. */
+    candidates[1] = p1;
+    candidates[2] = p2;
+
+    FILE *fp = NULL;
+    const char *used = NULL;
+    for (size_t i = 0; i < sizeof(candidates)/sizeof(*candidates); i++) {
+        if (!candidates[i]) continue;
+        fp = fopen(candidates[i], "rb");
+        if (fp) { used = candidates[i]; break; }
+    }
+    if (!fp) return NULL;
+
+    fseek(fp, 0, SEEK_END);
+    long n = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (n < 0 || n > 64 * 1024) { fclose(fp); return NULL; }
+
+    char *buf = (char *)malloc((size_t)n + 1);
+    if (!buf) { fclose(fp); return NULL; }
+    size_t got = fread(buf, 1, (size_t)n, fp);
+    fclose(fp);
+    buf[got] = '\0';
+    fprintf(stderr, "[gl] loaded shader %s (%ld bytes)\n", used, n);
+    return buf;
+}
+
+/* Compile + link a shader pair. Prefers on-disk files (so the GLSL has
+   syntax highlighting, real line numbers, and can be hot-reloaded via the
+   imgui Reload button) and falls back to the embedded fallbacks below if
+   the files aren't present. Returns 0 on failure (caller should keep the
+   previous program around). */
+static GLuint load_program(const char *vs_path, const char *fs_path,
+                           const char *vs_fallback, const char *fs_fallback)
+{
+    char *vs_disk = load_text_file(vs_path);
+    char *fs_disk = load_text_file(fs_path);
+    const char *vs_src = vs_disk ? vs_disk : vs_fallback;
+    const char *fs_src = fs_disk ? fs_disk : fs_fallback;
+    const char *vs_label = vs_disk ? vs_path : NULL;
+    const char *fs_label = fs_disk ? fs_path : NULL;
+
+    GLuint p = link_program(vs_src, fs_src, vs_label, fs_label);
+    free(vs_disk);
+    free(fs_disk);
     return p;
 }
 
@@ -647,7 +710,9 @@ int gl_renderer_init(void *window_)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, 320, 224, 0,
                  GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
 
-    g_blit_prog = link_program(BLIT_VS, BLIT_FS);
+    g_blit_prog = load_program("libdg/shaders/blit.vert",
+                               "libdg/shaders/blit.frag",
+                               BLIT_VS, BLIT_FS);
     if (!g_blit_prog) {
         SDL_GL_DeleteContext(g_ctx);
         g_ctx = NULL;
@@ -662,7 +727,9 @@ int gl_renderer_init(void *window_)
     glUseProgram(0);
 
     /* 3D pipeline. */
-    g_tri3d_prog = link_program(TRI3D_VS, TRI3D_FS);
+    g_tri3d_prog = load_program("libdg/shaders/tri3d.vert",
+                                "libdg/shaders/tri3d.frag",
+                                TRI3D_VS, TRI3D_FS);
     if (!g_tri3d_prog) {
         SDL_GL_DeleteContext(g_ctx);
         g_ctx = NULL;
@@ -746,7 +813,9 @@ int gl_renderer_init(void *window_)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     /* 2D semi-trans pipeline. */
-    g_tri2d_prog = link_program(TRI2D_VS, TRI2D_FS);
+    g_tri2d_prog = load_program("libdg/shaders/tri2d.vert",
+                                "libdg/shaders/tri2d.frag",
+                                TRI2D_VS, TRI2D_FS);
     if (!g_tri2d_prog) {
         SDL_GL_DeleteContext(g_ctx);
         g_ctx = NULL;
@@ -948,6 +1017,64 @@ int gl_renderer_read_psx_region(int psx_x, int psx_y, int psx_w, int psx_h,
 
     if (out_w) *out_w = w;
     if (out_h) *out_h = h;
+    return 1;
+}
+
+int gl_renderer_reload_shaders(void)
+{
+    if (!g_enabled) return 0;
+
+    /* Try each program independently. If any fails, keep the previous one. */
+    GLuint new_blit = load_program("libdg/shaders/blit.vert",
+                                   "libdg/shaders/blit.frag",
+                                   BLIT_VS, BLIT_FS);
+    GLuint new_tri3d = load_program("libdg/shaders/tri3d.vert",
+                                    "libdg/shaders/tri3d.frag",
+                                    TRI3D_VS, TRI3D_FS);
+    GLuint new_tri2d = load_program("libdg/shaders/tri2d.vert",
+                                    "libdg/shaders/tri2d.frag",
+                                    TRI2D_VS, TRI2D_FS);
+
+    int ok = (new_blit && new_tri3d && new_tri2d);
+    if (!ok) {
+        if (new_blit)  glDeleteProgram(new_blit);
+        if (new_tri3d) glDeleteProgram(new_tri3d);
+        if (new_tri2d) glDeleteProgram(new_tri2d);
+        fprintf(stderr, "[gl] shader reload FAILED -- keeping previous programs\n");
+        return 0;
+    }
+
+    /* Swap in the new programs and re-fetch every cached uniform location
+       (locations are per-program; the new program assigns its own). Sampler
+       unit bindings are also program state -- re-apply them. */
+    if (g_blit_prog)  glDeleteProgram(g_blit_prog);
+    if (g_tri3d_prog) glDeleteProgram(g_tri3d_prog);
+    if (g_tri2d_prog) glDeleteProgram(g_tri2d_prog);
+    g_blit_prog  = new_blit;
+    g_tri3d_prog = new_tri3d;
+    g_tri2d_prog = new_tri2d;
+
+    g_blit_u_region = glGetUniformLocation(g_blit_prog, "uRegion");
+    glUseProgram(g_blit_prog);
+    glUniform1i(glGetUniformLocation(g_blit_prog, "uVRAM"), 0);
+    glUniform1i(glGetUniformLocation(g_blit_prog, "uZBuf"), 1);
+
+    g_tri3d_u_half_screen = glGetUniformLocation(g_tri3d_prog, "uHalfScreen");
+    g_tri3d_u_near_far    = glGetUniformLocation(g_tri3d_prog, "uNearFar");
+    g_tri3d_u_ortho       = glGetUniformLocation(g_tri3d_prog, "uOrtho");
+    g_tri3d_u_ortho_lrbt  = glGetUniformLocation(g_tri3d_prog, "uOrthoLRBT");
+    glUseProgram(g_tri3d_prog);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uVRAM"),   0);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uPrevFB"), 2);
+
+    glUseProgram(g_tri2d_prog);
+    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uVRAM"),   0);
+    glUniform1i(glGetUniformLocation(g_tri2d_prog, "uPrevFB"), 2);
+    glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"), 1.0f);
+    glUniform2f(glGetUniformLocation(g_tri2d_prog, "uNearFar"), 4.0f, 32768.0f);
+    glUseProgram(0);
+
+    fprintf(stderr, "[gl] shader reload OK\n");
     return 1;
 }
 
