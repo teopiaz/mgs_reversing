@@ -361,7 +361,12 @@ static void env_tick(SPU_Voice *v)
         v->env_counter++;
         if (v->env_counter >= denom) {
             v->env_counter = 0;
-            v->env_level += adsr_num_inc(rate);
+            int delta = adsr_num_inc(rate);
+            /* Click guard: cap per-sample increment so the envelope ramp
+             * never lasts less than ~3 ms (128 samples to reach 0x7FFF).
+             * A faster ramp than that is perceived as a DC click. */
+            if (delta > 0x7FFF / 128) delta = 0x7FFF / 128;
+            v->env_level += delta;
         }
         if (v->env_level >= 0x7FFF) {
             v->env_level = 0x7FFF;
@@ -1032,6 +1037,14 @@ void SpuSetKey(long on_off, u_long voice_bit)
 
         SPU_Voice *v = &voices[ch];
         if (on_off == SPU_ON) {
+            if (port_audio_debug) {
+                fprintf(stderr, "[audio] key-on ch=%d addr=0x%lx vol=(%d,%d) "
+                        "pitch=%u AR=%u(mode=%ld) DR=%u SR=%u(mode=%ld) "
+                        "RR=%u(mode=%ld) SL=%u\n",
+                        ch, (unsigned long)v->addr, v->vol_l, v->vol_r,
+                        (unsigned)v->pitch, v->ar, v->a_mode, v->dr,
+                        v->sr, v->s_mode, v->rr, v->r_mode, v->sl);
+            }
             /* Key on — start playing from addr */
             v->active = 1;
             v->key_off = 0;
