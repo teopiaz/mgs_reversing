@@ -412,13 +412,16 @@ void game_tick(void)
             Uint64 now = SDL_GetPerformanceCounter();
             sd_accumulator_ms += (double)(now - sd_prev_counter) * 1000.0 / (double)sd_freq;
             sd_prev_counter = now;
-            /* Cap accumulator to one game frame (33 ms) so a freeze doesn't
-               cause a burst of catch-up ticks that audibly skips music. */
-            if (sd_accumulator_ms > 33.0) sd_accumulator_ms = 33.0;
+            /* Cap only on real freezes (>500 ms) so we don't burst-fire 50+
+               ticks in one frame after a stage load. A 33 ms cap clamps
+               below the per-frame fractional tick (33/10.16 = 3.28) and
+               drifts the effective rate down to ~90 Hz, which detunes the
+               sequencer and the codec/cutscene str_status state machine. */
+            if (sd_accumulator_ms > 500.0) sd_accumulator_ms = 500.0;
 
             double tick_ms = 1000.0 / sd_target_hz;
             int n_ticks = 0;
-            while (sd_accumulator_ms >= tick_ms && n_ticks < 8) {
+            while (sd_accumulator_ms >= tick_ms && n_ticks < 16) {
                 sd_accumulator_ms -= tick_ms;
                 n_ticks++;
             }
