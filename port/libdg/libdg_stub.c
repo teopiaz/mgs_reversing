@@ -422,6 +422,35 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
 
+        /* PORT_DEBUG_SNAKE: dump objs->world.t once per (objs, frame_sec)
+           so we can compare actor / map / wall positions between editor
+           and port for the d00a cinematic. Each line shows the channel,
+           the DG_OBJS pointer, world translation, and the first row of
+           the world rotation matrix. */
+        {
+            static int dbg_world = -1;
+            if (dbg_world == -1) {
+                const char *e = getenv("PORT_DEBUG_SNAKE");
+                dbg_world = (e && atoi(e) > 0) ? 1 : 0;
+            }
+            if (dbg_world) {
+                /* Dump objects with high (climbing) Y plus the chanl
+                   clip_distance / eye_inv translation used to project
+                   them. Compared to the editor's DG_LookAt + s_clip_dist
+                   to see whether the projection differs. */
+                int ty = objs->world.t[1];
+                if (ty < -4000) {
+                    fprintf(stderr,
+                        "[objs] world.t=(%d,%d,%d) chanl=%p clip=%d "
+                        "eye_inv.t=(%d,%d,%d) m[0]=(%d,%d,%d) m[2]=(%d,%d,%d)\n",
+                        objs->world.t[0], objs->world.t[1], objs->world.t[2],
+                        (void*)chanl, chanl->clip_distance,
+                        chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2],
+                        chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2],
+                        chanl->eye_inv.m[2][0], chanl->eye_inv.m[2][1], chanl->eye_inv.m[2][2]);
+                }
+            }
+        }
 
         for (int mi = 0; mi < n_models; mi++, obj++)
         {
