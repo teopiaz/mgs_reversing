@@ -498,6 +498,105 @@ static void noise_step(void)
 }
 
 /*---------------------------------------------------------------------------*/
+/* Reverb -- Freeverb-style replacement                                      */
+/*                                                                           */
+/* PSX SPU implements a 22-register reverb running over a SPU-RAM delay      */
+/* buffer; we substitute a simpler Freeverb DSP (4 lowpass-feedback combs +  */
+/* 2 all-pass per stereo channel). The preset (STUDIO_C, HALL, ...) sets    */
+/* room-size and damping. `port_reverb_send` is a per-voice bit mask written */
+/* by SpuSetReverbVoice; only those voices' sample contribute to rev_in.    */
+/* PORT_REVERB=0 forces the master gate off for bisect.                     */
+/*---------------------------------------------------------------------------*/
+
+#define FV_NUM_COMBS     4
+#define FV_NUM_APS       2
+#define FV_STEREO_SPREAD 23
+static const int fv_comb_len[FV_NUM_COMBS] = { 1116, 1188, 1277, 1356 };
+static const int fv_ap_len  [FV_NUM_APS  ] = {  225,  556 };
+#define FV_COMB_BUF_MAX (1356 + FV_STEREO_SPREAD)
+#define FV_AP_BUF_MAX   ( 556 + FV_STEREO_SPREAD)
+
+static short fv_comb_buf_l[FV_NUM_COMBS][FV_COMB_BUF_MAX];
+static short fv_comb_buf_r[FV_NUM_COMBS][FV_COMB_BUF_MAX];
+static int   fv_comb_idx_l[FV_NUM_COMBS];
+static int   fv_comb_idx_r[FV_NUM_COMBS];
+static int   fv_comb_filt_l[FV_NUM_COMBS]; /* damping LP state */
+static int   fv_comb_filt_r[FV_NUM_COMBS];
+
+static short fv_ap_buf_l[FV_NUM_APS][FV_AP_BUF_MAX];
+static short fv_ap_buf_r[FV_NUM_APS][FV_AP_BUF_MAX];
+static int   fv_ap_idx_l[FV_NUM_APS];
+static int   fv_ap_idx_r[FV_NUM_APS];
+
+/* Q15 parameters (preset-driven; defaults match STUDIO_C used by sd_init). */
+static int  fv_room_size_q15 = 28000;  /* ~0.85 */
+static int  fv_damping_q15   =  6000;  /* ~0.18 */
+static int  fv_wet_q15       = 12000;  /* ~0.37 */
+static int  fv_input_gain    =  6000;  /* small input scaling to avoid clipping */
+
+static unsigned int port_reverb_send = 0;
+static int          port_reverb_on   = 1;     /* SpuSetReverb master */
+static int          port_reverb_env_off = 0;  /* PORT_REVERB=0 bisect override */
+
+static inline int clamp_s16(int x) {
+    if (x > 32767)  return 32767;
+    if (x < -32768) return -32768;
+    return x;
+}
+
+/* Apply Freeverb to one stereo input sample and return wet output. */
+static void freeverb_step(int in_l, int in_r, int *out_l, int *out_r)
+{
+    int comb_l = 0, comb_r = 0;
+    int sin_l = (in_l * fv_input_gain) >> 15;
+    int sin_r = (in_r * fv_input_gain) >> 15;
+
+    for (int c = 0; c < FV_NUM_COMBS; c++) {
+        /* Left */
+        int len_l = fv_comb_len[c];
+        short d_l = fv_comb_buf_l[c][fv_comb_idx_l[c]];
+        comb_l += d_l;
+        fv_comb_filt_l[c] = (d_l * (0x8000 - fv_damping_q15) + fv_comb_filt_l[c] * fv_damping_q15) >> 15;
+        int new_l = sin_l + ((fv_comb_filt_l[c] * fv_room_size_q15) >> 15);
+        fv_comb_buf_l[c][fv_comb_idx_l[c]] = (short)clamp_s16(new_l);
+        fv_comb_idx_l[c]++;
+        if (fv_comb_idx_l[c] >= len_l) fv_comb_idx_l[c] = 0;
+
+        /* Right (stereo-spread delay) */
+        int len_r = fv_comb_len[c] + FV_STEREO_SPREAD;
+        short d_r = fv_comb_buf_r[c][fv_comb_idx_r[c]];
+        comb_r += d_r;
+        fv_comb_filt_r[c] = (d_r * (0x8000 - fv_damping_q15) + fv_comb_filt_r[c] * fv_damping_q15) >> 15;
+        int new_r = sin_r + ((fv_comb_filt_r[c] * fv_room_size_q15) >> 15);
+        fv_comb_buf_r[c][fv_comb_idx_r[c]] = (short)clamp_s16(new_r);
+        fv_comb_idx_r[c]++;
+        if (fv_comb_idx_r[c] >= len_r) fv_comb_idx_r[c] = 0;
+    }
+
+    /* All-pass series (feedback 0.5) */
+    int ap_l = comb_l, ap_r = comb_r;
+    for (int a = 0; a < FV_NUM_APS; a++) {
+        int len_l = fv_ap_len[a];
+        short d_l = fv_ap_buf_l[a][fv_ap_idx_l[a]];
+        int o_l = -ap_l + d_l;
+        fv_ap_buf_l[a][fv_ap_idx_l[a]] = (short)clamp_s16(ap_l + (d_l >> 1));
+        fv_ap_idx_l[a]++;
+        if (fv_ap_idx_l[a] >= len_l) fv_ap_idx_l[a] = 0;
+        ap_l = o_l;
+
+        int len_r = fv_ap_len[a] + FV_STEREO_SPREAD;
+        short d_r = fv_ap_buf_r[a][fv_ap_idx_r[a]];
+        int o_r = -ap_r + d_r;
+        fv_ap_buf_r[a][fv_ap_idx_r[a]] = (short)clamp_s16(ap_r + (d_r >> 1));
+        fv_ap_idx_r[a]++;
+        if (fv_ap_idx_r[a] >= len_r) fv_ap_idx_r[a] = 0;
+        ap_r = o_r;
+    }
+    *out_l = ap_l;
+    *out_r = ap_r;
+}
+
+/*---------------------------------------------------------------------------*/
 /* SDL2 audio callback — mix all voices                                      */
 /*---------------------------------------------------------------------------*/
 static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
@@ -506,8 +605,10 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
     short *out = (short *)stream;
     int num_samples = len / 4; /* stereo 16-bit = 4 bytes per sample */
 
+    int reverb_active = port_reverb_on && !port_reverb_env_off && port_reverb_send != 0;
     for (int s = 0; s < num_samples; s++) {
         int mix_l = 0, mix_r = 0;
+        int rev_in_l = 0, rev_in_r = 0;
 
         /* Global noise LFSR tick. Voices in noise mode all read the same
          * `spu_noise_sample` this sample, matching PSX hardware. */
@@ -587,8 +688,17 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
             int s16 = (sample * v->env_level) >> 15;
 
             /* Apply voice volume (signed 16-bit, represents N/0x8000) */
-            mix_l += (s16 * v->vol_l) >> 15;
-            mix_r += (s16 * v->vol_r) >> 15;
+            int contrib_l = (s16 * v->vol_l) >> 15;
+            int contrib_r = (s16 * v->vol_r) >> 15;
+            mix_l += contrib_l;
+            mix_r += contrib_r;
+
+            /* Reverb send: voices flagged via SpuSetReverbVoice feed the
+             * Freeverb input. The wet output is added to mix below. */
+            if (reverb_active && (port_reverb_send & (1u << ch))) {
+                rev_in_l += contrib_l;
+                rev_in_r += contrib_r;
+            }
 
             /* Advance pitch counter */
             v->frac_pos += v->pitch;
@@ -604,6 +714,15 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
 
             /* Tick envelope once per sample (44100Hz, matches PSX SPU) */
             env_tick(v);
+        }
+
+        /* Freeverb wet pass. The send is tapped post-voice-volume so room
+         * tone follows the dry mix proportionally. */
+        if (reverb_active) {
+            int wet_l = 0, wet_r = 0;
+            freeverb_step(rev_in_l, rev_in_r, &wet_l, &wet_r);
+            mix_l += (wet_l * fv_wet_q15) >> 15;
+            mix_r += (wet_r * fv_wet_q15) >> 15;
         }
 
         /* Apply master volume (or silence if the debug overlay muted us). */
@@ -638,6 +757,14 @@ void spu_emu_init(void)
 
     memset(spu_ram, 0, SPU_RAM_SIZE);
     memset(voices, 0, sizeof(voices));
+
+    /* PORT_REVERB=0 forces reverb off (bisect aid). Any other value leaves
+     * it gated by SpuSetReverb (default-on after sd_init). */
+    const char *rev_env = getenv("PORT_REVERB");
+    if (rev_env && *rev_env == '0') {
+        port_reverb_env_off = 1;
+        printf("[spu] reverb disabled via PORT_REVERB=0\n");
+    }
 
     SDL_AudioSpec want, have;
     memset(&want, 0, sizeof(want));
@@ -846,12 +973,68 @@ void SpuSetCommonAttr(SpuCommonAttr *attr)
     /* CD volume/mix handled by cd.volume.left/right and cd.mix — no-op for port */
 }
 
-void SpuSetReverb(long on_off) { (void)on_off; }
-long SpuSetReverbModeParam(SpuReverbAttr *attr) { (void)attr; return 0; }
-void SpuSetReverbVoice(long on_off, u_long voice_bit) { (void)on_off; (void)voice_bit; }
+/* Master gate (called once from sd_init with SPU_ON; PORT_REVERB=0 forces off). */
+void SpuSetReverb(long on_off)
+{
+    if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+    port_reverb_on = (on_off == SPU_ON) ? 1 : 0;
+    if (audio_dev > 0) SDL_UnlockAudioDevice(audio_dev);
+}
+
+/* Preset mapping. The game's sd_init installs STUDIO_C; per-stage env_snd
+ * actors may switch modes via this same call. We map each PSX preset to a
+ * {room_size, damping, wet} triple that approximates the original tail. */
+long SpuSetReverbModeParam(SpuReverbAttr *attr)
+{
+    if (!attr) return 0;
+    /* SPU_REV_MODE_* values from libspu.h. Tuned by ear: shorter rooms get
+     * smaller room_size + larger damping; halls reverse. */
+    int rs = 28000, dp = 6000, wet = 12000;
+    switch ((int)attr->mode & 0xFF) {
+    case 0:  rs = 0;     dp = 0;     wet = 0;     break; /* OFF */
+    case 1:  rs = 22000; dp = 10000; wet =  8000; break; /* ROOM */
+    case 2:  rs = 25000; dp =  8000; wet = 10000; break; /* STUDIO_A */
+    case 3:  rs = 27000; dp =  6000; wet = 11000; break; /* STUDIO_B */
+    case 4:  rs = 28000; dp =  6000; wet = 12000; break; /* STUDIO_C (default) */
+    case 5:  rs = 30000; dp =  4000; wet = 14000; break; /* HALL */
+    case 6:  rs = 29000; dp =  4500; wet = 13000; break; /* SPACE */
+    case 7:  rs = 31000; dp =  3000; wet = 15000; break; /* ECHO */
+    case 8:  rs = 26000; dp =  9000; wet = 10000; break; /* DELAY */
+    case 9:  rs = 27500; dp =  6000; wet = 11000; break; /* PIPE */
+    default: break;
+    }
+    if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+    fv_room_size_q15 = rs;
+    fv_damping_q15   = dp;
+    fv_wet_q15       = wet;
+    if (audio_dev > 0) SDL_UnlockAudioDevice(audio_dev);
+    return 0;
+}
+
+/* Enable reverb send for the voices in voice_bit. */
+void SpuSetReverbVoice(long on_off, u_long voice_bit)
+{
+    if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+    if (on_off == SPU_ON) port_reverb_send |=  (unsigned int)voice_bit;
+    else                  port_reverb_send &= ~(unsigned int)voice_bit;
+    if (audio_dev > 0) SDL_UnlockAudioDevice(audio_dev);
+}
+
 long SpuReserveReverbWorkArea(long on_off) { (void)on_off; return 0; }
 long SpuClearReverbWorkArea(long mode) { (void)mode; return 0; }
-void SpuSetReverbDepth(SpuReverbAttr *attr) { (void)attr; }
+
+/* Per-preset wet/dry depth. The game uses the depth.left/right field as a
+ * 0..0x7FFF gain. We average L+R into our single wet scalar. */
+void SpuSetReverbDepth(SpuReverbAttr *attr)
+{
+    if (!attr) return;
+    int d = ((int)attr->depth.left + (int)attr->depth.right) / 2;
+    if (d < 0)     d = 0;
+    if (d > 32767) d = 32767;
+    if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+    fv_wet_q15 = d / 2;  /* gentle ceiling so saturated depth doesn't drown the dry mix */
+    if (audio_dev > 0) SDL_UnlockAudioDevice(audio_dev);
+}
 void SpuSetPitchLFOVoice(long on_off, u_long voice_bit) { (void)on_off; (void)voice_bit; }
 
 /* Enable noise mode for the voices selected by voice_bit (one bit per
