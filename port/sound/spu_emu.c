@@ -911,6 +911,7 @@ void SpuSetKey(long on_off, u_long voice_bit)
     if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
 
     /* Detect stream voice key-on/off (SPU_21CH | SPU_22CH) */
+    int stream_keyoff = 0;
     if ((voice_bit & ((1 << 21) | (1 << 22))) && stream_base_r) {
         if (on_off == SPU_ON) {
             stream_pcm_rd = 0;
@@ -919,6 +920,7 @@ void SpuSetKey(long on_off, u_long voice_bit)
                    stream_pcm_wr_r, stream_pcm_wr_l);
         } else {
             stream_active = 0;
+            stream_keyoff = 1;
         }
     }
 
@@ -943,6 +945,15 @@ void SpuSetKey(long on_off, u_long voice_bit)
             v->prev_decoded[1] = 0;
             v->prev_decoded[2] = 0;
             decode_adpcm_block(v);
+        } else if (stream_keyoff && (ch == 21 || ch == 22)) {
+            /* Stream voices don't have a real ADSR ramp -- their volume is
+             * controlled by StrFadeInt. Letting them go through ENV_RELEASE
+             * makes the per-voice ADPCM-gauss path play out stale v->decoded
+             * bytes (= dirty-buffer glitch at codec line end). Kill cleanly. */
+            v->active = 0;
+            v->key_off = 0;
+            v->env_phase = ENV_OFF;
+            v->env_level = 0;
         } else {
             /* Key off — enter release */
             v->key_off = 1;
