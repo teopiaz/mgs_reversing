@@ -150,15 +150,13 @@ int   gl_debug_show_normals   = 0;
 int   gl_debug_clear_override = 0;
 
 /* NewBlur / NewBlurPure intensity controls. The 2D fb-readback shader
- * uses `vCol.rgb * port_blur_strength` to scale the previous-frame tap
- * before the semi-trans blend.
- *
- * Default OFF: proper PSX semantics need per-pixel STP-bit tracking
- * which we don't replicate, so cutscenes that start from a black
- * frame (e.g. d00a opening) see the blur 50%-blend with an uninitialised
- * uPrevFB and the screen reads as completely black for the first
- * frames. Users can enable via the imgui Renderer > Effects panel. */
-int   port_blur_enabled       = 0;
+ * scales the prev-frame tap by vCol*port_blur_strength and emits a
+ * soft-gated src.alpha (brightness-driven) into a dedicated fb-readback
+ * batch that uses glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA).
+ * Dim/uninit prev-fb samples contribute 0 -> no darkening on cutscene
+ * fade-ins from black (the d00a opening case); bright samples blend
+ * at 50% -> the PSX ghost-trail. */
+int   port_blur_enabled       = 1;
 float port_blur_strength      = 1.4f;
 float gl_debug_clear_rgb[3]   = {1.0f, 0.0f, 1.0f};  /* magenta default */
 
@@ -551,6 +549,13 @@ static const char *TRI2D_FS =
     "        vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;\n"
     "        // uBlurStrength is bound from port_blur_strength (imgui slider).\n"
     "        out_rgb = clamp(tex * (vCol.rgb * uBlurStrength), 0.0, 1.0);\n"
+    "        // Soft alpha-gate vs prev-fb brightness -- see tri2d.frag.\n"
+    "        // Drives src.alpha for the fb-readback batch's BlendFunc\n"
+    "        // (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) so a dim sample\n"
+    "        // contributes 0 (no darkening) and a normal sample blends 50%.\n"
+    "        float bright = max(max(tex.r, tex.g), tex.b);\n"
+    "        oColor = vec4(out_rgb, smoothstep(0.0, 0.06, bright) * 0.5);\n"
+    "        return;\n"
     "    } else if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
     "        int base_x = int(vTPage & 0xFu) * 64;\n"
@@ -1713,16 +1718,27 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
         unsigned short f0 = buf[i].flags;
         int semi0 = (f0 >> 1) & 1;
         int abr0  = (f0 >> 2) & 3;
+        int fb0   = (f0 >> 5) & 1;
         size_t run_start = i;
         size_t j = i;
         while (j + stride <= count) {
             unsigned short f = buf[j].flags;
             int s = (f >> 1) & 1;
             int a = (f >> 2) & 3;
-            if (s != semi0 || (s && a != abr0)) break;
+            int fb = (f >> 5) & 1;
+            if (s != semi0 || (s && a != abr0) || fb != fb0) break;
             j += stride;
         }
-        if (semi0) {
+        if (fb0) {
+            /* NewBlur / NewBlurPure: per-fragment src.alpha gates the blend,
+             * so dim/uninitialised prev-fb samples contribute zero (no scene
+             * darkening at d00a start) and normal samples produce the 50%
+             * ghost trail. Shader sets src.alpha = smoothstep(0..0.05, prev
+             * brightness) * 0.5. */
+            glEnable(GL_BLEND);
+            glBlendEquation(GL_FUNC_ADD);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        } else if (semi0) {
             glEnable(GL_BLEND);
             apply_abr(abr0);
         } else {
