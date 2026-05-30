@@ -57,7 +57,14 @@ void main() {
         // PSX-pixel-row 0 reads the GL-top texel.
         fy = 1.0 - fy;
         vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;
-        out_rgb = clamp(tex * (vCol.rgb * 2.0), 0.0, 1.0);
+        // PSX NewBlur/NewBlurPure: tex * (vCol/128) + 50% ABR blend gives
+        // a heavy ghost trail. The math is identical to PSX but on a
+        // sharp digital monitor (no CRT phosphor softening / no LCD
+        // response-time smearing) the trail reads as overpowering.
+        // Drop the tint multiplier from the standard 2.0 (= 256/128) to
+        // 1.4 so each blur pass contributes ~33% prev-frame instead of
+        // ~47%, which matches the perceptual strength on PSX hardware.
+        out_rgb = clamp(tex * (vCol.rgb * 1.4), 0.0, 1.0);
     } else if (textured) {
         uint tp = (vTPage >> 7u) & 3u;
         int base_x = int(vTPage & 0xFu) * 64;
