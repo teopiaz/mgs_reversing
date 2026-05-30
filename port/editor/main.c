@@ -183,6 +183,25 @@ int main(int argc, char *argv[])
         /* not fatal — let the user pick another from the inspector */
     }
 
+    /* Headless-A/B helper: PORT_AUTOPLAY_DEMO=1 hits Play on the loaded
+     * stage's default .dmo right after load, so a CI/script can run the
+     * editor without a human clicking the button. PORT_AUTOPLAY_DEMO_FILE
+     * additionally bypasses the GCL state-machine and spawns the demo
+     * streaming actor (DM_ThreadFile) for the given .dmo directly —
+     * needed for stages like d00a where the demo only fires under
+     * specific GCL var conditions the editor doesn't reach. */
+    {
+        const char *e = getenv("PORT_AUTOPLAY_DEMO");
+        if (e && atoi(e) > 0) ed_demo_play();
+        const char *f = getenv("PORT_AUTOPLAY_DEMO_FILE");
+        if (f && *f) {
+            extern int DM_ThreadFile(int flag, char *filename);
+            char buf[256]; snprintf(buf, sizeof(buf), "%s", f);
+            int ok = DM_ThreadFile(1 /* -e flag */, buf);
+            printf("editor: PORT_AUTOPLAY_DEMO_FILE='%s' DM_ThreadFile=%d\n", f, ok);
+        }
+    }
+
     ed_camera_default();
     ed_camera_ortho_default(&g_top_cam,   ED_ORTHO_TOP);
     ed_camera_ortho_default(&g_front_cam, ED_ORTHO_FRONT);
