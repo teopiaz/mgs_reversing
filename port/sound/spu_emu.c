@@ -169,6 +169,15 @@ static volatile int stream_pcm_wr_r = 0;  /* write cursor (game thread) */
 static volatile int stream_pcm_wr_l = 0;
 volatile int stream_pcm_rd = 0;           /* read cursor (audio thread) — extern'd by main_game.c */
 static int stream_active = 0;
+
+/* Linear fade-out at codec line end: ~3 ms of ramp from the last emitted
+ * mixed-sample value down to 0, applied AFTER stream_active goes 0. Avoids
+ * the audible click that comes from cutting straight to silence on a
+ * non-zero-crossing PCM tail (codec voices rarely end at silence). */
+#define STREAM_FADEOUT_LEN 128
+static volatile int stream_fadeout_counter = 0;
+static int stream_last_mix_l = 0;
+static int stream_last_mix_r = 0;
 static unsigned long stream_base_r = 0;   /* SPU RAM addr of right buffer */
 static unsigned long stream_base_l = 0;   /* SPU RAM addr of left buffer */
 /* Per-channel ADPCM decoder state (maintained across SpuWrite calls) */
@@ -632,14 +641,21 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
                    the stream channels too. */
                 int mute21 = (port_spu_voice_mute_mask >> 21) & 1u;
                 int mute22 = (port_spu_voice_mute_mask >> 22) & 1u;
+                int stream_l = 0, stream_r = 0;
                 if (!mute21) {
-                    mix_l += ((int)sam_r * vr->vol_l) >> 15;
-                    mix_r += ((int)sam_r * vr->vol_r) >> 15;
+                    stream_l += ((int)sam_r * vr->vol_l) >> 15;
+                    stream_r += ((int)sam_r * vr->vol_r) >> 15;
                 }
                 if (!mute22) {
-                    mix_l += ((int)sam_l * vl->vol_l) >> 15;
-                    mix_r += ((int)sam_l * vl->vol_r) >> 15;
+                    stream_l += ((int)sam_l * vl->vol_l) >> 15;
+                    stream_r += ((int)sam_l * vl->vol_r) >> 15;
                 }
+                mix_l += stream_l;
+                mix_r += stream_r;
+                /* Remember the last bypass contribution so we can ramp it
+                 * down at line end (see stream_fadeout_counter below). */
+                stream_last_mix_l = stream_l;
+                stream_last_mix_r = stream_r;
 
                 /* Advance read cursor — PSX SPU pitch is 4.12 fixed-point.
                    Pitch 0x1000 = 1.0 = 44100Hz (one decoded sample per output sample). */
@@ -649,6 +665,17 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
                     vr->frac_pos -= adv << 12;
                     stream_pcm_rd = rd + adv;
                 }
+            }
+        } else if (stream_fadeout_counter > 0) {
+            /* Bypass already torn down (stream_active=0). Ramp the last
+             * sample's mixer contribution toward 0 over STREAM_FADEOUT_LEN
+             * samples to mask the DC discontinuity. */
+            int n = stream_fadeout_counter--;
+            mix_l += (stream_last_mix_l * n) / STREAM_FADEOUT_LEN;
+            mix_r += (stream_last_mix_r * n) / STREAM_FADEOUT_LEN;
+            if (stream_fadeout_counter == 0) {
+                stream_last_mix_l = 0;
+                stream_last_mix_r = 0;
             }
         }
 
@@ -916,11 +943,19 @@ void SpuSetKey(long on_off, u_long voice_bit)
         if (on_off == SPU_ON) {
             stream_pcm_rd = 0;
             stream_active = 1;
+            /* Cancel any pending fade-out from the previous line. */
+            stream_fadeout_counter = 0;
+            stream_last_mix_l = 0;
+            stream_last_mix_r = 0;
             printf("[spu] Stream key-on: wr_r=%d wr_l=%d\n",
                    stream_pcm_wr_r, stream_pcm_wr_l);
         } else {
             stream_active = 0;
             stream_keyoff = 1;
+            /* Trigger linear fade-out of the last emitted bypass sample so
+             * the line end doesn't click. The audio thread drains the
+             * counter; takes ~3 ms at 44.1 kHz. */
+            stream_fadeout_counter = STREAM_FADEOUT_LEN;
             /* Reset the PCM write cursors AND the ADPCM decoder filter
              * history so the next codec/cutscene line starts from a clean
              * buffer. Without this the audio thread reads stale samples
