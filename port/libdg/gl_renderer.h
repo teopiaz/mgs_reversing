@@ -71,6 +71,13 @@ extern int gl_debug_show_normals;   /* output interpolated normal as RGB */
 extern int gl_debug_clear_override; /* 1 = use gl_debug_clear_rgb instead of game */
 extern float gl_debug_clear_rgb[3]; /* override clear color, 0..1 per channel */
 
+/* NewBlur / NewBlurPure intensity controls -- imgui Renderer tab toggle
+ * + slider. When disabled, the 2D fb-readback prim falls through to a
+ * flat vCol (no prev-frame sample). When enabled, the strength multiplier
+ * scales the prev-frame tap before the semi-trans blend (default 1.4). */
+extern int   port_blur_enabled;
+extern float port_blur_strength;
+
 /* Read a region of the hi-res FBO back into a host RGB buffer. Coordinates
  * are in PSX framebuffer pixels (0..320 x 0..224). The function multiplies
  * by the current scale and reads `psx_w * scale` x `psx_h * scale` RGB
