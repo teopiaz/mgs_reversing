@@ -220,6 +220,14 @@ int main(int argc, char *argv[])
     ed_camera_ortho_default(&g_front_cam, ED_ORTHO_FRONT);
     ed_camera_ortho_default(&g_side_cam,  ED_ORTHO_SIDE);
 
+    /* Pre-allocate the 3D viewport FBO so rendering fires even in
+     * headless mode (no user interaction with the ImGui dockspace).
+     * Without this gl_renderer_get_viewport_color() returns 0 and the
+     * scene render is skipped, so [ed-eye-vert] / [eye-vert] never
+     * dumps. The ImGui panel will resize this later if the user opens
+     * the 3D View panel manually. */
+    gl_renderer_resize_viewport(GL_VIEWPORT_3D, 640, 448);
+
     g_running = 1;
     Uint64 freq = SDL_GetPerformanceFrequency();
     Uint64 prev = SDL_GetPerformanceCounter();

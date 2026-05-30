@@ -196,6 +196,39 @@ void ed_demo_play(void)
         GM_ResetMap();
         NewCameraSystem();        /* spawns the DG_LookAt-driving actor */
 
+        /* Pre-seed GCL state vars that gate the `demo` directive so
+         * the streamed cinematic actually plays when ExecScript runs.
+         * Each stage's scenerio.gcl gates demo on a different var --
+         * typically `$w:00000A == b:1`, set when the live game's title
+         * sequence transitions into the stage. The editor doesn't run
+         * that sequence, so without this the script's demo branch is
+         * skipped and the engine SA actor (which spawns the cinematic
+         * snake / dolls) never gets created.
+         *
+         * PORT_DEMO_GCL_VARS = "byte_offset=value,byte_offset=value,..."
+         * Defaults to setting $w:00000A=1 for d00a-style stages. */
+        {
+            extern GCL_Vars gGcl_vars_800B3CC8;
+            const char *e = getenv("PORT_DEMO_GCL_VARS");
+            if (!e || !*e) {
+                /* Default: matches d00a / similar "title-handoff" stages. */
+                e = "10=1";
+            }
+            const char *p = e;
+            while (*p) {
+                int off = 0, val = 0;
+                if (sscanf(p, "%d=%d", &off, &val) == 2) {
+                    if (off >= 0 && off + 1 < (int)sizeof(gGcl_vars_800B3CC8)) {
+                        *(short *)((char *)&gGcl_vars_800B3CC8 + off) = (short)val;
+                        printf("[demo] pre-seed GCL: byte_off=%d (=$w:%04X) <- %d\n",
+                               off, off, val);
+                    }
+                }
+                while (*p && *p != ',') p++;
+                if (*p == ',') p++;
+            }
+        }
+
         /* GCL_LoadScript only sets up the proc table + script_body
          * pointer. The actual chara directives at the top level run
          * via GCL_ExecScript, which walks the script body once and
