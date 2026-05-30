@@ -52,7 +52,11 @@ void main() {
         // The PSX double-buffer pair lives at x=[0..319] and [320..639];
         // both hold the same display surface, just at different VRAM
         // offsets. mod 320 collapses to the buffer-local x. Y is shared.
-        float fx = float((bx + u) % 320) / 320.0;
+        // In widescreen the FBO is 400 wide and PSX 0..319 maps to the
+        // central NDC range [-uXScale..+uXScale]; mirror the vert shader's
+        // projection so the sample lands on the correct FBO column.
+        float psx_fx = float((bx + u) % 320);
+        float fx = ((psx_fx / 160.0 - 1.0) * uXScale + 1.0) * 0.5;
         float fy = float(by + v)         / 224.0;
         // FBO row 0 is GL-bottom (the 2D VS flips Y at projection time);
         // glCopyTexSubImage2D preserved that orientation. Flip back so
