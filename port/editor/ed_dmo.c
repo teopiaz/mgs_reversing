@@ -342,6 +342,12 @@ static int parse_dat_block(EdDmoFrame *f, const unsigned char *raw, int sz)
         a->pos[0]  = le_s16(p + 12);
         a->pos[1]  = le_s16(p + 14);
         a->pos[2]  = le_s16(p + 16);
+        if (getenv("PORT_DEBUG_SNAKE") && atoi(getenv("PORT_DEBUG_SNAKE")) > 0) {
+            printf("[ed-adjust f=%d type=%d] pos=(%d,%d,%d) rot=(%d,%d,%d)\n",
+                   f->frame, a->type,
+                   a->pos[0], a->pos[1], a->pos[2],
+                   a->rot[0], a->rot[1], a->rot[2]);
+        }
         /* rots[] payload: n_rots Euler triplets at byte offset
          * (adjust_self_offset + adjust->rots_offset) — that's how the
          * runtime's OFFSET_TO_PTR(adjust, &adjust->rots) computes the
