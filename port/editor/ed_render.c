@@ -168,6 +168,46 @@ void render_kmd_posed(DG_DEF *def, int dist, const MATRIX *bones,
 
             int face_z = (eye[0][2] + eye[1][2] + eye[2][2] + eye[3][2]) / 4;
 
+            /* PORT_DEBUG_SNAKE: match the port's [eye-vert] dump for
+               the cinematic snake's first face at climb height, so we
+               can compare eye-space projections directly. Editor's
+               render_kmd_posed receives wx/wy/wz = adj->pos; we filter
+               on that (Y < -4000) to catch snake mid-climb. */
+            if (mi == 0 && fi == 0 && wy < -4000) {
+                static int n = 0;
+                if (n++ < 30 && getenv("PORT_DEBUG_SNAKE") &&
+                    atoi(getenv("PORT_DEBUG_SNAKE")) > 0)
+                {
+                    int wxk0, wyk0, wzk0, wxk1, wyk1, wzk1, wxk3, wyk3, wzk3;
+                    if (bones) {
+                        const MATRIX *m = &bones[mi];
+                        SVECTOR *v0 = &verts[idx[0]], *v1 = &verts[idx[1]], *v3 = &verts[idx[3]];
+                        wxk0 = m->t[0] + (((int)m->m[0][0]*v0->vx + (int)m->m[0][1]*v0->vy + (int)m->m[0][2]*v0->vz) >> 12);
+                        wyk0 = m->t[1] + (((int)m->m[1][0]*v0->vx + (int)m->m[1][1]*v0->vy + (int)m->m[1][2]*v0->vz) >> 12);
+                        wzk0 = m->t[2] + (((int)m->m[2][0]*v0->vx + (int)m->m[2][1]*v0->vy + (int)m->m[2][2]*v0->vz) >> 12);
+                        wxk1 = m->t[0] + (((int)m->m[0][0]*v1->vx + (int)m->m[0][1]*v1->vy + (int)m->m[0][2]*v1->vz) >> 12);
+                        wyk1 = m->t[1] + (((int)m->m[1][0]*v1->vx + (int)m->m[1][1]*v1->vy + (int)m->m[1][2]*v1->vz) >> 12);
+                        wzk1 = m->t[2] + (((int)m->m[2][0]*v1->vx + (int)m->m[2][1]*v1->vy + (int)m->m[2][2]*v1->vz) >> 12);
+                        wxk3 = m->t[0] + (((int)m->m[0][0]*v3->vx + (int)m->m[0][1]*v3->vy + (int)m->m[0][2]*v3->vz) >> 12);
+                        wyk3 = m->t[1] + (((int)m->m[1][0]*v3->vx + (int)m->m[1][1]*v3->vy + (int)m->m[1][2]*v3->vz) >> 12);
+                        wzk3 = m->t[2] + (((int)m->m[2][0]*v3->vx + (int)m->m[2][1]*v3->vy + (int)m->m[2][2]*v3->vz) >> 12);
+                    } else {
+                        wxk0 = verts[idx[0]].vx + wx; wyk0 = verts[idx[0]].vy + wy; wzk0 = verts[idx[0]].vz + wz;
+                        wxk1 = verts[idx[1]].vx + wx; wyk1 = verts[idx[1]].vy + wy; wzk1 = verts[idx[1]].vz + wz;
+                        wxk3 = verts[idx[3]].vx + wx; wyk3 = verts[idx[3]].vy + wy; wzk3 = verts[idx[3]].vz + wz;
+                    }
+                    fprintf(stderr,
+                        "[ed-eye-vert] root=(%d,%d,%d) clip=%d "
+                        "world_v0=(%d,%d,%d)->eye=(%d,%d,%d)  "
+                        "world_v1=(%d,%d,%d)->eye=(%d,%d,%d)  "
+                        "world_v3=(%d,%d,%d)->eye=(%d,%d,%d)\n",
+                        wx, wy, wz, (int)dist,
+                        wxk0, wyk0, wzk0, eye[0][0], eye[0][1], eye[0][2],
+                        wxk1, wyk1, wzk1, eye[1][0], eye[1][1], eye[1][2],
+                        wxk3, wyk3, wzk3, eye[3][0], eye[3][1], eye[3][2]);
+                }
+            }
+
             unsigned short tpage = 0, clut = 0;
             unsigned short flags = 0;
             int uv_arr[4][2] = {{0,0},{0,0},{0,0},{0,0}};

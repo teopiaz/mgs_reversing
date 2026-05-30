@@ -200,6 +200,19 @@ int main(int argc, char *argv[])
             int ok = DM_ThreadFile(1 /* -e flag */, buf);
             printf("editor: PORT_AUTOPLAY_DEMO_FILE='%s' DM_ThreadFile=%d\n", f, ok);
         }
+        const char *df = getenv("PORT_DMO_FRAME");
+        if (df && *df) {
+            extern int g_dmo_active_frame, g_dmo_freeze_frame;
+            int target = atoi(df);
+            /* Start Demo Play first; it does the catalog auto-load.
+             * Then pin the frame so feed_dmo_frame_to_engine drives
+             * chanl[1].eye_inv via DG_LookAt with that frame's data
+             * (eye/center/clip) every tick, never advancing. */
+            ed_demo_play();
+            g_dmo_active_frame = target;
+            g_dmo_freeze_frame = 1;
+            printf("editor: PORT_DMO_FRAME=%d (frozen)\n", target);
+        }
     }
 
     ed_camera_default();
