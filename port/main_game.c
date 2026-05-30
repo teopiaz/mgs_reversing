@@ -3,9 +3,11 @@
  * Follows the EXACT original PSX initialization sequence.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <SDL.h>
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 #endif
@@ -377,18 +379,47 @@ void game_tick(void)
             sigaction(SIGBUS, &old_bus, NULL);
         }
 
-        /* Sound driver tick — mirrors SdInt's main loop on PSX.
-           SPU IRQ fires at ~88Hz (~3 ticks per 30fps frame).
-           Must call IntSdMain (sequence processing), StrFadeInt (stream fade),
-           WaveSpuTrans (wave data transfer), and StrSpuTrans (stream audio
-           transfer to SPU voices 21-22 for codec/cutscene voice). */
+        /* Sound driver tick — mirrors SdInt's main loop on PSX. On PSX
+           IntSdMain runs from the SPU IRQ handler (rate depends on SPU
+           config; for MGS during normal play it averages ~60 Hz, the
+           VSync-driven music sequencer rate). The port drives it from a
+           real-time accumulator so the rate is stable regardless of
+           variable game_tick latency. Override via PORT_SD_HZ (e.g.
+           PORT_SD_HZ=88 for a faster cadence). */
         {
             extern void IntSdMain(void);
             extern void StrFadeInt(void);
             extern void WaveSpuTrans(void);
             extern void StrSpuTrans(void);
             extern long SpuIsTransferCompleted(long flag);
-            for (int _st = 0; _st < 3; _st++) {
+
+            static double sd_target_hz = 0.0;
+            static double sd_accumulator_ms = 0.0;
+            static Uint64 sd_prev_counter = 0;
+            static Uint64 sd_freq = 0;
+            if (sd_target_hz == 0.0) {
+                const char *e = getenv("PORT_SD_HZ");
+                sd_target_hz = (e && *e) ? atof(e) : 60.0;
+                if (sd_target_hz < 1.0)   sd_target_hz = 1.0;
+                if (sd_target_hz > 500.0) sd_target_hz = 500.0;
+                sd_freq = SDL_GetPerformanceFrequency();
+                sd_prev_counter = SDL_GetPerformanceCounter();
+                printf("[sd] sequencer cadence = %.2f Hz\n", sd_target_hz);
+            }
+            Uint64 now = SDL_GetPerformanceCounter();
+            sd_accumulator_ms += (double)(now - sd_prev_counter) * 1000.0 / (double)sd_freq;
+            sd_prev_counter = now;
+            /* Cap accumulator to one game frame (33 ms) so a freeze doesn't
+               cause a burst of catch-up ticks that audibly skips music. */
+            if (sd_accumulator_ms > 33.0) sd_accumulator_ms = 33.0;
+
+            double tick_ms = 1000.0 / sd_target_hz;
+            int n_ticks = 0;
+            while (sd_accumulator_ms >= tick_ms && n_ticks < 8) {
+                sd_accumulator_ms -= tick_ms;
+                n_ticks++;
+            }
+            for (int _st = 0; _st < n_ticks; _st++) {
                 IntSdMain();
                 if (SpuIsTransferCompleted(0) == 1)
                     WaveSpuTrans();
