@@ -59,6 +59,12 @@ void main() {
         // PSX-pixel-row 0 reads the GL-top texel.
         fy = 1.0 - fy;
         vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;
+        // PSX $0000 (RGB+STP all zero) is fully transparent. At d00a
+        // cutscene start uPrevFB is uninitialised (black), so without
+        // this guard the blur opaque-overwrites the just-rendered
+        // cutscene with black on the first frames. Discard near-black
+        // samples so the underlying frame shows through.
+        if (dot(tex, vec3(1.0)) < (3.0 / 255.0)) discard;
         // PSX NewBlur/NewBlurPure: tex * (vCol/128) + 50% ABR blend.
         // PSX-exact strength is 2.0 but reads overpowering on a sharp
         // digital monitor; default is 1.4 (~33% prev contribution).
