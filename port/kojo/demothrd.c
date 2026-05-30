@@ -27,6 +27,11 @@ static void demo_sigbus_handler(int sig) { siglongjmp(demo_sigbus_jmp, 1); }
 
 extern int demodebug_finish_proc;
 
+/* Set when PORT_DEMO_PAUSE_AT has clamped lpAct->frame to its target;
+   suppresses the natural end-of-demo GV_DestroyActor so the cinematic
+   snapshot can be held for screenshot A/B against the editor. */
+int port_demo_paused = 0;
+
 /******************************************************************************
  * functions
  */
@@ -211,9 +216,12 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
     /* Optional: pause cinema at a specific demo frame so the port can
        be screenshot-compared to the editor at the same frame. Hold by
-       sliding start_time forward each tick once frame==target, so the
-       (ticks - start_time)/2 = target equality stays true without ever
-       teleporting past data the stream parser has actually loaded. */
+       sliding start_time forward each tick once frame reaches the
+       target. >= so we lock as soon as we hit the target. Sets the
+       extern flag port_demo_paused so the stream-end / destruction
+       path below skips its GV_DestroyActor (the natural end-of-demo
+       would clear the snapshot we're trying to hold). */
+    extern int port_demo_paused;
     {
         static int pause_at = -2;
         if (pause_at == -2) {
@@ -221,13 +229,39 @@ static void ActStream(LPMGSDEMOACT lpAct)
             pause_at = (e && *e) ? atoi(e) : -1;
             if (pause_at >= 0) printf("[SA] PORT_DEMO_PAUSE_AT=%d engaged\n", pause_at);
         }
-        if (pause_at >= 0 && lpAct->frame > pause_at) {
-            lpAct->frame = pause_at;
-            lpAct->start_time = ticks - pause_at * 2;
+        if (pause_at >= 0) {
+            if (port_demo_paused || lpAct->frame >= pause_at) {
+                if (!port_demo_paused) {
+                    printf("[SA] paused at frame=%d (target=%d)\n", lpAct->frame, pause_at);
+                    port_demo_paused = 1;
+                }
+                lpAct->frame = pause_at;
+                lpAct->start_time = ticks - pause_at * 2;
+            }
         }
     }
 
     if (!lpAct->header) return;
+    /* PORT_DEMO_PAUSE_AT: if set but we never reach the target before
+       the stream's end flag fires, lock at the highest frame we did
+       reach -- still gives a holdable snapshot. */
+    {
+        extern int port_demo_paused;
+        static int pause_target_local = -2;
+        if (pause_target_local == -2) {
+            const char *e = getenv("PORT_DEMO_PAUSE_AT");
+            pause_target_local = (e && *e) ? atoi(e) : -1;
+        }
+        if (pause_target_local >= 0 && !port_demo_paused &&
+            FS_StreamGetEndFlag() == 1)
+        {
+            printf("[SA] stream ended before target=%d, locking at "
+                   "max-reached frame=%d\n", pause_target_local, lpAct->frame);
+            port_demo_paused = 1;
+            lpAct->start_time = ticks - lpAct->frame * 2;
+            return;
+        }
+    }
     if (lpAct->frame <= lpAct->header->n_frames)
     {
         while (1)
@@ -236,7 +270,8 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
             if (!data)
             {
-                if (FS_StreamGetEndFlag() == 1)
+                extern int port_demo_paused;
+                if (FS_StreamGetEndFlag() == 1 && !port_demo_paused)
                 {
                     GV_DestroyActor(&lpAct->actor);
                 }
