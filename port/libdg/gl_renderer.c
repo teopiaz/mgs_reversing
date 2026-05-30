@@ -168,6 +168,13 @@ typedef struct {
     unsigned short depth_flag;/* 0 = foreground (z=0.0, on top of 3D),
                                  non-zero = background (z=0.999, behind 3D
                                  via depth test; used for skybox tiles). */
+    short          clip[4];   /* (x0, y0, x1, y1) drawing-area clip in PSX
+                                 buffer-local coords. The FS discards fragments
+                                 outside this rect, reproducing the PSX GPU's
+                                 E3/E4 drawing-area clipping. Used by the radar
+                                 (DRAWENV 235..303 x 16..67) so distant-enemy
+                                 dots + vision cones don't leak past the
+                                 radar circle. */
 } GL2DVert;
 
 /* Set by port_DrawOTag when walker enters a buffer slot that belongs to
@@ -434,6 +441,7 @@ static const char *TRI2D_VS =
     "layout(location=1) in vec2 aUV;\n"
     "layout(location=2) in vec4 aCol;\n"
     "layout(location=3) in uvec4 aTex;   // tpage, clut, flags, depth_flag\n"
+    "layout(location=4) in ivec4 aClip;  // PSX drawing-area clip (x0,y0,x1,y1)\n"
     "uniform float uXScale;              // 1.0 in 4:3, 320/render_w in widescreen\n"
     "uniform vec2 uNearFar;              // (near, far) -- matches the 3D pass\n"
     "out vec2 vUV;\n"
@@ -441,6 +449,7 @@ static const char *TRI2D_VS =
     "flat out uint vTPage;\n"
     "flat out uint vCLUT;\n"
     "flat out uint vFlags;\n"
+    "flat out ivec4 vClip;\n"
     "void main() {\n"
     "    /* NDC depth from the PSX OT slot encoded in aTex.w (depth_flag):\n"
     "         0 / 1 -> front (z=-1), always on top (HUD/menu/skybox-bg pass);\n"
@@ -467,6 +476,7 @@ static const char *TRI2D_VS =
     "    vTPage = aTex.x;\n"
     "    vCLUT  = aTex.y;\n"
     "    vFlags = aTex.z;\n"
+    "    vClip  = aClip;\n"
     "}\n";
 
 static const char *TRI2D_FS =
@@ -476,9 +486,11 @@ static const char *TRI2D_FS =
     "flat in uint vTPage;\n"
     "flat in uint vCLUT;\n"
     "flat in uint vFlags;\n"
+    "flat in ivec4 vClip;\n"
     "uniform usampler2D uVRAM;\n"
     "uniform sampler2D  uPrevFB;     // RGBA8 capture of the previous frame's FBO\n"
     "uniform int uNoTextures;\n"
+    "uniform float uXScale;\n"
     "out vec4 oColor;\n"
     "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
     "vec3 decodePSX(uint p) {\n"
@@ -488,6 +500,16 @@ static const char *TRI2D_FS =
     "        float((p >> 10) & 0x1Fu) / 31.0);\n"
     "}\n"
     "void main() {\n"
+    "    // PSX drawing-area clip (E3/E4). Recover PSX coords from gl_FragCoord\n"
+    "    // using the inverse of the vert-shader projection; radar enemy dots\n"
+    "    // / cones outside the 69x52 clip rect are dropped here.\n"
+    "    vec2 fboSize = vec2(textureSize(uPrevFB, 0));\n"
+    "    float psx_x = 160.0 * ((2.0 * gl_FragCoord.x / fboSize.x - 1.0) / uXScale + 1.0);\n"
+    "    float psx_y = 224.0 * (1.0 - gl_FragCoord.y / fboSize.y);\n"
+    "    if (psx_x < float(vClip.x) || psx_x > float(vClip.z) + 1.0 ||\n"
+    "        psx_y < float(vClip.y) || psx_y > float(vClip.w) + 1.0) {\n"
+    "        discard;\n"
+    "    }\n"
     "    bool textured     = (vFlags & 1u)  != 0u && (uNoTextures == 0);\n"
     "    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0);\n"
     "    vec3 out_rgb;\n"
@@ -835,6 +857,8 @@ int gl_renderer_init(void *window_)
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, s2, (void *)offsetof(GL2DVert, rgba));
     glEnableVertexAttribArray(3);
     glVertexAttribIPointer(3, 4, GL_UNSIGNED_SHORT, s2, (void *)offsetof(GL2DVert, tpage));
+    glEnableVertexAttribArray(4);
+    glVertexAttribIPointer(4, 4, GL_SHORT, s2, (void *)offsetof(GL2DVert, clip));
 
     /* Separate VAO/VBO for lines -- same vertex format, GL_LINES primitive. */
     glGenVertexArrays(1, &g_line2d_vao);
@@ -849,6 +873,8 @@ int gl_renderer_init(void *window_)
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, s2, (void *)offsetof(GL2DVert, rgba));
     glEnableVertexAttribArray(3);
     glVertexAttribIPointer(3, 4, GL_UNSIGNED_SHORT, s2, (void *)offsetof(GL2DVert, tpage));
+    glEnableVertexAttribArray(4);
+    glVertexAttribIPointer(4, 4, GL_SHORT, s2, (void *)offsetof(GL2DVert, clip));
 
     /* Sampler unit for 2D textured prims. */
     glUseProgram(g_tri2d_prog);
@@ -1503,6 +1529,15 @@ static void pack_vert2d(GL2DVert *v,
     /* Carry the OT-slot depth class (set by port_DrawOTag) into the vertex so
        the 2D shader can depth-test world VFX while keeping HUD/overlay on top. */
     v->depth_flag = port_2d_depth_flag;
+    /* Snapshot the current PSX drawing-area clip (set by E3/E4 GPU commands).
+       The FS uses this to discard fragments outside the rect, e.g. radar
+       enemy dots / vision cones whose PSX coords land past the radar's
+       69x52 clip area. */
+    extern int clip_x0, clip_y0, clip_x1, clip_y1;
+    v->clip[0] = (short)clip_x0;
+    v->clip[1] = (short)clip_y0;
+    v->clip[2] = (short)clip_x1;
+    v->clip[3] = (short)clip_y1;
 }
 
 void gl_submit_tri2d(
