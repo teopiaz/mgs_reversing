@@ -136,6 +136,13 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
     ticks = FS_StreamGetTick();
 
+    {
+        static int actc = 0;
+        if (actc++ < 200 || (actc % 60) == 0) {
+            printf("[ActStream] call#%d frame=%d ticks=%d\n", actc, lpAct->frame, ticks);
+        }
+    }
+
     if (lpAct->frame == -1)
     {
         data = FS_StreamGetData(5);
@@ -196,7 +203,8 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
     {
         static int _sa = 0;
-        if (_sa < 5)
+        int dbg = getenv("PORT_DEBUG_SNAKE") && atoi(getenv("PORT_DEBUG_SNAKE")) > 0;
+        if (_sa < 5 || (dbg && (_sa % 60 == 0)))
             printf("[SA] tick=%d start=%d frame=%d/%d\n", ticks, lpAct->start_time, lpAct->frame, lpAct->header->n_frames);
         _sa++;
     }
@@ -348,6 +356,7 @@ static void ActStream(LPMGSDEMOACT lpAct)
 
 static void DieStream(LPMGSDEMOACT lpAct)
 {
+    printf("[DieStream] frame=%d\n", lpAct->frame);
     DestroyDemo(lpAct);
     FS_StreamClose();
     DG_UnDrawFrameCount = 0x7fff0000;

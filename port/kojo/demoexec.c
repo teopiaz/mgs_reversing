@@ -148,12 +148,34 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
         if (!GV_GetCache(model_file->cache_id))
         {
             printf("Noload model ( Scene = No.%d )\n", i + 1);
+            /* In the editor's headless Demo Play the stage's DATACNF may
+             * not pre-load every KMD referenced by the cinematic (e.g.
+             * FAMAS only enters cache after sna_init runs in the live
+             * game). Failing the whole demo here kills the SA actor and
+             * the user never sees the cutscene. Skip the missing model:
+             * the actor's slot stays as the GM_InitControl zero-init,
+             * its visibility flag never gets flipped on, so it just
+             * doesn't render. The other models still play. */
+            if (getenv("PORT_DEMO_SKIP_MISSING_MODELS") &&
+                atoi(getenv("PORT_DEMO_SKIP_MISSING_MODELS")) > 0)
+            {
+                memset(&model->control, 0, sizeof(model->control));
+                memset(&model->object,  0, sizeof(model->object));
+                continue;
+            }
             return 0;
         }
 
         if (GM_InitControl(&model->control, model_file->name, lpAct->map) < 0)
         {
             printf("Error init control ( Scene = No.%d )\n", i + 1);
+            if (getenv("PORT_DEMO_SKIP_MISSING_MODELS") &&
+                atoi(getenv("PORT_DEMO_SKIP_MISSING_MODELS")) > 0)
+            {
+                memset(&model->control, 0, sizeof(model->control));
+                memset(&model->object,  0, sizeof(model->object));
+                continue;
+            }
             return 0;
         }
 
