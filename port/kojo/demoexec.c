@@ -2198,11 +2198,21 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
         model->control.mov.vy = adjust->pos_y;
         model->control.mov.vz = adjust->pos_z;
         {
+            static int _dbg_adj = -1;
+            if (_dbg_adj == -1) {
+                const char *e = getenv("PORT_DEBUG_SNAKE");
+                _dbg_adj = (e && atoi(e) > 0) ? 1 : 0;
+            }
             static int _ap = 0;
-            if (_ap++ < 10)
-                printf("[adjust] pos=(%d,%d,%d) step=(%d,%d,%d) step_size=%d hzd_h=%d\n",
+            int verbose = _dbg_adj;
+            if (verbose || _ap++ < 10)
+                printf("[adjust type=%d] pos=(%d,%d,%d) step=(%d,%d,%d) "
+                       "rot=(%d,%d,%d) flag=%d r_sphere=%d hzd_h=%d\n",
+                       adjust->type,
                        adjust->pos_x, adjust->pos_y, adjust->pos_z,
                        model->control.step.vx, model->control.step.vy, model->control.step.vz,
+                       adjust->rot_x, adjust->rot_y, adjust->rot_z,
+                       model_file->flag,
                        model->control.r_sphere, model->control.hzd_height);
         }
         model->control.rot.vx = adjust->rot_x;
