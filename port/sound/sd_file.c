@@ -9,6 +9,43 @@
 
 extern unsigned char *se_header;
 
+/* PSX .wvx files store each WAVE_W entry as 16 bytes (4-byte addr LE +
+ * 12 single-byte fields). On macOS our WAVE_W is 24 bytes (the
+ * `unsigned long addr` widens to 8 bytes + struct padding for 8-byte
+ * alignment). Reading the on-disk entries directly with a `(WAVE_W *)`
+ * cast was misaligning every wave past index 0 -- the root cause of BGM
+ * sounding "off" (wrong sample addresses, wrong ADSR coefficients).
+ *
+ * Unpack PSX-layout entries into the port struct one at a time. `offset`
+ * and `size` are still in PSX-bytes (the .wvx outer header). */
+static void port_unpack_wave_entries(unsigned int psx_offset,
+                                     const unsigned char *src,
+                                     unsigned int psx_size)
+{
+    unsigned int entry_idx = psx_offset / 16;
+    unsigned int n_entries = psx_size  / 16;
+    for (unsigned int i = 0; i < n_entries; i++) {
+        const unsigned char *p = src + i * 16;
+        WAVE_W *w = &wave_header[entry_idx + i];
+        w->addr =  (unsigned long)p[0]
+                | ((unsigned long)p[1] <<  8)
+                | ((unsigned long)p[2] << 16)
+                | ((unsigned long)p[3] << 24);
+        w->sample_note = (char)p[4];
+        w->sample_tune = (char)p[5];
+        w->a_mode      = p[6];
+        w->ar          = p[7];
+        w->dr          = p[8];
+        w->s_mode      = p[9];
+        w->sr          = p[10];
+        w->sl          = p[11];
+        w->r_mode      = p[12];
+        w->rr          = p[13];
+        w->pan         = p[14];
+        w->decl_vol    = p[15];
+    }
+}
+
 int LoadSeFile(void)
 {
     if (se_fp)
@@ -75,8 +112,9 @@ int LoadWaveHeader(void)
     printf("SUP OFFSET=%x:SIZE=%x\n", offset, size);
 
     wave_load_ptr = cdload_buf + 16;
+    /* Unpack PSX 16-byte entries into the port's 24-byte WAVE_W (see helper). */
+    port_unpack_wave_entries(offset, wave_load_ptr, size);
     dst_ptr = (char *)wave_header + offset;
-    memcpy(dst_ptr, wave_load_ptr, size);
 
     printf("    SRC=%x:DST=%x\n", (unsigned int)wave_load_ptr, (unsigned int)dst_ptr);
 
@@ -426,7 +464,8 @@ int SD_80083F54(char *end)
         return 0;
     }
 
-    memcpy(dst_ptr, src_ptr, size);
+    /* PSX-to-port WAVE_W unpack — see helper at top of file. */
+    port_unpack_wave_entries(offset, src_ptr, size);
 
     wave_load_ptr += size;
 
