@@ -148,6 +148,15 @@ int   gl_debug_cull_cw        = 1;  /* 1 = CW front (default, matches PSX), 0 = 
 int   gl_debug_face_id        = 0;
 int   gl_debug_show_normals   = 0;
 int   gl_debug_clear_override = 0;
+
+/* NewBlur / NewBlurPure intensity controls. The 2D fb-readback shader
+ * uses `vCol.rgb * port_blur_strength` to scale the previous-frame tap
+ * before the semi-trans blend. Default 1.4 (~33% prev contribution per
+ * blur pass) -- the PSX-exact value would be 2.0 but reads as
+ * overpowering on a sharp digital monitor. Toggle disables the effect
+ * entirely (no prev-fb sample, the prim falls through to flat vCol). */
+int   port_blur_enabled       = 1;
+float port_blur_strength      = 1.4f;
 float gl_debug_clear_rgb[3]   = {1.0f, 0.0f, 1.0f};  /* magenta default */
 
 /* 2D primitive pipeline. Handles all screen-space primitives (TILE, POLY_F*,
@@ -491,6 +500,7 @@ static const char *TRI2D_FS =
     "uniform sampler2D  uPrevFB;     // RGBA8 capture of the previous frame's FBO\n"
     "uniform int uNoTextures;\n"
     "uniform float uXScale;\n"
+    "uniform float uBlurStrength;    // 0 = disabled, default 1.4 (PSX-exact = 2.0)\n"
     "out vec4 oColor;\n"
     "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
     "vec3 decodePSX(uint p) {\n"
@@ -511,7 +521,8 @@ static const char *TRI2D_FS =
     "        discard;\n"
     "    }\n"
     "    bool textured     = (vFlags & 1u)  != 0u && (uNoTextures == 0);\n"
-    "    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0);\n"
+    "    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0)\n"
+    "                        && uBlurStrength > 0.0;\n"
     "    vec3 out_rgb;\n"
     "    if (fb_readback) {\n"
     "        // PSX framebuffer-readback effect (NewBlur, NewBlurPure). The\n"
@@ -532,10 +543,8 @@ static const char *TRI2D_FS =
     "        // PSX-pixel-row 0 reads the GL-top texel.\n"
     "        fy = 1.0 - fy;\n"
     "        vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;\n"
-    "        // 1.4 (instead of the standard 2.0 = 256/128) softens the\n"
-    "        // motion-blur trail so it doesn't overpower on a sharp digital\n"
-    "        // monitor -- see tri2d.frag for full rationale.\n"
-    "        out_rgb = clamp(tex * (vCol.rgb * 1.4), 0.0, 1.0);\n"
+    "        // uBlurStrength is bound from port_blur_strength (imgui slider).\n"
+    "        out_rgb = clamp(tex * (vCol.rgb * uBlurStrength), 0.0, 1.0);\n"
     "    } else if (textured) {\n"
     "        uint tp = (vTPage >> 7u) & 3u;\n"
     "        int base_x = int(vTPage & 0xFu) * 64;\n"
@@ -1674,6 +1683,8 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
                 gl_debug_no_textures ? 1 : 0);
     glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"),
                 320.0f / (float)g_render_w);
+    glUniform1f(glGetUniformLocation(g_tri2d_prog, "uBlurStrength"),
+                port_blur_enabled ? port_blur_strength : 0.0f);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_vram_tex);
     /* Previous-frame capture on unit 2 for tris with the fb-readback flag. */

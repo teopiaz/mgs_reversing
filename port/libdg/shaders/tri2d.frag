@@ -10,6 +10,7 @@ uniform usampler2D uVRAM;
 uniform sampler2D  uPrevFB;     // RGBA8 capture of the previous frame's FBO
 uniform int uNoTextures;
 uniform float uXScale;          // matches the vert shader (1.0 / 0.8)
+uniform float uBlurStrength;    // 0 = disabled, default 1.4 (PSX-exact is 2.0)
 
 out vec4 oColor;
 
@@ -36,7 +37,8 @@ void main() {
         discard;
     }
     bool textured     = (vFlags & 1u)  != 0u && (uNoTextures == 0);
-    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0);
+    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0)
+                        && uBlurStrength > 0.0;
     vec3 out_rgb;
     if (fb_readback) {
         // PSX framebuffer-readback effect (NewBlur, NewBlurPure). The
@@ -57,14 +59,11 @@ void main() {
         // PSX-pixel-row 0 reads the GL-top texel.
         fy = 1.0 - fy;
         vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;
-        // PSX NewBlur/NewBlurPure: tex * (vCol/128) + 50% ABR blend gives
-        // a heavy ghost trail. The math is identical to PSX but on a
-        // sharp digital monitor (no CRT phosphor softening / no LCD
-        // response-time smearing) the trail reads as overpowering.
-        // Drop the tint multiplier from the standard 2.0 (= 256/128) to
-        // 1.4 so each blur pass contributes ~33% prev-frame instead of
-        // ~47%, which matches the perceptual strength on PSX hardware.
-        out_rgb = clamp(tex * (vCol.rgb * 1.4), 0.0, 1.0);
+        // PSX NewBlur/NewBlurPure: tex * (vCol/128) + 50% ABR blend.
+        // PSX-exact strength is 2.0 but reads overpowering on a sharp
+        // digital monitor; default is 1.4 (~33% prev contribution).
+        // imgui Renderer tab exposes a slider over uBlurStrength.
+        out_rgb = clamp(tex * (vCol.rgb * uBlurStrength), 0.0, 1.0);
     } else if (textured) {
         uint tp = (vTPage >> 7u) & 3u;
         int base_x = int(vTPage & 0xFu) * 64;

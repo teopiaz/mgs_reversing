@@ -416,6 +416,24 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     }
                 }
 
+                if (ImGui::CollapsingHeader("Effects"))
+                {
+                    extern int   port_blur_enabled;
+                    extern float port_blur_strength;
+                    bool b = port_blur_enabled != 0;
+                    if (ImGui::Checkbox("Motion blur (NewBlur / NewBlurPure)", &b))
+                        port_blur_enabled = b ? 1 : 0;
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(2D fb-readback)");
+                    ImGui::BeginDisabled(!b);
+                    ImGui::SliderFloat("Blur strength", &port_blur_strength,
+                                       0.0f, 2.5f, "%.2f");
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Reset")) port_blur_strength = 1.4f;
+                    ImGui::TextDisabled("PSX-exact = 2.0, default = 1.4, 0 = off");
+                    ImGui::EndDisabled();
+                }
+
                 if (ImGui::CollapsingHeader("Quality / Output"))
                 {
                     int scale = gl_renderer_get_scale();
