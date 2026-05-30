@@ -380,12 +380,14 @@ void game_tick(void)
         }
 
         /* Sound driver tick — mirrors SdInt's main loop on PSX. On PSX
-           IntSdMain runs from the SPU IRQ handler (rate depends on SPU
-           config; for MGS during normal play it averages ~60 Hz, the
-           VSync-driven music sequencer rate). The port drives it from a
-           real-time accumulator so the rate is stable regardless of
-           variable game_tick latency. Override via PORT_SD_HZ (e.g.
-           PORT_SD_HZ=88 for a faster cadence). */
+           IntSdMain runs from the SPU IRQ handler. sd_main.c configures
+           voice 23 to play the 512-byte blank_data region at pitch 0x1000
+           (full 44.1 kHz). The IRQ ping-pongs between blank_data_addr
+           and +256 -- 256 bytes = 16 ADPCM blocks = 448 samples, so the
+           SPU IRQ period is 448 / 44100 s = 10.16 ms => 98.44 Hz.
+           Drive the port off a real-time accumulator at the same rate so
+           the music sequencer tempo matches PSX. Override via PORT_SD_HZ
+           for A/B testing. */
         {
             extern void IntSdMain(void);
             extern void StrFadeInt(void);
@@ -399,12 +401,13 @@ void game_tick(void)
             static Uint64 sd_freq = 0;
             if (sd_target_hz == 0.0) {
                 const char *e = getenv("PORT_SD_HZ");
-                sd_target_hz = (e && *e) ? atof(e) : 60.0;
+                /* 44100 / 448 = 98.4375 -- the exact PSX IRQ rate for MGS. */
+                sd_target_hz = (e && *e) ? atof(e) : (44100.0 / 448.0);
                 if (sd_target_hz < 1.0)   sd_target_hz = 1.0;
                 if (sd_target_hz > 500.0) sd_target_hz = 500.0;
                 sd_freq = SDL_GetPerformanceFrequency();
                 sd_prev_counter = SDL_GetPerformanceCounter();
-                printf("[sd] sequencer cadence = %.2f Hz\n", sd_target_hz);
+                printf("[sd] sequencer cadence = %.4f Hz (PSX SPU IRQ rate)\n", sd_target_hz);
             }
             Uint64 now = SDL_GetPerformanceCounter();
             sd_accumulator_ms += (double)(now - sd_prev_counter) * 1000.0 / (double)sd_freq;
