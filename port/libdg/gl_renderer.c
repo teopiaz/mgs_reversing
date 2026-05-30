@@ -151,11 +151,14 @@ int   gl_debug_clear_override = 0;
 
 /* NewBlur / NewBlurPure intensity controls. The 2D fb-readback shader
  * uses `vCol.rgb * port_blur_strength` to scale the previous-frame tap
- * before the semi-trans blend. Default 1.4 (~33% prev contribution per
- * blur pass) -- the PSX-exact value would be 2.0 but reads as
- * overpowering on a sharp digital monitor. Toggle disables the effect
- * entirely (no prev-fb sample, the prim falls through to flat vCol). */
-int   port_blur_enabled       = 1;
+ * before the semi-trans blend.
+ *
+ * Default OFF: proper PSX semantics need per-pixel STP-bit tracking
+ * which we don't replicate, so cutscenes that start from a black
+ * frame (e.g. d00a opening) see the blur 50%-blend with an uninitialised
+ * uPrevFB and the screen reads as completely black for the first
+ * frames. Users can enable via the imgui Renderer > Effects panel. */
+int   port_blur_enabled       = 0;
 float port_blur_strength      = 1.4f;
 float gl_debug_clear_rgb[3]   = {1.0f, 0.0f, 1.0f};  /* magenta default */
 
