@@ -158,6 +158,10 @@ static short          spu_noise_sample     = 0;
 /* SDL audio */
 static SDL_AudioDeviceID audio_dev = 0;
 
+/* PORT_AUDIO_DEBUG=1 enables detailed prints around stream key on/off and
+ * bypass starvation (codec end-of-line click investigation). */
+int port_audio_debug = 0;
+
 /*---------------------------------------------------------------------------*/
 /* Stream PCM bypass — decode ADPCM at SpuWrite time instead of in callback. */
 /* Eliminates race condition between game thread (SpuWrite) and audio thread. */
@@ -630,7 +634,28 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
            set by StrFadeInt. */
         if (stream_active) {
             int rd = stream_pcm_rd;
-            if (rd < stream_pcm_wr_r || rd < stream_pcm_wr_l) {
+            int have_data = (rd < stream_pcm_wr_r || rd < stream_pcm_wr_l);
+            /* When bypass goes from having data to starving (rd caught up to
+             * wr_*), trigger the same fade-out as on keyOff. Some codec lines
+             * simply run out of data without the game issuing keyOff, and the
+             * discontinuity is exactly the click the user reports. */
+            static int s_prev_had_data = 0;
+            if (s_prev_had_data && !have_data && stream_fadeout_counter == 0) {
+                stream_fadeout_counter = STREAM_FADEOUT_LEN;
+                extern int port_audio_debug;
+                if (port_audio_debug) {
+                    fprintf(stderr, "[audio] bypass starved: rd=%d wr_r=%d wr_l=%d "
+                            "last=(%d,%d) vol21=(%d,%d) vol22=(%d,%d) -- fade armed\n",
+                            rd, stream_pcm_wr_r, stream_pcm_wr_l,
+                            stream_last_mix_l, stream_last_mix_r,
+                            voices[21].vol_l, voices[21].vol_r,
+                            voices[22].vol_l, voices[22].vol_r);
+                }
+            }
+            s_prev_had_data = have_data;
+            if (have_data) {
+                /* New data arrived: cancel any in-flight starvation fade. */
+                stream_fadeout_counter = 0;
                 SPU_Voice *vr = &voices[21]; /* SPU_21CH = right */
                 SPU_Voice *vl = &voices[22]; /* SPU_22CH = left */
                 short sam_r = (rd < stream_pcm_wr_r) ? stream_pcm_r[rd] : 0;
@@ -666,13 +691,25 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
                     stream_pcm_rd = rd + adv;
                 }
             }
-        } else if (stream_fadeout_counter > 0) {
-            /* Bypass already torn down (stream_active=0). Ramp the last
-             * sample's mixer contribution toward 0 over STREAM_FADEOUT_LEN
-             * samples to mask the DC discontinuity. */
+        }
+
+        /* Stream fade-out: runs both when bypass has starved mid-line and
+         * after keyOff. Each sample emits a linearly decreasing fraction of
+         * the last bypass mixer contribution -- masks the DC discontinuity
+         * that produces the high-frequency click at codec line end. */
+        if (stream_fadeout_counter > 0 &&
+            !(stream_active && stream_pcm_rd < stream_pcm_wr_r) &&
+            !(stream_active && stream_pcm_rd < stream_pcm_wr_l)) {
             int n = stream_fadeout_counter--;
-            mix_l += (stream_last_mix_l * n) / STREAM_FADEOUT_LEN;
-            mix_r += (stream_last_mix_r * n) / STREAM_FADEOUT_LEN;
+            int emit_l = (stream_last_mix_l * n) / STREAM_FADEOUT_LEN;
+            int emit_r = (stream_last_mix_r * n) / STREAM_FADEOUT_LEN;
+            mix_l += emit_l;
+            mix_r += emit_r;
+            extern int port_audio_debug;
+            if (port_audio_debug && (n == STREAM_FADEOUT_LEN || stream_fadeout_counter == 0)) {
+                fprintf(stderr, "[audio] fade n=%d last=(%d,%d) emit=(%d,%d)\n",
+                        n, stream_last_mix_l, stream_last_mix_r, emit_l, emit_r);
+            }
             if (stream_fadeout_counter == 0) {
                 stream_last_mix_l = 0;
                 stream_last_mix_r = 0;
@@ -791,6 +828,11 @@ void spu_emu_init(void)
     if (rev_env && *rev_env == '0') {
         port_reverb_env_off = 1;
         printf("[spu] reverb disabled via PORT_REVERB=0\n");
+    }
+    const char *dbg_env = getenv("PORT_AUDIO_DEBUG");
+    if (dbg_env && *dbg_env && *dbg_env != '0') {
+        port_audio_debug = 1;
+        printf("[spu] audio debug logging enabled\n");
     }
 
     SDL_AudioSpec want, have;
@@ -936,6 +978,20 @@ void SpuGetVoiceAttr(SpuVoiceAttr *attr)
 void SpuSetKey(long on_off, u_long voice_bit)
 {
     if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+
+    extern int port_audio_debug;
+    if (port_audio_debug) {
+        SPU_Voice *v21 = &voices[21], *v22 = &voices[22];
+        fprintf(stderr, "[audio] SpuSetKey on_off=%ld voice_bit=0x%lx "
+                "stream_active=%d rd=%d wr_r=%d wr_l=%d "
+                "v21=(vol_l=%d,vol_r=%d,env=%d) v22=(vol_l=%d,vol_r=%d,env=%d) "
+                "last_mix=(%d,%d)\n",
+                (long)on_off, (unsigned long)voice_bit, stream_active,
+                stream_pcm_rd, stream_pcm_wr_r, stream_pcm_wr_l,
+                v21->vol_l, v21->vol_r, v21->env_level,
+                v22->vol_l, v22->vol_r, v22->env_level,
+                stream_last_mix_l, stream_last_mix_r);
+    }
 
     /* Detect stream voice key-on/off (SPU_21CH | SPU_22CH) */
     int stream_keyoff = 0;
