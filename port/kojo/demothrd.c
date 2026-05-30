@@ -201,6 +201,22 @@ static void ActStream(LPMGSDEMOACT lpAct)
         _sa++;
     }
 
+    /* Optional: pause cinema at a specific demo frame so the port can
+       be screenshot-compared to the editor at the same frame. Hold by
+       leaving lpAct->start_time floating so frame stays at target. */
+    {
+        static int pause_at = -2;
+        if (pause_at == -2) {
+            const char *e = getenv("PORT_DEMO_PAUSE_AT");
+            pause_at = (e && *e) ? atoi(e) : -1;
+            if (pause_at >= 0) printf("[SA] PORT_DEMO_PAUSE_AT=%d engaged\n", pause_at);
+        }
+        if (pause_at >= 0 && lpAct->frame >= pause_at) {
+            lpAct->frame = pause_at;
+            lpAct->start_time = ticks - pause_at * 2;
+        }
+    }
+
     if (!lpAct->header) return;
     if (lpAct->frame <= lpAct->header->n_frames)
     {
