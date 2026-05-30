@@ -571,6 +571,37 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                     mat_transform(&screen_mat, &verts[i3], &eye[3][0], &eye[3][1], &eye[3][2]);
                 }
 
+                /* PORT_DEBUG_SNAKE: dump the eye-space coords of the
+                   first face of the cinematic snake at the climb peak.
+                   This is the LAST measurable point before GL projects
+                   to NDC. If editor + port differ at this stage, the
+                   divergence is in screen_mat or vert; if they agree,
+                   the bug is downstream in the shader / GPU stage. */
+                {
+                    static int dbg_eye = -1;
+                    if (dbg_eye == -1) {
+                        const char *e = getenv("PORT_DEBUG_SNAKE");
+                        dbg_eye = (e && atoi(e) > 0) ? 1 : 0;
+                    }
+                    if (dbg_eye && gl_on && fi == 0 && mi == 0 &&
+                        objs->world.t[1] < -4000)
+                    {
+                        fprintf(stderr,
+                            "[eye-vert] world.t=(%d,%d,%d) clip=%d "
+                            "v0=(%d,%d,%d)->eye=(%d,%d,%d)  "
+                            "v1=(%d,%d,%d)->eye=(%d,%d,%d)  "
+                            "v3=(%d,%d,%d)->eye=(%d,%d,%d)\n",
+                            objs->world.t[0], objs->world.t[1], objs->world.t[2],
+                            chanl->clip_distance,
+                            verts[i0].vx, verts[i0].vy, verts[i0].vz,
+                            eye[0][0], eye[0][1], eye[0][2],
+                            verts[i1].vx, verts[i1].vy, verts[i1].vz,
+                            eye[1][0], eye[1][1], eye[1][2],
+                            verts[i3].vx, verts[i3].vy, verts[i3].vz,
+                            eye[3][0], eye[3][1], eye[3][2]);
+                    }
+                }
+
                 /* Per-pixel lighting: look up per-vertex normals + per-DG_OBJS
                    light matrices. Opt-in via the ImGui toggle (defaults off --
                    Gouraud is the baseline since the PSX scaling on the NCS

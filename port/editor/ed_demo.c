@@ -360,6 +360,8 @@ static void feed_dmo_frame_to_engine(void)
     int clip = f->clip_dist > 0 ? f->clip_dist : 200;
     DG_LookAt(DG_Chanl(0), &eye, &center, clip);
 
+    extern int g_dmo_freeze_frame;
+    if (g_dmo_freeze_frame) return;
     if (g_dmo_active_frame < g_dmo_active->n_extracted - 1)
         g_dmo_active_frame++;
     else if (g_dmo_loop)

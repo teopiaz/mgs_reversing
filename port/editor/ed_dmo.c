@@ -130,6 +130,7 @@ int              g_dmo_index_count = 0;
 int              g_dmo_index_loaded = 0;
 EdDmoData       *g_dmo_active      = NULL;
 int              g_dmo_active_frame = 0;
+int              g_dmo_freeze_frame = 0;  /* PORT_DMO_FRAME pin */
 int              g_dmo_show_path = 1;
 int              g_dmo_show_actors = 1;
 int              g_dmo_show_models = 1;
