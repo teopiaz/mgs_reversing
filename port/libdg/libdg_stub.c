@@ -828,6 +828,29 @@ void port_RenderObjects(int idx)
         port_set_draw_offset(0, 0);
     }
 
+    /* Debug: dump chanl[1] (3D actors) eye_inv + clip_distance so editor
+       and standalone game can be compared frame-by-frame. PORT_DEBUG_CAM=1
+       prints once per ~30 frames (= ~1s at 30Hz). */
+    {
+        static int cam_debug = -1;
+        if (cam_debug == -1) {
+            const char *e = getenv("PORT_DEBUG_CAM");
+            cam_debug = (e && atoi(e) > 0) ? 1 : 0;
+        }
+        static int frame_cnt = 0;
+        if (cam_debug && (++frame_cnt % 30) == 0) {
+            DG_CHANL *ch = &DG_Chanls[1];
+            fprintf(stderr,
+                "[cam] eye_inv = | %5d %5d %5d | t=%d\n"
+                "[cam]            | %5d %5d %5d | t=%d\n"
+                "[cam]            | %5d %5d %5d | t=%d  clip_dist=%d\n",
+                ch->eye_inv.m[0][0], ch->eye_inv.m[0][1], ch->eye_inv.m[0][2], ch->eye_inv.t[0],
+                ch->eye_inv.m[1][0], ch->eye_inv.m[1][1], ch->eye_inv.m[1][2], ch->eye_inv.t[1],
+                ch->eye_inv.m[2][0], ch->eye_inv.m[2][1], ch->eye_inv.m[2][2], ch->eye_inv.t[2],
+                ch->clip_distance);
+        }
+    }
+
     /* Clear Z-buffer each frame */
     memset(port_zbuf, 0xFF, sizeof(port_zbuf));
 
