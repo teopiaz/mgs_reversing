@@ -783,7 +783,10 @@ int  FS_ReadMemfile(int id, int **buf_ptr) { (void)id; (void)buf_ptr; return 0; 
 #define VOX_SECTOR_BASE  0x40000000  /* marker: sector is relative to VOX.DAT */
 #define DEMO_SECTOR_BASE 0x20000000  /* marker: sector is relative to DEMO.DAT */
 
-#define STREAM_HEAP_SIZE (96 * 1024)
+/* Bump heap size to 4 MB to test whether the cutscene_d00a regression is
+ * a ring-wrap collision (block returned by FS_StreamGetData getting
+ * overwritten by pump on wrap). PSX uses 96 KB; we have headroom. */
+#define STREAM_HEAP_SIZE (4 * 1024 * 1024)
 #define STREAM_SECTOR    2048
 
 static unsigned char stream_heap[STREAM_HEAP_SIZE];
@@ -867,22 +870,13 @@ static int stream_pump_one(void)
         return 0;
     }
 
-    /* Scan the newly-read sector for the 0xF0 end-of-bank marker so we
-     * can stop reading without overrunning into the next cutscene. */
-    {
-        int p = stream_write_ptr;
-        int sector_end = stream_write_ptr + n;
-        while (p + 4 <= sector_end) {
-            unsigned int tag;
-            memcpy(&tag, &stream_heap[p], 4);
-            int type = tag & 0xFF;
-            int size = (tag >> 8) & 0xFFFFFF;
-            if (type == 0xF0) { stream_end = 1; break; }
-            if (size <= 0 || size > 0x100000) break;
-            p += size;
-            if (p > sector_end) break;
-        }
-    }
+    /* End-of-bank detection is done by FS_StreamGetData below as it walks
+     * blocks from `top` -- that walker is block-aligned (advances via
+     * size). A pump-side scan would start at the sector boundary, which
+     * is often mid-payload for cross-sector blocks, so an ADPCM byte
+     * that happens to be 0xF0 falsely set stream_end and tore down the
+     * cutscene actor (regression visible in cutscene_d00a.log at ~tick
+     * 35: FS_StreamGetEndFlag() flipped to 1 and demothrd destroyed). */
 
     stream_write_ptr += n;
     if (stream_write_ptr == STREAM_HEAP_SIZE) stream_write_ptr = 0;
@@ -1087,6 +1081,8 @@ void *FS_StreamGetData(int target_type)
             continue;
         }
         if (type == 0xF0) {
+            /* Genuine end-of-bank marker (block-aligned walk found it). */
+            stream_end = 1;
             return NULL;
         }
         if (type == target_type) {
