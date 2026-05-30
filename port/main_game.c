@@ -455,12 +455,28 @@ void game_tick(void)
                 {
                     extern volatile int str_status;
                     extern int dword_800BF270;
+                    extern int str_tick_count;
                     extern volatile int stream_pcm_rd;
                     if (str_status >= 5) {
                         /* Convert PCM sample position to ADPCM byte position.
                            28 PCM samples = 16 ADPCM bytes. Wrap at 0x2000 (8KB). */
                         int adpcm_pos = (stream_pcm_rd / 28) * 16;
                         dword_800BF270 = adpcm_pos & 0x1FFF;
+
+                        /* Tie subtitle / lipsync timer to actual audio
+                           playback so it never drifts vs the SDL audio
+                           clock. PSX increments str_tick_count once per
+                           SPU IRQ (~98.4 Hz = every 10.16 ms = every 224
+                           mono samples at the codec's 22050 Hz rate).
+                           Force str_tick_count to match the audio
+                           thread's read cursor instead of relying on the
+                           game-thread sd-tick rate, which can drift
+                           across long codec lines. */
+                        if (stream_pcm_rd > 0) {
+                            int audio_ticks = stream_pcm_rd / 224;
+                            if (audio_ticks > str_tick_count)
+                                str_tick_count = audio_ticks;
+                        }
                     }
                 }
             }
