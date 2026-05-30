@@ -144,6 +144,17 @@ static SpuIRQCallbackProc spu_irq_callback = NULL;
 static unsigned long spu_irq_addr = 0;
 static int spu_irq_enabled = 0;
 
+/* Noise generator. PSX has a 16-bit LFSR clocked at a SPUCNT-controlled rate;
+ * voices with noise mode set replace their per-sample ADPCM output with the
+ * LFSR sign-bit sample. Used for codec radio static, gunfire crackle and
+ * explosion shoulder-noise. Game doesn't write SPU_COMMON_NOISECLK, so we use
+ * a fixed mid-rate (~172 Hz LFSR step ≈ broadband hiss). */
+static unsigned int   spu_noise_voice_mask = 0;
+static unsigned short spu_noise_lfsr       = 0x7FFFu;
+static int            spu_noise_counter    = 0;
+static int            spu_noise_period     = 256;  /* samples per LFSR step */
+static short          spu_noise_sample     = 0;
+
 /* SDL audio */
 static SDL_AudioDeviceID audio_dev = 0;
 
@@ -471,6 +482,21 @@ static short gauss_interpolate(short s0, short s1, short s2, short s3, int frac)
     return (short)out;
 }
 
+/* PSX SPU noise LFSR. Stepped once per output sample at a 1/period rate
+ * derived from SPUCNT noise frequency bits (here a fixed mid-rate). Output
+ * is the LFSR's high bit mapped to {-32768, +32767} so a noise-mode voice
+ * sounds like full-amplitude broadband hiss. Reference: pcsx-redux
+ * SPU.cc::do_noise() (16-bit Galois LFSR, taps at bits 0/1/2/3/5). */
+static void noise_step(void)
+{
+    if (++spu_noise_counter < spu_noise_period) return;
+    spu_noise_counter = 0;
+    unsigned int lfsr = spu_noise_lfsr;
+    unsigned int bit = ((lfsr >> 0) ^ (lfsr >> 1) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1u;
+    spu_noise_lfsr = (unsigned short)((lfsr >> 1) | (bit << 14));
+    spu_noise_sample = (spu_noise_lfsr & 1u) ? 32767 : -32768;
+}
+
 /*---------------------------------------------------------------------------*/
 /* SDL2 audio callback — mix all voices                                      */
 /*---------------------------------------------------------------------------*/
@@ -482,6 +508,10 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
 
     for (int s = 0; s < num_samples; s++) {
         int mix_l = 0, mix_r = 0;
+
+        /* Global noise LFSR tick. Voices in noise mode all read the same
+         * `spu_noise_sample` this sample, matching PSX hardware. */
+        noise_step();
 
         /* Stream audio bypass: read pre-decoded PCM for voices 21-22.
            Don't gate on v->active — the SPU voice may hit ADPCM end flags
@@ -541,11 +571,17 @@ static void spu_audio_callback(void *userdata, Uint8 *stream, int len)
                Gaussian interpolation uses bits 4-11 as table index. */
             int idx = (v->frac_pos >> 12) % 28;
             int gauss_idx = (v->frac_pos >> 4) & 0xFF;
-            short s0 = (idx >= 3) ? v->decoded[idx - 3] : v->prev_decoded[idx];
-            short s1 = (idx >= 2) ? v->decoded[idx - 2] : v->prev_decoded[idx + 1 > 2 ? 2 : idx + 1];
-            short s2 = (idx >= 1) ? v->decoded[idx - 1] : v->prev_decoded[2];
-            short s3 = v->decoded[idx];
-            short sample = gauss_interpolate(s0, s1, s2, s3, gauss_idx << 8);
+            short sample;
+            if (spu_noise_voice_mask & (1u << ch)) {
+                /* Voice in noise mode -- substitute LFSR sample for ADPCM. */
+                sample = spu_noise_sample;
+            } else {
+                short s0 = (idx >= 3) ? v->decoded[idx - 3] : v->prev_decoded[idx];
+                short s1 = (idx >= 2) ? v->decoded[idx - 2] : v->prev_decoded[idx + 1 > 2 ? 2 : idx + 1];
+                short s2 = (idx >= 1) ? v->decoded[idx - 1] : v->prev_decoded[2];
+                short s3 = v->decoded[idx];
+                sample = gauss_interpolate(s0, s1, s2, s3, gauss_idx << 8);
+            }
 
             /* Apply envelope (0..0x7FFF) */
             int s16 = (sample * v->env_level) >> 15;
@@ -817,7 +853,17 @@ long SpuReserveReverbWorkArea(long on_off) { (void)on_off; return 0; }
 long SpuClearReverbWorkArea(long mode) { (void)mode; return 0; }
 void SpuSetReverbDepth(SpuReverbAttr *attr) { (void)attr; }
 void SpuSetPitchLFOVoice(long on_off, u_long voice_bit) { (void)on_off; (void)voice_bit; }
-void SpuSetNoiseVoice(long on_off, u_long voice_bit) { (void)on_off; (void)voice_bit; }
+
+/* Enable noise mode for the voices selected by voice_bit (one bit per
+ * channel). PSX behavior: noise-mode voices replace ADPCM output with the
+ * shared SPU noise LFSR. on_off must be SPU_ON or SPU_OFF (1/0). */
+void SpuSetNoiseVoice(long on_off, u_long voice_bit)
+{
+    if (audio_dev > 0) SDL_LockAudioDevice(audio_dev);
+    if (on_off == SPU_ON) spu_noise_voice_mask |=  (unsigned int)voice_bit;
+    else                  spu_noise_voice_mask &= ~(unsigned int)voice_bit;
+    if (audio_dev > 0) SDL_UnlockAudioDevice(audio_dev);
+}
 
 void SpuSetIRQ(long on_off) { spu_irq_enabled = on_off; }
 
