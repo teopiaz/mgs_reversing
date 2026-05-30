@@ -607,6 +607,26 @@ void game_tick(void)
                GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
     }
 
+    /* PORT_DEBUG_SNAKE=1 logs Snake's world pos every game tick so we can
+       compare against the demo's per-frame DMO_ADJ pos for the same actor.
+       If the demo's adjust says (-628,-3000,11586) but GM_PlayerPosition
+       reports something else, the demo override isn't reaching the snake
+       actor and game-side logic is driving him instead. */
+    {
+        static int dbg_snake = -1;
+        if (dbg_snake == -1) {
+            const char *e = getenv("PORT_DEBUG_SNAKE");
+            dbg_snake = (e && atoi(e) > 0) ? 1 : 0;
+        }
+        if (dbg_snake) {
+            extern int GM_GameStatus;
+            printf("[snake t=%d] pos=(%d,%d,%d) gs=0x%X\n",
+                   tick_count,
+                   GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz,
+                   GM_GameStatus);
+        }
+    }
+
     /* GV_Clock is toggled by the GV daemon actor (gvd.c) inside
        GV_ExecActorSystem — do NOT toggle it here or it double-flips. */
     tick_count++;
