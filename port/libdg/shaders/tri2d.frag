@@ -63,16 +63,14 @@ void main() {
         // PSX-pixel-row 0 reads the GL-top texel.
         fy = 1.0 - fy;
         vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;
-        // PSX $0000 (RGB+STP all zero) is fully transparent. At d00a
-        // cutscene start uPrevFB is uninitialised (black), so without
-        // this guard the blur opaque-overwrites the just-rendered
-        // cutscene with black on the first frames. Discard near-black
-        // samples so the underlying frame shows through.
-        if (dot(tex, vec3(1.0)) < (3.0 / 255.0)) discard;
         // PSX NewBlur/NewBlurPure: tex * (vCol/128) + 50% ABR blend.
-        // PSX-exact strength is 2.0 but reads overpowering on a sharp
-        // digital monitor; default is 1.4 (~33% prev contribution).
-        // imgui Renderer tab exposes a slider over uBlurStrength.
+        // The proper PSX semantics use bit-15 of each VRAM texel (the
+        // STP bit) to gate semi-trans vs opaque-write per pixel. We
+        // don't track STP per FBO pixel; approximate by always running
+        // the semi-trans blend. That darkens the frame on the very
+        // first few frames (uPrevFB is initialised to black) until
+        // the blend converges -- accept that as the tradeoff vs the
+        // weird shifted-ghost artefacts produced by partial discards.
         out_rgb = clamp(tex * (vCol.rgb * uBlurStrength), 0.0, 1.0);
     } else if (textured) {
         uint tp = (vTPage >> 7u) & 3u;
