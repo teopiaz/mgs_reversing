@@ -816,6 +816,19 @@ int draw_radio_message(MenuWork *work, u_long *ot)
         return 0;
     }
 
+    /* Port: this SPRT was drawing the active dialog text in the central
+     * codec frame (above the frequency display) during live calls --
+     * the kcb gets filled via menu_radio_codec_helper__helper13 at
+     * every subtitle change, and dword_800ABB04 stays set because the
+     * subtitle-end -> helper17-returns-NULL chain doesn't reliably
+     * fire in the port's stream pipeline. PSX appears to mask the SPRT
+     * via STP-bit/OT depth in live mode; we don't replicate that, so
+     * skip the draw outright in state 5 (call in progress). The save /
+     * memory codec modes still get their message board. */
+    if (work->field_210_codec_state == 5) {
+        return 0;
+    }
+
     kcb = work->field_214_font;
 
     NEW_PRIM(pPrim, work);
@@ -833,6 +846,8 @@ int draw_radio_message(MenuWork *work, u_long *ot)
     addPrim(ot, pPrim);
     return 1;
 }
+
+
 
 void sub_8004124C(MenuWork *work)
 {
