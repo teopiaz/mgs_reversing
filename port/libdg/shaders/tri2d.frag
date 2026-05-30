@@ -4,10 +4,12 @@ in vec4 vCol;
 flat in uint vTPage;
 flat in uint vCLUT;
 flat in uint vFlags;
+flat in ivec4 vClip;            // PSX drawing-area clip (x0,y0,x1,y1)
 
 uniform usampler2D uVRAM;
 uniform sampler2D  uPrevFB;     // RGBA8 capture of the previous frame's FBO
 uniform int uNoTextures;
+uniform float uXScale;          // matches the vert shader (1.0 / 0.8)
 
 out vec4 oColor;
 
@@ -21,6 +23,18 @@ vec3 decodePSX(uint p) {
 }
 
 void main() {
+    /* PSX drawing-area clip (E3/E4). Recover PSX coords from gl_FragCoord
+       using the inverse of the vert-shader projection. The FBO size cancels
+       out via textureSize(uPrevFB) (resized in lockstep with the FBO). The
+       radar uses a 69x52 clip rect so distant enemy dots / vision cones
+       outside that box get dropped here. */
+    vec2 fboSize = vec2(textureSize(uPrevFB, 0));
+    float psx_x = 160.0 * ((2.0 * gl_FragCoord.x / fboSize.x - 1.0) / uXScale + 1.0);
+    float psx_y = 224.0 * (1.0 - gl_FragCoord.y / fboSize.y);
+    if (psx_x < float(vClip.x) || psx_x > float(vClip.z) + 1.0 ||
+        psx_y < float(vClip.y) || psx_y > float(vClip.w) + 1.0) {
+        discard;
+    }
     bool textured     = (vFlags & 1u)  != 0u && (uNoTextures == 0);
     bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0);
     vec3 out_rgb;

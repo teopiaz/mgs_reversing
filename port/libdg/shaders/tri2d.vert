@@ -6,6 +6,7 @@ layout(location=0) in vec2 aPos;    // 0..320 x 0..224
 layout(location=1) in vec2 aUV;
 layout(location=2) in vec4 aCol;
 layout(location=3) in uvec4 aTex;   // tpage, clut, flags, depth_flag
+layout(location=4) in ivec4 aClip;  // PSX drawing-area clip (x0,y0,x1,y1)
 
 uniform float uXScale;              // 1.0 in 4:3, 320/render_w in widescreen
 uniform vec2 uNearFar;              // (near, far) -- matches the 3D pass
@@ -15,6 +16,7 @@ out vec4 vCol;
 flat out uint vTPage;
 flat out uint vCLUT;
 flat out uint vFlags;
+flat out ivec4 vClip;               // forwarded to FS for fragment-level scissor
 
 void main() {
     /* NDC depth from the PSX OT slot encoded in aTex.w (depth_flag):
@@ -42,4 +44,5 @@ void main() {
     vTPage = aTex.x;
     vCLUT  = aTex.y;
     vFlags = aTex.z;
+    vClip  = aClip;
 }
