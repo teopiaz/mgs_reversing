@@ -63,15 +63,17 @@ void main() {
         // PSX-pixel-row 0 reads the GL-top texel.
         fy = 1.0 - fy;
         vec3 tex = texture(uPrevFB, vec2(fx, fy)).rgb;
-        // PSX NewBlur/NewBlurPure: tex * (vCol/128) + 50% ABR blend.
-        // The proper PSX semantics use bit-15 of each VRAM texel (the
-        // STP bit) to gate semi-trans vs opaque-write per pixel. We
-        // don't track STP per FBO pixel; approximate by always running
-        // the semi-trans blend. That darkens the frame on the very
-        // first few frames (uPrevFB is initialised to black) until
-        // the blend converges -- accept that as the tradeoff vs the
-        // weird shifted-ghost artefacts produced by partial discards.
         out_rgb = clamp(tex * (vCol.rgb * uBlurStrength), 0.0, 1.0);
+        // Soft alpha-gate: when the prev-fb sample is dim (e.g. d00a
+        // opening cutscene where uPrevFB hasn't accumulated content
+        // yet) drive the alpha toward 0 so the GL_SRC_ALPHA blend
+        // leaves dst unchanged -- no scene darkening. As samples
+        // brighten the alpha ramps up to 0.5 = the standard PSX
+        // ABR-0 50% ghost-trail. Smoothstep avoids the stripe
+        // artefacts a hard discard threshold would create.
+        float bright = max(max(tex.r, tex.g), tex.b);
+        oColor = vec4(out_rgb, smoothstep(0.0, 0.06, bright) * 0.5);
+        return;
     } else if (textured) {
         uint tp = (vTPage >> 7u) & 3u;
         int base_x = int(vTPage & 0xFu) * 64;
