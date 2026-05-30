@@ -174,11 +174,12 @@ static volatile int stream_pcm_wr_l = 0;
 volatile int stream_pcm_rd = 0;           /* read cursor (audio thread) — extern'd by main_game.c */
 static int stream_active = 0;
 
-/* Linear fade-out at codec line end: ~3 ms of ramp from the last emitted
- * mixed-sample value down to 0, applied AFTER stream_active goes 0. Avoids
- * the audible click that comes from cutting straight to silence on a
- * non-zero-crossing PCM tail (codec voices rarely end at silence). */
-#define STREAM_FADEOUT_LEN 128
+/* Fade-out at codec line end / bypass starvation: ~50 ms ramp from the
+ * last emitted mixed-sample value down to 0. Linear ramps shorter than
+ * ~30 ms produce a perceptible tone burst (click). 2048 samples at 44.1
+ * kHz ≈ 46 ms which is roughly the PSX SPU's typical codec-voice release
+ * tail and is below the human threshold for click detection. */
+#define STREAM_FADEOUT_LEN 2048
 static volatile int stream_fadeout_counter = 0;
 static int stream_last_mix_l = 0;
 static int stream_last_mix_r = 0;
