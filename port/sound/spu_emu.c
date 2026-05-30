@@ -921,6 +921,16 @@ void SpuSetKey(long on_off, u_long voice_bit)
         } else {
             stream_active = 0;
             stream_keyoff = 1;
+            /* Reset the PCM write cursors AND the ADPCM decoder filter
+             * history so the next codec/cutscene line starts from a clean
+             * buffer. Without this the audio thread reads stale samples
+             * from the previous line at rd=0..wr_*  -- audible as a
+             * "dirty buffer" glitch at line boundaries. */
+            stream_pcm_wr_r = 0;
+            stream_pcm_wr_l = 0;
+            stream_pcm_rd   = 0;
+            stream_prev1_r = stream_prev2_r = 0;
+            stream_prev1_l = stream_prev2_l = 0;
         }
     }
 
