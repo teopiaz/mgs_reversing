@@ -266,9 +266,10 @@ void game_tick(void)
             extern volatile int se_load_code;
             extern volatile int sng_status;
 
-            /* Call IntSdMain once per frame. On PSX it runs at vsync (~60Hz).
-               The sequence engine advances ngc by 1 per call. */
-            IntSdMain();
+            /* IntSdMain runs at the PSX SPU IRQ rate (~88 Hz) -- in the
+               sound-tick loop below (3 calls × 30 fps game_tick = ~90 Hz).
+               Don't add a fourth call here: it pushes the sequencer to
+               120 Hz which plays BGM ~36% too fast ("sped up"). */
             WaveSpuTrans();
             /* StrSpuTrans NOT called here — it's StrSpuTransWithNoLoop which
                advances str_status. The sound tick loop below handles it with
