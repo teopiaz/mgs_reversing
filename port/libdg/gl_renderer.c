@@ -1244,6 +1244,14 @@ void gl_renderer_set_widescreen(int on)
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
                           g_fbo_w, g_fbo_h);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    /* Keep the prev-frame snapshot texture matched to the FBO size,
+       otherwise glCopyTexSubImage2D errors with GL_INVALID_VALUE in
+       widescreen and the Stealth/Optical-Camo FS samples stale data. */
+    if (g_prev_fb_tex) {
+        glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_fbo_w, g_fbo_h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    }
     printf("[gl] widescreen=%d, FBO %dx%d\n", g_widescreen, g_fbo_w, g_fbo_h);
 }
 
