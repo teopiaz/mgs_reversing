@@ -767,23 +767,133 @@ int  FS_WriteMemfile(int id, int **buf_ptr, int size) { (void)id; (void)buf_ptr;
 int  FS_ReadMemfile(int id, int **buf_ptr) { (void)id; (void)buf_ptr; return 0; }
 
 /*---------------------------------------------------------------------------*/
-/* Stream system — reads VOX.DAT/DEMO.DAT for cutscene timing data          */
-/*---------------------------------------------------------------------------*/
-
-static unsigned char *stream_buf = NULL;
-static int stream_buf_len = 0;       /* bytes loaded */
-static int stream_buf_cap = 0;       /* allocated capacity */
-static int stream_read_pos = 0;      /* current scan position */
-static int stream_active = 0;        /* 1 = stream loaded and active */
-static int stream_ended = 0;
-static int port_stream_tick = 0;
+/* Stream system — reads VOX.DAT/DEMO.DAT for codec voice + cutscene timing
+ *
+ * PSX layout: continuously-refilled 96 KB circular heap; CD reads sector at
+ * a time into the write cursor; game thread parses {type:8, size:24} blocks
+ * starting at the top cursor, marking consumed entries with type=0 so the
+ * top cursor advances. Special block types: 0xFF=wrap-to-heap-start,
+ * 0xF0=end-of-bank. Reference: source/libfs/stream.c.
+ *
+ * Port: same on-disk format but reads synchronously from the open VOX/DEMO
+ * file. FS_StreamSync() is called every frame from strctrl.c:Act() — that's
+ * where we pump sectors as the heap drains below 1/3 free.
+ */
 
 #define VOX_SECTOR_BASE  0x40000000  /* marker: sector is relative to VOX.DAT */
 #define DEMO_SECTOR_BASE 0x20000000  /* marker: sector is relative to DEMO.DAT */
 
+#define STREAM_HEAP_SIZE (96 * 1024)
+#define STREAM_SECTOR    2048
+
+static unsigned char stream_heap[STREAM_HEAP_SIZE];
+static int   stream_top         = 0;   /* read cursor: oldest unconsumed entry */
+static int   stream_write_ptr   = 0;   /* write cursor: where next sector lands */
+static int   stream_sector      = 0;   /* next sector to fetch */
+static int   stream_active      = 0;
+static int   stream_end         = 0;   /* hit 0xF0 / EOF */
+static int   stream_stop        = 0;   /* user FS_StreamStop */
+static int   stream_task_state  = 0;   /* -1=priming, 0=ready, matches PSX */
+static PortFile *stream_pf      = NULL;
+static int   stream_ended       = 0;   /* derived end-of-playback (see FS_StreamIsEnd) */
+static int   port_stream_tick   = 0;   /* monotonic counter for FS_StreamGetTick (port-only stand-in for PSX VSync timer) */
+
+/* (mod heap size) bytes between top and write_ptr — i.e., parseable data. */
+static int stream_remaining(void)
+{
+    int r = stream_write_ptr - stream_top;
+    if (r < 0) r += STREAM_HEAP_SIZE;
+    return r;
+}
+
+/* Advance top past consumed (type=0) and wrap (0xFF) entries so GetData
+ * starts scanning at the next live block. */
+static void stream_advance_top(void)
+{
+    while (stream_top != stream_write_ptr) {
+        unsigned int tag;
+        memcpy(&tag, &stream_heap[stream_top], 4);
+        int type = tag & 0xFF;
+        int size = (tag >> 8) & 0xFFFFFF;
+        if (type == 0xFF) {
+            stream_top = 0;
+            continue;
+        }
+        if (type == 0 && size > 0) {
+            stream_top += size;
+            if (stream_top >= STREAM_HEAP_SIZE) stream_top -= STREAM_HEAP_SIZE;
+            continue;
+        }
+        break;
+    }
+}
+
+/* Read one sector into the heap at write_ptr. Returns 1 if a sector was
+ * consumed, 0 if we stalled (heap full, EOF, or end-of-bank already seen). */
+static int stream_pump_one(void)
+{
+    if (stream_end || stream_stop || !stream_pf) return 0;
+
+    /* Need 2048 contiguous bytes from write_ptr. If we'd cross the end of
+     * the heap, drop a 0xFF wrap marker and reset write_ptr to 0. */
+    if (stream_write_ptr + STREAM_SECTOR > STREAM_HEAP_SIZE) {
+        /* Only safe to wrap if top is not in the next region we'd overwrite. */
+        if (stream_top > stream_write_ptr) {
+            /* unread data sits between us and the heap end — no room. */
+            return 0;
+        }
+        unsigned int wrap = 0xFFu;
+        memcpy(&stream_heap[stream_write_ptr], &wrap, 4);
+        stream_write_ptr = 0;
+    }
+
+    /* Collision check: would the new sector overrun unread data at `top`? */
+    if (stream_top > stream_write_ptr &&
+        stream_top - stream_write_ptr < STREAM_SECTOR) {
+        return 0;
+    }
+
+    long byte_off = (long)stream_sector * STREAM_SECTOR;
+    long file_len = pf_size(stream_pf);
+    if (byte_off >= file_len) {
+        stream_end = 1;
+        return 0;
+    }
+    int want = STREAM_SECTOR;
+    if (byte_off + want > file_len) want = (int)(file_len - byte_off);
+    int n = pf_read_at(stream_pf, byte_off, want, &stream_heap[stream_write_ptr]);
+    if (n <= 0) {
+        stream_end = 1;
+        return 0;
+    }
+
+    /* Scan the newly-read sector for the 0xF0 end-of-bank marker so we
+     * can stop reading without overrunning into the next cutscene. */
+    {
+        int p = stream_write_ptr;
+        int sector_end = stream_write_ptr + n;
+        while (p + 4 <= sector_end) {
+            unsigned int tag;
+            memcpy(&tag, &stream_heap[p], 4);
+            int type = tag & 0xFF;
+            int size = (tag >> 8) & 0xFFFFFF;
+            if (type == 0xF0) { stream_end = 1; break; }
+            if (size <= 0 || size > 0x100000) break;
+            p += size;
+            if (p > sector_end) break;
+        }
+    }
+
+    stream_write_ptr += n;
+    if (stream_write_ptr == STREAM_HEAP_SIZE) stream_write_ptr = 0;
+    stream_sector++;
+    stream_task_state = 0;
+    return 1;
+}
+
 void FS_StreamTaskStart(int sector)
 {
-    /* Determine which file to read from based on sector marker */
+    /* Determine which file based on sector marker */
     PortFile *pf;
     if (sector & VOX_SECTOR_BASE) {
         sector &= ~VOX_SECTOR_BASE;
@@ -792,73 +902,64 @@ void FS_StreamTaskStart(int sector)
         sector &= ~DEMO_SECTOR_BASE;
         pf = &dat_pf[5]; /* DEMO.DAT */
     } else {
-        pf = &dat_pf[5]; /* default: DEMO.DAT */
+        pf = &dat_pf[5];
         if (!pf_valid(pf)) pf = &dat_pf[4];
     }
     if (!pf_valid(pf)) {
         printf("[stream] no stream file available\n");
         stream_active = 0;
+        stream_task_state = 0;
         return;
     }
 
-    /* On PSX, data streams continuously from CD into a 96KB circular buffer.
-       For the port, load a bounded chunk. Cap at 4MB — enough for one cutscene
-       stream. Loading the entire rest of file (248MB) causes FS_StreamGetData
-       to find entries from OTHER cutscenes, breaking subtitle/timing dispatch. */
-    #define STREAM_MAX_SIZE (4 * 1024 * 1024)
-    long byte_offset = (long)sector * 2048;
-    long file_len = pf_size(pf);
-    long stream_len = file_len - byte_offset;
-    if (stream_len > STREAM_MAX_SIZE) {
-        printf("[stream] capped %ld → %d bytes\n", stream_len, STREAM_MAX_SIZE);
-        stream_len = STREAM_MAX_SIZE;
-    }
-    if (stream_len <= 0) {
-        printf("[stream] no data at sector %d\n", sector);
-        stream_active = 0;
-        return;
-    }
-
-    if (stream_len > stream_buf_cap) {
-        free(stream_buf);
-        stream_buf = (unsigned char *)malloc(stream_len);
-        stream_buf_cap = (int)stream_len;
-    }
-
-    /* Read raw sectors from file */
-    int raw_len = pf_read_at(pf, byte_offset, (int)stream_len, stream_buf);
-    if (raw_len < 0) raw_len = 0;
-
-    /* VOX/DEMO data uses {code:8, size:16LE} block headers. When read as
-       4 bytes LE (like FS_StreamGetData does), the 4th byte extends to 24-bit
-       size. Blocks are packed sequentially — no repacking needed.
-       Banks end with 0xF0 End block followed by zero-padding to 2048 boundary. */
-    stream_buf_len = raw_len;
-
-    printf("[stream] loaded %d bytes from sector %d (offset 0x%lX)\n",
-           stream_buf_len, sector, byte_offset);
-
-    stream_read_pos = 0;
-    stream_active = 1;
+    stream_pf = pf;
+    stream_sector = sector;
+    stream_top = 0;
+    stream_write_ptr = 0;
+    stream_end = 0;
+    stream_stop = 0;
     stream_ended = 0;
-    port_stream_tick = 0;
+    stream_active = 1;
+    stream_task_state = -1;
+
+    /* Prime the buffer so StartStream() sees the header block immediately. */
+    int primed = 0;
+    while (primed < 4 && stream_pump_one()) primed++;
+    stream_task_state = (primed > 0) ? 0 : -1;
+    printf("[stream] start sector=%d primed=%d sectors\n", sector, primed);
 }
 
 int FS_StreamTaskState(void)
 {
-    /* 0 = ready/done, -1 = waiting, 1 = loading */
-    return stream_active ? 0 : 0;
+    /* -1=waiting for first sector, 0=ready/idle, matches source/libfs/stream.c */
+    if (!stream_active) return 0;
+    return stream_task_state;
 }
 
 void FS_StreamTaskInit(void) {}
 
 int FS_StreamSync(void)
 {
-    /* Process stream buffer — scan for end markers */
-    if (!stream_active || !stream_buf) return 0;
+    if (!stream_active || stream_stop) {
+        stream_task_state = 0;
+        return 0;
+    }
+    if (stream_end) {
+        /* No more data to fetch; let consumer drain the heap. */
+        stream_advance_top();
+        return (stream_top != stream_write_ptr) ? 1 : 0;
+    }
 
-    /* Check for 0xF0 end marker in the data we've scanned */
-    return 0;
+    stream_advance_top();
+
+    /* Refill if more than 1/3 of the heap is empty (PSX threshold). Cap
+     * sectors-per-Sync so we don't stall the frame on a slow disk. */
+    if (stream_remaining() < (STREAM_HEAP_SIZE * 2) / 3) {
+        for (int i = 0; i < 8; i++) {
+            if (!stream_pump_one()) break;
+        }
+    }
+    return 1;
 }
 
 void FS_StreamCD(void) {}
@@ -874,8 +975,11 @@ int FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; retu
 
 void FS_StreamStop(void)
 {
-    stream_active = 0;
+    stream_stop = 1;
+    stream_end = 1;
     stream_ended = 1;
+    stream_active = 0;
+    stream_task_state = 0;
 }
 
 void FS_StreamOpen(void) {}
@@ -897,12 +1001,16 @@ int port_fs_read_dat(int file_id, long byte_off, int len, void *buf)
 
 int FS_StreamIsEnd(void)
 {
-    /* In timer mode (no stream data), end after the tick counter
-       reaches a high value. The cutscene GCL proc callback handles
-       the actual stage transition. FS_StreamStop() can end it early
-       (e.g., when user presses skip or the pad_demo finishes). */
+    /* End conditions: explicit stop, EOF/0xF0 with heap drained, or audio
+       playback caught up to the producer (codec line finished). The cutscene
+       GCL proc callback handles the actual stage transition.
+       FS_StreamStop() can end it early (skip / pad_demo finish). */
     if (!stream_active) return 1;
     if (stream_ended) return 1;
+    if (stream_end && stream_top == stream_write_ptr) {
+        stream_ended = 1;
+        return 1;
+    }
 
     /* Natural-end detection: the codec script does
          while (GM_StreamStatus() != -1) mts_wait_vbl(2);
@@ -957,96 +1065,91 @@ int FS_StreamIsEnd(void)
 
 void *FS_StreamGetData(int target_type)
 {
-    /* Scan VOX/DEMO stream buffer for next block matching target_type.
-       Block format: {code:8, size:16LE, pad:8} — read as 4 bytes LE gives
-       {type:8, size:24}. Banks end with 0xF0 + zero padding to 2048 boundary. */
-    if (!stream_active || !stream_buf || stream_buf_len == 0) return NULL;
+    /* Walk the ring buffer from `top` toward `write_ptr` for next live block
+     * of target_type. Mark match with bit 0x80 so PSX semantics are preserved
+     * (FS_StreamUngetData strips the bit; FS_StreamClear writes 0). */
+    if (!stream_active || stream_stop) return NULL;
 
-    int pos = stream_read_pos;
-    int entries_scanned = 0;
-    while (pos + 4 <= stream_buf_len)
-    {
-        int tag;
-        memcpy(&tag, stream_buf + pos, 4);
+    int ptr = stream_top;
+    while (ptr != stream_write_ptr) {
+        if (ptr + 4 > STREAM_HEAP_SIZE) {
+            /* Heap-end-straddling tag would be malformed — skip to start. */
+            ptr = 0;
+            continue;
+        }
+        unsigned int tag;
+        memcpy(&tag, &stream_heap[ptr], 4);
         int type = tag & 0xFF;
         int size = (tag >> 8) & 0xFFFFFF;
 
-        /* Skip zero padding (between banks or at end of data) */
-        if (type == 0x00 && size == 0) {
-            /* Advance to next 2048-byte boundary (bank alignment) */
-            pos = (pos + 2048) & ~(2048 - 1);
+        if (type == 0xFF) {
+            ptr = 0;
             continue;
         }
-
-        /* End of bank marker — stop scanning this bank.
-           On PSX the stream only contains one bank at a time.
-           Don't scan into the next bank which may have different data. */
         if (type == 0xF0) {
             return NULL;
         }
-
-        if (size <= 0 || size > 0x100000 || pos + size > stream_buf_len) {
-            return NULL;
-        }
-
         if (type == target_type) {
-            stream_buf[pos] = type | 0x80;
-            return (void *)(stream_buf + pos + 4);
+            stream_heap[ptr] = (unsigned char)(type | 0x80);
+            return &stream_heap[ptr + 4];
         }
-
-        pos += size;
-        entries_scanned++;
+        if (size <= 0 || size > 0x100000) return NULL;
+        ptr += size;
+        if (ptr >= STREAM_HEAP_SIZE) ptr -= STREAM_HEAP_SIZE;
     }
-
     return NULL;
 }
 
 int FS_StreamGetSize(void *stream)
 {
     if (!stream) return 0;
-    /* stream points to data (after 4-byte header tag). Read the header. */
-    int tag = *((int *)stream - 1);
+    /* stream points to payload; header tag is the 4 bytes before. */
+    int tag;
+    memcpy(&tag, (unsigned char *)stream - 4, 4);
     return (tag >> 8) & 0xFFFFFF;
 }
 
-void FS_StreamUngetData(void *stream) { (void)stream; }
+void FS_StreamUngetData(void *stream)
+{
+    /* Reverse FS_StreamGetData's 0x80 mark so the entry is rediscoverable. */
+    if (!stream) return;
+    unsigned char *hdr = (unsigned char *)stream - 4;
+    *hdr &= ~0x80u;
+}
 
 void FS_StreamClear(void *stream)
 {
-    /* Mark entry as consumed by clearing the header's type byte.
-       stream points to data (header is at stream - 4).
-       Then advance stream_read_pos past all consumed (type=0) blocks,
-       matching PSX behavior where fs_stream_top advances past cleared entries. */
+    /* Mark entry consumed (type byte = 0). Top cursor advances next Sync. */
     if (!stream) return;
     unsigned char *hdr = (unsigned char *)stream - 4;
-    *hdr = 0; /* clear type to 0 (consumed) — matches PSX *tag &= ~0xff */
-
-    /* Advance read position past consecutive consumed blocks */
-    while (stream_read_pos + 4 <= stream_buf_len) {
-        int tag;
-        memcpy(&tag, stream_buf + stream_read_pos, 4);
-        int type = tag & 0xFF;
-        int size = (tag >> 8) & 0xFFFFFF;
-        if (type == 0 && size > 0) {
-            stream_read_pos += size; /* skip consumed block */
-        } else {
-            break; /* stop at first non-consumed block */
-        }
-    }
+    *hdr = 0;
+    stream_advance_top();
 }
 
 void FS_StreamClearType(void *stream, int target_type)
 {
-    /* Clear type byte of the entry header (at stream - 4) if it matches */
-    if (!stream) return;
-    unsigned char *hdr = (unsigned char *)stream - 4;
-    int type = *hdr & 0x7F; /* strip read flag */
-    if (type == target_type) {
-        *hdr = 0;
+    /* Walk top→stream-end-of-target, clear any block of target_type. PSX
+     * uses this to drop the type-1 ADPCM entry after sd_str_play consumed it. */
+    if (!stream || stream_stop) return;
+    unsigned char *end = (unsigned char *)stream - 4;
+    int ptr = stream_top;
+    while (ptr != stream_write_ptr && &stream_heap[ptr] != end) {
+        if (ptr + 4 > STREAM_HEAP_SIZE) { ptr = 0; continue; }
+        unsigned int tag;
+        memcpy(&tag, &stream_heap[ptr], 4);
+        int type = tag & 0xFF;
+        int size = (tag >> 8) & 0xFFFFFF;
+        if (type == 0xFF) { ptr = 0; continue; }
+        if ((type & 0x7F) == target_type) {
+            stream_heap[ptr] = 0;
+        }
+        if (size <= 0 || size > 0x100000) break;
+        ptr += size;
+        if (ptr >= STREAM_HEAP_SIZE) ptr -= STREAM_HEAP_SIZE;
     }
 }
 
-int  FS_StreamGetEndFlag(void) { return stream_ended; }
+int  FS_StreamGetEndFlag(void) { return stream_end; }
 int  FS_StreamIsForceStop(void) { return 0; }
 void FS_StreamTickStart(void) {
     port_stream_tick = 0;
