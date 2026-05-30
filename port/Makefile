@@ -229,7 +229,7 @@ $(OBJDIR)/main.o: main.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/main_game.o: main_game.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/port_memory.o: port_memory.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
