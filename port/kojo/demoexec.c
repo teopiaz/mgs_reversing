@@ -546,6 +546,61 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     trans.vz = -DG_Chanl(0)->eye.t[2];
 
     ApplyMatrixLV(&DG_Chanl(0)->eye_inv, &trans, (VECTOR *)DG_Chanl(0)->eye_inv.t);
+
+    /* PORT_DEBUG_CAM=1: dump the manual path's eye_inv side-by-side
+       with what DG_LookAt would produce for the same eye/center, so
+       we can see where ratan2/rsin/rcos rounding diverges from the
+       cleaner cross-product path the editor uses. */
+    {
+        static int cam_dbg = -1;
+        if (cam_dbg == -1) {
+            const char *e = getenv("PORT_DEBUG_CAM");
+            cam_dbg = (e && atoi(e) > 0) ? 1 : 0;
+        }
+        if (cam_dbg) {
+            static int n = 0;
+            if (n++ < 200 || (n % 30) == 0) {
+                /* Save the manual eye_inv before DG_LookAt overwrites. */
+                MATRIX manual_eye     = DG_Chanl(0)->eye;
+                MATRIX manual_eye_inv = DG_Chanl(0)->eye_inv;
+                SVECTOR e_v = { (short)data->eye_x,    (short)data->eye_y,    (short)data->eye_z,    0 };
+                SVECTOR c_v = { (short)data->center_x, (short)data->center_y, (short)data->center_z, 0 };
+                int saved_clip = DG_Chanl(0)->clip_distance;
+                DG_LookAt(DG_Chanl(0), &e_v, &c_v, saved_clip);
+                MATRIX la_eye_inv = DG_Chanl(0)->eye_inv;
+                fprintf(stderr,
+                    "[cam-cmp f=%d eye=(%d,%d,%d) ctr=(%d,%d,%d) roll=%d clip=%d]\n"
+                    "  manual rot=(%d,%d,%d) -> eye_inv:\n"
+                    "    | %5d %5d %5d | t=%d\n"
+                    "    | %5d %5d %5d | t=%d\n"
+                    "    | %5d %5d %5d | t=%d\n"
+                    "  DG_LookAt eye_inv:\n"
+                    "    | %5d %5d %5d | t=%d\n"
+                    "    | %5d %5d %5d | t=%d\n"
+                    "    | %5d %5d %5d | t=%d\n",
+                    data->frame,
+                    data->eye_x, data->eye_y, data->eye_z,
+                    data->center_x, data->center_y, data->center_z,
+                    data->roll, data->clip_dist,
+                    -ratan2(data->center_y - data->eye_y,
+                            SquareRoot0((data->center_x - data->eye_x) *
+                                        (data->center_x - data->eye_x) +
+                                        (data->center_z - data->eye_z) *
+                                        (data->center_z - data->eye_z))),
+                    ratan2(data->center_x - data->eye_x, data->center_z - data->eye_z),
+                    data->roll,
+                    manual_eye_inv.m[0][0], manual_eye_inv.m[0][1], manual_eye_inv.m[0][2], manual_eye_inv.t[0],
+                    manual_eye_inv.m[1][0], manual_eye_inv.m[1][1], manual_eye_inv.m[1][2], manual_eye_inv.t[1],
+                    manual_eye_inv.m[2][0], manual_eye_inv.m[2][1], manual_eye_inv.m[2][2], manual_eye_inv.t[2],
+                    la_eye_inv.m[0][0], la_eye_inv.m[0][1], la_eye_inv.m[0][2], la_eye_inv.t[0],
+                    la_eye_inv.m[1][0], la_eye_inv.m[1][1], la_eye_inv.m[1][2], la_eye_inv.t[1],
+                    la_eye_inv.m[2][0], la_eye_inv.m[2][1], la_eye_inv.m[2][2], la_eye_inv.t[2]);
+                /* Restore the manual eye_inv so rendering doesn't change. */
+                DG_Chanl(0)->eye     = manual_eye;
+                DG_Chanl(0)->eye_inv = manual_eye_inv;
+            }
+        }
+    }
     return 1;
 }
 
