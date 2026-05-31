@@ -131,6 +131,7 @@ int              g_dmo_index_loaded = 0;
 EdDmoData       *g_dmo_active      = NULL;
 int              g_dmo_active_frame = 0;
 int              g_dmo_freeze_frame = 0;  /* PORT_DMO_FRAME pin */
+int              g_dmo_dump_request = 0;  /* one-shot bone dump on next render */
 int              g_dmo_show_path = 1;
 int              g_dmo_show_actors = 1;
 int              g_dmo_show_models = 1;
@@ -732,6 +733,38 @@ void ed_dmo_render_actors(void)
             #define MAX_BONES 64
             MATRIX bones[MAX_BONES];
             int nb = build_bone_matrices((DG_DEF *)def, a, bones, MAX_BONES);
+
+            /* One-shot dump for A/B against the port's
+               port_demo_dump_request output. Triggered by the
+               "Dump snake render state" button when in the editor.
+               Targets type=9 specifically -- the snake demodoll
+               variant whose render position the user is comparing. */
+            extern int g_dmo_dump_request;
+            if (g_dmo_dump_request && a->type == 9)
+            {
+                fprintf(stderr,
+                    "\n===== EDITOR SNAKE DUMP (type=%d) =====\n"
+                    "adj.pos=(%d,%d,%d) adj.rot=(%d,%d,%d) "
+                    "visible=%d n_rots=%d\n"
+                    "build_bone_matrices returned %d\n",
+                    a->type,
+                    a->pos[0], a->pos[1], a->pos[2],
+                    a->rot[0], a->rot[1], a->rot[2],
+                    a->visible, a->n_rots, nb);
+                for (int bi = 0; bi < nb && bi < 16; bi++) {
+                    fprintf(stderr,
+                        "  bone[%d]: world.t=(%d,%d,%d) "
+                        "m[0]=(%d,%d,%d) m[1]=(%d,%d,%d) m[2]=(%d,%d,%d)\n",
+                        bi,
+                        bones[bi].t[0], bones[bi].t[1], bones[bi].t[2],
+                        bones[bi].m[0][0], bones[bi].m[0][1], bones[bi].m[0][2],
+                        bones[bi].m[1][0], bones[bi].m[1][1], bones[bi].m[1][2],
+                        bones[bi].m[2][0], bones[bi].m[2][1], bones[bi].m[2][2]);
+                }
+                fprintf(stderr, "=========================================\n\n");
+                g_dmo_dump_request = 0;
+            }
+
             if (nb > 0) {
                 render_kmd_posed((DG_DEF *)def, cd, bones, 0, 0, 0);
             } else {

@@ -700,6 +700,17 @@ static void tab_dmo(void)
     ImGui::Checkbox("follow camera (snap to eye / look at center)",
                     (bool *)&g_dmo_follow_cam);
 
+    /* Dump bone matrices for the visible character actors at the
+     * current scrub frame. Mirrors the port's "Dump snake render
+     * state" button (port/imgui_debug.cpp Demo tab); the two
+     * outputs can be diffed bone-by-bone to localize where the
+     * engine's animation pipeline diverges from the editor's
+     * build_bone_matrices. */
+    extern int g_dmo_dump_request;
+    if (ImGui::Button("Dump snake bone state (vs port)##dmo_dump")) {
+        g_dmo_dump_request = 1;
+    }
+
     if (ImGui::TreeNode("Models / maps")) {
         if (d->n_maps > 0 && ImGui::BeginTable("dmo_maps", 3,
                 ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit)) {

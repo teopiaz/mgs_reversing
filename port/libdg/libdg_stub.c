@@ -424,14 +424,17 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
 
         /* ImGui-button-triggered snake render dump. When the user
            clicks "Dump snake render state" in the Demo tab, this
-           fires for every DG_OBJS that looks like the cinematic
-           snake (climbing Y) and prints the full chain: chanl
-           eye_inv, objs->world, per-bone obj->world, and the
-           per-vert eye-space coords of the first face. */
+           fires for the snake-demodoll DG_OBJS (type=9 in d00a,
+           positioned around Y=-1055 at f=847) and prints the full
+           chain. Filtered by Y range to skip the climbing-pose
+           type=6 (Y~-4615) and the static map/walls (Y=0).
+           Use n_models=16 as an extra hint (character KMDs have
+           16 bones; static props have fewer). */
         {
             extern int port_demo_dump_request;
-            if (port_demo_dump_request &&
-                objs->world.t[1] < -1000 && objs->world.t[1] > -10000)
+            int ty = objs->world.t[1];
+            int is_snake_doll = (ty < -100 && ty > -2000) && (n_models == 16);
+            if (port_demo_dump_request && is_snake_doll)
             {
                 fprintf(stderr,
                     "\n========== SNAKE RENDER DUMP ==========\n"
@@ -638,8 +641,9 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                     extern int port_demo_dump_request;
                     int do_dump = (dbg_eye || port_demo_dump_request) &&
                                   gl_on && fi == 0 && mi == 0 &&
-                                  objs->world.t[1] < -1000 &&
-                                  objs->world.t[1] > -10000;
+                                  objs->world.t[1] < -100 &&
+                                  objs->world.t[1] > -2000 &&
+                                  n_models == 16;
                     if (do_dump) {
                         fprintf(stderr,
                             "[eye-vert] mi=%d fi=%d world.t=(%d,%d,%d) clip=%d\n"
