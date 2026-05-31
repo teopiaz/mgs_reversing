@@ -90,48 +90,28 @@ static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
        Skip the first then match by data->frame. */
     long off = 0;
     int  seen_def = 0;
-    static int once = 0;
-    int blocks = 0, dats = 0, min_f = 99999, max_f = -1;
     while (off + 4 <= dmo_size) {
         unsigned int tag;
         memcpy(&tag, &dmo_buf[off], 4);
         unsigned int type = tag & 0xFF;
         unsigned int size = (tag >> 8) & 0xFFFFFF;
-        blocks++;
         if (type == 0xFF) {
             /* WRAP marker: sector-pad to next 2K boundary and continue. */
             off = (off + 2048) & ~2047L;
             continue;
         }
-        if (type == 0xF0 || size == 0 || size > 0x10000) {
-            if (!once) printf("[paused] walker stop off=%ld type=0x%X size=%u blocks=%d dats=%d frame_range=[%d..%d]\n",
-                              off, type, size, blocks, dats, min_f, max_f);
-            once = 1;
-            break;
-        }
-        if (off + size > (unsigned long)dmo_size) {
-            if (!once) printf("[paused] walker oob off=%ld size=%u dmo_size=%ld blocks=%d dats=%d frame_range=[%d..%d]\n",
-                              off, size, dmo_size, blocks, dats, min_f, max_f);
-            once = 1;
-            break;
-        }
+        if (type == 0xF0 || size == 0 || size > 0x10000) break;
+        if (off + size > (unsigned long)dmo_size) break;
         if (type == 0x05) {
             if (!seen_def) {
                 seen_def = 1;
-                if (!once) printf("[paused] DMO_DEF at off=%ld size=%u\n", off, size);
                 off += size;
                 continue;
             }
             /* DMO_DAT: bytes 4..7 = frame */
             int frame_val;
             memcpy(&frame_val, &dmo_buf[off + 4], 4);
-            dats++;
-            if (frame_val < min_f) min_f = frame_val;
-            if (frame_val > max_f) max_f = frame_val;
             if (frame_val == target_frame) {
-                if (!once) printf("[paused] FOUND target=%d at off=%ld (after %d blocks, %d DMO_DATs)\n",
-                                  target_frame, off, blocks, dats);
-                once = 1;
                 /* Build port_dat from this raw block. */
                 static DMO_DAT port_dat;
                 unsigned char *raw = &dmo_buf[off];
@@ -201,26 +181,31 @@ static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
                 } else {
                     port_dat.adjust = NULL;
                 }
-                static int dbg = 0;
-                if (!dbg) {
+                static int last_logged_frame = -1;
+                if (last_logged_frame != target_frame &&
+                    getenv("PORT_DEBUG_SNAKE") &&
+                    atoi(getenv("PORT_DEBUG_SNAKE")) > 0)
+                {
                     printf("[paused] feeding frame=%d eye=(%d,%d,%d) "
-                           "n_adjusts=%d adj_off=%u\n",
+                           "ctr=(%d,%d,%d) clip=%d n_adjusts=%d\n",
                            port_dat.frame, port_dat.eye_x, port_dat.eye_y,
-                           port_dat.eye_z, port_dat.n_adjusts, adj_off);
+                           port_dat.eye_z, port_dat.center_x, port_dat.center_y,
+                           port_dat.center_z, port_dat.clip_dist, port_dat.n_adjusts);
                     for (int xi = 0; xi < port_dat.n_adjusts; xi++) {
                         printf("[paused]   adj[%d] type=%d visible=%d "
-                               "pos=(%d,%d,%d)\n",
+                               "pos=(%d,%d,%d) rot=(%d,%d,%d)\n",
                                xi, port_adjusts[xi].type,
                                port_adjusts[xi].visible,
                                port_adjusts[xi].pos_x,
                                port_adjusts[xi].pos_y,
-                               port_adjusts[xi].pos_z);
+                               port_adjusts[xi].pos_z,
+                               port_adjusts[xi].rot_x,
+                               port_adjusts[xi].rot_y,
+                               port_adjusts[xi].rot_z);
                     }
-                    dbg = 1;
+                    last_logged_frame = target_frame;
                 }
-                int rc = FrameRunDemo(lpAct, &port_dat);
-                static int dbg2 = 0;
-                if (!dbg2) { printf("[paused] FrameRunDemo returned %d\n", rc); dbg2 = 1; }
+                FrameRunDemo(lpAct, &port_dat);
                 return;
             }
         }
