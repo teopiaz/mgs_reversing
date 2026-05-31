@@ -45,6 +45,10 @@ int port_demo_max_frame   = 1980;
    the port the same behavior so you can A/B against the editor at
    arbitrary frames. */
 int port_demo_force_visible = 1;
+/* When non-zero, port_RenderChanl + ShowScene dump the snake render
+   chain (root mov, screen_mat, eye_inv, bone-world matrices, per-vert
+   eye-space) once, then reset to 0. Wired up in the ImGui Demo tab. */
+int port_demo_dump_request  = 0;
 
 /******************************************************************************
  * functions

@@ -663,6 +663,19 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     port_demo_force_visible = fv ? 1 : 0;
                 }
 
+                extern int port_demo_dump_request;
+                ImGui::Separator();
+                ImGui::TextWrapped(
+                    "Dump the snake render chain to stderr: chanl[1] eye_inv,"
+                    " demo's eye/center/clip, every adjust's pos+rot+visible,"
+                    " each snake DG_OBJS world matrix, and the first face's"
+                    " eye-space vertex coords. Paste this output side-by-side"
+                    " with the editor's render to localize where the divergence"
+                    " lives in the pipeline.");
+                if (ImGui::Button("Dump snake render state")) {
+                    port_demo_dump_request = 1;
+                }
+
                 int max_frame = port_demo_max_frame > 0 ? port_demo_max_frame : 1980;
                 int frame = port_demo_seek_target;
                 if (frame < 0) frame = 0;
