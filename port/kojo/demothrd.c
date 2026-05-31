@@ -37,6 +37,14 @@ int port_demo_paused      = 0;
 int port_demo_seek_target = 700;
 int port_demo_seek_active = 0;
 int port_demo_max_frame   = 1980;
+/* When set, the direct-from-disk feeder forces every adjust's
+   visible flag to 1. The cinematic deliberately marks Snake (and
+   other dolls) invisible during transitions / post-action frames,
+   which on PSX cuts to the next shot. The editor's "show characters"
+   marker render ignores the flag for inspection -- this toggle gives
+   the port the same behavior so you can A/B against the editor at
+   arbitrary frames. */
+int port_demo_force_visible = 1;
 
 /******************************************************************************
  * functions
@@ -76,21 +84,54 @@ static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
                dmo_size, base_sector);
     }
 
-    /* Walk blocks looking for type=6 (DMO_DAT) with frame == target. */
+    /* Walk blocks. All DMO blocks share type=0x05 -- the FIRST is the
+       DMO_DEF (header, frame field encodes something else / is 0),
+       subsequent ones are DMO_DAT records, one per cinematic frame.
+       Skip the first then match by data->frame. */
     long off = 0;
+    int  seen_def = 0;
+    static int once = 0;
+    int blocks = 0, dats = 0, min_f = 99999, max_f = -1;
     while (off + 4 <= dmo_size) {
         unsigned int tag;
         memcpy(&tag, &dmo_buf[off], 4);
         unsigned int type = tag & 0xFF;
         unsigned int size = (tag >> 8) & 0xFFFFFF;
-        if (type == 0xFF) { off = (off + 2047) & ~2047L; continue; }
-        if (type == 0xF0 || size == 0 || size > 0x10000) break;
-        if (off + size > (unsigned long)dmo_size) break;
-        if (type == 0x06) {
+        blocks++;
+        if (type == 0xFF) {
+            /* WRAP marker: sector-pad to next 2K boundary and continue. */
+            off = (off + 2048) & ~2047L;
+            continue;
+        }
+        if (type == 0xF0 || size == 0 || size > 0x10000) {
+            if (!once) printf("[paused] walker stop off=%ld type=0x%X size=%u blocks=%d dats=%d frame_range=[%d..%d]\n",
+                              off, type, size, blocks, dats, min_f, max_f);
+            once = 1;
+            break;
+        }
+        if (off + size > (unsigned long)dmo_size) {
+            if (!once) printf("[paused] walker oob off=%ld size=%u dmo_size=%ld blocks=%d dats=%d frame_range=[%d..%d]\n",
+                              off, size, dmo_size, blocks, dats, min_f, max_f);
+            once = 1;
+            break;
+        }
+        if (type == 0x05) {
+            if (!seen_def) {
+                seen_def = 1;
+                if (!once) printf("[paused] DMO_DEF at off=%ld size=%u\n", off, size);
+                off += size;
+                continue;
+            }
             /* DMO_DAT: bytes 4..7 = frame */
             int frame_val;
             memcpy(&frame_val, &dmo_buf[off + 4], 4);
+            dats++;
+            if (frame_val < min_f) min_f = frame_val;
+            if (frame_val > max_f) max_f = frame_val;
             if (frame_val == target_frame) {
+                if (!once) printf("[paused] FOUND target=%d at off=%ld (after %d blocks, %d DMO_DATs)\n",
+                                  target_frame, off, blocks, dats);
+                once = 1;
                 /* Build port_dat from this raw block. */
                 static DMO_DAT port_dat;
                 unsigned char *raw = &dmo_buf[off];
@@ -121,6 +162,7 @@ static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
                 uint32_t adj_off; memcpy(&adj_off, &raw[36], 4);
                 if (adj_off && port_dat.n_adjusts > 0 &&
                     port_dat.n_adjusts <= 32) {
+                    extern int port_demo_force_visible;
                     unsigned char *adj_raw = raw + adj_off;
                     for (int ai = 0; ai < port_dat.n_adjusts; ai++) {
                         unsigned char *a = adj_raw + ai * 24;
@@ -133,6 +175,16 @@ static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
                         memcpy(&port_adjusts[ai].pos_y,   &a[14], 2);
                         memcpy(&port_adjusts[ai].pos_z,   &a[16], 2);
                         memcpy(&port_adjusts[ai].n_rots,  &a[18], 2);
+                        /* Force visible=1 when scrubbing so dolls the
+                         * cinematic deliberately hides (e.g. Snake during
+                         * the post-climb transition at f>700) still
+                         * render -- matches the editor's marker render. */
+                        if (port_demo_force_visible &&
+                            (port_adjusts[ai].pos_x | port_adjusts[ai].pos_y |
+                             port_adjusts[ai].pos_z))
+                        {
+                            port_adjusts[ai].visible = 1;
+                        }
                         uint32_t rots_off;
                         memcpy(&rots_off, &a[20], 4);
                         if (rots_off && port_adjusts[ai].n_rots > 0) {
@@ -149,7 +201,26 @@ static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
                 } else {
                     port_dat.adjust = NULL;
                 }
-                FrameRunDemo(lpAct, &port_dat);
+                static int dbg = 0;
+                if (!dbg) {
+                    printf("[paused] feeding frame=%d eye=(%d,%d,%d) "
+                           "n_adjusts=%d adj_off=%u\n",
+                           port_dat.frame, port_dat.eye_x, port_dat.eye_y,
+                           port_dat.eye_z, port_dat.n_adjusts, adj_off);
+                    for (int xi = 0; xi < port_dat.n_adjusts; xi++) {
+                        printf("[paused]   adj[%d] type=%d visible=%d "
+                               "pos=(%d,%d,%d)\n",
+                               xi, port_adjusts[xi].type,
+                               port_adjusts[xi].visible,
+                               port_adjusts[xi].pos_x,
+                               port_adjusts[xi].pos_y,
+                               port_adjusts[xi].pos_z);
+                    }
+                    dbg = 1;
+                }
+                int rc = FrameRunDemo(lpAct, &port_dat);
+                static int dbg2 = 0;
+                if (!dbg2) { printf("[paused] FrameRunDemo returned %d\n", rc); dbg2 = 1; }
                 return;
             }
         }
@@ -361,7 +432,8 @@ static void ActStream(LPMGSDEMOACT lpAct)
     /* Demo scrubber: when active (env PORT_DEMO_PAUSE_AT or imgui's
        "Enable scrubber" toggle), feed the target frame's data straight
        from DEMO.DAT. PORT_DEMO_BASE_SECTOR defaults to 0x1441
-       (s0102a0.dmo / d00a). */
+       (s0102a0.dmo / d00a). MUST run AFTER the lpAct->frame == -1
+       block so CreateDemo has set up the models. */
     {
         extern int  port_demo_paused;
         extern int  port_demo_seek_target;
@@ -378,7 +450,9 @@ static void ActStream(LPMGSDEMOACT lpAct)
                 port_demo_seek_target = env_pause_at;
             }
         }
-        if (port_demo_seek_active) {
+        /* CreateDemo runs in the lpAct->frame == -1 branch -- only
+           engage the scrubber after that's complete (frame >= 0). */
+        if (port_demo_seek_active && lpAct->frame >= 0) {
             if (!port_demo_paused) {
                 printf("[SA] scrubber engaged target=%d cur_frame=%d "
                        "(stream-end=%d)\n",
