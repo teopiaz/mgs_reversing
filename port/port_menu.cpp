@@ -244,6 +244,21 @@ static void page_options(void)
     ImGui::Text("Audio");
     ImGui::SliderInt("master volume", &s_edit.volume_master, 0, 100, "%d%%");
 
+    ImGui::Dummy(ImVec2(0, 6));
+    ImGui::Separator();
+
+    /* --- Game --- */
+    ImGui::Text("Game");
+    /* Maps directly to the OPTION_ENGLISH bit (linkvar.h:170) — 0=JP, 1=EN.
+     * The in-game options screen also exposes this, but giving it a pre-game
+     * toggle saves the user from booting into the wrong language and having
+     * to redo the title-screen menu in a script they can't read. */
+    ImGui::TextUnformatted("Language");
+    ImGui::SameLine();
+    ImGui::RadioButton("English",  &s_edit.language, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("Japanese", &s_edit.language, 0);
+
     ImGui::Dummy(ImVec2(0, 12));
     ImGui::Separator();
 

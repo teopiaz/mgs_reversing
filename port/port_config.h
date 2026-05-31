@@ -53,6 +53,12 @@ typedef struct {
     /* --- audio --- */
     int volume_master;   /* 0..100 */
 
+    /* --- game ---
+     * 0 = Japanese (original Integral default),
+     * 1 = English. Maps to OPTION_ENGLISH (0x0100) in GM_OptionFlag at boot;
+     * the in-game options menu can still override during play. */
+    int language;
+
     /* --- input bindings ---
      * kb_map[btn]  = SDL_Scancode (or PORT_KEY_UNBOUND)
      * pad_map[btn] = SDL_GameControllerButton (or PORT_PAD_UNBOUND).

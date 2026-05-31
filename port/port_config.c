@@ -83,6 +83,11 @@ void port_config_set_defaults(PortConfig *c)
     /* Audio. */
     c->volume_master = 100;
 
+    /* Game. Default to English — MGS Integral's Japanese-language default
+     * is wrong for almost everyone who'll run this port; the menu and the
+     * in-game options screen both expose the toggle. */
+    c->language = 1;
+
     /* Keyboard: matches the previous hard-coded mts.c table verbatim. */
     c->kb_map[PORT_BTN_UP]       = SDL_SCANCODE_UP;
     c->kb_map[PORT_BTN_DOWN]     = SDL_SCANCODE_DOWN;
@@ -216,6 +221,9 @@ int port_config_load(const char *path)
         } else if (!strcmp(section, "audio")) {
             if (!strcmp(key, "volume_master"))   g_port_config.volume_master = (int)iv;
             else matched = 0;
+        } else if (!strcmp(section, "game")) {
+            if (!strcmp(key, "language"))        g_port_config.language = (int)iv;
+            else matched = 0;
         } else if (!strcmp(section, "keyboard")) {
             int b = btn_from_key(key);
             if (b >= 0) g_port_config.kb_map[b] = (int)iv;
@@ -241,6 +249,8 @@ int port_config_load(const char *path)
     if (g_port_config.volume_master > 100) g_port_config.volume_master = 100;
     if (g_port_config.window_w < 320) g_port_config.window_w = 320;
     if (g_port_config.window_h < 224) g_port_config.window_h = 224;
+    if (g_port_config.language != 0 && g_port_config.language != 1)
+        g_port_config.language = 1;
 
     return 1;
 }
@@ -269,6 +279,10 @@ int port_config_save(const char *path)
 
     fprintf(f, "[audio]\n");
     fprintf(f, "volume_master = %d\n\n", g_port_config.volume_master);
+
+    fprintf(f, "[game]\n");
+    fprintf(f, "language = %d  ; 0 = Japanese, 1 = English\n\n",
+            g_port_config.language);
 
     fprintf(f, "[keyboard] ; values are SDL_Scancode integers\n");
     for (int b = 0; b < PORT_BTN_COUNT; b++) {
