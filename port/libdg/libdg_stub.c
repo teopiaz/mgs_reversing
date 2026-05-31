@@ -422,6 +422,58 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
         DG_OBJ *obj = objs->objs;
         int n_models = objs->def->n_models;
 
+        /* ImGui-button-triggered snake render dump. When the user
+           clicks "Dump snake render state" in the Demo tab, this
+           fires for every DG_OBJS that looks like the cinematic
+           snake (climbing Y) and prints the full chain: chanl
+           eye_inv, objs->world, per-bone obj->world, and the
+           per-vert eye-space coords of the first face. */
+        {
+            extern int port_demo_dump_request;
+            if (port_demo_dump_request &&
+                objs->world.t[1] < -1000 && objs->world.t[1] > -10000)
+            {
+                fprintf(stderr,
+                    "\n========== SNAKE RENDER DUMP ==========\n"
+                    "chanl=%p clip_distance=%d\n"
+                    "chanl->eye_inv.t=(%d,%d,%d)\n"
+                    "chanl->eye_inv.m[0]=(%d,%d,%d)\n"
+                    "chanl->eye_inv.m[1]=(%d,%d,%d)\n"
+                    "chanl->eye_inv.m[2]=(%d,%d,%d)\n"
+                    "objs=%p def=%p flag=0x%X group=0x%X n_models=%d\n"
+                    "objs->world.t=(%d,%d,%d)\n"
+                    "objs->world.m[0]=(%d,%d,%d)\n"
+                    "objs->world.m[1]=(%d,%d,%d)\n"
+                    "objs->world.m[2]=(%d,%d,%d)\n",
+                    (void*)chanl, chanl->clip_distance,
+                    chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2],
+                    chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2],
+                    chanl->eye_inv.m[1][0], chanl->eye_inv.m[1][1], chanl->eye_inv.m[1][2],
+                    chanl->eye_inv.m[2][0], chanl->eye_inv.m[2][1], chanl->eye_inv.m[2][2],
+                    (void*)objs, (void*)objs->def, objs->flag, objs->group_id, n_models,
+                    objs->world.t[0], objs->world.t[1], objs->world.t[2],
+                    objs->world.m[0][0], objs->world.m[0][1], objs->world.m[0][2],
+                    objs->world.m[1][0], objs->world.m[1][1], objs->world.m[1][2],
+                    objs->world.m[2][0], objs->world.m[2][1], objs->world.m[2][2]);
+
+                DG_OBJ *dump_obj = objs->objs;
+                for (int dmi = 0; dmi < n_models && dmi < 16; dmi++, dump_obj++) {
+                    fprintf(stderr,
+                        "  bone[%d]: world.t=(%d,%d,%d) "
+                        "m[0]=(%d,%d,%d) m[1]=(%d,%d,%d) m[2]=(%d,%d,%d)\n",
+                        dmi,
+                        dump_obj->world.t[0], dump_obj->world.t[1], dump_obj->world.t[2],
+                        dump_obj->world.m[0][0], dump_obj->world.m[0][1], dump_obj->world.m[0][2],
+                        dump_obj->world.m[1][0], dump_obj->world.m[1][1], dump_obj->world.m[1][2],
+                        dump_obj->world.m[2][0], dump_obj->world.m[2][1], dump_obj->world.m[2][2]);
+                }
+                fprintf(stderr, "========================================\n\n");
+                /* Don't reset yet -- the [eye-vert] dump below fires
+                 * for the first face of the first model and we want
+                 * it in the same dump. Reset there. */
+            }
+        }
+
         /* PORT_DEBUG_SNAKE: dump objs->world.t once per (objs, frame_sec)
            so we can compare actor / map / wall positions between editor
            and port for the d00a cinematic. Each line shows the channel,
@@ -583,22 +635,42 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         const char *e = getenv("PORT_DEBUG_SNAKE");
                         dbg_eye = (e && atoi(e) > 0) ? 1 : 0;
                     }
-                    if (dbg_eye && gl_on && fi == 0 && mi == 0 &&
-                        objs->world.t[1] < -4000)
-                    {
+                    extern int port_demo_dump_request;
+                    int do_dump = (dbg_eye || port_demo_dump_request) &&
+                                  gl_on && fi == 0 && mi == 0 &&
+                                  objs->world.t[1] < -1000 &&
+                                  objs->world.t[1] > -10000;
+                    if (do_dump) {
                         fprintf(stderr,
-                            "[eye-vert] world.t=(%d,%d,%d) clip=%d "
-                            "v0=(%d,%d,%d)->eye=(%d,%d,%d)  "
-                            "v1=(%d,%d,%d)->eye=(%d,%d,%d)  "
-                            "v3=(%d,%d,%d)->eye=(%d,%d,%d)\n",
+                            "[eye-vert] mi=%d fi=%d world.t=(%d,%d,%d) clip=%d\n"
+                            "  screen_mat.t=(%d,%d,%d)\n"
+                            "  screen_mat.m[0]=(%d,%d,%d)\n"
+                            "  screen_mat.m[1]=(%d,%d,%d)\n"
+                            "  screen_mat.m[2]=(%d,%d,%d)\n"
+                            "  v0=(%d,%d,%d) -> eye=(%d,%d,%d)\n"
+                            "  v1=(%d,%d,%d) -> eye=(%d,%d,%d)\n"
+                            "  v2=(%d,%d,%d) -> eye=(%d,%d,%d)\n"
+                            "  v3=(%d,%d,%d) -> eye=(%d,%d,%d)\n",
+                            mi, fi,
                             objs->world.t[0], objs->world.t[1], objs->world.t[2],
                             chanl->clip_distance,
+                            screen_mat.t[0], screen_mat.t[1], screen_mat.t[2],
+                            screen_mat.m[0][0], screen_mat.m[0][1], screen_mat.m[0][2],
+                            screen_mat.m[1][0], screen_mat.m[1][1], screen_mat.m[1][2],
+                            screen_mat.m[2][0], screen_mat.m[2][1], screen_mat.m[2][2],
                             verts[i0].vx, verts[i0].vy, verts[i0].vz,
                             eye[0][0], eye[0][1], eye[0][2],
                             verts[i1].vx, verts[i1].vy, verts[i1].vz,
                             eye[1][0], eye[1][1], eye[1][2],
+                            verts[i2].vx, verts[i2].vy, verts[i2].vz,
+                            eye[2][0], eye[2][1], eye[2][2],
                             verts[i3].vx, verts[i3].vy, verts[i3].vz,
                             eye[3][0], eye[3][1], eye[3][2]);
+                        /* One-shot: clear the request flag after the
+                           first model's first face is dumped (the
+                           button trigger). dbg_eye-driven dumps keep
+                           firing per-frame as before. */
+                        if (port_demo_dump_request) port_demo_dump_request = 0;
                     }
                 }
 
