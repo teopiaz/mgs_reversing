@@ -12,6 +12,10 @@
    is current and use the ImGui OpenGL3 backend instead. */
 static bool g_imgui_use_gl = false;
 
+/* Exported so the pre-game menu (port_menu.cpp) can pick the right
+ * ImGui backend NewFrame / RenderDrawData path. */
+extern "C" int imgui_using_gl(void) { return g_imgui_use_gl ? 1 : 0; }
+
 extern "C" {
 #include "imgui_debug.h"
 
