@@ -511,19 +511,23 @@ static const char *TRI2D_FS =
     "        float((p >> 10) & 0x1Fu) / 31.0);\n"
     "}\n"
     "void main() {\n"
-    "    // PSX drawing-area clip (E3/E4). Recover PSX coords from gl_FragCoord\n"
-    "    // using the inverse of the vert-shader projection; radar enemy dots\n"
-    "    // / cones outside the 69x52 clip rect are dropped here.\n"
-    "    vec2 fboSize = vec2(textureSize(uPrevFB, 0));\n"
-    "    float psx_x = 160.0 * ((2.0 * gl_FragCoord.x / fboSize.x - 1.0) / uXScale + 1.0);\n"
-    "    float psx_y = 224.0 * (1.0 - gl_FragCoord.y / fboSize.y);\n"
-    "    if (psx_x < float(vClip.x) || psx_x > float(vClip.z) + 1.0 ||\n"
-    "        psx_y < float(vClip.y) || psx_y > float(vClip.w) + 1.0) {\n"
-    "        discard;\n"
-    "    }\n"
     "    bool textured     = (vFlags & 1u)  != 0u && (uNoTextures == 0);\n"
     "    bool fb_readback  = (vFlags & 32u) != 0u && (uNoTextures == 0)\n"
     "                        && uBlurStrength > 0.0;\n"
+    "    // PSX drawing-area clip (E3/E4). Recover PSX coords from gl_FragCoord\n"
+    "    // using the inverse of the vert-shader projection; radar enemy dots\n"
+    "    // / cones outside the 69x52 clip rect are dropped here.\n"
+    "    // Skipped for fb-readback (blur) prims so widescreen edge fragments\n"
+    "    // aren't discarded when the blur quad is stretched past PSX 0..319.\n"
+    "    vec2 fboSize = vec2(textureSize(uPrevFB, 0));\n"
+    "    if (!fb_readback) {\n"
+    "        float psx_x = 160.0 * ((2.0 * gl_FragCoord.x / fboSize.x - 1.0) / uXScale + 1.0);\n"
+    "        float psx_y = 224.0 * (1.0 - gl_FragCoord.y / fboSize.y);\n"
+    "        if (psx_x < float(vClip.x) || psx_x > float(vClip.z) + 1.0 ||\n"
+    "            psx_y < float(vClip.y) || psx_y > float(vClip.w) + 1.0) {\n"
+    "            discard;\n"
+    "        }\n"
+    "    }\n"
     "    vec3 out_rgb;\n"
     "    if (fb_readback) {\n"
     "        // PSX framebuffer-readback effect (NewBlur, NewBlurPure). The\n"
@@ -1593,8 +1597,9 @@ void gl_submit_tri2d(
        screen coords that wrap in 16-bit. Reproducing the hardware reject is
        the simplest way to drop these degenerate triangles instead of
        stretching them across the screen. */
+    int minx, maxx, miny, maxy;
     {
-        int minx = a[0], maxx = a[0], miny = a[1], maxy = a[1];
+        minx = a[0]; maxx = a[0]; miny = a[1]; maxy = a[1];
         if (b[0] < minx) minx = b[0]; if (b[0] > maxx) maxx = b[0];
         if (c[0] < minx) minx = c[0]; if (c[0] > maxx) maxx = c[0];
         if (b[1] < miny) miny = b[1]; if (b[1] > maxy) maxy = b[1];
@@ -1602,23 +1607,94 @@ void gl_submit_tri2d(
         if ((maxx - minx) > 1023 || (maxy - miny) > 511) return;
     }
 
+    /* Widescreen letterbox-bar extension.
+     *
+     * The cinema actor (source/takabe/cinema.c) renders the cutscene black
+     * bars as two horizontal strips covering the PSX 320-wide region: top
+     * (x=0..320, y=0..24) and bottom (x=0..320, y=184..224). In widescreen
+     * they pillarbox to the central 80%, leaving the 3D scene visible in
+     * the four corner extras during demos (e.g. d00a).
+     *
+     * Detect these bars by shape (full PSX width, narrow strip at top or
+     * bottom) and color (all vertices grayscale — RGB all equal). The
+     * opaque-letterbox phase uses TILE prims with RGB(0,0,0); the fade-in
+     * / fade-out phase uses POLY_G4 with RGB(col,col,col) under subtractive
+     * blend. Both pass the grayscale check, so the extension covers the
+     * full fade arc, not just the steady-state.
+     *
+     * The fix is to widen the vertex x-range from [0..320] to
+     * [-extra .. 320+extra], where extra = (render_w-320)/2 = 40 px PSX in
+     * Hor+ widescreen. The standard 2D projection (uXScale = 320/render_w)
+     * then maps these to NDC [-1..1] = the full FBO width, so the bars
+     * cover the widescreen extras with the same color/blend they already
+     * have. The FS clip-rect test happens to use vClip = the live PSX
+     * drawing area (typically 0..319) — extended fragments at psx_x < 0
+     * or > 319 would be discarded. So we also widen vClip on these verts.
+     *
+     * UVs aren't touched: TILEs don't sample a texture, and the POLY_G4
+     * is flat-colored (UV is unused in the FS for the textured=false
+     * path). */
+    int xa = a[0], xb = b[0], xc = c[0];
+    short clip_w[4] = { 0, 0, 0, 0 };          /* zeroed = use live clip */
+    int   override_clip = 0;
+    if (g_widescreen
+        && minx <= 4 && maxx >= 316
+        && (maxy - miny) <= 50
+        && (maxy <= 50 || miny >= 174)
+        && col_a[0] == col_a[1] && col_a[1] == col_a[2]
+        && col_b[0] == col_b[1] && col_b[1] == col_b[2]
+        && col_c[0] == col_c[1] && col_c[1] == col_c[2])
+    {
+        int extra = (g_render_w - 320) / 2;
+        if (xa <= 4)   xa = -extra; else if (xa >= 316) xa = 320 + extra;
+        if (xb <= 4)   xb = -extra; else if (xb >= 316) xb = 320 + extra;
+        if (xc <= 4)   xc = -extra; else if (xc >= 316) xc = 320 + extra;
+        /* Override vClip to span the widened range so the FS doesn't
+         * discard widescreen-extra fragments. The PSX drawing-area was
+         * (0..319, 0..223); we extend horizontally to keep the same
+         * vertical bound. */
+        clip_w[0] = (short)(-extra);
+        clip_w[1] = 0;
+        clip_w[2] = (short)(320 + extra - 1);
+        clip_w[3] = 223;
+        override_clip = 1;
+    }
+    const int aa[2] = { xa, a[1] };
+    const int bb[2] = { xb, b[1] };
+    const int cc[2] = { xc, c[1] };
+
     /* Route world-chanl 2D prims (notably the sphere skybox) to a separate
      * buffer that gets flushed BEFORE 3D geometry. This gives real skybox
      * semantics -- 3D is drawn over the sky with the normal depth test --
      * without any per-vertex z trickery. Only the deep skybox slots (flag==1)
      * go here; shallow world VFX (flag>=2) stay in the fg buffer and are
      * depth-tested via their encoded OT slot. */
+    GL2DVert *dst0, *dst1, *dst2;
     if (port_2d_depth_flag == 1) {
         tri2d_bg_reserve(3);
-        pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], a, uv_a, col_a, tpage, clut, flags);
-        pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], b, uv_b, col_b, tpage, clut, flags);
-        pack_vert2d(&g_tri2d_bg_buf[g_tri2d_bg_count++], c, uv_c, col_c, tpage, clut, flags);
-        return;
+        dst0 = &g_tri2d_bg_buf[g_tri2d_bg_count++];
+        dst1 = &g_tri2d_bg_buf[g_tri2d_bg_count++];
+        dst2 = &g_tri2d_bg_buf[g_tri2d_bg_count++];
+    } else {
+        tri2d_reserve(3);
+        dst0 = &g_tri2d_buf[g_tri2d_count++];
+        dst1 = &g_tri2d_buf[g_tri2d_count++];
+        dst2 = &g_tri2d_buf[g_tri2d_count++];
     }
-    tri2d_reserve(3);
-    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], a, uv_a, col_a, tpage, clut, flags);
-    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], b, uv_b, col_b, tpage, clut, flags);
-    pack_vert2d(&g_tri2d_buf[g_tri2d_count++], c, uv_c, col_c, tpage, clut, flags);
+    pack_vert2d(dst0, aa, uv_a, col_a, tpage, clut, flags);
+    pack_vert2d(dst1, bb, uv_b, col_b, tpage, clut, flags);
+    pack_vert2d(dst2, cc, uv_c, col_c, tpage, clut, flags);
+    if (override_clip) {
+        /* Replace pack_vert2d's snapshot of clip_x0..clip_y1 (which is
+         * still the PSX 0..319 / 0..223 drawing area) with the widened
+         * rect; otherwise the FS would discard the widescreen-extra
+         * fragments since their recovered psx_x lies outside 0..319. */
+        for (int i = 0; i < 4; i++) {
+            dst0->clip[i] = clip_w[i];
+            dst1->clip[i] = clip_w[i];
+            dst2->clip[i] = clip_w[i];
+        }
+    }
 }
 
 /* Back-compat wrapper for existing semi-trans-only callers in vram.c. */
@@ -1738,6 +1814,18 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
             glEnable(GL_BLEND);
             glBlendEquation(GL_FUNC_ADD);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            /* Widescreen: stretch the blur quad to the full FBO instead of
+             * the pillarboxed 320-wide centre. uXScale=1.0 maps PSX
+             * [0..320] verts to NDC [-1, 1] (= full FBO width), and the
+             * FS samples uPrevFB at fx = psx_x/320 → samples the whole
+             * widescreen frame. Only when blur is actually enabled; if
+             * port_blur_enabled is off the FS treats these prims as
+             * textured (no fb-readback branch) so the stretched geometry
+             * would just expose VRAM garbage. The FS clip-rect test is
+             * skipped for fb-readback so widescreen edges aren't culled. */
+            if (port_blur_enabled) {
+                glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"), 1.0f);
+            }
         } else if (semi0) {
             glEnable(GL_BLEND);
             apply_abr(abr0);
@@ -1745,6 +1833,13 @@ static void flush_2d_buf(GLuint vao, GLuint vbo, GL2DVert *buf,
             glDisable(GL_BLEND);
         }
         glDrawArrays(prim_type, (GLint)run_start, (GLsizei)(j - run_start));
+        /* Restore pillarboxed uXScale after a stretched fb-readback batch so
+         * subsequent non-readback runs in this flush draw at the proper
+         * size. (No-op in 4:3 where uXScale was already 1.0.) */
+        if (fb0 && port_blur_enabled) {
+            glUniform1f(glGetUniformLocation(g_tri2d_prog, "uXScale"),
+                        320.0f / (float)g_render_w);
+        }
         i = j;
     }
 
@@ -2136,6 +2231,29 @@ void gl_renderer_present(void)
     if (!debug_view) {
         if (!gl_debug_skip_2d)    flush_tri2d();
         if (!gl_debug_skip_lines) flush_line2d();
+    }
+
+    /* Widescreen gas-mask sides. The gas mask sight is built from PSX 2D
+     * tiles covering the 320-wide PSX region with a binocular vignette;
+     * in widescreen (render_w=400) those tiles only fill the central 80%,
+     * leaving the 10% pillarbox on each side to leak the 3D scene through
+     * the wider Hor+ FOV. We don't have widescreen mask art, so paint the
+     * extras opaque black here -- the gas mask is a vision-restricting
+     * overlay anyway, so blacking the peripheries matches its intent.
+     * word_800BDCC0 is set/cleared by source/equip/gmsight.c (1 while
+     * the gas-mask sight actor is alive, 0 otherwise). */
+    if (g_widescreen && !debug_view) {
+        extern short word_800BDCC0;
+        if (word_800BDCC0 != 0) {
+            int bar_fbo_w = ((g_render_w - 320) / 2) * g_scale;
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(0, 0, bar_fbo_w, g_fbo_h);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glScissor(g_fbo_w - bar_fbo_w, 0, bar_fbo_w, g_fbo_h);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDisable(GL_SCISSOR_TEST);
+        }
     }
 
     /* Restore fill mode so the overlay/blit pass isn't wireframed. */
