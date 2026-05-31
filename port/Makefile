@@ -196,7 +196,9 @@ PORT_OBJ = \
 	$(OBJDIR)/test_server.o \
 	$(OBJDIR)/strcode_lookup.o \
 	$(OBJDIR)/gcl_overlay.o \
-	$(OBJDIR)/chara_overrides.o
+	$(OBJDIR)/chara_overrides.o \
+	$(OBJDIR)/port_config.o \
+	$(OBJDIR)/port_menu.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
 
@@ -230,6 +232,15 @@ $(OBJDIR)/main.o: main.c | $(OBJDIR)
 
 $(OBJDIR)/main_game.o: main_game.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+
+# Pre-game menu + config persistence. port_menu uses ImGui so it needs the
+# imgui include path that other CXX rules already pull in. port_config is
+# plain C with SDL only.
+$(OBJDIR)/port_config.o: port_config.c | $(OBJDIR)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/port_menu.o: port_menu.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) $(INCLUDES) -c -o $@ $<
 
 $(OBJDIR)/port_memory.o: port_memory.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<

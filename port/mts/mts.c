@@ -695,6 +695,26 @@ void port_open_controller(void)
     }
 }
 
+/* PSX button bit for a PortButton index. Order-stable; kept in sync with
+ * the PortButton enum in port_config.h. */
+#include "../port_config.h"
+static const unsigned short s_btn_bits[PORT_BTN_COUNT] = {
+    [PORT_BTN_UP]       = BTN_UP,
+    [PORT_BTN_DOWN]     = BTN_DOWN,
+    [PORT_BTN_LEFT]     = BTN_LEFT,
+    [PORT_BTN_RIGHT]    = BTN_RIGHT,
+    [PORT_BTN_CROSS]    = BTN_CROSS,
+    [PORT_BTN_CIRCLE]   = BTN_CIRCLE,
+    [PORT_BTN_TRIANGLE] = BTN_TRIANGLE,
+    [PORT_BTN_SQUARE]   = BTN_SQUARE,
+    [PORT_BTN_L1]       = BTN_L1,
+    [PORT_BTN_R1]       = BTN_R1,
+    [PORT_BTN_L2]       = BTN_L2,
+    [PORT_BTN_R2]       = BTN_R2,
+    [PORT_BTN_START]    = BTN_START,
+    [PORT_BTN_SELECT]   = BTN_SELECT,
+};
+
 /* Called from main.c event loop */
 void port_update_pad(void)
 {
@@ -703,41 +723,64 @@ void port_update_pad(void)
     memcpy(port_keys, keys, 512);
     unsigned short b = 0;
 
-    /* Keyboard mapping */
-    if (keys[SDL_SCANCODE_UP])      b |= BTN_UP;
-    if (keys[SDL_SCANCODE_DOWN])    b |= BTN_DOWN;
-    if (keys[SDL_SCANCODE_LEFT])    b |= BTN_LEFT;
-    if (keys[SDL_SCANCODE_RIGHT])   b |= BTN_RIGHT;
-    if (keys[SDL_SCANCODE_X])       b |= BTN_CROSS;
-    if (keys[SDL_SCANCODE_Z])       b |= BTN_CIRCLE;
-    if (keys[SDL_SCANCODE_S])       b |= BTN_TRIANGLE;
-    if (keys[SDL_SCANCODE_A])       b |= BTN_SQUARE;
-    if (keys[SDL_SCANCODE_Q])       b |= BTN_L1;
-    if (keys[SDL_SCANCODE_1])       b |= BTN_L2;
-    if (keys[SDL_SCANCODE_E])       b |= BTN_R1;
-    if (keys[SDL_SCANCODE_3])       b |= BTN_R2;
-    if (keys[SDL_SCANCODE_RETURN])  b |= BTN_START;
-    if (keys[SDL_SCANCODE_BACKSPACE]) b |= BTN_SELECT;
+    /* Keyboard mapping — driven by g_port_config.kb_map[]. Defaults are
+     * installed by port_config_set_defaults at startup and match the old
+     * hard-coded SDL_SCANCODE_* table; user remaps live here through the
+     * options menu. */
+    for (int i = 0; i < PORT_BTN_COUNT; i++) {
+        int sc = g_port_config.kb_map[i];
+        if (sc >= 0 && sc < 512 && keys[sc]) b |= s_btn_bits[i];
+    }
 
-    /* Gamepad mapping */
+    /* Debug: PORT_PAD_LOG=1 prints every D-pad edge with full state.
+     * Tells us if the SDL key state itself is wrong (keys[sc]=0 while
+     * holding the key), if the kb_map has the wrong scancode, or if the
+     * bit makes it into b but gets clobbered later in this function. */
+    {
+        static int log_pad = -1;
+        if (log_pad < 0) {
+            const char *e = getenv("PORT_PAD_LOG");
+            log_pad = (e && e[0] == '1') ? 1 : 0;
+        }
+        if (log_pad) {
+            static int last_dpad = -1;
+            int cur = (int)(b & (BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT));
+            if (cur != last_dpad) {
+                int sc_u = g_port_config.kb_map[PORT_BTN_UP];
+                int sc_d = g_port_config.kb_map[PORT_BTN_DOWN];
+                int sc_l = g_port_config.kb_map[PORT_BTN_LEFT];
+                int sc_r = g_port_config.kb_map[PORT_BTN_RIGHT];
+                printf("[pad-dpad] b=0x%04X  kb_map=[U=%d D=%d L=%d R=%d]  keys=[U=%d D=%d L=%d R=%d]\n",
+                       cur,
+                       sc_u, sc_d, sc_l, sc_r,
+                       (sc_u >= 0 && sc_u < 512) ? keys[sc_u] : -1,
+                       (sc_d >= 0 && sc_d < 512) ? keys[sc_d] : -1,
+                       (sc_l >= 0 && sc_l < 512) ? keys[sc_l] : -1,
+                       (sc_r >= 0 && sc_r < 512) ? keys[sc_r] : -1);
+                last_dpad = cur;
+            }
+        }
+    }
+
+    /* Gamepad mapping — driven by g_port_config.pad_map[]. Triggers (L2/R2)
+     * still come from axis values when the corresponding pad_map entry is
+     * left at PORT_PAD_UNBOUND (the default). */
     if (port_controller)
     {
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_UP))    b |= BTN_UP;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN))  b |= BTN_DOWN;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT))  b |= BTN_LEFT;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) b |= BTN_RIGHT;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_A))          b |= BTN_CROSS;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_B))          b |= BTN_CIRCLE;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_Y))          b |= BTN_TRIANGLE;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_X))          b |= BTN_SQUARE;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER))  b |= BTN_L1;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) b |= BTN_R1;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_START))      b |= BTN_START;
-        if (SDL_GameControllerGetButton(port_controller, SDL_CONTROLLER_BUTTON_BACK))       b |= BTN_SELECT;
+        for (int i = 0; i < PORT_BTN_COUNT; i++) {
+            int pb = g_port_config.pad_map[i];
+            if (pb >= 0 && SDL_GameControllerGetButton(port_controller,
+                                                     (SDL_GameControllerButton)pb))
+                b |= s_btn_bits[i];
+        }
 
-        /* Triggers as L2/R2 */
-        if (SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 8000)  b |= BTN_L2;
-        if (SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 8000) b |= BTN_R2;
+        /* L2/R2 trigger fallback (axes) — only when pad_map says unbound. */
+        if (g_port_config.pad_map[PORT_BTN_L2] < 0 &&
+            SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 8000)
+            b |= BTN_L2;
+        if (g_port_config.pad_map[PORT_BTN_R2] < 0 &&
+            SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 8000)
+            b |= BTN_R2;
 
         /* Left stick → analog + d-pad fallback */
         Sint16 lx = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTX);
@@ -753,14 +796,31 @@ void port_update_pad(void)
     }
     else
     {
-        /* Analog stick from keyboard (fully digital) */
+        /* No controller: zero out the analog channel; we'll fill it from
+         * the keyboard d-pad bits below. */
         port_pad_lx = 128;
         port_pad_ly = 128;
-        if (b & BTN_LEFT)  port_pad_lx = 0;
-        if (b & BTN_RIGHT) port_pad_lx = 255;
-        if (b & BTN_UP)    port_pad_ly = 0;
-        if (b & BTN_DOWN)  port_pad_ly = 255;
     }
+
+    /* Overlay d-pad input onto the analog channel.
+     *
+     * The PSX engine's GV_AnalogToDirection (source/libgv/pad.c:101) clears
+     * the UDLR bits whenever the pad reports as analog and re-derives the
+     * direction from the analog stick. Since mts_get_pad below always
+     * reports MTS_PAD_ANALOG when a controller is present, every keyboard
+     * arrow / DPAD press would get silently dropped on the engine side
+     * unless we ALSO push the press into the analog axes here.
+     *
+     * Bonus: some SDL controller mappings (notably the Nintendo Switch Pro
+     * Controller) report DPAD-LEFT/RIGHT through the LEFTY axis as a
+     * HAT-to-axes quirk, which made DPAD_LEFT show up as `ly = +32767`
+     * (= PAD_DOWN). Force-setting port_pad_lx/ly from the b bits here
+     * overrides those bogus axis values with what the user actually
+     * pressed. */
+    if (b & BTN_LEFT)  port_pad_lx = 0;
+    if (b & BTN_RIGHT) port_pad_lx = 255;
+    if (b & BTN_UP)    port_pad_ly = 0;
+    if (b & BTN_DOWN)  port_pad_ly = 255;
 
     /* Auto-input for headless testing: replay a scripted button sequence */
     {
