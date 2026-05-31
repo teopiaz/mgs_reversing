@@ -65,44 +65,74 @@ GM_CurrentPadData = GV_PadData  (game reads this)
 
 ### port_update_pad() (port/mts/mts.c)
 
-Called once per frame from the main loop. Reads keyboard and gamepad state, combines into `port_pad_buttons`:
+Called once per frame from the main loop. Both keyboard and gamepad
+mapping are driven by `g_port_config.kb_map[]` / `g_port_config.pad_map[]`
+(see `port_config.h`) so the user can remap from the pre-game Controls
+page. Defaults match the historical hard-coded table.
 
 ```c
 static unsigned short port_pad_buttons = 0;
 static unsigned char port_pad_lx = 128, port_pad_ly = 128;
 
+static const unsigned short s_btn_bits[PORT_BTN_COUNT] = {
+    [PORT_BTN_UP]    = BTN_UP,   [PORT_BTN_DOWN]  = BTN_DOWN,
+    [PORT_BTN_LEFT]  = BTN_LEFT, [PORT_BTN_RIGHT] = BTN_RIGHT,
+    [PORT_BTN_CROSS] = BTN_CROSS, /* …face buttons, shoulders, start, select */
+};
+
 void port_update_pad(void) {
     const Uint8 *keys = SDL_GetKeyboardState(NULL);
     unsigned short b = 0;
 
-    // Keyboard mapping
-    if (keys[SDL_SCANCODE_UP])      b |= 0x1000;  // BTN_UP
-    if (keys[SDL_SCANCODE_DOWN])    b |= 0x4000;  // BTN_DOWN
-    if (keys[SDL_SCANCODE_LEFT])    b |= 0x8000;  // BTN_LEFT
-    if (keys[SDL_SCANCODE_RIGHT])   b |= 0x2000;  // BTN_RIGHT
-    if (keys[SDL_SCANCODE_X])       b |= 0x0040;  // BTN_CROSS
-    if (keys[SDL_SCANCODE_Z])       b |= 0x0020;  // BTN_CIRCLE
-    // ... etc
-
-    // Gamepad mapping (if connected)
-    if (port_controller) {
-        // D-pad buttons
-        // Face buttons (A=Cross, B=Circle, Y=Triangle, X=Square)
-        // Shoulders (LB=L1, RB=R1)
-        // Triggers: axis > 8000 threshold -> L2/R2
-
-        // Left stick -> analog values
-        Sint16 lx = SDL_GameControllerGetAxis(..., SDL_CONTROLLER_AXIS_LEFTX);
-        Sint16 ly = SDL_GameControllerGetAxis(..., SDL_CONTROLLER_AXIS_LEFTY);
-        port_pad_lx = (unsigned char)((lx + 32768) >> 8);  // map -32768..32767 to 0..255
-        port_pad_ly = (unsigned char)((ly + 32768) >> 8);
-
-        // Digital d-pad from stick (16000 deadzone)
-        if (lx < -16000) b |= BTN_LEFT;
-        if (lx >  16000) b |= BTN_RIGHT;
-        if (ly < -16000) b |= BTN_UP;
-        if (ly >  16000) b |= BTN_DOWN;
+    /* Keyboard mapping — table-driven via the user-configurable kb_map. */
+    for (int i = 0; i < PORT_BTN_COUNT; i++) {
+        int sc = g_port_config.kb_map[i];
+        if (sc >= 0 && sc < 512 && keys[sc]) b |= s_btn_bits[i];
     }
+
+    /* Gamepad mapping — also driven by the user's pad_map. Triggers use
+     * the analog axis when the pad_map entry is left at PORT_PAD_UNBOUND. */
+    if (port_controller) {
+        for (int i = 0; i < PORT_BTN_COUNT; i++) {
+            int pb = g_port_config.pad_map[i];
+            if (pb >= 0 && SDL_GameControllerGetButton(port_controller, pb))
+                b |= s_btn_bits[i];
+        }
+        if (g_port_config.pad_map[PORT_BTN_L2] < 0 &&
+            SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 8000)
+            b |= BTN_L2;
+        if (g_port_config.pad_map[PORT_BTN_R2] < 0 &&
+            SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 8000)
+            b |= BTN_R2;
+
+        /* Analog stick — but ONLY when no digital d-pad bit is already set.
+         * See the "Switch Pro Controller fix" section below. */
+        if (!(b & (BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT))) {
+            Sint16 lx = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTX);
+            Sint16 ly = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTY);
+            port_pad_lx = (unsigned char)((lx + 32768) >> 8);
+            port_pad_ly = (unsigned char)((ly + 32768) >> 8);
+            if (lx < -16000) b |= BTN_LEFT;
+            if (lx >  16000) b |= BTN_RIGHT;
+            if (ly < -16000) b |= BTN_UP;
+            if (ly >  16000) b |= BTN_DOWN;
+        } else {
+            port_pad_lx = 128;
+            port_pad_ly = 128;
+        }
+    } else {
+        port_pad_lx = 128;
+        port_pad_ly = 128;
+    }
+
+    /* Overlay d-pad bits onto the analog channel. The engine's
+     * GV_AnalogToDirection rebuilds UDLR from the analog stick whenever
+     * the pad reports MTS_PAD_ANALOG, so a digital press has to reach
+     * the engine through lx/ly to survive. */
+    if (b & BTN_LEFT)  port_pad_lx = 0;
+    if (b & BTN_RIGHT) port_pad_lx = 255;
+    if (b & BTN_UP)    port_pad_ly = 0;
+    if (b & BTN_DOWN)  port_pad_ly = 255;
 
     port_pad_buttons = b;  // stored as ACTIVE-HIGH
 }
@@ -166,26 +196,60 @@ The processing pipeline:
 5. Compute `press` (newly pressed) and `release` (newly released) from `status` delta
 6. Compute `dir` from d-pad or analog stick via `GV_AnalogToDirection()`
 
-### Complete Button Mapping Table
+### Default Button Mapping (config-driven)
 
-| PSX Button | Hex    | Keyboard         | SDL Scancode           | Gamepad                  |
-|------------|--------|------------------|------------------------|--------------------------|
-| L2         | 0x0001 | 1                | SDL_SCANCODE_1         | Left Trigger (>8000)     |
-| R2         | 0x0002 | 3                | SDL_SCANCODE_3         | Right Trigger (>8000)    |
-| L1         | 0x0004 | Q                | SDL_SCANCODE_Q         | Left Shoulder            |
-| R1         | 0x0008 | E                | SDL_SCANCODE_E         | Right Shoulder           |
-| Triangle   | 0x0010 | S                | SDL_SCANCODE_S         | Y (north)                |
-| Circle     | 0x0020 | Z                | SDL_SCANCODE_Z         | B (east)                 |
-| Cross      | 0x0040 | X                | SDL_SCANCODE_X         | A (south)                |
-| Square     | 0x0080 | A                | SDL_SCANCODE_A         | X (west)                 |
-| Select     | 0x0100 | Backspace        | SDL_SCANCODE_BACKSPACE | Back                     |
-| L3         | 0x0200 | (unmapped)       | --                     | Left Stick Click         |
-| R3         | 0x0400 | (unmapped)       | --                     | Right Stick Click        |
-| Start      | 0x0800 | Enter/Return     | SDL_SCANCODE_RETURN    | Start                    |
-| D-Up       | 0x1000 | Arrow Up         | SDL_SCANCODE_UP        | D-Pad Up / LStick Up     |
-| D-Right    | 0x2000 | Arrow Right      | SDL_SCANCODE_RIGHT     | D-Pad Right / LStick Right|
-| D-Down     | 0x4000 | Arrow Down       | SDL_SCANCODE_DOWN      | D-Pad Down / LStick Down |
-| D-Left     | 0x8000 | Arrow Left       | SDL_SCANCODE_LEFT      | D-Pad Left / LStick Left |
+The table below is the factory default installed by
+`port_config_set_defaults` (`port/port_config.c`). Every entry is
+remappable from the pre-game Controls page and persisted to
+`./port_config.ini` as raw SDL enum integers. The PSX bit column is the
+hardware-defined position in `MTS_PAD.button`.
+
+| PSX Button | Hex    | Default Keyboard | Default Gamepad          |
+|------------|--------|------------------|--------------------------|
+| L2         | 0x0001 | `1`              | Left Trigger (axis > 8000)|
+| R2         | 0x0002 | `3`              | Right Trigger (axis > 8000)|
+| L1         | 0x0004 | `Q`              | Left Shoulder            |
+| R1         | 0x0008 | `E`              | Right Shoulder            |
+| Triangle   | 0x0010 | `S`              | Y (north)                |
+| Circle     | 0x0020 | `Z`              | B (east)                 |
+| Cross      | 0x0040 | `X`              | A (south)                |
+| Square     | 0x0080 | `A`              | X (west)                 |
+| Select     | 0x0100 | `Backspace`      | Back                     |
+| L3         | 0x0200 | (unmapped)       | Left Stick Click         |
+| R3         | 0x0400 | (unmapped)       | Right Stick Click        |
+| Start      | 0x0800 | `Return`         | Start                    |
+| D-Up       | 0x1000 | `Up`             | DPAD_UP                  |
+| D-Right    | 0x2000 | `Right`          | DPAD_RIGHT               |
+| D-Down     | 0x4000 | `Down`           | DPAD_DOWN                |
+| D-Left     | 0x8000 | `Left`           | DPAD_LEFT                |
+
+### Config File Format
+
+The Controls page writes raw SDL enum integers to `port_config.ini` so
+the file is portable across SDL versions (the names are decoded only for
+display via `SDL_GetScancodeName` / `SDL_GameControllerGetStringForButton`).
+
+```ini
+[keyboard] ; values are SDL_Scancode integers
+up       = 82  ; Up
+down     = 81  ; Down
+left     = 80  ; Left
+right    = 79  ; Right
+cross    = 27  ; X
+circle   = 29  ; Z
+…
+
+[gamepad] ; values are SDL_GameControllerButton ints; -1 = unbound (triggers used for L2/R2)
+up       = 11  ; dpup
+down     = 12  ; dpdown
+…
+```
+
+`PortButton` is an enum in `port_config.h` whose order is stable; new
+buttons must go at the end before `PORT_BTN_COUNT`. Both arrays are
+indexed by `PortButton`. `-1` (i.e. `PORT_PAD_UNBOUND`) on a gamepad
+slot routes L2/R2 through the trigger-axis path; the same value on the
+keyboard slot means the button is unbound.
 
 ## Gamepad Support
 
@@ -293,6 +357,40 @@ DG_HikituriFlag = 0;
     }
 #endif
 ```
+
+### 4. Switch Pro Controller DPAD_LEFT reported as DOWN
+
+**Problem**: The Nintendo Switch Pro Controller's SDL mapping pipes its
+d-pad HAT through both `SDL_CONTROLLER_BUTTON_DPAD_*` AND the LEFTX/LEFTY
+axes. Pressing DPAD_LEFT correctly produced `BTN_LEFT`, but also reported
+`AXIS_LEFTY = +32767`. Our analog-stick fallback then ORed in `BTN_DOWN`
+(via `ly > 16000`) and `mts_get_pad` always reports `MTS_PAD_ANALOG`
+whenever a controller is connected — so `GV_AnalogToDirection` cleared
+the UDLR bits and rebuilt them purely from the analog stick (`ly = 255`
+→ `PAD_DOWN`). Net result: every LEFT press reached the game as DOWN.
+
+**Fix**: Skip the analog-stick read entirely when any d-pad bit is
+already set in `b` (from keyboard arrow or gamepad DPAD button). The
+d-pad-to-analog overlay below then paints `lx/ly` from the digital
+bits, so the engine sees the same direction it would have read from a
+clean analog stick — without the HAT-to-axis pollution. Implementation
+at the top of `port_update_pad()` in `port/mts/mts.c`. Same change also
+makes keyboard arrows work when a controller is also plugged in (they
+used to be silently dropped for the same reason).
+
+### 5. d-pad presses lost because the engine reads analog only
+
+**Problem**: `mts_get_pad` reports `MTS_PAD_ANALOG` whenever a controller
+is present, so `GV_AnalogToDirection` clears the UDLR bits from
+`pad->button` and rebuilds them from `pad->lx / pad->ly`. Any d-pad
+input that doesn't also move the stick (keyboard, gamepad DPAD) was
+silently dropped — `lx, ly` stayed at center, `dir = 0`.
+
+**Fix**: After deciding the analog channel, force-overlay the d-pad
+bits onto `port_pad_lx/ly`. If `BTN_LEFT` is set, write `port_pad_lx =
+0`; `BTN_RIGHT` → 255; `BTN_UP` → 0 on ly; `BTN_DOWN` → 255. The engine
+then derives the same direction it would have from an actual stick
+push. Runs in both the controller-connected and keyboard-only branches.
 
 ## Auto-Input System
 

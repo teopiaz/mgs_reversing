@@ -496,3 +496,173 @@ typedef struct {
 
 - **Resident** (`'r'` tag): Persists across stage transitions. Cached.
 - **Nocache** (`'n'` tag): Loaded fresh each stage. Uploaded directly to VRAM.
+
+## 7. OpenGL Renderer
+
+The port now ships a second rendering backend alongside the software path
+described in §3. It's controlled by the `PORT_GL` environment variable (or
+the "OpenGL backend" toggle in the pre-game Options) and lives in
+`port/libdg/gl_renderer.c` + GLSL shaders under `port/libdg/shaders/`.
+
+### 7.1 Why GL?
+
+- **Hi-res**: rasterises at PORT_GL_SCALE × native (1×–8×) on an internal
+  FBO, then blits to the window with bilinear filtering. PSX-original UVs
+  + perspective-correct interpolation give clean textures at modern
+  resolutions.
+- **Better blending**: GL handles the four PSX semi-trans modes natively
+  via `glBlendFunc` / `glBlendEquation` per-batch instead of the software
+  per-pixel mixer.
+- **Effect plumbing**: framebuffer-readback effects (NewBlur,
+  NewBlurPure, kogaku2 Optical Camo) need a frame snapshot; GL gives us
+  `glCopyTexSubImage2D` for free.
+- **Hot-reload**: GLSL files reload via F5 in the ImGui debug panel, so
+  shader iteration doesn't require a rebuild.
+
+The software renderer is kept as a fallback for systems without a usable
+GL 3.3 core context and remains the reference for "what PSX would do
+exactly". Both share the same `gl_submit_tri2d` / `gl_submit_tri3d`
+front-end so the DG pipeline (§2) is unchanged.
+
+### 7.2 Pipeline
+
+```
+gl_renderer_present()
+  upload_dirty_vram_rows        // R16UI texture mirrors vram[][]
+  flush_tri2d_bg                // sphere skybox first
+  pass_3d_world                 // GL_TRIANGLES, sorted into runs by
+                                //   { semi-trans, ABR, no_cull, fb_readback }
+                                // fb_readback runs do a mid-frame
+                                //   glCopyTexSubImage2D into g_prev_fb_tex
+                                //   so Stealth samples the scene without Snake
+  pass_3d_lines                 // editor wireframes
+  flush_tri2d / flush_line2d    // HUD, menu, subtitles
+                                // fb_readback batch here samples the
+                                //   END-of-previous-frame capture for blur
+  pass_debug_vram               // if VRAM-debug overlay on
+  capture_prev_fb               // glCopyTexSubImage2D for NEXT frame's blur
+  blit_fbo_to_window            // aspect-fit blit, GL_LINEAR by default
+```
+
+### 7.3 Framebuffer-readback effects
+
+PSX VRAM is unified — the displayed framebuffer and texture pages live in
+the same address space, so a textured prim whose tpage points into the
+display region samples *the framebuffer itself*. NewBlur, NewBlurPure
+(2D) and kogaku2 Optical Camo (3D) all rely on this.
+
+The GL renderer detects this at submission time:
+
+```c
+static inline int port_is_fb_readback_tpage(unsigned short tpage)
+{
+    int tp = (tpage >> 7) & 3;
+    int by = ((tpage >> 4) & 1) * 256 + ((tpage & 0x800) ? 512 : 0);
+    int bx = (tpage & 0xF) * 64;
+    return (tp == 2 && by == 0 && bx < 640);
+}
+```
+
+Tpages that match get bit 5 set in their per-vertex flags. The 2D and 3D
+shaders both branch on that bit:
+
+- 2D (`tri2d.frag`): sample `uPrevFB` at the PSX-pixel coords derived
+  from the prim's UV, with a soft alpha gate against the per-pixel
+  brightness so a black-cleared FBO doesn't darken the scene. Used for
+  the motion-blur trail.
+- 3D (`tri3d.frag`): sample `uPrevFB` at `gl_FragCoord.xy / textureSize`
+  with a 25 % horizontal compression around the centre (mimics kogaku2's
+  `(3/4)*x + 160` lensing). The scene gets captured mid-frame just
+  before the Stealth run draws, so the snapshot contains the level
+  without Snake.
+
+ImGui Renderer → Effects exposes a "Motion blur" checkbox + strength
+slider. The strength multiplies the prev-FB sample before the
+semi-trans blend; the PSX-exact value is 2.0 (heavy ghosting), default
+is 1.4 (subtle), 0 disables.
+
+### 7.4 Widescreen (16:9 Hor+)
+
+Toggled from the pre-game Options page or ImGui Renderer →
+Quality/Output. When on:
+
+- **Internal render width** grows from 320 to 400 (`g_render_w = 400`);
+  FBO becomes `400 × scale` wide.
+- **3D**: the vertex shader divides by `uHalfScreen.x = render_w/2 =
+  200` (vs 160). Same world-space content projects to a smaller NDC x,
+  effectively widening the FOV. No PSX-side changes — the engine still
+  thinks the screen is 320 wide.
+- **2D**: the vertex shader multiplies clip-space x by `uXScale =
+  320/render_w = 0.8`. PSX `[0..320]` HUD coordinates end up in the
+  central 80 % of the wider FBO, pillarboxed; the 10 % extras on each
+  side show the 3D scene's wider edge.
+
+This works fine for normal gameplay (radar / health / item icons stay at
+their PSX-relative positions, the player sees more world content), but
+three full-screen 2D effects need extra plumbing because they were
+authored for a 320-wide canvas:
+
+- **Motion blur quad** — `flush_2d_buf` overrides `uXScale = 1.0` for
+  the fb-readback batch so the quad spans the whole FBO; the FS skips
+  the PSX clip-rect test for fb-readback fragments so the widescreen
+  edges aren't culled. Gated on `port_blur_enabled` (disabling falls
+  back to the pillarboxed quad, which would otherwise expose VRAM
+  garbage at the edges).
+- **Gas-mask sight** — built from many small 2D tiles that together
+  cover the PSX screen with a binocular vignette. In widescreen they'd
+  leak the 3D scene past the sight's edges. After the 2D pass, if
+  `word_800BDCC0 != 0` (set by `source/equip/gmsight.c` while the gas
+  mask is equipped), `gl_renderer_present` clears the pillarbox extras
+  to opaque black via `glScissor` + `glClear`. The mask is meant to
+  restrict vision anyway, so blacking the peripheries fits its intent.
+- **Cinema letterbox bars** — `source/takabe/cinema.c` renders a TILE /
+  POLY_G4 strip at the top (`y=0..24`) and bottom (`y=184..224`) of the
+  PSX screen during cutscenes (e.g. d00a). `gl_submit_tri2d` detects
+  these by shape + grayscale color (catches both the opaque RGB(0,0,0)
+  phase and the subtractive RGB(col,col,col) fade) and rewrites the
+  vertex x-positions outward to span `[-extra..320+extra]`. The widened
+  verts naturally map across the full FBO via the standard `uXScale`
+  projection.
+
+Other sights (scope, NVG, rifle, stinger, binoculars, cardboard-box
+1st-person view) currently keep the pillarboxed behaviour. The hook is
+the global `dword_8009F604` (active sight type, 0 = none) — flip the
+gate from `word_800BDCC0` to that global if you want them all blacked
+out too.
+
+### 7.5 Shader file list
+
+| File                          | Used for                          |
+|-------------------------------|-----------------------------------|
+| `libdg/shaders/blit.vert/frag`| Window blit / VRAM debug view     |
+| `libdg/shaders/tri3d.vert/frag`| 3D pass (perspective + ortho)    |
+| `libdg/shaders/tri2d.vert/frag`| 2D pass (HUD, fb-readback blur)  |
+
+Each `.vert/.frag` pair also has a string fallback compiled into
+`gl_renderer.c`, so the binary still runs if the shader files aren't
+beside the executable. F5 in the ImGui debug panel calls
+`gl_renderer_reload_shaders` — recompiles all programs from disk and
+swaps them in only if every program built cleanly.
+
+## 8. Pre-game Menu & Config
+
+`port/main.c` boots into an ImGui-only pre-game loop (`port_menu.cpp`)
+before `game_init()` runs. This is where the user picks resolution,
+fullscreen, GL backend, FBO scale, widescreen, master volume, language,
+and key/gamepad bindings; the selections persist to
+`./port_config.ini` and apply on the next launch.
+
+- `port_config.h` / `port_config.c` — the `PortConfig` struct and INI
+  reader/writer. Defaults installed by `port_config_set_defaults`
+  match the previous hard-coded values so first-run is unchanged.
+- `port_menu.cpp` — Splash → Main → Options → Controls state machine.
+  The Controls page is press-key-to-bind: click a row, press the desired
+  key/button, the binding updates.
+- Skip the menu in CI / automation with `PORT_SKIP_MENU=1` or by
+  setting any of `MGS_AUTO_INPUT`, `MGS_INPUT_REPLAY`,
+  `PORT_AUTOLOAD_STAGE`.
+- GL init has a safe-defaults fallback: if the saved config produces a
+  broken window/context (e.g. user picked 4K fullscreen but the driver
+  refuses), main.c resets to `1280x896 / no fullscreen / GL scale 4 /
+  no widescreen`, rewrites the INI, and retries — so a bad save can't
+  permanently lock the user out.

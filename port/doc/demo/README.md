@@ -26,6 +26,7 @@ cutscene.
 | [08-known-issues.md](08-known-issues.md) | What still doesn't work in the editor's embedded playback. |
 | [09-streamed-demos.md](09-streamed-demos.md) | The *other* cutscene path — `demo -s` / `demo -f`, `demothrd.c`, pre-baked DMO_DAT timelines from `DEMO.DAT` / `ZMOVIE.STR`. **Currently stalls in the editor** for stream-based; file-based is likely-but-untested. |
 | [10-dmo-format.md](10-dmo-format.md) | Wire-level reference for the `.dmo` binary — block stream, DMO_DEF / DMO_DAT / DMO_MAP / DMO_MDL / DMO_CHA / DMO_ADJ field layouts. Read this when implementing a parser or an authoring tool. |
+| [11-d00a-snake-position-investigation.md](11-d00a-snake-position-investigation.md) | Open investigation: port renders d00a frame f847 ~3× tighter than the PSX reference despite identical math. Hypotheses, repro env vars (`PORT_DEMO_PAUSE_AT`, `PORT_DEBUG_SNAKE`, `PORT_DMO_FRAME`), what was tried and reverted. Read this before resuming the d00a work. |
 
 ## Two cutscene paths
 

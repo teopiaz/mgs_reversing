@@ -106,3 +106,115 @@ Chronological log of major fixes and milestones in the PSX-to-macOS port.
     into the 4:3 centre of the wider frame. Toggled via Renderer tab →
     Quality/Output → "Widescreen (16:9 Hor+)". No PSX-side changes required
     (3D Hor+ is achieved purely via the GL shader's half-screen uniform).
+
+## GL Renderer Polish (April–May 2026)
+64. Standalone GLSL files (`libdg/shaders/{blit,tri3d,tri2d}.{vert,frag}`)
+    with on-disk loading + embedded fallbacks. F5 in the ImGui debug panel
+    triggers `gl_renderer_reload_shaders` for iterating on shaders without
+    a rebuild.
+65. fb-readback detection centralised in `port_is_fb_readback_tpage`
+    (tp=2, base_y=0, base_x<640 = pointer into displayed framebuffer).
+    Both `gl_submit_tri2d` and `gl_submit_tri3d` use it to OR bit 5 into
+    the vertex flags; the 2D shader takes the blur sample path, the 3D
+    shader takes the Stealth/Optical-Camo sample path.
+66. 3D framebuffer-readback (kogaku2 Optical Camo): 3D run-batcher
+    snapshots the FBO into `g_prev_fb_tex` mid-frame, right before the
+    fb-readback run draws, so Stealth samples the scene without Snake
+    (no positive-feedback accumulation across frames).
+67. 2D framebuffer-readback (NewBlur / NewBlurPure): end-of-frame
+    `capture_prev_fb` captures the final FBO into `g_prev_fb_tex` for the
+    next frame's blur sample. Soft alpha-gated blend (smoothstep on
+    per-pixel brightness) so a black-cleared FBO doesn't fade the scene
+    out at cutscene starts. ImGui Effects panel exposes a checkbox +
+    strength slider (default 1.4, PSX-exact = 2.0, 0 = off).
+68. PSX struct static_asserts: `port/psx_static_asserts.c` pins the size
+    and field offsets of `MATRIX`, `SVECTOR`, `VECTOR`, `POLY_GT4`,
+    `DG_CHANL`, etc. so 32-bit→64-bit drift fails the build instead of
+    failing in software.
+69. `Square0(VECTOR*)` signature: fixed in `c15fdf248` — the PSX SDK
+    declares its argument as `VECTOR*` (16 bytes, with a pad field), not
+    `SVECTOR*` (8 bytes). Calling code passed a `VECTOR*` and the
+    mismatched read produced bogus length; broke the elevator-panel
+    text rendering and anywhere `GV_VecLen3` was used.
+
+## Demo / Cutscene Debugging (May 2026)
+70. ImGui Demo tab: per-frame scrubber that drives the streaming cinema
+    forward/backward from disk, "dump snake render state" button, and
+    `PORT_DEMO_PAUSE_AT=NNN` env var to freeze cinema at a specific
+    frame for visual diffing.
+71. `str_tick_count` slaved to the audio cursor (cb5a3b987 / 7063ea697):
+    fixes lipsync drift and out-of-sync subtitles. The PSX scheduler
+    advances `str_tick_count` 1-for-1 with audio samples drained — the
+    port's coarser game-tick increment let video and audio drift apart
+    over a long cutscene.
+72. d00a snake-position investigation captured in
+    `doc/demo/11-d00a-snake-position-investigation.md` — port renders
+    f847 ~3× tighter than PSX despite identical math; demo data flow,
+    reproduction, hypotheses written up. Investigation reverted; doc
+    kept for resumption.
+
+## Pre-game Menu + Persisted Config (May 2026)
+73. Splash → Main → Options/Controls ImGui screens running in a
+    pre-game loop before `game_init()`. `port_menu.cpp` owns its own
+    ImGui frame and exits to either `PORT_MENU_GAME` (start engine) or
+    `PORT_MENU_QUIT`.
+74. `port_config.h` / `port_config.c` — `PortConfig` struct (video,
+    audio, kb_map, pad_map, language, …) persisted to
+    `./port_config.ini`. Hand-editable; values are raw SDL enum
+    integers for portability. INI section: `[video]`, `[audio]`,
+    `[game]`, `[keyboard]`, `[gamepad]`.
+75. Per-button remapping: `port_update_pad` (`port/mts/mts.c`) now
+    iterates `g_port_config.kb_map[]` / `pad_map[]` instead of the old
+    hard-coded SDL_SCANCODE_* / SDL_CONTROLLER_BUTTON_* tables.
+    Defaults match the previous values verbatim. PORT_BTN_COUNT = 14
+    PSX buttons.
+76. Language selector (`OPTION_ENGLISH`, 0x0100 in `GM_OptionFlag`):
+    applied right before `game_init()` so the title screen and codec
+    boot in the chosen language. In-game Options screen + save-load
+    still override at runtime.
+77. GL init safe-defaults fallback: if the saved video config produces
+    a broken window/context, `main.c` resets to 1280×896 / windowed /
+    GL scale 4 / no widescreen, rewrites the INI, and retries — so a
+    saved 4K-fullscreen-on-a-laptop config can't permanently lock the
+    user out of the menu.
+78. `port_overrides.h`'s `#define fprintf(stream, ...) printf(...)`
+    macro was silently rewriting our INI writes into stdout prints
+    (zero-byte file on disk). Fixed by `#undef fprintf` at the top of
+    every port-native file that needs real-FILE* output (port_config.c,
+    photo_export.c, port_tex_dump.c).
+
+## Input Mapping Fixes (May 2026)
+79. Switch Pro Controller `DPAD_LEFT → DOWN` bug: SDL's controller
+    mapping for the Nintendo Switch Pro Controller routes DPAD HAT
+    presses through both `BUTTON_DPAD_LEFT` and `AXIS_LEFTY = +32767`.
+    Our stick-deadzone fallback then ORed `BTN_DOWN` (`ly > 16000`),
+    and `mts_get_pad` always reports `MTS_PAD_ANALOG` whenever a
+    controller is plugged in — `GV_AnalogToDirection` cleared UDLR and
+    rebuilt from the polluted `ly` (=DOWN). Fix: skip the analog-stick
+    read entirely if any d-pad bit is already set in `b` from
+    keyboard arrows or a gamepad DPAD button (`port_update_pad`).
+80. d-pad bits overlayed onto `port_pad_lx/ly` after every read. The
+    engine's `GV_AnalogToDirection` clears UDLR bits and rebuilds them
+    from the analog stick when the pad reports analog; force-writing
+    `lx/ly` from the digital bits is what makes keyboard-arrow and
+    gamepad-DPAD input survive the rebuild.
+
+## Widescreen Coverage (June 2026)
+81. NewBlur / NewBlurPure quad stretches to the full FBO in widescreen
+    instead of pillarboxing to the central 80 %. `flush_2d_buf`
+    overrides `uXScale = 1.0` for the fb-readback batch (gated on
+    `port_blur_enabled`) and the FS skips the PSX clip-rect test for
+    fb-readback fragments so widescreen edges aren't culled.
+82. Gas-mask sight black peripheries: `gl_renderer_present` clears the
+    pillarbox extras to opaque black via `glScissor` + `glClear` while
+    `word_800BDCC0 != 0` (set by `source/equip/gmsight.c` while the
+    mask is equipped). The mask is vision-restricting by design, so
+    blacking the peripheries fits its intent and hides the 3D leak.
+83. Cinema letterbox bar extension: `gl_submit_tri2d` detects the
+    cinema actor's top/bottom bars (full PSX width, narrow vertical
+    range at y≤50 or y≥174, all-grayscale verts — catches both the
+    opaque RGB(0,0,0) phase and the subtractive RGB(col,col,col) fade)
+    and rewrites the vertex x-positions outward to span
+    `[-extra..320+extra]`. The widened verts naturally cover the full
+    FBO via the standard `uXScale` projection during cutscenes
+    (e.g. d00a).

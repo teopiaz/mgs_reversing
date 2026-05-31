@@ -223,27 +223,44 @@ Replace PSX memcard API with file I/O:
 
 ## Polish
 
-### 14. Analog Stick Support
+### 14. Analog Stick — Right Stick + Calibration
 
-Current input maps left stick to D-pad with a dead zone. Full analog
-needs:
-- Pass raw analog (0-255) through to `GV_PAD.left_dx/dy`.
-- Ensure Snake's movement code actually reads analog values (it does
-  on PSX).
-- Calibrate dead zone and sensitivity vs PSX feel.
-- Right stick for first-person look mode.
+The left stick is fully wired (raw 0..255 reaches the engine via
+`MTS_PAD.lx/ly`, `GV_AnalogToDirection` rebuilds UDLR from it,
+keyboard / d-pad presses are overlaid on top so digital input still
+works in analog mode). Remaining:
+- **Right stick** — first-person look mode currently maps to camera
+  via the imgui free-fly override only; the engine's first-person
+  yaw/pitch would also benefit.
+- **Deadzone & curve** tuning — the 16000-of-32768 deadzone is OK on
+  a DualSense but feels coarse on a worn-out Xbox stick; expose as
+  a slider.
 
 ### 15. Widescreen / Window Polish
 
-Fullscreen (F11), arbitrary window resize with letterbox, internal
-FBO scaling (`PORT_GL_SCALE`), linear-vs-nearest upscale, and the
-16:9 Hor+ toggle are all wired through ImGui
-(Renderer → Quality/Output). Remaining nice-to-haves:
+Fullscreen, arbitrary window resize with letterbox, internal FBO
+scaling (`PORT_GL_SCALE`), linear-vs-nearest upscale, the 16:9 Hor+
+toggle, and the gas-mask / blur / cinema-bar widescreen extensions are
+all in. Remaining nice-to-haves:
 - Auto-resize the SDL window when toggling widescreen so the user
-  doesn't need to resize manually or fullscreen.
+  doesn't need to resize manually.
 - Per-stage "skybox fills 16:9" — the sphere skybox currently stays
   pillar-boxed in 4:3 because it's a 2D OT prim rendered through the
   HUD-centred coordinate system.
+- Other 1st-person sights (scope, NVG, rifle, stinger, binoculars,
+  cardboard-box view) currently keep the pillarboxed look; flip the
+  gate from `word_800BDCC0` (gas mask only) to the general
+  `dword_8009F604` (any sight) in `gl_renderer_present` to extend the
+  black-bar treatment.
+
+### 16. d00a Snake-Position Investigation (open)
+
+The d00a streaming cinema renders Snake's anchor pose ~3× tighter
+than the PSX reference at f847 despite identical math. Investigation
+captured in [`demo/11-d00a-snake-position-investigation.md`](demo/11-d00a-snake-position-investigation.md);
+multiple fix attempts reverted because the symptom moved. Pick up
+from that doc — list of hypotheses, repro env vars, and what was
+already ruled out are there.
 
 ---
 
@@ -255,5 +272,20 @@ FBO scaling (`PORT_GL_SCALE`), linear-vs-nearest upscale, and the
   `PORT_GL=1`; default on macOS + Linux)
 - [x] 3D Gouraud lighting (NCS IR>>4 scaling, pipeline wiring,
   GBOUND test bypass — April 2026)
-- [x] 16:9 Hor+ widescreen toggle
+- [x] 16:9 Hor+ widescreen toggle (also: blur quad, gas-mask sight,
+  cinema letterbox bars all cover the widescreen extras — June 2026)
 - [x] Codec task execution (was no-op before `mts_sta_tsk` fix)
+- [x] Pre-game ImGui menu — Splash + Main + Options + Controls,
+  settings persisted to `port_config.ini` (May 2026)
+- [x] Per-button keyboard + gamepad remapping (config-driven
+  `kb_map[]` / `pad_map[]`, May 2026)
+- [x] Japanese / English language toggle in pre-game Options
+  (May 2026)
+- [x] Switch Pro Controller DPAD_LEFT → DOWN fix — skip analog read
+  when any digital d-pad bit is held (May 2026)
+- [x] Lipsync / subtitle sync — `str_tick_count` slaved to the audio
+  cursor (May 2026)
+- [x] ImGui Demo tab — per-frame scrubber, dump-snake-render-state
+  button, direct-from-disk demo feeder (May 2026)
+- [x] GL shader hot-reload — F5 reloads `libdg/shaders/*.{vert,frag}`
+  (April 2026)
