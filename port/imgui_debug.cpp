@@ -630,6 +630,63 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             }
 
             /* ---------------------------------------------------------- */
+            /* DEMO (cinematic scrubber)                                  */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Demo")) {
+                extern int port_demo_paused;
+                extern int port_demo_seek_target;   /* set by slider */
+                extern int port_demo_seek_active;   /* 1 = use the seek target */
+                extern int port_demo_max_frame;     /* heuristic upper bound */
+
+                ImGui::TextWrapped(
+                    "Scrub the streaming cinematic by demo-frame. Reads the"
+                    " .dmo data directly from DEMO.DAT (sector 0x1441 for"
+                    " d00a/s0102a0.dmo), seeks to the chosen frame, and"
+                    " feeds it to FrameRunDemo each tick. Bypasses the"
+                    " streaming SA actor's heap parser, which can't reach"
+                    " late d00a frames yet.");
+                ImGui::Separator();
+
+                bool active = (port_demo_seek_active != 0);
+                if (ImGui::Checkbox("Enable scrubber", &active)) {
+                    port_demo_seek_active = active ? 1 : 0;
+                    if (active) port_demo_paused = 1;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Release")) {
+                    port_demo_seek_active = 0;
+                    port_demo_paused = 0;
+                }
+
+                int max_frame = port_demo_max_frame > 0 ? port_demo_max_frame : 1980;
+                int frame = port_demo_seek_target;
+                if (frame < 0) frame = 0;
+                if (frame > max_frame) frame = max_frame;
+                ImGui::SetNextItemWidth(-1);
+                if (ImGui::SliderInt("##demo_frame", &frame, 0, max_frame, "frame %d")) {
+                    port_demo_seek_target = frame;
+                }
+                if (ImGui::Button("-10")) { port_demo_seek_target = frame > 10 ? frame - 10 : 0; }
+                ImGui::SameLine();
+                if (ImGui::Button("-1"))  { port_demo_seek_target = frame > 0 ? frame - 1 : 0; }
+                ImGui::SameLine();
+                if (ImGui::Button("+1"))  { port_demo_seek_target = frame < max_frame ? frame + 1 : max_frame; }
+                ImGui::SameLine();
+                if (ImGui::Button("+10")) { port_demo_seek_target = frame + 10 > max_frame ? max_frame : frame + 10; }
+                ImGui::SameLine();
+                ImGui::Text("paused=%d  active=%d  target=%d/%d",
+                            port_demo_paused, port_demo_seek_active,
+                            port_demo_seek_target, max_frame);
+
+                ImGui::Separator();
+                ImGui::TextDisabled("(Snake's adjust=type-6 trace fires "
+                                    "in stderr each tick; check the run "
+                                    "log for the current frame's pos.)");
+
+                ImGui::EndTabItem();
+            }
+
+            /* ---------------------------------------------------------- */
             /* STAGE / LIGHTING                                           */
             /* ---------------------------------------------------------- */
             if (ImGui::BeginTabItem("Stage")) {

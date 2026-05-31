@@ -30,7 +30,13 @@ extern int demodebug_finish_proc;
 /* Set when PORT_DEMO_PAUSE_AT has clamped lpAct->frame to its target;
    suppresses the natural end-of-demo GV_DestroyActor so the cinematic
    snapshot can be held for screenshot A/B against the editor. */
-int port_demo_paused = 0;
+int port_demo_paused      = 0;
+/* Demo scrubber (imgui_debug.cpp "Demo" tab). When active, every SA
+   tick reads the seek target frame straight from DEMO.DAT and feeds
+   it to FrameRunDemo, bypassing the streaming parser. */
+int port_demo_seek_target = 700;
+int port_demo_seek_active = 0;
+int port_demo_max_frame   = 1980;
 
 /******************************************************************************
  * functions
@@ -40,6 +46,116 @@ static void ActStream(LPMGSDEMOACT lpAct);
 static void DieStream(LPMGSDEMOACT lpAct);
 static void ActFile(LPMGSDEMOACT lpAct);
 static void DieFile(LPMGSDEMOACT lpAct);
+
+extern int port_fs_read_dat(int file_id, long byte_off, int len, void *buf);
+extern BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data);
+
+/* Direct-from-disk DMO feeder. Bypasses the streaming SA actor's
+ * heap parser (which truncates d00a around frame 176-643) and reads
+ * a target frame's DMO_DAT straight from DEMO.DAT, then hands it to
+ * FrameRunDemo. Caches the dmo file contents on first call. */
+static void feed_paused_frame_direct(LPMGSDEMOACT lpAct, int target_frame,
+                                     long base_sector)
+{
+    /* Static cache: read s0102a0.dmo once (it's <2MB). */
+    static unsigned char *dmo_buf  = NULL;
+    static long           dmo_size = 0;
+    static long           cached_sector = -1;
+    if (!dmo_buf || cached_sector != base_sector) {
+        if (dmo_buf) { free(dmo_buf); dmo_buf = NULL; }
+        dmo_size = 2 * 1024 * 1024;
+        dmo_buf  = (unsigned char *)malloc(dmo_size);
+        if (!dmo_buf) return;
+        long byte_off = base_sector * 2048L;
+        int got = port_fs_read_dat(5 /*FS_FILEID_DEMO*/, byte_off,
+                                   (int)dmo_size, dmo_buf);
+        if (got <= 0) { free(dmo_buf); dmo_buf = NULL; return; }
+        dmo_size = got;
+        cached_sector = base_sector;
+        printf("[paused] cached %ld bytes of dmo at sector 0x%lX\n",
+               dmo_size, base_sector);
+    }
+
+    /* Walk blocks looking for type=6 (DMO_DAT) with frame == target. */
+    long off = 0;
+    while (off + 4 <= dmo_size) {
+        unsigned int tag;
+        memcpy(&tag, &dmo_buf[off], 4);
+        unsigned int type = tag & 0xFF;
+        unsigned int size = (tag >> 8) & 0xFFFFFF;
+        if (type == 0xFF) { off = (off + 2047) & ~2047L; continue; }
+        if (type == 0xF0 || size == 0 || size > 0x10000) break;
+        if (off + size > (unsigned long)dmo_size) break;
+        if (type == 0x06) {
+            /* DMO_DAT: bytes 4..7 = frame */
+            int frame_val;
+            memcpy(&frame_val, &dmo_buf[off + 4], 4);
+            if (frame_val == target_frame) {
+                /* Build port_dat from this raw block. */
+                static DMO_DAT port_dat;
+                unsigned char *raw = &dmo_buf[off];
+                memcpy(&port_dat.tag,       &raw[0],  4);
+                memcpy(&port_dat.frame,     &raw[4],  4);
+                memcpy(&port_dat.eye_x,     &raw[8],  2);
+                memcpy(&port_dat.eye_y,     &raw[10], 2);
+                memcpy(&port_dat.eye_z,     &raw[12], 2);
+                memcpy(&port_dat.center_x,  &raw[14], 2);
+                memcpy(&port_dat.center_y,  &raw[16], 2);
+                memcpy(&port_dat.center_z,  &raw[18], 2);
+                memcpy(&port_dat.roll,      &raw[20], 2);
+                memcpy(&port_dat.clip_dist, &raw[22], 2);
+                memcpy(&port_dat.n_charas,  &raw[24], 2);
+                memcpy(&port_dat.n_adjusts, &raw[32], 2);
+                static DMO_CHA port_charas[16];
+                static DMO_ADJ port_adjusts[32];
+                static short   rots_buf[32][64 * 3];
+                uint32_t chara_off; memcpy(&chara_off, &raw[28], 4);
+                if (chara_off && port_dat.n_charas > 0 &&
+                    port_dat.n_charas <= 16) {
+                    memcpy(port_charas, raw + chara_off,
+                           sizeof(DMO_CHA) * port_dat.n_charas);
+                    port_dat.chara = port_charas;
+                } else {
+                    port_dat.chara = NULL;
+                }
+                uint32_t adj_off; memcpy(&adj_off, &raw[36], 4);
+                if (adj_off && port_dat.n_adjusts > 0 &&
+                    port_dat.n_adjusts <= 32) {
+                    unsigned char *adj_raw = raw + adj_off;
+                    for (int ai = 0; ai < port_dat.n_adjusts; ai++) {
+                        unsigned char *a = adj_raw + ai * 24;
+                        memcpy(&port_adjusts[ai].type,    &a[0],  4);
+                        memcpy(&port_adjusts[ai].visible, &a[4],  2);
+                        memcpy(&port_adjusts[ai].rot_x,   &a[6],  2);
+                        memcpy(&port_adjusts[ai].rot_y,   &a[8],  2);
+                        memcpy(&port_adjusts[ai].rot_z,   &a[10], 2);
+                        memcpy(&port_adjusts[ai].pos_x,   &a[12], 2);
+                        memcpy(&port_adjusts[ai].pos_y,   &a[14], 2);
+                        memcpy(&port_adjusts[ai].pos_z,   &a[16], 2);
+                        memcpy(&port_adjusts[ai].n_rots,  &a[18], 2);
+                        uint32_t rots_off;
+                        memcpy(&rots_off, &a[20], 4);
+                        if (rots_off && port_adjusts[ai].n_rots > 0) {
+                            int n = port_adjusts[ai].n_rots;
+                            if (n > 64) n = 64;
+                            memcpy(rots_buf[ai], a + rots_off,
+                                   n * 3 * sizeof(short));
+                            port_adjusts[ai].rots = rots_buf[ai];
+                        } else {
+                            port_adjusts[ai].rots = NULL;
+                        }
+                    }
+                    port_dat.adjust = port_adjusts;
+                } else {
+                    port_dat.adjust = NULL;
+                }
+                FrameRunDemo(lpAct, &port_dat);
+                return;
+            }
+        }
+        off += size;
+    }
+}
 
 /******************************************************************************
  * publics
@@ -242,23 +358,37 @@ static void ActStream(LPMGSDEMOACT lpAct)
     }
 
     if (!lpAct->header) return;
-    /* PORT_DEMO_PAUSE_AT: if set but we never reach the target before
-       the stream's end flag fires, lock at the highest frame we did
-       reach -- still gives a holdable snapshot. */
+    /* Demo scrubber: when active (env PORT_DEMO_PAUSE_AT or imgui's
+       "Enable scrubber" toggle), feed the target frame's data straight
+       from DEMO.DAT. PORT_DEMO_BASE_SECTOR defaults to 0x1441
+       (s0102a0.dmo / d00a). */
     {
-        extern int port_demo_paused;
-        static int pause_target_local = -2;
-        if (pause_target_local == -2) {
+        extern int  port_demo_paused;
+        extern int  port_demo_seek_target;
+        extern int  port_demo_seek_active;
+        static int  env_pause_at = -2;
+        static long base_sector  = 0x1441;
+        if (env_pause_at == -2) {
             const char *e = getenv("PORT_DEMO_PAUSE_AT");
-            pause_target_local = (e && *e) ? atoi(e) : -1;
+            env_pause_at  = (e && *e) ? atoi(e) : -1;
+            const char *bs = getenv("PORT_DEMO_BASE_SECTOR");
+            if (bs && *bs) base_sector = strtol(bs, NULL, 0);
+            if (env_pause_at >= 0) {
+                port_demo_seek_active = 1;
+                port_demo_seek_target = env_pause_at;
+            }
         }
-        if (pause_target_local >= 0 && !port_demo_paused &&
-            FS_StreamGetEndFlag() == 1)
-        {
-            printf("[SA] stream ended before target=%d, locking at "
-                   "max-reached frame=%d\n", pause_target_local, lpAct->frame);
-            port_demo_paused = 1;
-            lpAct->start_time = ticks - lpAct->frame * 2;
+        if (port_demo_seek_active) {
+            if (!port_demo_paused) {
+                printf("[SA] scrubber engaged target=%d cur_frame=%d "
+                       "(stream-end=%d)\n",
+                       port_demo_seek_target, lpAct->frame,
+                       FS_StreamGetEndFlag());
+                port_demo_paused = 1;
+            }
+            feed_paused_frame_direct(lpAct, port_demo_seek_target, base_sector);
+            lpAct->frame      = port_demo_seek_target;
+            lpAct->start_time = ticks - port_demo_seek_target * 2;
             return;
         }
     }
