@@ -456,6 +456,21 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    /* Apply pre-game language choice. GM_OptionFlag is linkvarbuf[2]; the
+     * OPTION_ENGLISH bit is 0x0100 (source/include/linkvar.h:170). Setting
+     * it here, before game_init / GCL_InitVar, makes the title screen and
+     * codec start in the chosen language. The in-game options menu can
+     * still flip this at runtime, and loading a save overrides it with
+     * the value that was saved — both intentional. */
+    {
+        extern short linkvarbuf[];
+        const short OPTION_ENGLISH_BIT = 0x0100;
+        if (g_port_config.language)
+            linkvarbuf[2] |= OPTION_ENGLISH_BIT;
+        else
+            linkvarbuf[2] &= ~OPTION_ENGLISH_BIT;
+    }
+
     /* ------- Game initialization (deferred until after menu) ------- */
     game_init();
 
