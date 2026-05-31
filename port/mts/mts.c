@@ -782,22 +782,40 @@ void port_update_pad(void)
             SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 8000)
             b |= BTN_R2;
 
-        /* Left stick → analog + d-pad fallback */
-        Sint16 lx = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTX);
-        Sint16 ly = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTY);
-        port_pad_lx = (unsigned char)((lx + 32768) >> 8);
-        port_pad_ly = (unsigned char)((ly + 32768) >> 8);
+        /* Decide whether to trust the analog stick at all this frame.
+         * Some SDL controller mappings (notably the Nintendo Switch Pro
+         * Controller) leak the d-pad HAT onto AXIS_LEFTX/LEFTY — pressing
+         * DPAD_LEFT can produce LEFTY = +32767 alongside the correct
+         * DPAD_LEFT button. If we then derive UDLR from the stick, we get
+         * a phantom DOWN on every LEFT/RIGHT press.
+         *
+         * Rule: if a keyboard arrow or a gamepad d-pad button is already
+         * set in `b`, the user is using digital input — skip the analog
+         * stick entirely. The d-pad overlay below will fill port_pad_lx/ly
+         * from the digital bits. */
+        unsigned short dpad_mask = BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT;
+        if (!(b & dpad_mask)) {
+            Sint16 lx = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTX);
+            Sint16 ly = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_LEFTY);
+            port_pad_lx = (unsigned char)((lx + 32768) >> 8);
+            port_pad_ly = (unsigned char)((ly + 32768) >> 8);
 
-        /* Digital d-pad from stick with deadzone */
-        if (lx < -16000) b |= BTN_LEFT;
-        if (lx >  16000) b |= BTN_RIGHT;
-        if (ly < -16000) b |= BTN_UP;
-        if (ly >  16000) b |= BTN_DOWN;
+            /* Digital d-pad from stick with deadzone */
+            if (lx < -16000) b |= BTN_LEFT;
+            if (lx >  16000) b |= BTN_RIGHT;
+            if (ly < -16000) b |= BTN_UP;
+            if (ly >  16000) b |= BTN_DOWN;
+        } else {
+            /* Digital d-pad in use — neutralize analog channel; the overlay
+             * below will paint it from the actual button bits. */
+            port_pad_lx = 128;
+            port_pad_ly = 128;
+        }
     }
     else
     {
-        /* No controller: zero out the analog channel; we'll fill it from
-         * the keyboard d-pad bits below. */
+        /* No controller: zero out the analog channel; the d-pad overlay
+         * below fills it from the keyboard bits. */
         port_pad_lx = 128;
         port_pad_ly = 128;
     }
@@ -809,14 +827,7 @@ void port_update_pad(void)
      * direction from the analog stick. Since mts_get_pad below always
      * reports MTS_PAD_ANALOG when a controller is present, every keyboard
      * arrow / DPAD press would get silently dropped on the engine side
-     * unless we ALSO push the press into the analog axes here.
-     *
-     * Bonus: some SDL controller mappings (notably the Nintendo Switch Pro
-     * Controller) report DPAD-LEFT/RIGHT through the LEFTY axis as a
-     * HAT-to-axes quirk, which made DPAD_LEFT show up as `ly = +32767`
-     * (= PAD_DOWN). Force-setting port_pad_lx/ly from the b bits here
-     * overrides those bogus axis values with what the user actually
-     * pressed. */
+     * unless we ALSO push the press into the analog axes here. */
     if (b & BTN_LEFT)  port_pad_lx = 0;
     if (b & BTN_RIGHT) port_pad_lx = 255;
     if (b & BTN_UP)    port_pad_ly = 0;
