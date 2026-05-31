@@ -88,15 +88,39 @@ On PSX, this was masked because memory was recycled from a pool and freed memory
 
 ---
 
-## 8. No Sound Effects
+## 8. Audio Quality (partial — see [`doc/source/`] audio plan)
 
-**Symptom**: No audio plays during gameplay. `PcmOpen` returns -1.
+**Status**: Audio works end-to-end — BGM, SFX, codec voice, and
+cutscene VOX all play. Open issues are quality / coverage, not
+silence:
 
-**Root cause**: The SPU emulator (`port/sound/spu_emu.c`) implements low-level ADPCM decoding and voice mixing, but the higher-level sound driver interface (`PcmOpen`, `PcmRead`, `PcmClose`) is not fully connected. `PcmOpen` attempts to open a sound bank file and returns -1 (failure) because the file path resolution from PSX CD-ROM paths to local filesystem paths is not implemented for sound data.
+- **BGM pitch / tempo** sounds slightly off vs the PSX reference.
+  Strong root-cause candidate identified: `WAVE_W.addr` is declared
+  `unsigned long` (8 bytes on 64-bit), but the on-disk PSX layout
+  stores a 4-byte pointer. `wave_header = (WAVE_W *)(sng_data +
+  0x4000)` then indexes the 16-byte PSX layout as a 24-byte port
+  struct, mis-reading every other wave entry. Fix: introduce a
+  `WAVE_W_PSX` typedef with `uint32_t addr` in a port copy of
+  `port/sound/sd_main.c`.
+- **No noise generator** — `SpuSetNoiseVoice` is a no-op
+  (`spu_emu.c:820`). Radio static, gunfire crackle, explosion
+  shoulder-noise play silent or as a sine tone.
+- **No reverb** — all six `SpuSetReverb*` functions are no-ops
+  (`spu_emu.c:813-818`). `sd_init` (`source/sound/sd_main.c:204`)
+  installs `STUDIO_C` and the game sets per-voice reverb-send bits,
+  but nothing happens. Freeverb-style approximation (~80 lines)
+  would cover the look-and-feel; an exact PSX-register reverb
+  (~200 lines, references pcsx-redux `SPU.cc::do_reverb()`) would
+  be perfect.
+- **Stream continuation for long codec lines** — `FS_StreamTaskStart`
+  loads the stream as a one-shot 4 MB buffer, so multi-sentence
+  codec voice and multi-bank cutscene VOX truncate. PSX uses a
+  continuously-refilled 96 KB ring buffer that the port should
+  mirror.
 
-The sound data files (VXX.DAT, ZMOVIE.STR audio tracks) need to be located and their format parsed. The SPU emulator can decode ADPCM samples once they are loaded into SPU RAM, but the pipeline from file to SPU RAM is incomplete.
-
-**Impact**: No sound effects, no voice, no BGM. Game is silent.
+**Impact**: Game is fully playable with sound, but BGM tuning is
+audibly off, radio static / gunfire is missing crackle, and long
+codec lines (e.g. Mei Ling's saving reminder) cut short.
 
 ---
 

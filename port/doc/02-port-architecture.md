@@ -14,18 +14,45 @@ The port uses SDL2 for all platform interaction:
 - **Input**: `SDL_GetKeyboardState()` + `SDL_GameController` API
 - **Events**: Polled each frame in `port_poll_events()`
 
-### Frame Loop
+### Boot Sequence
 
-The main loop in `main.c` runs at vsync rate (~60fps):
+`main()` in `port/main.c` does **two** loops back-to-back: a pre-game
+ImGui menu first, then the game loop. The split lets the user pick
+resolution / GL backend / language / key bindings before any PSX engine
+code runs (and recover from a saved config that would otherwise fail to
+boot).
 
 ```
-while (g_running) {
-    port_poll_events();      // SDL event pump, hotplug, debug keys
-    port_update_pad();       // Read keyboard + gamepad -> port_pad_buttons
-    game_tick();             // One frame of game logic (see below)
-    port_render();           // Upload VRAM to SDL texture, ImGui, present
-}
+main()
+  port_config_set_defaults()           // factory defaults
+  port_config_load("port_config.ini")  // overlay saved settings
+  SDL_Init + create window/renderer    // GL init has a safe-defaults
+                                       //   fallback (see §Pre-Game Menu)
+  imgui_init()
+
+  /* ----- Pre-game menu loop (ImGui only) ----- */
+  port_menu_init()
+  while (state != GAME && state != QUIT) {
+      port_poll_events()       // forwards events to port_menu_handle_event
+      port_menu_frame()        // splash / main / options / controls page
+      SDL_GL_SwapWindow or SDL_RenderPresent
+  }
+  if (state == QUIT) shutdown and return
+
+  apply_language()             // OPTION_ENGLISH bit in GM_OptionFlag
+  game_init()
+
+  /* ----- Game loop (~60 fps) ----- */
+  while (g_running) {
+      port_poll_events()
+      port_update_pad()        // keyboard + gamepad -> port_pad_buttons
+      if (frame % 2 == 0) game_tick()  // 30 Hz game logic
+      port_render()            // VRAM -> SDL texture, ImGui, present
+  }
 ```
+
+`PORT_SKIP_MENU=1` (and any of `MGS_AUTO_INPUT`, `MGS_INPUT_REPLAY`,
+`PORT_AUTOLOAD_STAGE`) skips the menu loop entirely for CI / automation.
 
 ### game_tick() Sequence
 
@@ -370,15 +397,70 @@ Similar to KMD -- the HZD binary format uses 32-bit pointer fields that are rein
 - **SpuSetVoiceAttr / SpuSetKey** implemented
 - Most `sd_*` sound driver functions in `port/sound/sd_stubs.c` are stubbed
 
+## Pre-Game Menu (port_menu.cpp / port_config.{c,h})
+
+Before any PSX engine code runs, `main.c` enters a pre-game ImGui loop
+that handles startup configuration. It owns its own ImGui frame
+(`ImGui_ImplOpenGL3_NewFrame` or `ImGui_ImplSDLRenderer2_NewFrame`
+depending on backend) and exits when the user clicks **Start Game**,
+**Exit**, or one of the menu-skip env vars is set.
+
+| Page      | What it does |
+|-----------|--------------|
+| Splash    | Logo + version, auto-advances after ~1.5 s or on any key |
+| Main      | Start / Options / Controls / Exit |
+| Options   | Video (resolution preset, fullscreen, vsync, GL backend, FBO scale, widescreen), Audio (master volume), Game (language) |
+| Controls  | Press-key-to-bind table for all 14 PSX buttons, separate keyboard + gamepad columns |
+
+`PortConfig` (in `port_config.h`) is a plain struct of ints. It's
+populated from compile-time defaults at startup, then optionally
+overwritten by parsing `./port_config.ini`. The Controls page edits a
+working copy; **Save & Apply** commits to `g_port_config` and rewrites
+the INI. Live-tunable settings (widescreen, volume) apply immediately;
+window-state changes (resolution, fullscreen, GL backend) take effect
+on next launch.
+
+INI sections: `[video]`, `[audio]`, `[game]`, `[keyboard]`, `[gamepad]`.
+Key/button bindings store raw SDL enum integers so the file is portable
+across SDL versions; human-readable names are decoded only for display
+via `SDL_GetScancodeName` / `SDL_GameControllerGetStringForButton`.
+
+### GL safe-defaults fallback
+
+If the saved video config produces a broken GL window/context (user
+picked 4K fullscreen but the driver refuses, GL is unavailable on the
+host, etc.), `main.c` catches the init failure, resets the config to
+`1280x896 / windowed / GL scale 4 / no widescreen`, rewrites the INI,
+and retries. This stops a bad save from permanently locking the user
+out of the menu.
+
+### Caveat: `port_overrides.h` clobbers `fprintf`
+
+The force-included `port_overrides.h` has a
+`#define fprintf(stream, ...) printf(...)` macro that papers over PSX
+code passing an `int` stream ID. Port-native files that need to write
+to a real `FILE*` (config save, screenshot, etc.) must `#undef fprintf`
+at the top.
+
 ## ImGui Debug Overlay
 
-`port/imgui_debug.cpp` renders a Dear ImGui window showing:
+`port/imgui_debug.cpp` renders a Dear ImGui debug window with tabs for:
 
-- All 9 actor lists with actor count per level
-- Each actor's source filename, tick count, act/die function pointers
-- `GV_Clock`, `GV_Time`, `GM_GameStatus`, `GM_AlertMode`, `GM_AlertLevel`
+- Renderer (FBO scale, blit filter, widescreen, blur strength, …)
+- Camera (free-fly override, eye_inv dump, near/far)
+- Actors (all 9 priority levels, per-actor act/die fn ptrs, tick counts)
+- Stage (current stage code, load state, area history)
+- Game (`GV_Clock`, `GV_Time`, `GM_GameStatus`, `GM_AlertMode`, …)
+- Demo (per-frame scrubber, dump-snake-render-state, direct-from-disk
+  feeder for cutscene debugging)
+- Lighting (DG_Ambient, DG_LightMatrix / DG_ColorMatrix, fixed-light
+  list, dynamic-light slots)
+- Sound (SPU voice state, master volume, voice mute)
 
-Toggle with **P** key. ImGui events are processed in the SDL event loop; rendering happens after VRAM display but before `SDL_RenderPresent`.
+Toggle with **F1**. ImGui events are processed in the SDL event loop;
+rendering happens after the game's VRAM blit but before
+`SDL_GL_SwapWindow` / `SDL_RenderPresent`. **F5** in the Renderer tab
+hot-reloads the GLSL shaders from `port/libdg/shaders/`.
 
 ## Build System
 

@@ -35,8 +35,8 @@ what's still by-address / opaque.
 | [bullet/](bullet/index.md) | ✓ deep | [blast](bullet/blast.md), [bakudan](bullet/bakudan.md), [jirai](bullet/jirai.md), [tenage](bullet/tenage.md), [rmissile](bullet/rmissile.md), [amissile](bullet/amissile.md), [unreversed](bullet/_unreversed.md) |
 | [chara/](chara/index.md) | ✓ deep | [snake](chara/snake.md), [snake_vr](chara/snake_vr.md), [hind2](chara/hind2.md), [others](chara/others.md), [torture](chara/torture.md), [unreversed](chara/_unreversed.md) |
 | [enemy/](enemy/index.md) | ✓ deep | [watcher](enemy/watcher.md), [meryl7](enemy/meryl7.md), [supports](enemy/supports.md), [unreversed](enemy/_unreversed.md) |
-| [equip/](equip/index.md) | ✓ overview + opaque | wearables — README + [unreversed](equip/_unreversed.md) |
-| [font/](font/index.md) | ✓ overview + opaque | rasteriser + glyph table — README + [unreversed](font/_unreversed.md) |
+| [equip/](equip/index.md) | ✓ deep | gas mask, scope, NVG, cardboard box, Stealth, JPEG camera — README walks the lifecycle pattern + [unreversed](equip/_unreversed.md) |
+| [font/](font/index.md) | ✓ deep | rasteriser + KCB handle + multi-font system — README + [unreversed](font/_unreversed.md) |
 | [game/](game/index.md) | ✓ deep | [chara](game/chara.md), [camera](game/camera.md), [target](game/target.md), [item](game/item.md), [script](game/script.md), [alert](game/alert.md), [map](game/map.md), [unreversed](game/_unreversed.md). Plus [02-game-loop.md](02-game-loop.md) + [03-control-and-motion.md](03-control-and-motion.md) cross-cutting docs |
 | [kojo/](kojo/index.md) | ✓ overview + opaque | streamed cinematics — README + [unreversed](kojo/_unreversed.md) |
 | [libdg/](libdg/index.md) | ✓ deep | [pipeline](libdg/pipeline.md), [obj](libdg/obj.md), [matrix](libdg/matrix.md), [text](libdg/text.md), [display](libdg/display.md), [unreversed](libdg/_unreversed.md) |
@@ -47,11 +47,11 @@ what's still by-address / opaque.
 | [libsio/](libsio/index.md) | ✓ overview + opaque | serial port — README + [unreversed](libsio/_unreversed.md) |
 | [memcard/](memcard/index.md) | ✓ deep | [savefile](memcard/savefile.md), [unreversed](memcard/_unreversed.md) |
 | [menu/](menu/index.md) | ✓ deep | [menuman](menu/menuman.md), [codec](menu/codec.md), [hud](menu/hud.md), [unreversed](menu/_unreversed.md) |
-| [mts/](mts/index.md) | ✓ overview + opaque | multi-task scheduler — README + [unreversed](mts/_unreversed.md) |
+| [mts/](mts/index.md) | ✓ deep | multi-task scheduler — tasks, messages, semaphores, V-blank sync, per-slot map + [unreversed](mts/_unreversed.md) |
 | [okajima/](okajima/index.md) | ✓ overview + opaque | per-author 3D effects — README + [unreversed](okajima/_unreversed.md) |
-| [onoda/](onoda/index.md) | ✓ overview + opaque | option / demosel / preope — README + [unreversed](onoda/_unreversed.md) |
+| [onoda/](onoda/index.md) | ✓ deep | title / preope / change / demosel / option — README walks each sub-folder + [unreversed](onoda/_unreversed.md) |
 | [sound/](sound/index.md) | ✓ deep | [architecture](sound/architecture.md), [unreversed](sound/_unreversed.md) |
-| [stage/](stage/index.md) | ✓ overview + opaque | per-stage overlays — README + [unreversed](stage/_unreversed.md) |
+| [stage/](stage/index.md) | ✓ deep | per-stage chara-tables, naming conventions, when overlays kick in — README + [unreversed](stage/_unreversed.md) |
 | [takabe/](takabe/index.md) | ✓ deep | [effects](takabe/effects.md), [unreversed](takabe/_unreversed.md) |
 | [thing/](thing/index.md) | ✓ deep | [things](thing/things.md), [unreversed](thing/_unreversed.md) |
 | [weapon/](weapon/index.md) | ✓ deep | [weapons](weapon/weapons.md), [unreversed](weapon/_unreversed.md) |
