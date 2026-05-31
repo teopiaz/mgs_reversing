@@ -637,6 +637,7 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 extern int port_demo_seek_target;   /* set by slider */
                 extern int port_demo_seek_active;   /* 1 = use the seek target */
                 extern int port_demo_max_frame;     /* heuristic upper bound */
+                extern int port_demo_force_visible; /* override visible=0 */
 
                 ImGui::TextWrapped(
                     "Scrub the streaming cinematic by demo-frame. Reads the"
@@ -656,6 +657,10 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 if (ImGui::SmallButton("Release")) {
                     port_demo_seek_active = 0;
                     port_demo_paused = 0;
+                }
+                bool fv = (port_demo_force_visible != 0);
+                if (ImGui::Checkbox("Force visible (override visible=0)", &fv)) {
+                    port_demo_force_visible = fv ? 1 : 0;
                 }
 
                 int max_frame = port_demo_max_frame > 0 ? port_demo_max_frame : 1980;
