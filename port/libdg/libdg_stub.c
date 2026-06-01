@@ -596,6 +596,16 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 int is_character = (objs->flag & DG_FLAG_SHADE) != 0;
                 int bothface = (mdl->flags & DG_MODEL_BOTHFACE) != 0;
 
+                /* Dynamic-shadow opt-in bit (port-only). DG_FLAG_SHADOW
+                 * on an OBJS marks it as a caster: its tris are pushed
+                 * into a separate buffer that the shadow pass renders
+                 * into the depth map (gl_renderer.c). Receiver-side
+                 * filtering is done in the fragment shader by *excluding*
+                 * casters — every non-caster fragment samples the shadow
+                 * map, so static geometry, enemies, props all receive
+                 * without needing a flag each. */
+                int is_shadow_caster = (objs->flag & DG_FLAG_SHADOW) != 0;
+
                 /* Backface cull. GL mode defers to the GPU (GL_CULL_FACE in
                    the 3D pass) which uses exact post-projection winding and
                    handles mirror matrices correctly. Per-tri "no cull" flag
@@ -870,6 +880,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             unsigned short fflags = 1 | light_flag_bit;
                             if (port_tex_semi_trans) fflags |= 2 | ((port_tex_abr & 3) << 2);
                             if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
+                            if (is_shadow_caster)   fflags |= 0x100;
                             const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                             /* tri 1: v0, v1, v3.  tpage/clut come from the
                                port_tex_* vars so the kogaku2 fb-readback
@@ -921,6 +932,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         int face_z = (sz0+sz1+sz2+sz3)/4;
                         unsigned short fflags = light_flag_bit;
                         if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
+                        if (is_shadow_caster)   fflags |= 0x100;
                         const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                         gl_submit_tri3d(eye[0], eye[1], eye[3],
                                         uv_dummy, uv_dummy, uv_dummy,
@@ -1011,6 +1023,16 @@ void port_RenderObjects(int idx)
     DG_OBJS *player_objs = GM_PlayerBody ? *(DG_OBJS **)GM_PlayerBody : NULL;
     short fp_mode = *(short *)((char *)&GM_Camera + 0x22);
 
+    /* Auto-flag the player's OBJS as a shadow caster. DG_FLAG_SHADOW is
+     * a port-only extension defined in libdg.h; the GL renderer reads
+     * the per-OBJS bit and captures the caster's geometry into a
+     * shadow-map depth texture. Receivers are any DG_FLAG_SHADE
+     * geometry (level walls / floor / props). Other actors can be
+     * tagged by ORing DG_FLAG_SHADOW into their OBJS at spawn time —
+     * see also chara_overrides.c if more general opt-in is needed. */
+    if (player_objs)
+        player_objs->flag |= DG_FLAG_SHADOW;
+
     /* Run the PSX rendering pipeline stages that populate per-vertex RGBs.
        - DG_BoundChanl sets objs->bound_mode / obj->bound_mode (frustum test).
          Without it they stay 0 and the shade + render both fall through to
@@ -1024,6 +1046,57 @@ void port_RenderObjects(int idx)
         DG_BoundChanl(&DG_Chanls[ci], idx);
         DG_TransChanl(&DG_Chanls[ci], idx);
         DG_ShadeChanl(&DG_Chanls[ci], idx);
+    }
+
+    /* Shadow view — compute Snake's eye-space position and the main
+     * light direction in eye space, then hand off to the GL backend so
+     * pass_shadow_map can build its light-space MVP. eye_inv on chanl[1]
+     * is the world-to-eye matrix used by every actor in the main 3D
+     * pass. The rotation entries `eye_inv.m[i][j]` are 4.12 fixed-point
+     * shorts (1.0 = 0x1000) — they MUST be divided by 4096 before being
+     * multiplied with world-space integer coords. The translation row
+     * `eye_inv.t[i]` is already in world-units (camera offset, not
+     * fixed-point). */
+    if (player_objs) {
+        DG_CHANL *mc = &DG_Chanls[1];
+        const float K = 1.0f / 4096.0f;
+        float sx = (float)player_objs->world.t[0];
+        float sy = (float)player_objs->world.t[1];
+        float sz = (float)player_objs->world.t[2];
+        float sxe = K * (mc->eye_inv.m[0][0] * sx + mc->eye_inv.m[0][1] * sy +
+                         mc->eye_inv.m[0][2] * sz)            + mc->eye_inv.t[0];
+        float sye = K * (mc->eye_inv.m[1][0] * sx + mc->eye_inv.m[1][1] * sy +
+                         mc->eye_inv.m[1][2] * sz)            + mc->eye_inv.t[1];
+        float sze = K * (mc->eye_inv.m[2][0] * sx + mc->eye_inv.m[2][1] * sy +
+                         mc->eye_inv.m[2][2] * sz)            + mc->eye_inv.t[2];
+        /* Light direction (world). Two sources, controlled by the imgui
+         * "Override light dir" toggle:
+         *   1. port_shadow_light_override = 1 (default): take the
+         *      manual override vector. Components are already in float
+         *      world coords as a TOWARD-light direction; we negate to
+         *      get the FROM-light direction this code path expects.
+         *   2. = 0: use DG_LightMatrix row 0 (the stage's main light).
+         *      The PSX matrix stores TOWARD-light in 4.12 fixed-point;
+         *      negate + divide by 4096 to get the FROM-light float. */
+        extern int   port_shadow_light_override;
+        extern float port_shadow_light_override_dir[3];
+        float lxw, lyw, lzw;
+        if (port_shadow_light_override) {
+            lxw = -port_shadow_light_override_dir[0];
+            lyw = -port_shadow_light_override_dir[1];
+            lzw = -port_shadow_light_override_dir[2];
+        } else {
+            lxw = -DG_LightMatrix.m[0][0] * K;
+            lyw = -DG_LightMatrix.m[0][1] * K;
+            lzw = -DG_LightMatrix.m[0][2] * K;
+        }
+        float lxe = K * (mc->eye_inv.m[0][0] * lxw + mc->eye_inv.m[0][1] * lyw +
+                         mc->eye_inv.m[0][2] * lzw);
+        float lye = K * (mc->eye_inv.m[1][0] * lxw + mc->eye_inv.m[1][1] * lyw +
+                         mc->eye_inv.m[1][2] * lzw);
+        float lze = K * (mc->eye_inv.m[2][0] * lxw + mc->eye_inv.m[2][1] * lyw +
+                         mc->eye_inv.m[2][2] * lzw);
+        gl_renderer_set_shadow_view(sxe, sye, sze, lxe, lye, lze);
     }
 
     int drawn_faces = 0;
