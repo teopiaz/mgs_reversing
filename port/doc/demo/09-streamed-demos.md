@@ -234,7 +234,7 @@ That's why some demos play in the editor and others freeze.
    experience.
 
 Until these land, the editor is a *GCL-cutscene viewer*, not a
-full cutscene viewer. The README's "Quick start (editor playback)"
+full cutscene viewer. The [index](index.md)'s "Quick start (editor playback)"
 under-promises this — see
 [08-known-issues.md](08-known-issues.md) for the explicit
 limitation.
