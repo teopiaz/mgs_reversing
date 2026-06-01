@@ -552,9 +552,16 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 }
 
                 ImGui::Spacing();
+                ImGui::SeparatorText("Manual eye_inv override");
                 ImGui::Checkbox("Override Camera", (bool *)&imgui_cam_override);
                 if (imgui_cam_override) {
+                    /* Re-init the slider state every time the checkbox flips
+                     * back on, so the override starts from the current camera
+                     * matrix instead of a stale value from the last session. */
                     static bool inited = false;
+                    static bool prev_on = false;
+                    if (!prev_on) inited = false;
+                    prev_on = true;
                     if (!inited) {
                         for (int r = 0; r < 3; r++)
                             for (int c = 0; c < 3; c++)
@@ -582,7 +589,84 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                         }
                     }
                     if (ImGui::Button("Reset")) { inited = false; imgui_cam_override = 0; }
+                } else {
+                    static bool prev_on = false;
+                    prev_on = false;
                 }
+
+                /* Over-the-shoulder freecam — modern third-person camera.
+                 * R-stick drives yaw/pitch, smoothed; shoulder offset
+                 * frames Snake to the side; left-stick "forward" pushes
+                 * Snake away from the camera. R3 toggles. */
+                ImGui::Spacing();
+                ImGui::SeparatorText("Over-the-shoulder camera");
+                extern int port_freecam_enabled;
+                extern int port_freecam_yaw, port_freecam_pitch;
+                extern int port_freecam_dist, port_freecam_height_off;
+                extern int port_freecam_shoulder_off;
+                extern int port_freecam_yaw_speed, port_freecam_pitch_speed;
+                extern int port_freecam_smoothing, port_freecam_invert_y;
+                extern int port_freecam_use_stick, port_freecam_rotate_input;
+                extern int port_freecam_R3_toggle;
+                extern int port_freecam_pad_offset, port_freecam_pad_sign;
+                extern int port_freecam_first_person;
+
+                ImGui::Checkbox("Enable##otscam", (bool *)&port_freecam_enabled);
+                ImGui::SameLine();
+                ImGui::TextDisabled("(or press R3 in-game)");
+                ImGui::SameLine();
+                ImGui::Checkbox("First person##otscam", (bool *)&port_freecam_first_person);
+
+                ImGui::BeginDisabled(!port_freecam_enabled);
+                if (ImGui::TreeNodeEx("Framing", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::SliderInt("Distance",       &port_freecam_dist,         100,  6000);
+                    ImGui::SliderInt("Head Y offset",  &port_freecam_height_off,  -300,  300);
+                    ImGui::TextDisabled("PSX +Y is down; negative = camera target moves up.");
+                    ImGui::SliderInt("Shoulder offset", &port_freecam_shoulder_off, -300, 300);
+                    ImGui::TextDisabled("Lateral offset of the look-at from Snake's pivot.");
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNodeEx("Input", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Right-stick controls camera", (bool *)&port_freecam_use_stick);
+                    ImGui::Checkbox("Invert Y", (bool *)&port_freecam_invert_y);
+                    ImGui::Checkbox("Left-stick rotated to camera",
+                                    (bool *)&port_freecam_rotate_input);
+                    if (port_freecam_rotate_input) {
+                        ImGui::Indent();
+                        ImGui::SliderInt("Pad-yaw offset", &port_freecam_pad_offset, 0, 4095);
+                        ImGui::Text("Pad-yaw sign:");
+                        ImGui::SameLine();
+                        if (ImGui::RadioButton("+1##sign", port_freecam_pad_sign ==  1)) port_freecam_pad_sign =  1;
+                        ImGui::SameLine();
+                        if (ImGui::RadioButton("-1##sign", port_freecam_pad_sign == -1)) port_freecam_pad_sign = -1;
+                        ImGui::TextDisabled("Try the 8 combos until pressing UP on the stick walks Snake away from the camera. Then we bake the values in.");
+                        if (ImGui::Button("0##po"))    port_freecam_pad_offset = 0;
+                        ImGui::SameLine();
+                        if (ImGui::Button("1024##po")) port_freecam_pad_offset = 1024;
+                        ImGui::SameLine();
+                        if (ImGui::Button("2048##po")) port_freecam_pad_offset = 2048;
+                        ImGui::SameLine();
+                        if (ImGui::Button("3072##po")) port_freecam_pad_offset = 3072;
+                        ImGui::Unindent();
+                    }
+                    ImGui::Checkbox("R3 toggles freecam", (bool *)&port_freecam_R3_toggle);
+                    ImGui::SliderInt("Yaw speed",   &port_freecam_yaw_speed,   1, 400);
+                    ImGui::SliderInt("Pitch speed", &port_freecam_pitch_speed, 1, 400);
+                    ImGui::SliderInt("Smoothing",   &port_freecam_smoothing,   0, 20);
+                    ImGui::TextDisabled("0=snappy/raw, 6=cinematic, 20=very floaty.");
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNodeEx("Manual angle", 0)) {
+                    ImGui::SliderInt("Yaw",   &port_freecam_yaw,   0,  4095, "%d / 4096");
+                    ImGui::SliderInt("Pitch", &port_freecam_pitch, 16, 2032, "%d / 4096");
+                    if (ImGui::Button("Behind Snake")) { port_freecam_yaw = 0;    port_freecam_pitch = 1024; }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Top-down"))     { port_freecam_pitch = 64; }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Eye-level"))    { port_freecam_pitch = 1024; }
+                    ImGui::TreePop();
+                }
+                ImGui::EndDisabled();
                 ImGui::EndTabItem();
             }
 
