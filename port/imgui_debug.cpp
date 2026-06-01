@@ -2,6 +2,7 @@
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
+#include "libdg/gl_renderer.h"
 #include <SDL.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -435,6 +436,37 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     ImGui::SameLine();
                     if (ImGui::SmallButton("Reset")) port_blur_strength = 1.4f;
                     ImGui::TextDisabled("PSX-exact = 2.0, default = 1.4, 0 = off");
+                    ImGui::EndDisabled();
+
+                    ImGui::Separator();
+
+                    /* Dynamic shadow map. Casters opt in via
+                     * DG_FLAG_SHADOW (auto-set on Snake's body in
+                     * libdg_stub.c). Receivers are DG_FLAG_SHADE
+                     * geometry. */
+                    extern int   port_shadow_enabled;
+                    extern float port_shadow_strength;
+                    extern float port_shadow_bias;
+                    extern float port_shadow_radius;
+                    bool sb = port_shadow_enabled != 0;
+                    if (ImGui::Checkbox("Dynamic shadow (Snake -> ground)", &sb))
+                        port_shadow_enabled = sb ? 1 : 0;
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(DG_FLAG_SHADOW -> DG_FLAG_SHADE)");
+                    ImGui::BeginDisabled(!sb);
+                    ImGui::SliderFloat("Shadow strength", &port_shadow_strength,
+                                       0.0f, 1.0f, "%.2f");
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Reset##sst")) port_shadow_strength = 0.55f;
+                    ImGui::SliderFloat("Shadow bias", &port_shadow_bias,
+                                       0.0f, 0.02f, "%.4f");
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Reset##sbi")) port_shadow_bias = 0.002f;
+                    ImGui::SliderFloat("Shadow radius (world)", &port_shadow_radius,
+                                       100.0f, 2000.0f, "%.0f");
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Reset##srd")) port_shadow_radius = 600.0f;
+                    ImGui::TextDisabled("Radius = ortho frustum half-size around Snake.");
                     ImGui::EndDisabled();
                 }
 
@@ -1020,6 +1052,126 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
                 ImGui::Text("prev-eye svec_800ABA88: (%d, %d, %d)",
                     svec_800ABA88.vx, svec_800ABA88.vy, svec_800ABA88.vz);
+                ImGui::EndTabItem();
+            }
+
+            /* ---------------------------------------------------------- */
+            /* SHADOW — dynamic shadow-map debug + live preview            */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Shadow")) {
+                GLShadowDebug d;
+                gl_renderer_get_shadow_debug(&d);
+
+                extern int   port_shadow_enabled;
+                extern float port_shadow_strength;
+                extern float port_shadow_bias;
+                extern float port_shadow_radius;
+                bool sb = port_shadow_enabled != 0;
+                if (ImGui::Checkbox("Shadow enabled", &sb))
+                    port_shadow_enabled = sb ? 1 : 0;
+                ImGui::SliderFloat("Strength", &port_shadow_strength,
+                                   0.0f, 1.0f, "%.2f");
+                ImGui::SliderFloat("Bias",     &port_shadow_bias,
+                                   0.0f, 0.001f, "%.5f");
+                ImGui::SliderFloat("Radius (XY half, world)", &port_shadow_radius,
+                                   100.0f, 3000.0f, "%.0f");
+                extern float port_shadow_depth_half;
+                ImGui::SliderFloat("Depth (Z half, world)", &port_shadow_depth_half,
+                                   50.0f, 4000.0f, "%.0f");
+                ImGui::TextDisabled("XY = horizontal coverage; Z = how far along the light direction the frustum reaches.");
+
+                /* Light-direction control. The stage's own light
+                 * (DG_LightMatrix) can be nearly horizontal, which
+                 * produces only narrow horizontal-strip shadows on
+                 * floors. Override lets you pick a cinematic angle. */
+                extern int   port_shadow_light_override;
+                extern float port_shadow_light_override_dir[3];
+                bool lo = port_shadow_light_override != 0;
+                if (ImGui::Checkbox("Override light dir", &lo))
+                    port_shadow_light_override = lo ? 1 : 0;
+                ImGui::SameLine();
+                ImGui::TextDisabled("(world-space TOWARD-light)");
+                ImGui::BeginDisabled(!lo);
+                ImGui::SliderFloat3("Light dir##over",
+                                    port_shadow_light_override_dir,
+                                    -1.0f, 1.0f, "%.2f");
+                if (ImGui::SmallButton("Above (0,-1,0)")) {
+                    port_shadow_light_override_dir[0] = 0.0f;
+                    port_shadow_light_override_dir[1] = -1.0f;
+                    port_shadow_light_override_dir[2] = 0.0f;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Cinematic 3/4")) {
+                    port_shadow_light_override_dir[0] = 0.2f;
+                    port_shadow_light_override_dir[1] = -1.0f;
+                    port_shadow_light_override_dir[2] = 0.3f;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Long shadow")) {
+                    port_shadow_light_override_dir[0] = 0.6f;
+                    port_shadow_light_override_dir[1] = -0.5f;
+                    port_shadow_light_override_dir[2] = 0.6f;
+                }
+                ImGui::EndDisabled();
+
+                /* Receiver-side visualisation modes. These bypass the
+                 * normal shadow attenuation and paint debug colors so
+                 * we can verify the shadow-receiver flag bit and the
+                 * shadow-space projection are correct. */
+                static const char *dbg_labels[] = {
+                    "Off (normal)",
+                    "1: Receivers solid red",
+                    "2: sc.xy as R/G, frustum as B",
+                    "3: sc.z (R) vs blocker (G)",
+                    "4: shadow() output as gray",
+                };
+                ImGui::Combo("Debug viz", &port_shadow_debug,
+                             dbg_labels, IM_ARRAYSIZE(dbg_labels));
+
+                ImGui::Separator();
+
+                /* Diagnostics. If caster_vert_count is 0 the caster
+                 * pass was skipped — Snake's DG_OBJS may not have got
+                 * its DG_FLAG_SHADOW set this frame, or all its tris
+                 * culled. If view_valid is 0, libdg_stub.c's push
+                 * didn't run — usually means player_objs was NULL. */
+                ImGui::Text("Caster verts: %d  (%d tris)",
+                            d.caster_vert_count, d.caster_vert_count / 3);
+                ImGui::Text("View valid: %s",
+                            d.view_valid ? "yes" : "no -- shadow pass skipped");
+                ImGui::Text("Snake eye:  (%7.1f, %7.1f, %7.1f)",
+                            d.snake_eye[0], d.snake_eye[1], d.snake_eye[2]);
+                ImGui::Text("Light eye:  (%7.3f, %7.3f, %7.3f)",
+                            d.light_eye[0], d.light_eye[1], d.light_eye[2]);
+                if (ImGui::TreeNode("Light-space MVP (column-major)")) {
+                    for (int row = 0; row < 4; row++) {
+                        ImGui::Text("  %7.3f  %7.3f  %7.3f  %7.3f",
+                            d.matrix[0 * 4 + row], d.matrix[1 * 4 + row],
+                            d.matrix[2 * 4 + row], d.matrix[3 * 4 + row]);
+                    }
+                    ImGui::TreePop();
+                }
+
+                ImGui::Separator();
+
+                /* Live shadow map preview. Depth is in [0,1]; closer to 0
+                 * means closer to the light. The texture is swizzled
+                 * (R -> R, G, B) at creation, so it renders as grayscale
+                 * here. A populated shadow map looks like a near-white
+                 * background with a darker Snake silhouette; a fully-
+                 * white image means no caster was rendered. */
+                if (d.tex_id) {
+                    ImGui::Text("Shadow map (%dx%d), depth visualised as gray",
+                                d.size, d.size);
+                    ImVec2 region = ImGui::GetContentRegionAvail();
+                    float side = region.x < 512.0f ? region.x : 512.0f;
+                    ImGui::Image((ImTextureID)(uintptr_t)d.tex_id,
+                                 ImVec2(side, side),
+                                 ImVec2(0, 1), ImVec2(1, 0));  /* Y-flip */
+                } else {
+                    ImGui::TextDisabled("Shadow texture not allocated.");
+                }
+
                 ImGui::EndTabItem();
             }
 

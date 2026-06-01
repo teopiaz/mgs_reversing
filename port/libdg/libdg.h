@@ -137,6 +137,10 @@ enum {
         DG_FLAG_AMBIENT         = 0x0100,       //
         DG_FLAG_IRTEXTURE       = 0x0200,       //
         DG_FLAG_UNKNOWN_400     = 0x0400,       //
+        /* Port-only: actor casts a dynamic shadow into the GL shadow
+         * map. Set automatically on the player's DG_OBJS in
+         * port_RenderObjects; receivers are DG_FLAG_SHADE geometry. */
+        DG_FLAG_SHADOW          = 0x0800,
 };
 // clang-format on
 
