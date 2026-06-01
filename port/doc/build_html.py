@@ -64,7 +64,50 @@ def rewrite_internal_links(page_html: str) -> str:
     return href_re.sub(repl, page_html)
 
 
-def render_page(title: str, body_html: str) -> str:
+def build_breadcrumb(rel: Path) -> str:
+    """Build a breadcrumb nav HTML for the page at relative path `rel`.
+
+    Every page gets a `Home › …` chain leading to its location. Folder
+    `index.md` pages have the folder itself as the current segment;
+    other pages have the page stem as current. The root `index.md`
+    collapses to a single `Home` current segment.
+
+    All links are relative to the page's directory so the site works
+    from `file://` URLs (no server prefix assumptions).
+    """
+    depth = len(rel.parts) - 1
+    prefix = "../" * depth if depth > 0 else ""
+    is_index = rel.stem == "index"
+
+    # Root of the tree: this IS the home page.
+    if depth == 0 and is_index:
+        return '<nav class="breadcrumb"><span class="current">Home</span></nav>'
+
+    parts = list(rel.parent.parts)
+    if is_index and parts:
+        # Folder index page — current segment is the folder name; ancestors
+        # form the link chain.
+        leaf_label: str | None = parts[-1]
+        trail = parts[:-1]
+    else:
+        leaf_label = rel.stem
+        trail = parts
+
+    segments = [f'<a href="{prefix}index.html">Home</a>']
+    cumulative = ""
+    for part in trail:
+        cumulative = f"{cumulative}/{part}" if cumulative else part
+        href = f"{prefix}{cumulative}/index.html"
+        segments.append(f'<a href="{href}">{html.escape(part)}</a>')
+
+    if leaf_label is not None:
+        segments.append(f'<span class="current">{html.escape(leaf_label)}</span>')
+
+    sep = ' <span class="sep">›</span> '
+    return '<nav class="breadcrumb" aria-label="Breadcrumb">' + sep.join(segments) + '</nav>'
+
+
+def render_page(title: str, body_html: str, breadcrumb_html: str = "") -> str:
     # Light and dark palettes share the same CSS-variable contract; the
     # initial values are the light theme. A `prefers-color-scheme: dark`
     # media query overrides them, and a small inline script honors a
@@ -158,6 +201,29 @@ th, td {
 }
 hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
 img { max-width: 100%; }
+/* Breadcrumb strip at the top of every page. Spans the whole panel
+   width so the eye reads it before the H1. */
+.breadcrumb {
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--muted);
+  margin: -8px 0 22px 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  word-break: break-word;
+}
+.breadcrumb a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb .current {
+  color: var(--fg);
+  font-weight: 600;
+}
+.breadcrumb .sep {
+  color: var(--muted);
+  margin: 0 2px;
+}
 /* Floating theme toggle in the top-right corner. Pure-CSS button; the
    inline script in <head> swaps :root[data-theme] and persists it. */
 .theme-toggle {
@@ -233,6 +299,7 @@ img { max-width: 100%; }
 <body>
   <button id=\"theme-toggle\" class=\"theme-toggle\" type=\"button\">Theme</button>
   <main>
+{breadcrumb_html}
 {body_html}
   </main>
   <script>{toggle_js}</script>
@@ -263,7 +330,8 @@ def main() -> int:
             extensions=["fenced_code", "tables", "toc", "sane_lists"],
         )
         body = rewrite_internal_links(body)
-        page = render_page(rel.stem, body)
+        crumbs = build_breadcrumb(rel)
+        page = render_page(rel.stem, body, crumbs)
         out_file.write_text(page, encoding="utf-8")
         print(f"Wrote {out_file.relative_to(root)}")
 
