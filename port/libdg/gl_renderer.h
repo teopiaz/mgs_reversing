@@ -114,15 +114,29 @@ void gl_renderer_set_shadow_view(float snake_x_eye, float snake_y_eye, float sna
  * means a Snake-eye + light-eye pair was pushed this frame; 0 means the
  * shadow pass was skipped (no caster, or no view). */
 typedef struct {
-    unsigned int tex_id;             /* GL_TEXTURE_2D name; 0 if uninit */
-    int          size;               /* texture dim, square (e.g. 1024) */
+    unsigned int tex_id;             /* GL_TEXTURE_2D_ARRAY name */
+    int          size;               /* layer dim, square (e.g. 1024) */
     int          caster_vert_count;  /* last frame's caster vertex count */
     int          view_valid;         /* did libdg_stub.c push a view? */
+    int          light_count;        /* 0..SHADOW_MAX_LIGHTS this frame */
     float        snake_eye[3];       /* what was last pushed */
-    float        light_eye[3];
-    float        matrix[16];         /* light_proj * light_view, col-major */
+    float        light_eye[3];       /* light 0's eye-space FROM-light direction */
+    float        matrix[16];         /* light 0's proj*view, col-major */
 } GLShadowDebug;
 void gl_renderer_get_shadow_debug(GLShadowDebug *out);
+
+/* Multi-light shadow API. `light_dirs[N][3]` are FROM-light directions
+ * in eye space (one per caster). `light_weights[N]` is each light's
+ * contribution factor — the FS computes a weighted average of
+ * per-light occlusion, so a brighter / closer light influences the
+ * shadow more than a dim / distant one. Pass NULL to use uniform
+ * weighting (all 1.0). N is clamped to the renderer's internal
+ * SHADOW_MAX_LIGHTS (5). The single-light gl_renderer_set_shadow_view
+ * above is a back-compat wrapper that forwards N=1 here. */
+void gl_renderer_set_shadow_lights(float snake_x_eye, float snake_y_eye, float snake_z_eye,
+                                   const float (*light_dirs)[3],
+                                   const float *light_weights,
+                                   int n);
 
 /* Read a region of the hi-res FBO back into a host RGB buffer. Coordinates
  * are in PSX framebuffer pixels (0..320 x 0..224). The function multiplies

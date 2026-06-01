@@ -1137,6 +1137,11 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                  * didn't run — usually means player_objs was NULL. */
                 ImGui::Text("Caster verts: %d  (%d tris)",
                             d.caster_vert_count, d.caster_vert_count / 3);
+                ImGui::Text("Lights this frame: %d / 5  (%s)",
+                            d.light_count,
+                            port_shadow_light_override
+                                ? "manual override"
+                                : "5 closest engine lights");
                 ImGui::Text("View valid: %s",
                             d.view_valid ? "yes" : "no -- shadow pass skipped");
                 ImGui::Text("Snake eye:  (%7.1f, %7.1f, %7.1f)",

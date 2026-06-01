@@ -122,25 +122,28 @@ static GLuint g_fbo       = 0;
 static GLuint g_fbo_color = 0;
 static GLuint g_fbo_depth = 0;
 
-/* Dynamic shadow mapping (port-only). A single depth-only FBO holds
- * Snake (and anything else flagged DG_FLAG_SHADOW). The 3D fragment
- * shader samples it for DG_FLAG_SHADE geometry. Caster verts are
- * pushed into a parallel buffer at submission time; the shadow pass
- * draws them through a tiny depth-only shader. Disabled when the
- * caster buffer is empty (no Snake on screen → no shadow pass). */
-#define SHADOW_MAP_SIZE 1024
-static GLuint g_shadow_fbo       = 0;
-static GLuint g_shadow_depth_tex = 0;
+/* Dynamic shadow mapping (port-only). Up to SHADOW_MAX_LIGHTS shadow
+ * maps stacked as layers of a GL_TEXTURE_2D_ARRAY — the caster pass
+ * renders Snake's silhouette into each layer from one light's POV, and
+ * the 3D fragment shader loops over the layers to accumulate the
+ * fragment's per-light occlusion. Disabled when the caster buffer is
+ * empty or no lights are pushed for the frame. */
+#define SHADOW_MAP_SIZE  1024
+#define SHADOW_MAX_LIGHTS 5
+static GLuint g_shadow_fbo         = 0;
+static GLuint g_shadow_depth_array = 0;       /* GL_TEXTURE_2D_ARRAY, depth */
 static GLuint g_shadow_caster_prog = 0;       /* depth-only VS+FS */
 static GLuint g_shadow_caster_vao  = 0;
 static GLuint g_shadow_caster_vbo  = 0;
 static GLint  g_shadow_u_mvp = -1;            /* uniform on caster prog */
 
-/* The light-space MVP — `light_proj * light_view`, applied to eye-
- * space vertices to land in shadow-map NDC. Recomputed once per
- * frame in pass_shadow_map(); the value is also bound on g_tri3d_prog
- * as uShadowMatrix so the main pass can compute vShadowCoord. */
-static float  g_shadow_matrix[16] = {0};
+/* One light-space MVP (light_proj * light_view) per active light.
+ * Stored row-by-row across SHADOW_MAX_LIGHTS slots; first
+ * g_shadow_light_count are valid this frame. Uploaded to the main
+ * 3D shader as `uShadowMatrices[SHADOW_MAX_LIGHTS]` and to the caster
+ * shader one-at-a-time per layer. */
+static float  g_shadow_matrices[SHADOW_MAX_LIGHTS * 16] = {0};
+static int    g_shadow_light_count = 0;
 
 /* Caster vertex buffer — parallel to g_tri3d_buf. Receives a copy of
  * every vertex whose `flags & 0x100` (shadow-caster) bit is set. */
@@ -342,12 +345,12 @@ static const char *TRI3D_VS =
     "flat out mat3 vLightDir;            // constant per tri\n"
     "flat out mat3 vLightColor;\n"
     "flat out vec3 vAmbient;\n"
-    "out vec4 vShadowCoord;              // light-space NDC for shadow lookup\n"
+    "out vec3 vEyePos;                   // eye-space pos forwarded for FS shadow lookup\n"
     "uniform vec2 uHalfScreen;           // (160, 112)\n"
     "uniform vec2 uNearFar;              // (near, far)\n"
     "uniform int  uOrtho;                // 0 = perspective, 1 = orthographic\n"
     "uniform vec4 uOrthoLRBT;            // (left, right, bottom, top) in eye-space units\n"
-    "uniform mat4 uShadowMatrix;         // light_proj * light_view; eye-space -> shadow NDC\n"
+    /* uShadowMatrices/uShadowMap live on the FS — VS just hands eye-pos through. */
     "void main() {\n"
     "  if (uOrtho != 0) {\n"
     "    /* Orthographic: aPos is already eye-space; map LRBT to NDC linearly.\n"
@@ -390,7 +393,7 @@ static const char *TRI3D_VS =
     "    vLightDir   = aLightDir;\n"
     "    vLightColor = aLightColor;\n"
     "    vAmbient    = aAmbient;\n"
-    "    vShadowCoord = uShadowMatrix * vec4(aPos, 1.0);\n"
+    "    vEyePos     = aPos;\n"
     "}\n";
 
 static const char *TRI3D_FS =
@@ -404,10 +407,14 @@ static const char *TRI3D_FS =
     "flat in mat3 vLightDir;\n"
     "flat in mat3 vLightColor;\n"
     "flat in vec3 vAmbient;\n"
-    "in vec4 vShadowCoord;\n"
+    "in vec3 vEyePos;\n"
+    "#define SHADOW_MAX_LIGHTS 5\n"
     "uniform usampler2D uVRAM;\n"
     "uniform sampler2D  uPrevFB;     // captured previous frame (Stealth)\n"
-    "uniform sampler2D  uShadowMap;  // light-space depth from caster pass\n"
+    "uniform sampler2DArray uShadowMap;  // SHADOW_MAX_LIGHTS depth layers\n"
+    "uniform mat4 uShadowMatrices[SHADOW_MAX_LIGHTS]; // per-light proj*view\n"
+    "uniform float uShadowLightWeights[SHADOW_MAX_LIGHTS]; // brightness*falloff\n"
+    "uniform int  uShadowLightCount;     // 0..SHADOW_MAX_LIGHTS active\n"
     "uniform int   uNoTextures;    // debug: 1 => skip texture sample\n"
     "uniform int   uFaceId;        // debug: 1 => color tri by gl_PrimitiveID\n"
     "uniform int   uShowNormals;   // debug: 1 => output normal.xyz*0.5+0.5\n"
@@ -415,28 +422,45 @@ static const char *TRI3D_FS =
     "uniform float uShadowStrength;// 0..1 attenuation when in shadow\n"
     "uniform float uShadowBias;    // depth-test slop\n"
     "uniform int   uShadowDebug;   // 1 = paint receivers red, 2 = show sample UV, 3 = show sample depth\n"
-    "// Sample the shadow map and return [0, 1] = fully lit .. fully shadowed.\n"
-    "// 2x2 PCF on every non-caster fragment — casters (bit 8 in vFlags,\n"
-    "// = 256) skip the lookup so they don't self-shadow. Everything else\n"
-    "// is a receiver, including static world geometry, enemies, props.\n"
-    "// Returns 0 if disabled, outside the shadow frustum, or behind the\n"
-    "// light's near plane.\n"
+    "// Multi-light shadow sample. Loops over uShadowLightCount active\n"
+    "// casters, samples each layer of the sampler2DArray with the\n"
+    "// matching light's MVP, runs 2x2 PCF, and accumulates a WEIGHTED\n"
+    "// occlusion total. The weights are per-light brightness * distance-\n"
+    "// falloff (libdg_stub.c) so a closer / brighter light dominates the\n"
+    "// shadow while a dim / distant light barely registers. Final return\n"
+    "// = sum(occ_i * w_i) / sum(w_i) * uShadowStrength. Casters (vFlags\n"
+    "// bit 8 = 256) skip the lookup to avoid self-shadowing.\n"
     "float sampleShadow() {\n"
     "    if (uShadowEnabled == 0) return 0.0;\n"
     "    if ((vFlags & 256u) != 0u) return 0.0;\n"
-    "    vec3 sc = vShadowCoord.xyz / vShadowCoord.w;\n"
-    "    sc = sc * 0.5 + 0.5;\n"
-    "    if (sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0\n"
-    "     || sc.z < 0.0 || sc.z > 1.0) return 0.0;\n"
-    "    float d = sc.z - uShadowBias;\n"
-    "    vec2  ts = vec2(textureSize(uShadowMap, 0));\n"
-    "    vec2  ofs = vec2(1.0) / ts;\n"
-    "    float occ = 0.0;\n"
-    "    occ += (texture(uShadowMap, sc.xy).r < d) ? 1.0 : 0.0;\n"
-    "    occ += (texture(uShadowMap, sc.xy + vec2(ofs.x, 0)).r < d) ? 1.0 : 0.0;\n"
-    "    occ += (texture(uShadowMap, sc.xy + vec2(0, ofs.y)).r < d) ? 1.0 : 0.0;\n"
-    "    occ += (texture(uShadowMap, sc.xy + ofs).r < d) ? 1.0 : 0.0;\n"
-    "    return (occ * 0.25) * uShadowStrength;\n"
+    "    int n = uShadowLightCount;\n"
+    "    if (n <= 0) return 0.0;\n"
+    "    vec3 ts3 = vec3(textureSize(uShadowMap, 0));\n"
+    "    vec2 ofs = vec2(1.0) / ts3.xy;\n"
+    "    float total_w_occ = 0.0;\n"
+    "    float total_w     = 0.0;\n"
+    "    for (int i = 0; i < SHADOW_MAX_LIGHTS; ++i) {\n"
+    "        if (i >= n) break;\n"
+    "        float w = uShadowLightWeights[i];\n"
+    "        if (w <= 0.0) continue;\n"
+    "        vec4 sc4 = uShadowMatrices[i] * vec4(vEyePos, 1.0);\n"
+    "        vec3 sc  = sc4.xyz / sc4.w * 0.5 + 0.5;\n"
+    "        // Lights outside the shadow frustum at this fragment still\n"
+    "        // count toward total_w — they're 'lit by this light' (occ = 0)\n"
+    "        // so they correctly pull the weighted average down.\n"
+    "        total_w += w;\n"
+    "        if (sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0\n"
+    "         || sc.z < 0.0 || sc.z > 1.0) continue;\n"
+    "        float d = sc.z - uShadowBias;\n"
+    "        float occ = 0.0;\n"
+    "        occ += (texture(uShadowMap, vec3(sc.xy,                   float(i))).r < d) ? 1.0 : 0.0;\n"
+    "        occ += (texture(uShadowMap, vec3(sc.xy + vec2(ofs.x, 0),  float(i))).r < d) ? 1.0 : 0.0;\n"
+    "        occ += (texture(uShadowMap, vec3(sc.xy + vec2(0, ofs.y),  float(i))).r < d) ? 1.0 : 0.0;\n"
+    "        occ += (texture(uShadowMap, vec3(sc.xy + ofs,             float(i))).r < d) ? 1.0 : 0.0;\n"
+    "        total_w_occ += occ * 0.25 * w;\n"
+    "    }\n"
+    "    if (total_w < 1e-4) return 0.0;\n"
+    "    return (total_w_occ / total_w) * uShadowStrength;\n"
     "}\n"
     "out vec4 oColor;\n"
     "uint fetchVRAM(int x, int y) { return texelFetch(uVRAM, ivec2(x, y), 0).r; }\n"
@@ -544,32 +568,28 @@ static const char *TRI3D_FS =
     "    float shadow = sampleShadow();\n"
     "    // Debug visualisation modes — orthogonal to the normal output.\n"
     "    if (uShadowDebug != 0 && uShadowEnabled != 0 && (vFlags & 256u) == 0u) {\n"
-    "        vec3 sc = vShadowCoord.xyz / vShadowCoord.w * 0.5 + 0.5;\n"
+    "        // Debug modes 1-3 inspect light 0's projection only (the\n"
+    "         // nearest light). Mode 4 shows the final accumulated shadow.\n"
+    "        vec4 sc4 = uShadowMatrices[0] * vec4(vEyePos, 1.0);\n"
+    "        vec3 sc  = sc4.xyz / sc4.w * 0.5 + 0.5;\n"
     "        bool inFrustum = sc.x >= 0.0 && sc.x <= 1.0\n"
     "                      && sc.y >= 0.0 && sc.y <= 1.0\n"
     "                      && sc.z >= 0.0 && sc.z <= 1.0;\n"
     "        if (uShadowDebug == 1) {\n"
-    "            // Solid red on every receiver fragment.\n"
     "            oColor = vec4(1.0, 0.2, 0.2, 1.0);\n"
     "            return;\n"
     "        }\n"
     "        if (uShadowDebug == 2) {\n"
-    "            // sc.xy as red+green; blue = inFrustum (so we see which\n"
-    "            // receivers project inside the shadow texture at all).\n"
     "            oColor = vec4(sc.x, sc.y, inFrustum ? 1.0 : 0.0, 1.0);\n"
     "            return;\n"
     "        }\n"
     "        if (uShadowDebug == 3) {\n"
-    "            // Receiver's own light-space depth vs the blocker depth.\n"
-    "            float closest = inFrustum ? texture(uShadowMap, sc.xy).r : 1.0;\n"
+    "            float closest = inFrustum ? texture(uShadowMap, vec3(sc.xy, 0.0)).r : 1.0;\n"
     "            oColor = vec4(sc.z, closest, inFrustum ? 1.0 : 0.0, 1.0);\n"
     "            return;\n"
     "        }\n"
     "        if (uShadowDebug == 4) {\n"
-    "            // sampleShadow()'s actual output, broadcast to grayscale.\n"
-    "            // Black = no shadow (lit), white = fully shadowed. If the\n"
-    "            // whole scene reads black here but mode 3 shows clear\n"
-    "            // depth differences, the bias/compare path has a bug.\n"
+    "            // sampleShadow()'s output across all lights, as gray.\n"
     "            oColor = vec4(vec3(shadow), 1.0);\n"
     "            return;\n"
     "        }\n"
@@ -1119,36 +1139,36 @@ int gl_renderer_init(void *window_)
         g_viewports[0].h     = g_fbo_h;
     }
 
-    /* Shadow map — single depth texture in its own FBO. The caster pass
-     * renders DG_FLAG_SHADOW geometry from a light's-eye view into this
-     * texture; the main 3D fragment shader samples it for DG_FLAG_SHADE
-     * receivers. Border colour is 1.0 (the farthest depth) so fragments
-     * outside the shadow frustum are treated as fully lit. */
+    /* Shadow maps — SHADOW_MAX_LIGHTS depth slices stacked in a single
+     * 2D ARRAY texture. The caster pass attaches one layer at a time via
+     * glFramebufferTextureLayer and renders Snake from that light's POV;
+     * the 3D fragment shader samples sampler2DArray and loops over the
+     * layers, accumulating per-light occlusion. Border colour 1.0 (=
+     * farthest depth) means out-of-frustum fragments are treated as
+     * fully lit by that light. */
     {
         glGenFramebuffers(1, &g_shadow_fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, g_shadow_fbo);
-        glGenTextures(1, &g_shadow_depth_tex);
-        glBindTexture(GL_TEXTURE_2D, g_shadow_depth_tex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24,
-                     SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 0,
-                     GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glGenTextures(1, &g_shadow_depth_array);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, g_shadow_depth_array);
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT24,
+                     SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAX_LIGHTS,
+                     0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         float border_one[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_one);
-        /* Swizzle depth into all three RGB channels so the ImGui Shadow
-         * debug tab shows a real grayscale preview. The 3D fragment
-         * shader reads .r explicitly so this doesn't affect lookups. */
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ONE);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                               GL_TEXTURE_2D, g_shadow_depth_tex, 0);
-        /* No color attachment — depth-only. Tell GL the colour buffer is
-         * intentionally absent so glCheckFramebufferStatus passes. */
+        glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, border_one);
+        /* Swizzle for the imgui Shadow debug preview (grayscale depth). */
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_SWIZZLE_R, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_SWIZZLE_A, GL_ONE);
+        /* Attach layer 0 just to satisfy the FBO completeness check at
+         * init time; pass_shadow_map rebinds the correct layer per pass. */
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                  g_shadow_depth_array, 0, 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
         GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -1212,7 +1232,7 @@ void gl_renderer_shutdown(void)
     if (g_shadow_caster_prog) glDeleteProgram(g_shadow_caster_prog);
     if (g_shadow_caster_vbo)  glDeleteBuffers(1, &g_shadow_caster_vbo);
     if (g_shadow_caster_vao)  glDeleteVertexArrays(1, &g_shadow_caster_vao);
-    if (g_shadow_depth_tex)   glDeleteTextures(1, &g_shadow_depth_tex);
+    if (g_shadow_depth_array) glDeleteTextures(1, &g_shadow_depth_array);
     if (g_shadow_fbo)         glDeleteFramebuffers(1, &g_shadow_fbo);
     if (g_tri2d_prog)  glDeleteProgram(g_tri2d_prog);
     if (g_tri2d_vbo)   glDeleteBuffers(1, &g_tri2d_vbo);
@@ -2174,46 +2194,71 @@ static void upload_dirty_vram_rows(void)
  * we leave g_shadow_matrix at identity and the FS treats every fragment
  * as outside the shadow frustum (= unlit-by-shadow, fully bright). */
 static float g_shadow_snake_eye[3] = {0, 0, 0};
-static float g_shadow_light_eye[3] = {0, 1, 0};   /* default: from above */
+static float g_shadow_light_eyes[SHADOW_MAX_LIGHTS][3] = {{0, 1, 0}};
+static float g_shadow_light_weights[SHADOW_MAX_LIGHTS] = {1, 1, 1, 1, 1};
 static int   g_shadow_view_valid   = 0;
 
 void gl_renderer_get_shadow_debug(GLShadowDebug *out)
 {
     if (!out) return;
-    out->tex_id            = (unsigned int)g_shadow_depth_tex;
+    out->tex_id            = (unsigned int)g_shadow_depth_array;
     out->size              = SHADOW_MAP_SIZE;
     out->caster_vert_count = (int)g_caster3d_count;
     out->view_valid        = g_shadow_view_valid;
+    out->light_count       = g_shadow_light_count;
     for (int i = 0; i < 3; i++) {
         out->snake_eye[i] = g_shadow_snake_eye[i];
-        out->light_eye[i] = g_shadow_light_eye[i];
+        /* Report the FIRST light's direction — the debug tab UI is
+         * single-vec for now. */
+        out->light_eye[i] = g_shadow_light_eyes[0][i];
     }
-    for (int i = 0; i < 16; i++) out->matrix[i] = g_shadow_matrix[i];
+    /* And the first MVP, for the matrix display. */
+    for (int i = 0; i < 16; i++) out->matrix[i] = g_shadow_matrices[i];
 }
 
-void gl_renderer_set_shadow_view(float sx, float sy, float sz,
-                                 float lx, float ly, float lz)
+void gl_renderer_set_shadow_lights(float sx, float sy, float sz,
+                                   const float (*light_dirs)[3],
+                                   const float *light_weights,
+                                   int n)
 {
     g_shadow_snake_eye[0] = sx;
     g_shadow_snake_eye[1] = sy;
     g_shadow_snake_eye[2] = sz;
-    /* Normalise the light direction so the LookAt math doesn't depend on
-     * the caller's magnitude. Treat tiny inputs as "from above". */
-    float lm = lx * lx + ly * ly + lz * lz;
-    if (lm < 1e-4f) { lx = 0; ly = 1; lz = 0; lm = 1; }
-    float inv = 1.0f / sqrtf(lm);
-    g_shadow_light_eye[0] = lx * inv;
-    g_shadow_light_eye[1] = ly * inv;
-    g_shadow_light_eye[2] = lz * inv;
-    g_shadow_view_valid = 1;
+    if (n < 0) n = 0;
+    if (n > SHADOW_MAX_LIGHTS) n = SHADOW_MAX_LIGHTS;
+    for (int i = 0; i < n; i++) {
+        float lx = light_dirs[i][0];
+        float ly = light_dirs[i][1];
+        float lz = light_dirs[i][2];
+        float lm = lx * lx + ly * ly + lz * lz;
+        if (lm < 1e-4f) { lx = 0; ly = 1; lz = 0; lm = 1; }
+        float inv = 1.0f / sqrtf(lm);
+        g_shadow_light_eyes[i][0] = lx * inv;
+        g_shadow_light_eyes[i][1] = ly * inv;
+        g_shadow_light_eyes[i][2] = lz * inv;
+        g_shadow_light_weights[i] = light_weights ? light_weights[i] : 1.0f;
+        if (g_shadow_light_weights[i] < 0.0f) g_shadow_light_weights[i] = 0.0f;
+    }
+    g_shadow_light_count = n;
+    g_shadow_view_valid  = (n > 0) ? 1 : 0;
 }
 
-/* Build a column-major 4x4 from an ortho * lookAt centred on Snake.
+/* Single-light fallback — for callers that only have one direction. */
+void gl_renderer_set_shadow_view(float sx, float sy, float sz,
+                                 float lx, float ly, float lz)
+{
+    const float dirs[1][3] = { { lx, ly, lz } };
+    gl_renderer_set_shadow_lights(sx, sy, sz, dirs, NULL, 1);
+}
+
+/* Build a column-major 4x4 ortho * lookAt centred on Snake from one
+ * specific light direction. Called once per active light in
+ * pass_shadow_map(); writes into out16. The caller picks which slot in
+ * g_shadow_matrices[] receives the result.
+ *
  * Eye space is +Z forward (away from camera), +Y down (PSX). The shadow
- * "camera" lives at snake_eye - K*light_eye, looks back at snake_eye.
- * Ortho half-extent = port_shadow_radius covers a generous patch of
- * ground around Snake. */
-static void build_shadow_matrix(float *out16)
+ * camera lives at snake_eye - K*light_dir, looks back at snake_eye. */
+static void build_shadow_matrix(float *out16, const float light_dir[3])
 {
     /* If the caller didn't push a view, leave matrix at identity so the
      * shadow term in the FS reads 0 (all fragments outside [0..1]). */
@@ -2232,9 +2277,9 @@ static void build_shadow_matrix(float *out16)
      * — angled lights where Snake's body and the floor extend far along
      * the light's depth axis need more z slack than xy. */
     const float depth_half = port_shadow_depth_half;
-    float eye_x = g_shadow_snake_eye[0] - g_shadow_light_eye[0] * K;
-    float eye_y = g_shadow_snake_eye[1] - g_shadow_light_eye[1] * K;
-    float eye_z = g_shadow_snake_eye[2] - g_shadow_light_eye[2] * K;
+    float eye_x = g_shadow_snake_eye[0] - light_dir[0] * K;
+    float eye_y = g_shadow_snake_eye[1] - light_dir[1] * K;
+    float eye_z = g_shadow_snake_eye[2] - light_dir[2] * K;
     /* Forward = (target - eye), normalised. */
     float fx = g_shadow_snake_eye[0] - eye_x;
     float fy = g_shadow_snake_eye[1] - eye_y;
@@ -2322,11 +2367,13 @@ static void pass_shadow_map(int debug_view)
         return;
     }
 
-    build_shadow_matrix(g_shadow_matrix);
+    /* Build one MVP per active light. */
+    for (int i = 0; i < g_shadow_light_count; i++) {
+        build_shadow_matrix(g_shadow_matrices + i * 16,
+                            g_shadow_light_eyes[i]);
+    }
 
-    /* PORT_SHADOW_DBG=1: one-time dump of the first frame that has
-     * casters. Tells us snake/light positions + the projected NDC of
-     * snake_eye, which is the single most useful diagnostic. */
+    /* PORT_SHADOW_DBG=1: one-time dump showing per-light projections. */
     {
         static int s_dbg = -1;
         if (s_dbg < 0) {
@@ -2335,29 +2382,20 @@ static void pass_shadow_map(int debug_view)
         }
         if (s_dbg) {
             static int s_logged = 0;
-            if (s_logged < 5) {
-                /* Project snake's position through the matrix to see
-                 * where it lands in shadow-NDC. */
-                float v[4] = {
-                    g_shadow_snake_eye[0], g_shadow_snake_eye[1],
-                    g_shadow_snake_eye[2], 1.0f
-                };
-                float p[4] = {0, 0, 0, 0};
-                for (int row = 0; row < 4; row++)
-                    for (int k = 0; k < 4; k++)
-                        p[row] += g_shadow_matrix[k * 4 + row] * v[k];
-                float ndc_x = p[3] != 0 ? p[0] / p[3] : 999.0f;
-                float ndc_y = p[3] != 0 ? p[1] / p[3] : 999.0f;
-                float ndc_z = p[3] != 0 ? p[2] / p[3] : 999.0f;
+            if (s_logged < 3) {
                 fprintf(stderr,
-                    "[shadow] frame: caster_verts=%zu  "
-                    "snake_eye=(%7.1f, %7.1f, %7.1f)  "
-                    "light_eye=(%6.3f, %6.3f, %6.3f)  "
-                    "snake_NDC=(%6.3f, %6.3f, %6.3f)  w=%.2f\n",
-                    g_caster3d_count,
-                    g_shadow_snake_eye[0], g_shadow_snake_eye[1], g_shadow_snake_eye[2],
-                    g_shadow_light_eye[0], g_shadow_light_eye[1], g_shadow_light_eye[2],
-                    ndc_x, ndc_y, ndc_z, p[3]);
+                    "[shadow] frame: caster_verts=%zu  n_lights=%d  "
+                    "snake_eye=(%7.1f, %7.1f, %7.1f)\n",
+                    g_caster3d_count, g_shadow_light_count,
+                    g_shadow_snake_eye[0], g_shadow_snake_eye[1],
+                    g_shadow_snake_eye[2]);
+                for (int i = 0; i < g_shadow_light_count; i++) {
+                    fprintf(stderr,
+                        "  light[%d]_eye=(%6.3f, %6.3f, %6.3f)\n", i,
+                        g_shadow_light_eyes[i][0],
+                        g_shadow_light_eyes[i][1],
+                        g_shadow_light_eyes[i][2]);
+                }
                 s_logged++;
             }
         }
@@ -2365,7 +2403,6 @@ static void pass_shadow_map(int debug_view)
 
     glBindFramebuffer(GL_FRAMEBUFFER, g_shadow_fbo);
     glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-    glClear(GL_DEPTH_BUFFER_BIT);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -2375,14 +2412,24 @@ static void pass_shadow_map(int debug_view)
     glDisable(GL_CULL_FACE);    /* Snake's mesh has both-side polys */
 
     glUseProgram(g_shadow_caster_prog);
-    glUniformMatrix4fv(g_shadow_u_mvp, 1, GL_FALSE, g_shadow_matrix);
 
+    /* Upload Snake's verts once; reuse for each layer. */
     glBindVertexArray(g_shadow_caster_vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_shadow_caster_vbo);
     glBufferData(GL_ARRAY_BUFFER,
                  (GLsizeiptr)(g_caster3d_count * sizeof(GL3DVert)),
                  g_caster3d_buf, GL_STREAM_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, (GLsizei)g_caster3d_count);
+
+    /* Per-light pass: attach the right layer of the depth array, clear
+     * it, push that light's MVP, draw Snake's caster verts. */
+    for (int i = 0; i < g_shadow_light_count; i++) {
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                  g_shadow_depth_array, 0, i);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glUniformMatrix4fv(g_shadow_u_mvp, 1, GL_FALSE,
+                           g_shadow_matrices + i * 16);
+        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)g_caster3d_count);
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -2392,9 +2439,9 @@ static void pass_shadow_map(int debug_view)
     glBindFramebuffer(GL_FRAMEBUFFER, g_fbo);
     glViewport(0, 0, g_fbo_w, g_fbo_h);
 
-    /* Bind the shadow map for the receiver pass. Sampler unit 3. */
+    /* Bind the shadow-map array for the receiver pass on sampler 3. */
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, g_shadow_depth_tex);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, g_shadow_depth_array);
     glActiveTexture(GL_TEXTURE0);
 }
 
@@ -2479,12 +2526,16 @@ static void pass_3d_world(int debug_view)
     glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShowNormals"),
                 gl_debug_show_normals ? 1 : 0);
 
-    /* Shadow uniforms. uShadowMatrix is the per-frame light-space MVP
-     * (identity when there's no caster — sampleShadow() reads outside
-     * [0,1] in that case and returns 0). uShadowEnabled gates the entire
-     * branch; uShadowStrength + uShadowBias are imgui-tunable. */
-    glUniformMatrix4fv(glGetUniformLocation(g_tri3d_prog, "uShadowMatrix"),
-                       1, GL_FALSE, g_shadow_matrix);
+    /* Shadow uniforms. uShadowMatrices[N] holds one light-space MVP per
+     * active light (slots beyond uShadowLightCount are ignored by the
+     * FS loop). uShadowEnabled gates the entire branch; uShadowStrength
+     * + uShadowBias are imgui-tunable. */
+    glUniformMatrix4fv(glGetUniformLocation(g_tri3d_prog, "uShadowMatrices"),
+                       SHADOW_MAX_LIGHTS, GL_FALSE, g_shadow_matrices);
+    glUniform1fv(glGetUniformLocation(g_tri3d_prog, "uShadowLightWeights"),
+                 SHADOW_MAX_LIGHTS, g_shadow_light_weights);
+    glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShadowLightCount"),
+                g_shadow_light_count);
     glUniform1i(glGetUniformLocation(g_tri3d_prog, "uShadowEnabled"),
                 (port_shadow_enabled && g_shadow_view_valid) ? 1 : 0);
     glUniform1f(glGetUniformLocation(g_tri3d_prog, "uShadowStrength"),
@@ -2500,10 +2551,10 @@ static void pass_3d_world(int debug_view)
        (Stealth / Optical Camo -- source/equip/kogaku2.c). */
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, g_prev_fb_tex);
-    /* Shadow map on unit 3 — bound here too in case the shadow pass
-     * was skipped this frame (we keep the previous depth content). */
+    /* Shadow-map array on unit 3 — kept bound in case the shadow pass
+     * was skipped this frame (we keep the previous depth contents). */
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, g_shadow_depth_tex);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, g_shadow_depth_array);
     glActiveTexture(GL_TEXTURE0);
 
     /* GPU backface cull. Our vertex shader flips Y (PSX screen is Y-down,
