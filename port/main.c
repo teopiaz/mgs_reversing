@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <SDL.h>
 #include "imgui_debug.h"
-#include "test_server.h"
 #include "libdg/gl_renderer.h"
 #include "port_config.h"
 #include "port_menu.h"
@@ -56,7 +55,7 @@ static void port_install_crash_handler(void)
 
 static SDL_Window   *g_window;
 static SDL_Renderer *g_renderer;
-bool                 g_running;  /* non-static: test_server.c may set it false to quit */
+bool                 g_running;  /* extern'd by imgui_debug.cpp to wire the Quit button */
 const char          *port_argv0 = NULL;  /* used by imgui Restart button */
 
 /* Auto-load hook: when PORT_AUTOLOAD_STAGE=<name> is set, watch for the
@@ -381,7 +380,6 @@ int main(int argc, char *argv[])
 
     port_vram_init(g_renderer);  /* safe with NULL renderer; sets up vram[][] */
     imgui_init(g_window, g_renderer);  /* renderer==NULL => GL backend */
-    TEST_HARNESS_init();
 
     extern void port_update_pad(void);
     extern void port_open_controller(void);
@@ -496,7 +494,6 @@ int main(int argc, char *argv[])
 
             /* Rendering at 60fps (every frame) */
             port_render();
-            TEST_HARNESS_tick();
 
             frame_counter++;
 

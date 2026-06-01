@@ -385,7 +385,7 @@ int port_get_objs_count(void)
     return DG_Chanls[1].objs_index;
 }
 
-/* Last-frame draw count — read by test_server.c for get_state */
+/* Last-frame draw count — surfaced in the imgui debug panel. */
 int port_last_drawn_faces = 0;
 
 /*---------------------------------------------------------------------------*/

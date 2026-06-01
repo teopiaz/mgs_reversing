@@ -604,76 +604,12 @@ unsigned short port_pad_buttons = 0;
 unsigned char  port_pad_lx = 128, port_pad_ly = 128;
 unsigned char  port_pad_rx = 128, port_pad_ry = 128;
 
-/* Replay / record state — file-scope so port_replay_start() / port_record_start() can reset */
+/* Replay / record state — driven by the MGS_INPUT_REPLAY / MGS_INPUT_RECORD
+ * env vars at startup. */
 static FILE *play_file = NULL;
 static FILE *rec_file  = NULL;
 static char  play_path_buf[256] = {0};
 static char  rec_path_buf[256]  = {0};
-static int   play_restart_pending = 0;
-static int   rec_restart_pending  = 0;
-static int   rec_stop_pending     = 0;
-/* Counts for replay_status in get_state */
-int TEST_HARNESS_processed_inputs = 0;   /* last frame number processed in replay */
-int TEST_HARNESS_total_inputs     = 0;   /* total entries in the log file */
-
-/* Count entries in a log file (frame/button pairs). Returned so get_state can
-   report total_inputs. Does not affect the caller's file position. */
-static int count_log_entries(const char *path)
-{
-    FILE *f = fopen(path, "r");
-    if (!f) return 0;
-    int count = 0;
-    unsigned int fr; unsigned int btn;
-    while (fscanf(f, "%u 0x%X", &fr, &btn) == 2)
-        count++;
-    fclose(f);
-    return count;
-}
-
-void TEST_HARNESS_replay_start(const char *path)
-{
-    if (!path || !path[0]) return;
-    strncpy(play_path_buf, path, sizeof(play_path_buf) - 1);
-    play_path_buf[sizeof(play_path_buf) - 1] = '\0';
-    /* If rec is active, stop it */
-    if (rec_file) rec_stop_pending = 1;
-    play_restart_pending = 1;
-    TEST_HARNESS_processed_inputs = 0;
-    TEST_HARNESS_total_inputs     = count_log_entries(path);
-    printf("[input] replay_start scheduled: %s (%d entries)\n", path, TEST_HARNESS_total_inputs);
-}
-
-void TEST_HARNESS_record_start(const char *path)
-{
-    if (!path || !path[0]) return;
-    strncpy(rec_path_buf, path, sizeof(rec_path_buf) - 1);
-    rec_path_buf[sizeof(rec_path_buf) - 1] = '\0';
-    /* Stop replay if active */
-    if (play_file) { fclose(play_file); play_file = NULL; }
-    rec_restart_pending = 1;
-    printf("[input] record_start scheduled: %s\n", path);
-}
-
-void TEST_HARNESS_record_stop(void)
-{
-    rec_stop_pending = 1;
-}
-
-/* Returns 0=idle, 1=replaying, 2=recording */
-int TEST_HARNESS_get_input_status(void)
-{
-    if (play_file) return 1;
-    if (rec_file)  return 2;
-    return 0;
-}
-
-const char *TEST_HARNESS_get_input_path(void)
-{
-    if (play_file) return play_path_buf;
-    if (rec_file)  return rec_path_buf;
-    return "";
-}
-
 /* Exported raw keyboard state for camera controls etc. */
 unsigned char port_keys[512] = {0};
 
@@ -877,16 +813,6 @@ void port_update_pad(void)
         }
     }
 
-    /* Test harness: override buttons if inject_input was called */
-    {
-        extern int TEST_HARNESS_override_buttons;
-        extern int TEST_HARNESS_override_frames;
-        if (TEST_HARNESS_override_frames > 0) {
-            b = (unsigned short)TEST_HARNESS_override_buttons;
-            TEST_HARNESS_override_frames--;
-        }
-    }
-
     port_pad_buttons = b;
 
     /* Input recording/replay — supports mid-session switching via port_replay_start() */
@@ -931,41 +857,6 @@ void port_update_pad(void)
             }
         }
 
-        /* Handle mid-session replay switch (from port_replay_start) */
-        if (play_restart_pending) {
-            play_restart_pending = 0;
-            if (play_file) { fclose(play_file); play_file = NULL; }
-            play_file = fopen(play_path_buf, "r");
-            if (play_file) {
-                play_need_read = 1; play_eof = 0;
-                play_cur_buttons = 0; play_next_frame = 0;
-                frame = 0;  /* Reset frame counter to match log */
-                printf("[input] replay restarted: %s\n", play_path_buf);
-            } else {
-                printf("[input] FAILED to reopen replay: %s\n", play_path_buf);
-            }
-        }
-
-        /* Handle mid-session record switch (from port_record_start) */
-        if (rec_restart_pending) {
-            rec_restart_pending = 0;
-            if (rec_file) { fclose(rec_file); rec_file = NULL; }
-            rec_file = fopen(rec_path_buf, "w");
-            if (rec_file) {
-                rec_prev_b = 0xFFFF;
-                printf("[input] recording started: %s\n", rec_path_buf);
-            } else {
-                printf("[input] FAILED to open record: %s\n", rec_path_buf);
-            }
-        }
-
-        /* Handle record stop */
-        if (rec_stop_pending) {
-            rec_stop_pending = 0;
-            if (rec_file) { fclose(rec_file); rec_file = NULL; }
-            printf("[input] recording stopped\n");
-        }
-
         if (rec_file) {
             if (port_pad_buttons != rec_prev_b) {
                 char line[32];
@@ -996,20 +887,18 @@ void port_update_pad(void)
                     play_next_buttons = (unsigned short)btn;
                 } else {
                     play_eof = 1;
-                    TEST_HARNESS_processed_inputs = frame;
                     printf("[input] replay ended at frame %u\n", frame);
                 }
             }
 
             if (play_eof) {
-                /* Replay finished — stop overriding input so inject_input
-                   and keyboard/gamepad work again. */
+                /* Replay finished — stop overriding input so keyboard /
+                 * gamepad take over again. */
                 fclose(play_file);
                 play_file = NULL;
                 play_cur_buttons = 0;
             } else {
                 port_pad_buttons = play_cur_buttons;
-                TEST_HARNESS_processed_inputs = frame;
             }
         }
 

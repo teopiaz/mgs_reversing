@@ -145,17 +145,12 @@ Got a struct/typedef/header type-width fix?
 
 1. `cd port && make -j8` — the main `mgs` binary builds clean.
 2. `cd port/editor && make -j8` — the editor binary builds clean.
-3. Replay smoke tests (any subset that covers the affected subsystems):
-   - `MGS_INPUT_REPLAY=./testcase/1_codec_d01a.log ./mgs ./ISO/mgs.cue`
-   - `MGS_INPUT_REPLAY=./testcase/2_s02b.log ./mgs ./ISO/mgs.cue`
-   - `MGS_INPUT_REPLAY=./testcase/20_vignette.log ./mgs ./ISO/mgs.cue`
-   - `MGS_INPUT_REPLAY=./testcase/10_collision_merge_regression.log ./mgs ./ISO/mgs.cue`
-4. For each port copy whose upstream `source/` file was touched by the rebase,
+3. For each port copy whose upstream `source/` file was touched by the rebase,
    look at the diff: `git diff <last-sync-sha>..HEAD -- source/<path>`. Re-apply
    any new upstream changes to the port copy by hand (semantic merge — the
    ifdef branches don't matter because the port copy already strips them).
 
-   The `port/scripts/port-sync.py` tool automates the discovery half of step 4:
+   The `port/scripts/port-sync.py` tool automates the discovery half of step 3:
 
    ```bash
    port/scripts/port-sync.py status        # which copies drifted, and how
