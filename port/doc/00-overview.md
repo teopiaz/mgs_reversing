@@ -238,7 +238,7 @@ port/
 | [11 — Known Issues](11-known-issues.md) | Open bugs and limitations |
 | [12 — TODO](12-todo.md) | Outstanding work items |
 | [13 — Shading & Lighting](13-shading-and-lighting.md) | NCS Gouraud pipeline, per-vertex lighting |
-| [demo/](demo/README.md) | Cutscene streaming, DMO format, frame scrubber |
-| [editor/](editor/) | Stage editor (collision / GCL authoring) |
+| [demo/](demo/index.md) | Cutscene streaming, DMO format, frame scrubber |
+| [editor/](editor/index.md) | Stage editor (collision / GCL authoring) |
 | [source/](source/) | Notes on the original decompiled source tree |
 | [gcl/](gcl/) | GCL opcode reference |

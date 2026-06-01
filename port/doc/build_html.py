@@ -65,20 +65,62 @@ def rewrite_internal_links(page_html: str) -> str:
 
 
 def render_page(title: str, body_html: str) -> str:
+    # Light and dark palettes share the same CSS-variable contract; the
+    # initial values are the light theme. A `prefers-color-scheme: dark`
+    # media query overrides them, and a small inline script honors a
+    # `?theme=light|dark` query string or a `mgs-doc-theme` localStorage
+    # entry so the user can pin a manual choice via the corner toggle.
     css = """
 :root {
   --bg: #f7f7f4;
+  --bg-grad: #ffffff;
   --fg: #1b1b1b;
   --muted: #5a5a5a;
   --panel: #ffffff;
   --line: #deded6;
   --accent: #3b6d5a;
+  --code-bg: #f2f3ef;
+  --quote-line: #c9d7d0;
+  --toggle-bg: rgba(255, 255, 255, 0.85);
+  --toggle-border: #d4d4cc;
+  --toggle-fg: #1b1b1b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115;
+    --bg-grad: #181c22;
+    --fg: #e6e7e9;
+    --muted: #9a9d9e;
+    --panel: #161a20;
+    --line: #2a2f37;
+    --accent: #88c0aa;
+    --code-bg: #0c0f13;
+    --quote-line: #3a5750;
+    --toggle-bg: rgba(22, 26, 32, 0.85);
+    --toggle-border: #2a2f37;
+    --toggle-fg: #e6e7e9;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115;
+  --bg-grad: #181c22;
+  --fg: #e6e7e9;
+  --muted: #9a9d9e;
+  --panel: #161a20;
+  --line: #2a2f37;
+  --accent: #88c0aa;
+  --code-bg: #0c0f13;
+  --quote-line: #3a5750;
+  --toggle-bg: rgba(22, 26, 32, 0.85);
+  --toggle-border: #2a2f37;
+  --toggle-fg: #e6e7e9;
 }
 * { box-sizing: border-box; }
+html { color-scheme: light dark; }
 body {
   margin: 0;
   padding: 32px 18px;
-  background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%);
+  background: radial-gradient(circle at top, var(--bg-grad) 0%, var(--bg) 55%);
   color: var(--fg);
   font: 17px/1.65 Georgia, "Times New Roman", serif;
 }
@@ -90,21 +132,22 @@ main {
   border-radius: 10px;
   padding: 28px;
 }
-h1, h2, h3, h4 { line-height: 1.2; margin-top: 1.4em; }
+h1, h2, h3, h4 { line-height: 1.2; margin-top: 1.4em; color: var(--fg); }
 h1 { margin-top: 0; }
 a { color: var(--accent); text-decoration-thickness: 1px; }
 pre {
-  background: #f2f3ef;
+  background: var(--code-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow-x: auto;
   padding: 12px;
 }
-code { font: 0.92em/1.5 Menlo, Monaco, Consolas, monospace; }
+code { font: 0.92em/1.5 Menlo, Monaco, Consolas, monospace; color: var(--fg); }
+pre code { color: var(--fg); }
 blockquote {
   margin: 0;
   padding-left: 14px;
-  border-left: 3px solid #c9d7d0;
+  border-left: 3px solid var(--quote-line);
   color: var(--muted);
 }
 table { border-collapse: collapse; }
@@ -113,6 +156,69 @@ th, td {
   padding: 6px 8px;
   text-align: left;
 }
+hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+img { max-width: 100%; }
+/* Floating theme toggle in the top-right corner. Pure-CSS button; the
+   inline script in <head> swaps :root[data-theme] and persists it. */
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
+  background: var(--toggle-bg);
+  color: var(--toggle-fg);
+  border: 1px solid var(--toggle-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.theme-toggle:hover { border-color: var(--accent); }
+@media print {
+  body { background: white; color: black; }
+  main { border: none; }
+  .theme-toggle { display: none; }
+}
+"""
+    # The theme bootstrap runs synchronously in <head> so the right palette
+    # paints on the very first frame (no flash-of-wrong-theme). It reads
+    # `?theme=light` / `?theme=dark` first, then localStorage, then leaves
+    # the prefers-color-scheme media query to decide. The toggle button
+    # writes localStorage and updates `data-theme` live.
+    bootstrap_js = """
+(function () {
+  var root = document.documentElement;
+  var params = new URLSearchParams(window.location.search);
+  var qp = params.get('theme');
+  var saved = qp || localStorage.getItem('mgs-doc-theme');
+  if (saved === 'light' || saved === 'dark') {
+    root.setAttribute('data-theme', saved);
+    if (qp) localStorage.setItem('mgs-doc-theme', qp);
+  }
+})();
+"""
+    toggle_js = """
+(function () {
+  var root = document.documentElement;
+  var btn  = document.getElementById('theme-toggle');
+  function effective() {
+    var pinned = root.getAttribute('data-theme');
+    if (pinned) return pinned;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark' : 'light';
+  }
+  function label() {
+    btn.textContent = effective() === 'dark' ? '☼ Light' : '☾ Dark';
+  }
+  btn.addEventListener('click', function () {
+    var next = effective() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('mgs-doc-theme', next);
+    label();
+  });
+  label();
+})();
 """
     safe_title = html.escape(title)
     return f"""<!doctype html>
@@ -122,11 +228,14 @@ th, td {
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
   <title>{safe_title}</title>
   <style>{css}</style>
+  <script>{bootstrap_js}</script>
 </head>
 <body>
+  <button id=\"theme-toggle\" class=\"theme-toggle\" type=\"button\">Theme</button>
   <main>
 {body_html}
   </main>
+  <script>{toggle_js}</script>
 </body>
 </html>
 """
