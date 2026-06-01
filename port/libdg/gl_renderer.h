@@ -78,66 +78,6 @@ extern float gl_debug_clear_rgb[3]; /* override clear color, 0..1 per channel */
 extern int   port_blur_enabled;
 extern float port_blur_strength;
 
-/* Dynamic shadow mapping (port-only). Casters opt in via DG_FLAG_SHADOW
- * on their DG_OBJS (libdg_stub.c auto-flags Snake's body); receivers
- * are DG_FLAG_SHADE geometry. Both pieces live in libdg_stub.c — the
- * renderer just consumes a per-frame view via gl_renderer_set_shadow_view.
- *   port_shadow_strength  (0..1): how dark a shadow gets, 0 = off
- *   port_shadow_bias              : depth-test bias to suppress acne
- *   port_shadow_radius            : world-units half-size of the ortho frustum */
-extern int   port_shadow_enabled;
-extern float port_shadow_strength;
-extern float port_shadow_bias;
-extern float port_shadow_radius;
-extern float port_shadow_depth_half;
-extern int   port_shadow_debug;     /* 0=off, 1=receivers solid red, 2=sc.xy+frustum, 3=z vs blocker, 4=shadow term as gray */
-
-/* Manual shadow-light direction override. When override == 0, the
- * shadow camera tracks the stage's DG_LightMatrix.m[0] (which may be
- * near-horizontal and produce thin floor shadows). When 1, the shadow
- * camera uses port_shadow_light_override_dir as the world-space
- * TOWARD-light direction (i.e., from Snake toward the light source).
- * libdg_stub.c normalises on its way through gl_renderer_set_shadow_view. */
-extern int   port_shadow_light_override;
-extern float port_shadow_light_override_dir[3];
-
-/* Push Snake's eye-space position and the eye-space main light direction
- * for this frame. Call from port_RenderObjects after the chanl
- * transforms have been computed. Skipping the call (or no caster verts
- * submitted) makes the shadow pass a no-op for the frame. */
-void gl_renderer_set_shadow_view(float snake_x_eye, float snake_y_eye, float snake_z_eye,
-                                 float light_x_eye, float light_y_eye, float light_z_eye);
-
-/* Read back the shadow map's GL texture name + last-frame statistics so
- * the imgui Shadow debug tab can render it and report whether the pass
- * actually fired. `view_valid` mirrors gl_renderer's internal flag — 1
- * means a Snake-eye + light-eye pair was pushed this frame; 0 means the
- * shadow pass was skipped (no caster, or no view). */
-typedef struct {
-    unsigned int tex_id;             /* GL_TEXTURE_2D_ARRAY name */
-    int          size;               /* layer dim, square (e.g. 1024) */
-    int          caster_vert_count;  /* last frame's caster vertex count */
-    int          view_valid;         /* did libdg_stub.c push a view? */
-    int          light_count;        /* 0..SHADOW_MAX_LIGHTS this frame */
-    float        snake_eye[3];       /* what was last pushed */
-    float        light_eye[3];       /* light 0's eye-space FROM-light direction */
-    float        matrix[16];         /* light 0's proj*view, col-major */
-} GLShadowDebug;
-void gl_renderer_get_shadow_debug(GLShadowDebug *out);
-
-/* Multi-light shadow API. `light_dirs[N][3]` are FROM-light directions
- * in eye space (one per caster). `light_weights[N]` is each light's
- * contribution factor — the FS computes a weighted average of
- * per-light occlusion, so a brighter / closer light influences the
- * shadow more than a dim / distant one. Pass NULL to use uniform
- * weighting (all 1.0). N is clamped to the renderer's internal
- * SHADOW_MAX_LIGHTS (5). The single-light gl_renderer_set_shadow_view
- * above is a back-compat wrapper that forwards N=1 here. */
-void gl_renderer_set_shadow_lights(float snake_x_eye, float snake_y_eye, float snake_z_eye,
-                                   const float (*light_dirs)[3],
-                                   const float *light_weights,
-                                   int n);
-
 /* Read a region of the hi-res FBO back into a host RGB buffer. Coordinates
  * are in PSX framebuffer pixels (0..320 x 0..224). The function multiplies
  * by the current scale and reads `psx_w * scale` x `psx_h * scale` RGB
