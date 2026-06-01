@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <SDL.h>
 #include "libgte.h"
 #include "libgpu.h"
 #include "libgv/libgv.h"
@@ -951,9 +952,282 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
     return drawn_faces;
 }
 
+/* ---------------------------------------------------------------------------
+ * Camera overrides (port-only)
+ *
+ *  1. imgui_cam_override — sliders in the Camera tab let the user dial each
+ *     entry of DG_Chanls[1].eye_inv directly. Without this apply step the
+ *     sliders moved an in-memory copy that never reached the renderer.
+ *
+ *  2. port_freecam_enabled — over-the-shoulder camera ported from
+ *     KieronJ:fshd. Yaw / pitch / distance drive an orbital camera centred
+ *     on Snake. R3 to toggle (also wired to the imgui button below). The
+ *     engine's stage cameras are bypassed while it's on.
+ *
+ * Both overrides run AFTER camera_act has populated DG_Chanls[*].eye_inv
+ * for the frame, so we always have a sane base state and the override
+ * is one-frame switchable.
+ * ------------------------------------------------------------------------- */
+extern int   imgui_cam_override;
+extern int   imgui_cam_eye_inv_t[3];
+extern short imgui_cam_eye_inv_m[3][3];
+extern int   imgui_cam_clip_dist;
+
+/* ---- Over-the-shoulder freecam (modern-game-style) ----------------------
+ *
+ *  Modern third-person cameras (RE4 Remake, TLOU, Uncharted, MGS V, …)
+ *  share a small playbook:
+ *
+ *   1. Right stick / mouse drives camera YAW + PITCH each frame, with
+ *      a non-linear response so small inputs are precise and large
+ *      inputs swing fast.
+ *   2. The camera ORBITS a point slightly above and slightly to the side
+ *      of the character (a "shoulder" offset) — not the character's hip
+ *      pivot.
+ *   3. Yaw/pitch lerp toward the input target so they don't snap; the
+ *      lerp rate is high enough not to feel laggy (~70..85% per frame).
+ *   4. Stick "forward" on the LEFT stick = character moves AWAY from
+ *      the camera (not world +Z). Achieved by feeding the pad system a
+ *      rotation origin equal to the camera's yaw.
+ *
+ *  Tunables live as port_freecam_*; imgui drives them, R-stick drives
+ *  the per-frame yaw/pitch when freecam is enabled. */
+int   port_freecam_enabled       = 0;
+int   port_freecam_yaw           = 0;     /* 0..4095 = 0..360°            */
+int   port_freecam_pitch         = 1024;  /* 16..2032 (KieronJ clamp)     */
+int   port_freecam_dist          = 1500;  /* eye distance from shoulder   */
+int   port_freecam_height_off    = -180;  /* head height (PSX +Y is down) */
+int   port_freecam_shoulder_off  = 80;    /* lateral shoulder offset      */
+int   port_freecam_yaw_speed     = 80;    /* right-stick X sensitivity    */
+int   port_freecam_pitch_speed   = 60;    /* right-stick Y sensitivity    */
+int   port_freecam_smoothing     = 6;     /* 0=snap, 10=very smooth       */
+int   port_freecam_invert_y      = 0;
+int   port_freecam_use_stick     = 1;     /* read pad input each frame    */
+int   port_freecam_rotate_input  = 1;     /* GV_OriginPadSystem follows   */
+/* pad-origin = port_freecam_pad_offset + (port_freecam_pad_sign * yaw)
+ *   sign  : +1 or -1; controllers whose D-pad "up" rotates opposite to
+ *           the camera's yaw need -1. The engine uses +1 with its own
+ *           camera struct; KieronJ uses -1 with theirs.
+ *   offset: quarter-turn correction (0, 1024, 2048, or 3072) that lines
+ *           up the engine's "north" direction with the camera-forward
+ *           axis. Different controllers / pad mappings need different
+ *           offsets, so this is exposed as a slider. */
+int   port_freecam_pad_offset    = 3072;
+int   port_freecam_pad_sign      = -1;
+int   port_freecam_R3_toggle     = 1;     /* R3 button toggles enable     */
+int   port_freecam_first_person  = 0;     /* eye AT snake's head, looking outward */
+
+/* Lerp targets — modified by R-stick input, then yaw/pitch lerp toward
+ * them at the smoothing rate. Reset whenever freecam re-enables so the
+ * camera starts from wherever it left off. */
+static int s_freecam_target_yaw   = 0;
+static int s_freecam_target_pitch = 1024;
+static int s_freecam_prev_release = 0;
+
+extern SVECTOR GM_PlayerPosition;
+extern GV_PAD  GV_PadData[];
+extern int     GM_GameStatus;   /* freecam disables itself in menus / demos */
+extern void    GV_OriginPadSystem(int);
+extern char    GM_Camera;       /* opaque, offset 0x22 = short first_person */
+
+static inline int wrap4096(int v)
+{
+    /* Branchless-ish wrap to [0, 4096). Inputs from increments of <±256
+     * so a small loop is fine. */
+    while (v <    0) v += 4096;
+    while (v >= 4096) v -= 4096;
+    return v;
+}
+
+static inline int lerp_angle(int from, int to, int smoothing)
+{
+    /* Lerp on the shortest arc around the 4096-circle. smoothing=0 snaps,
+     * smoothing=10 takes ~10 frames to converge. */
+    int delta = ((to - from + 6144) % 4096) - 2048;  /* signed [-2048..2047] */
+    if (smoothing <= 0) return wrap4096(from + delta);
+    int step = delta / (smoothing + 1);
+    /* Always nudge by at least 1 unit so we converge to the exact target. */
+    if (step == 0 && delta != 0) step = delta > 0 ? 1 : -1;
+    return wrap4096(from + step);
+}
+
+static inline int lerp_linear(int from, int to, int smoothing)
+{
+    if (smoothing <= 0) return to;
+    int step = (to - from) / (smoothing + 1);
+    if (step == 0 && from != to) step = (to > from) ? 1 : -1;
+    return from + step;
+}
+
+static void port_camera_apply_overrides(void)
+{
+    DG_CHANL *chanl = &DG_Chanls[1];
+
+    if (port_freecam_enabled) {
+        GV_PAD *pad = &GV_PadData[0];
+
+        /* R3 to toggle (matches KieronJ's wiring). Edge-detect via the
+         * 'release' field which fires once per press cycle. */
+        if (port_freecam_R3_toggle && (pad->release & 0x0004 /* PAD_R3 */)
+            && !s_freecam_prev_release) {
+            port_freecam_enabled = 0;
+            s_freecam_prev_release = 1;
+        }
+        if (!(pad->release & 0x0004)) s_freecam_prev_release = 0;
+        if (!port_freecam_enabled) goto apply_manual;
+
+        /* Input → target yaw/pitch.
+         *
+         * Three independent sources, each contributing to (yaw_step, pitch_step):
+         *
+         *   1. Right analog stick (right_dx/right_dy). The port doesn't wire a
+         *      real stick yet, so right_dx/dy stay at the BSS-zero value of 0
+         *      — which decodes to "full negative deflection" if we naively
+         *      subtract 128. We gate the stick path on actually-non-zero data
+         *      to avoid the constant drift that produced; once the port plumbs
+         *      analog input through, this path picks it up automatically.
+         *
+         *   2. SDL keyboard — IJKL or arrow keys for camera rotation. Always
+         *      polled when the freecam is on; this is the practical input
+         *      on macOS / no-controller setups.
+         *
+         *   3. Mouse delta (right-button-held = look). Optional, off by default.
+         *
+         * Cubic response on stick / linear on key+mouse. */
+        if (port_freecam_use_stick) {
+            int yaw_step   = 0;
+            int pitch_step = 0;
+
+            int rx = (int)pad->right_dx;
+            int ry = (int)pad->right_dy;
+            if (rx != 0 || ry != 0) {
+                int dx = rx - 128;
+                int dy = ry - 128;
+                if (dx > -12 && dx < 12) dx = 0;
+                if (dy > -12 && dy < 12) dy = 0;
+                /* (x/128)^3 * speed — precise small, snappy large. */
+                yaw_step   += (dx * dx * dx) / (128 * 128) * port_freecam_yaw_speed   / 128;
+                pitch_step += (dy * dy * dy) / (128 * 128) * port_freecam_pitch_speed / 128;
+            }
+
+            /* IJKL only — the arrow keys are the port's d-pad
+             * (= Snake's left stick), so we mustn't steal them. */
+            const Uint8 *ks = SDL_GetKeyboardState(NULL);
+            if (ks) {
+                int kx = 0, ky = 0;
+                if (ks[SDL_SCANCODE_L]) kx += 1;
+                if (ks[SDL_SCANCODE_J]) kx -= 1;
+                if (ks[SDL_SCANCODE_K]) ky += 1;
+                if (ks[SDL_SCANCODE_I]) ky -= 1;
+                yaw_step   += kx * port_freecam_yaw_speed   / 4;
+                pitch_step += ky * port_freecam_pitch_speed / 4;
+            }
+
+            if (port_freecam_invert_y) pitch_step = -pitch_step;
+            s_freecam_target_yaw   = wrap4096(s_freecam_target_yaw + yaw_step);
+            s_freecam_target_pitch += pitch_step;
+            if (s_freecam_target_pitch < 16)   s_freecam_target_pitch = 16;
+            if (s_freecam_target_pitch > 2032) s_freecam_target_pitch = 2032;
+        }
+
+        /* Smooth toward targets. */
+        port_freecam_yaw   = lerp_angle(port_freecam_yaw,   s_freecam_target_yaw,   port_freecam_smoothing);
+        port_freecam_pitch = lerp_linear(port_freecam_pitch, s_freecam_target_pitch, port_freecam_smoothing);
+
+        /* Spherical → cartesian: same parametrisation as KieronJ. */
+        int cosx = rcos(port_freecam_yaw);
+        int sinx = rsin(port_freecam_yaw);
+        int cosy = rcos(port_freecam_pitch);
+        int siny = rsin(port_freecam_pitch);
+        int D    = port_freecam_dist;
+
+        SVECTOR dir;
+        dir.vx = (short)((D * ((cosx * siny) >> 12)) >> 12);
+        dir.vy = (short)((D * cosy) >> 12);
+        dir.vz = (short)((D * ((sinx * siny) >> 12)) >> 12);
+
+        /* The look-at point is the player's shoulder, not their hip.
+         *   height_off : Y offset (head height; PSX +Y is down so this
+         *                value is typically negative).
+         *   shoulder   : sideways offset perpendicular to the camera
+         *                forward — gives the "Snake on the left, the world
+         *                on the right" framing modern OTS cameras use. */
+        SVECTOR eye, center;
+        if (port_freecam_first_person) {
+            /* First-person: camera AT Snake's head, looking outward
+             * along the yaw/pitch direction. eye = head, target =
+             * head + dir (one unit-vector forward). The shoulder
+             * offset is ignored — in FP you want the eye centered. */
+            eye = GM_PlayerPosition;
+            eye.vy = (short)(eye.vy + port_freecam_height_off);
+            center.vx = (short)(eye.vx + dir.vx);
+            center.vy = (short)(eye.vy + dir.vy);
+            center.vz = (short)(eye.vz + dir.vz);
+
+            /* Tell the engine we're in FP so it hides Snake's body
+             * and skips third-person-only logic (e.g., aim assist
+             * reticule positioning). Offset 0x22 = first_person. */
+            *(short *)((char *)&GM_Camera + 0x22) = 1;
+        } else {
+            /* Third-person OTS: camera distance from a shoulder-offset
+             * center, looking back at center. */
+            center = GM_PlayerPosition;
+            center.vy = (short)(center.vy + port_freecam_height_off);
+            if (port_freecam_shoulder_off) {
+                /* Perpendicular to camera-forward in the XZ plane:
+                 *   forward_xz = (sinx, 0, -cosx)  (after the dir math above)
+                 *   right_xz   = ( cosx, 0,  sinx)
+                 * Apply shoulder along right_xz. */
+                center.vx = (short)(center.vx + ((cosx * port_freecam_shoulder_off) >> 12));
+                center.vz = (short)(center.vz + ((sinx * port_freecam_shoulder_off) >> 12));
+            }
+            eye.vx = (short)(center.vx - dir.vx);
+            eye.vy = (short)(center.vy - dir.vy);
+            eye.vz = (short)(center.vz - dir.vz);
+
+            *(short *)((char *)&GM_Camera + 0x22) = 0;
+        }
+
+        int zoom = chanl->clip_distance ? chanl->clip_distance : 320;
+        DG_LookAt(chanl, &eye, &center, zoom);
+
+        /* Pad-origin rotation — without this, "forward" on the left
+         * stick is always world +Z and feels disconnected from the
+         * camera. With it, "forward" pushes Snake away from the
+         * camera, which is what every modern third-person game does.
+         * The offset / sign combination depends on engine coordinate
+         * conventions; tunable via imgui until the right combo is
+         * baked in. */
+        if (port_freecam_rotate_input) {
+            int rotated = port_freecam_pad_offset
+                        + port_freecam_pad_sign * port_freecam_yaw;
+            GV_OriginPadSystem(wrap4096(rotated));
+        }
+        return;
+    } else {
+        /* Track the target values when off so re-enabling continues from
+         * where we left off rather than snapping. */
+        s_freecam_target_yaw   = port_freecam_yaw;
+        s_freecam_target_pitch = port_freecam_pitch;
+    }
+
+apply_manual:
+    if (imgui_cam_override) {
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                chanl->eye_inv.m[r][c] = imgui_cam_eye_inv_m[r][c];
+        chanl->eye_inv.t[0] = imgui_cam_eye_inv_t[0];
+        chanl->eye_inv.t[1] = imgui_cam_eye_inv_t[1];
+        chanl->eye_inv.t[2] = imgui_cam_eye_inv_t[2];
+        chanl->clip_distance = (short)imgui_cam_clip_dist;
+    }
+}
+
 void port_RenderObjects(int idx)
 {
     int group_id = DG_CurrentGroupID;
+
+    port_camera_apply_overrides();
 
     /* Reset draw area and offset for 3D rendering — the OT walker may have
        set draw_x/draw_y to a non-zero offset via GPU E5 command. for the radar */

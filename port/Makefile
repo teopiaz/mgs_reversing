@@ -267,7 +267,7 @@ $(OBJDIR)/mts.o: mts/mts.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/libdg_stub.o: libdg/libdg_stub.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/vram.o: libdg/vram.c | $(OBJDIR)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<

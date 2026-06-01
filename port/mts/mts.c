@@ -602,6 +602,7 @@ void mts_get_use_stack_size(int *max, int *now, int *limit)
 /* Non-static so imgui_debug.cpp can show live pad state in the Other tab. */
 unsigned short port_pad_buttons = 0;
 unsigned char  port_pad_lx = 128, port_pad_ly = 128;
+unsigned char  port_pad_rx = 128, port_pad_ry = 128;
 
 /* Replay / record state — file-scope so port_replay_start() / port_record_start() can reset */
 static FILE *play_file = NULL;
@@ -811,6 +812,15 @@ void port_update_pad(void)
             port_pad_lx = 128;
             port_pad_ly = 128;
         }
+
+        /* Right stick — always read, regardless of d-pad state. Used by
+         * the over-the-shoulder freecam in libdg_stub.c. */
+        {
+            Sint16 rx = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_RIGHTX);
+            Sint16 ry = SDL_GameControllerGetAxis(port_controller, SDL_CONTROLLER_AXIS_RIGHTY);
+            port_pad_rx = (unsigned char)((rx + 32768) >> 8);
+            port_pad_ry = (unsigned char)((ry + 32768) >> 8);
+        }
     }
     else
     {
@@ -818,6 +828,8 @@ void port_update_pad(void)
          * below fills it from the keyboard bits. */
         port_pad_lx = 128;
         port_pad_ly = 128;
+        port_pad_rx = 128;
+        port_pad_ry = 128;
     }
 
     /* Overlay d-pad input onto the analog channel.
@@ -1024,8 +1036,8 @@ int mts_get_pad(int channel, MTS_PAD *pad)
         pad->ly = 128;
     }
     pad->button = ~port_pad_buttons; /* PSX uses active-low */
-    pad->rx = 128;
-    pad->ry = 128;
+    pad->rx = port_pad_rx;
+    pad->ry = port_pad_ry;
     return 1;
 }
 
