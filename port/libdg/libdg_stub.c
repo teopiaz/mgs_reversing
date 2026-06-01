@@ -596,16 +596,6 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 int is_character = (objs->flag & DG_FLAG_SHADE) != 0;
                 int bothface = (mdl->flags & DG_MODEL_BOTHFACE) != 0;
 
-                /* Dynamic-shadow opt-in bit (port-only). DG_FLAG_SHADOW
-                 * on an OBJS marks it as a caster: its tris are pushed
-                 * into a separate buffer that the shadow pass renders
-                 * into the depth map (gl_renderer.c). Receiver-side
-                 * filtering is done in the fragment shader by *excluding*
-                 * casters — every non-caster fragment samples the shadow
-                 * map, so static geometry, enemies, props all receive
-                 * without needing a flag each. */
-                int is_shadow_caster = (objs->flag & DG_FLAG_SHADOW) != 0;
-
                 /* Backface cull. GL mode defers to the GPU (GL_CULL_FACE in
                    the 3D pass) which uses exact post-projection winding and
                    handles mirror matrices correctly. Per-tri "no cull" flag
@@ -880,7 +870,6 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             unsigned short fflags = 1 | light_flag_bit;
                             if (port_tex_semi_trans) fflags |= 2 | ((port_tex_abr & 3) << 2);
                             if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
-                            if (is_shadow_caster)   fflags |= 0x100;
                             const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                             /* tri 1: v0, v1, v3.  tpage/clut come from the
                                port_tex_* vars so the kogaku2 fb-readback
@@ -932,7 +921,6 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         int face_z = (sz0+sz1+sz2+sz3)/4;
                         unsigned short fflags = light_flag_bit;
                         if (is_character || bothface || gl_debug_no_cull) fflags |= 64;
-                        if (is_shadow_caster)   fflags |= 0x100;
                         const GLLight *lp = light_flag_bit ? &gl_light : NULL;
                         gl_submit_tri3d(eye[0], eye[1], eye[3],
                                         uv_dummy, uv_dummy, uv_dummy,
@@ -1023,16 +1011,6 @@ void port_RenderObjects(int idx)
     DG_OBJS *player_objs = GM_PlayerBody ? *(DG_OBJS **)GM_PlayerBody : NULL;
     short fp_mode = *(short *)((char *)&GM_Camera + 0x22);
 
-    /* Auto-flag the player's OBJS as a shadow caster. DG_FLAG_SHADOW is
-     * a port-only extension defined in libdg.h; the GL renderer reads
-     * the per-OBJS bit and captures the caster's geometry into a
-     * shadow-map depth texture. Receivers are any DG_FLAG_SHADE
-     * geometry (level walls / floor / props). Other actors can be
-     * tagged by ORing DG_FLAG_SHADOW into their OBJS at spawn time —
-     * see also chara_overrides.c if more general opt-in is needed. */
-    if (player_objs)
-        player_objs->flag |= DG_FLAG_SHADOW;
-
     /* Run the PSX rendering pipeline stages that populate per-vertex RGBs.
        - DG_BoundChanl sets objs->bound_mode / obj->bound_mode (frustum test).
          Without it they stay 0 and the shade + render both fall through to
@@ -1046,167 +1024,6 @@ void port_RenderObjects(int idx)
         DG_BoundChanl(&DG_Chanls[ci], idx);
         DG_TransChanl(&DG_Chanls[ci], idx);
         DG_ShadeChanl(&DG_Chanls[ci], idx);
-    }
-
-    /* Multi-light shadow view — gather up to the 5 closest point lights
-     * to Snake from the engine's lighting tables and push one FROM-light
-     * direction per light into the GL backend. */
-    if (player_objs) {
-        DG_CHANL *mc = &DG_Chanls[1];
-        const float K = 1.0f / 4096.0f;
-        float sx_w = (float)player_objs->world.t[0];
-        float sy_w = (float)player_objs->world.t[1];
-        float sz_w = (float)player_objs->world.t[2];
-
-        /* Snake's eye-space position — same math as before; rotation
-         * entries are 4.12 fixed-point so divide by 4096. */
-        float sxe = K * (mc->eye_inv.m[0][0] * sx_w + mc->eye_inv.m[0][1] * sy_w +
-                         mc->eye_inv.m[0][2] * sz_w)            + mc->eye_inv.t[0];
-        float sye = K * (mc->eye_inv.m[1][0] * sx_w + mc->eye_inv.m[1][1] * sy_w +
-                         mc->eye_inv.m[1][2] * sz_w)            + mc->eye_inv.t[1];
-        float sze = K * (mc->eye_inv.m[2][0] * sx_w + mc->eye_inv.m[2][1] * sy_w +
-                         mc->eye_inv.m[2][2] * sz_w)            + mc->eye_inv.t[2];
-
-        /* Local helper: transform a world-space direction (no
-         * translation, just rotation) to eye space and write into
-         * out_eye_dir as a FROM-light vector (negation of the passed
-         * TOWARD-light). */
-        #define WORLD_TOWARD_TO_EYE_FROM(tx, ty, tz, out)              \
-            do {                                                       \
-                float _lxw = -(tx), _lyw = -(ty), _lzw = -(tz);        \
-                (out)[0] = K * (mc->eye_inv.m[0][0] * _lxw +           \
-                                mc->eye_inv.m[0][1] * _lyw +           \
-                                mc->eye_inv.m[0][2] * _lzw);           \
-                (out)[1] = K * (mc->eye_inv.m[1][0] * _lxw +           \
-                                mc->eye_inv.m[1][1] * _lyw +           \
-                                mc->eye_inv.m[1][2] * _lzw);           \
-                (out)[2] = K * (mc->eye_inv.m[2][0] * _lxw +           \
-                                mc->eye_inv.m[2][1] * _lyw +           \
-                                mc->eye_inv.m[2][2] * _lzw);           \
-            } while (0)
-
-        extern int   port_shadow_light_override;
-        extern float port_shadow_light_override_dir[3];
-
-        float light_dirs[5][3];
-        float light_weights[5] = {1, 1, 1, 1, 1};
-        int   n_lights = 0;
-
-        if (port_shadow_light_override) {
-            /* Manual override — single direction taken from imgui. */
-            WORLD_TOWARD_TO_EYE_FROM(port_shadow_light_override_dir[0],
-                                     port_shadow_light_override_dir[1],
-                                     port_shadow_light_override_dir[2],
-                                     light_dirs[0]);
-            light_weights[0] = 1.0f;
-            n_lights = 1;
-        } else {
-            /* Engine lights — walk gFixedLights + LightSystems, pick
-             * the 5 closest to Snake. Each DG_LIT has a world-space
-             * `pos` (SVECTOR); the TOWARD-light direction is
-             * (light.pos - snake.pos) normalized.
-             *
-             * For each candidate we compute distance² in world units
-             * (avoiding sqrt during the gather), keep a sorted top-5
-             * via insertion, then transform the survivors to eye-space
-             * FROM-light. */
-            extern DG_FixedLight  gFixedLights_800B1E08[8];
-            extern DG_TmpLightList LightSystems_800B1E48[2];
-
-            /* Each candidate holds enough to compute its eye-space
-             * direction AND its physical falloff weight (brightness ×
-             * distance-falloff) after we pick the top 5. d2 is the
-             * sort key; brightness / radius drive the weight. */
-            struct { float dx, dy, dz, d2; float brightness, radius; } cand[5];
-            for (int i = 0; i < 5; i++) cand[i].d2 = 1e30f;
-            int n_kept = 0;
-
-            #define INSERT_LIGHT(_dx, _dy, _dz, _d2, _br, _rd)        \
-                do {                                                  \
-                    if ((_d2) >= cand[4].d2) break;                   \
-                    int _ins = 4;                                     \
-                    while (_ins > 0 && cand[_ins - 1].d2 > (_d2)) {   \
-                        cand[_ins] = cand[_ins - 1];                  \
-                        _ins--;                                       \
-                    }                                                 \
-                    cand[_ins].dx = (_dx);                            \
-                    cand[_ins].dy = (_dy);                            \
-                    cand[_ins].dz = (_dz);                            \
-                    cand[_ins].d2 = (_d2);                            \
-                    cand[_ins].brightness = (_br);                    \
-                    cand[_ins].radius     = (_rd);                    \
-                    if (n_kept < 5) n_kept++;                         \
-                } while (0)
-
-            for (int slot = 0; slot < 8; slot++) {
-                DG_FixedLight *fl = &gFixedLights_800B1E08[slot];
-                if (!fl->field_4_pLights) continue;
-                int n = fl->field_0_lightCount;
-                if (n < 0) continue;
-                if (n > 64) n = 64;     /* defensive: bogus pointer guard */
-                for (int j = 0; j < n; j++) {
-                    DG_LIT *L = &fl->field_4_pLights[j];
-                    float dx = (float)L->pos.vx - sx_w;
-                    float dy = (float)L->pos.vy - sy_w;
-                    float dz = (float)L->pos.vz - sz_w;
-                    float d2 = dx*dx + dy*dy + dz*dz;
-                    INSERT_LIGHT(dx, dy, dz, d2,
-                                 (float)L->field_8_brightness,
-                                 (float)L->field_A_radius);
-                }
-            }
-            for (int sys = 0; sys < 2; sys++) {
-                DG_TmpLightList *ls = &LightSystems_800B1E48[sys];
-                int n = ls->n_lights;
-                if (n < 0) continue;
-                if (n > 8) n = 8;
-                for (int j = 0; j < n; j++) {
-                    DG_LIT *L = &ls->lights[j];
-                    float dx = (float)L->pos.vx - sx_w;
-                    float dy = (float)L->pos.vy - sy_w;
-                    float dz = (float)L->pos.vz - sz_w;
-                    float d2 = dx*dx + dy*dy + dz*dz;
-                    INSERT_LIGHT(dx, dy, dz, d2,
-                                 (float)L->field_8_brightness,
-                                 (float)L->field_A_radius);
-                }
-            }
-            #undef INSERT_LIGHT
-
-            /* Transform direction + compute physical weight per light.
-             * Linear falloff to radius (clamped 0 when beyond radius
-             * or when radius==0). Brightness is u_short in the PSX data,
-             * so the raw value is the relative-intensity factor — the
-             * FS divides by sum_w so absolute scale doesn't matter. */
-            float max_weight = 0.0f;
-            for (int i = 0; i < n_kept; i++) {
-                WORLD_TOWARD_TO_EYE_FROM(cand[i].dx, cand[i].dy, cand[i].dz,
-                                         light_dirs[i]);
-                float falloff = 0.0f;
-                if (cand[i].radius > 0.5f) {
-                    float d = sqrtf(cand[i].d2);
-                    float t = d / cand[i].radius;
-                    if (t < 1.0f) falloff = 1.0f - t;   /* linear */
-                }
-                light_weights[i] = cand[i].brightness * falloff;
-                if (light_weights[i] > max_weight) max_weight = light_weights[i];
-            }
-            n_lights = n_kept;
-
-            /* Every gathered light fell off to zero (or no lights in the
-             * stage)? Fall back to a sane top-down direction so Snake
-             * still gets *some* shadow. */
-            if (n_lights == 0 || max_weight <= 0.0f) {
-                WORLD_TOWARD_TO_EYE_FROM(0.0f, -1.0f, 0.0f, light_dirs[0]);
-                light_weights[0] = 1.0f;
-                n_lights = 1;
-            }
-        }
-
-        gl_renderer_set_shadow_lights(sxe, sye, sze,
-                                      light_dirs, light_weights, n_lights);
-
-        #undef WORLD_TOWARD_TO_EYE_FROM
     }
 
     int drawn_faces = 0;
