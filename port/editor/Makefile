@@ -47,10 +47,9 @@ EDITOR_OBJ     := $(EDITOR_C_OBJ) $(EDITOR_CXX_OBJ)
 
 # --- Port objects to reuse ---
 # Build the port first so port/obj/*.o exists, then link everything except
-# main.o, main_game.o, imgui_debug.o (replaced by editor) and test_server.o
-# (game-loop helper not needed by editor).
+# main.o, imgui_debug.o (replaced by the editor's own).
 PORT_OBJ_DIR := $(PORT)/obj
-PORT_OBJ_EXCLUDE := main.o imgui_debug.o test_server.o
+PORT_OBJ_EXCLUDE := main.o imgui_debug.o
 PORT_OBJ_ALL := $(shell find $(PORT_OBJ_DIR) -name '*.o' -type f 2>/dev/null | sort)
 PORT_OBJ := $(filter-out $(addprefix $(PORT_OBJ_DIR)/,$(PORT_OBJ_EXCLUDE)), $(PORT_OBJ_ALL))
 

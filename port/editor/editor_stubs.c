@@ -21,15 +21,8 @@ extern int port_force_gouraud_neutral;
 /* From main.c */
 const char *port_argv0 = NULL;
 
-/* Game-loop debug toggles that test_server.c/imgui_debug.cpp would set. */
+/* Game-loop debug toggles that imgui_debug.cpp would set. */
 int  g_running = 1;
-
-/* test_server symbols used by main.c and mts.o — we don't link test_server.o.
-   Provide no-ops + zeroed override slots. */
-void TEST_HARNESS_init(void) {}
-void TEST_HARNESS_tick(void) {}
-unsigned int TEST_HARNESS_override_buttons = 0;
-int          TEST_HARNESS_override_frames  = 0;
 
 /* port_open_controller, port_update_pad, port_vram_toggle_debug and
    port_apply_deferred_clear are all defined elsewhere in the port objects

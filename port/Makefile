@@ -193,7 +193,6 @@ PORT_OBJ = \
 	$(OBJDIR)/hzd_loader.o \
 	$(OBJDIR)/game_script_fix.o \
 	$(OBJDIR)/link_stubs.o \
-	$(OBJDIR)/test_server.o \
 	$(OBJDIR)/strcode_lookup.o \
 	$(OBJDIR)/gcl_overlay.o \
 	$(OBJDIR)/chara_overrides.o \
@@ -335,9 +334,6 @@ $(OBJDIR)/strcode_lookup.o: strcode_lookup.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/link_stubs.o: link_stubs.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(OBJDIR)/test_server.o: test_server.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/gcl_overlay.o: gcl_overlay.c | $(OBJDIR)
