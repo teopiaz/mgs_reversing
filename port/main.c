@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <execinfo.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <time.h>
 #include <SDL.h>
 #include "imgui_debug.h"
 #include "libdg/gl_renderer.h"
@@ -312,11 +314,48 @@ static void port_poll_events(void)
 extern void port_vram_init(SDL_Renderer *renderer);
 extern void port_vram_display(void);
 
+/* Set from imgui's Screenshot button; latched into a 1-shot here so the
+ * grab happens at a known render-pipeline point (right before SwapWindow,
+ * after the scene's been drawn to g_fbo). */
+bool imgui_request_screenshot = false;
+
+/* stb_image_write is compiled into photo_export.c; re-use it here. */
+extern int stbi_write_png(const char *filename, int w, int h, int comp,
+                          const void *data, int stride_in_bytes);
+
+static void port_take_screenshot(void)
+{
+    if (!gl_renderer_enabled()) return;
+    int gl_w = 320 * 8, gl_h = 224 * 8;     /* max PORT_GL_SCALE */
+    unsigned char *rgb = (unsigned char *)malloc((size_t)gl_w * gl_h * 3);
+    if (!rgb) return;
+    int out_w = 0, out_h = 0;
+    if (gl_renderer_read_psx_region(0, 0, 320, 224, rgb, &out_w, &out_h))
+    {
+        mkdir("screenshots", 0755);
+        time_t t = time(NULL);
+        struct tm *tm = localtime(&t);
+        char path[128];
+        snprintf(path, sizeof path, "screenshots/mgs_%04d-%02d-%02d_%02d%02d%02d.png",
+                 tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+                 tm->tm_hour, tm->tm_min, tm->tm_sec);
+        if (stbi_write_png(path, out_w, out_h, 3, rgb, out_w * 3))
+            fprintf(stderr, "[screenshot] wrote %s (%dx%d)\n", path, out_w, out_h);
+        else
+            fprintf(stderr, "[screenshot] stbi_write_png failed for %s\n", path);
+    }
+    free(rgb);
+}
+
 static void port_render(void)
 {
     if (gl_renderer_enabled())
     {
         gl_renderer_present();
+        if (imgui_request_screenshot) {
+            imgui_request_screenshot = false;
+            port_take_screenshot();
+        }
         imgui_render(NULL);
         SDL_GL_SwapWindow(g_window);
     }
