@@ -48,6 +48,18 @@ extern int GM_GameStatus;
 extern int GM_AlertMode;
 extern int GM_AlertLevel;
 
+/* CHARA registry — used by the "Spawn actor" debug menu. Mirrors the
+ * layout from source/include/charadef.h so we don't have to pull the
+ * engine header into this C++ file. */
+/* In C this would be a no-arg-prototype that the GCL spawner calls with
+ * (name, where, argc, argv) anyway; in C++ '()' means '(void)' so we
+ * declare the explicit GCL signature. */
+typedef void *(*PortNEWCHARA)(int name, int where, int argc, char **argv);
+typedef struct { unsigned short class_id; PortNEWCHARA func; } PortCHARA;
+extern PortCHARA  MainCharacterEntries[];          /* terminated by func==NULL */
+extern void      *StageCharacterEntries;            /* points at CHARA[] when a stage is loaded */
+extern const char *strcode_to_string(uint16_t code);
+
 /* Camera / rendering state */
 typedef struct { short m[3][3]; short pad; int t[3]; } PortMATRIX;
 typedef struct { short vx, vy, vz, pad; } PortSVECTOR;
@@ -272,13 +284,141 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
     ImGui::NewFrame();
 
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(560, 620), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(620, 720), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("MGS Debug (F1)", &show_debug)) {
-        /* Sticky header: always-on summary. */
+        /* Sticky header — always-visible summary + quick actions.
+         *   line 1: perf + stage + Snake pos
+         *   line 2: active-override badges (visual cue when non-default
+         *           state is in effect, so it's obvious why the scene
+         *           looks unusual)
+         *   line 3: quick actions (Quit / Restart) */
         ImGuiIO& io = ImGui::GetIO();
-        ImGui::Text("FPS %.1f  |  frame %.2f ms  |  GL %s  |  tick %d",
+        ImGui::Text("FPS %.1f  |  %.2f ms  |  GL %s  |  tick %d",
                     io.Framerate, 1000.0f / (io.Framerate > 1.0f ? io.Framerate : 1.0f),
                     g_imgui_use_gl ? "on" : "off", GV_Time);
+        ImGui::Text("Stage: %s   Snake: (%d, %d, %d)",
+                    port_current_stage[0] ? port_current_stage : "(none)",
+                    GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
+
+        /* Active override badges. Each non-default toggle / mode lights
+         * up so the user can see at a glance why the scene differs from
+         * a stock run. Click any badge to clear that override. */
+        {
+            extern int gl_debug_wireframe, gl_debug_no_textures, gl_debug_skip_3d;
+            extern int gl_debug_skip_2d, gl_debug_skip_lines, gl_debug_face_id;
+            extern int gl_debug_show_normals, gl_debug_clear_override;
+            extern int port_light_ambient_override, port_light_disable_fixed;
+            extern int port_light_disable_dynamic, port_force_gouraud_neutral;
+            extern int port_freecam_enabled, port_freecam_first_person;
+            extern int port_actor_speed;
+
+            struct Badge { const char *name; int *flag; const char *off_value; };
+            int actor_off = 1;
+            Badge badges[] = {
+                {"FREECAM",     &port_freecam_enabled,        nullptr},
+                {"FP-VIEW",     &port_freecam_first_person,   nullptr},
+                {"OVERRIDE-CAM",&imgui_cam_override,          nullptr},
+                {"WIREFRAME",   &gl_debug_wireframe,          nullptr},
+                {"NO-TEX",      &gl_debug_no_textures,        nullptr},
+                {"SKIP-3D",     &gl_debug_skip_3d,            nullptr},
+                {"SKIP-2D",     &gl_debug_skip_2d,            nullptr},
+                {"SKIP-LINES",  &gl_debug_skip_lines,         nullptr},
+                {"FACE-ID",     &gl_debug_face_id,            nullptr},
+                {"NORMALS",     &gl_debug_show_normals,       nullptr},
+                {"CLEAR-OVR",   &gl_debug_clear_override,     nullptr},
+                {"AMB-OVR",     &port_light_ambient_override, nullptr},
+                {"NO-FIXED-LT", &port_light_disable_fixed,    nullptr},
+                {"NO-DYN-LT",   &port_light_disable_dynamic,  nullptr},
+                {"GOURAUD-FLAT",&port_force_gouraud_neutral,  nullptr},
+            };
+            int n_active = 0;
+            for (auto &b : badges) if (*b.flag) n_active++;
+            bool actor_speed_active = (port_actor_speed != 1);
+            int total_active = n_active + (actor_speed_active ? 1 : 0);
+
+            if (total_active == 0) {
+                ImGui::TextDisabled("(no debug overrides active)");
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.4f, 1.0f),
+                                   "%d override%s active:", total_active,
+                                   total_active == 1 ? "" : "s");
+                ImGui::SameLine();
+                /* Speed badge first — non-binary so it gets its own style. */
+                if (actor_speed_active) {
+                    char buf[24];
+                    if (port_actor_speed == 0) snprintf(buf, sizeof buf, "PAUSED");
+                    else if (port_actor_speed > 1) snprintf(buf, sizeof buf, "%dx", port_actor_speed);
+                    else snprintf(buf, sizeof buf, "1/%dx", 1 - port_actor_speed);
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.35f, 0.15f, 1.0f));
+                    if (ImGui::SmallButton(buf)) port_actor_speed = 1;
+                    ImGui::PopStyleColor();
+                    ImGui::SetItemTooltip("Click to reset Actor Speed to 1x.");
+                    ImGui::SameLine();
+                }
+                for (auto &b : badges) {
+                    if (!*b.flag) continue;
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.20f, 0.20f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.30f, 0.30f, 1.0f));
+                    if (ImGui::SmallButton(b.name)) *b.flag = 0;
+                    ImGui::PopStyleColor(2);
+                    ImGui::SetItemTooltip("Click to clear this override.");
+                    ImGui::SameLine();
+                }
+                ImGui::NewLine();
+            }
+        }
+
+        /* Quick-toggle row — the handful of debug flags users flip most
+         * often, all in one row. State lives in the same globals the
+         * full Renderer / Camera tabs edit, so toggles stay in sync. */
+        {
+            extern int gl_debug_wireframe, gl_debug_no_textures;
+            extern int port_freecam_enabled, port_freecam_first_person;
+            extern int port_actor_speed;
+            bool b;
+            b = gl_debug_wireframe != 0;
+            if (ImGui::Checkbox("Wire", &b)) gl_debug_wireframe = b;
+            ImGui::SetItemTooltip("Wireframe rendering (also under Renderer tab).");
+            ImGui::SameLine();
+            b = gl_debug_no_textures != 0;
+            if (ImGui::Checkbox("No-tex", &b)) gl_debug_no_textures = b;
+            ImGui::SetItemTooltip("Skip texture sample; flat vertex color only.");
+            ImGui::SameLine();
+            b = port_freecam_enabled != 0;
+            if (ImGui::Checkbox("Freecam", &b)) port_freecam_enabled = b;
+            ImGui::SetItemTooltip("Toggle the over-the-shoulder freecam (also R3 in-game).");
+            ImGui::SameLine();
+            ImGui::BeginDisabled(!port_freecam_enabled);
+            b = port_freecam_first_person != 0;
+            if (ImGui::Checkbox("FP", &b)) port_freecam_first_person = b;
+            ImGui::SetItemTooltip("Freecam: position the eye AT Snake's head.");
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            b = (port_actor_speed == 0);
+            if (ImGui::Checkbox("Pause", &b)) port_actor_speed = b ? 0 : 1;
+            ImGui::SetItemTooltip("Pause the actor system (rendering keeps running).");
+        }
+
+        /* Quick action row. */
+        {
+            extern bool g_running;
+            extern const char *port_argv0;
+            if (ImGui::SmallButton("Quit")) g_running = false;
+            ImGui::SetItemTooltip("Exit the game cleanly.");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Restart") && port_argv0)
+                execl(port_argv0, port_argv0, (char *)NULL);
+            ImGui::SetItemTooltip("Re-exec the current binary (preserves args).");
+            ImGui::SameLine();
+            extern bool imgui_request_screenshot;
+            if (ImGui::SmallButton("Screenshot")) imgui_request_screenshot = true;
+            ImGui::SetItemTooltip("Write port/screenshots/mgs_YYYY-MM-DD_HHMMSS.png\nfrom the current FBO (PSX-resolution × PORT_GL_SCALE).");
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+            ImGui::TextDisabled("F1 toggles this window");
+        }
+
         ImGui::Separator();
 
         /* Actor speed: throttle / accelerate / pause / single-step the actor
@@ -309,8 +449,10 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             ImGui::SameLine();
             ImGui::BeginDisabled(port_actor_speed != 0);
             if (ImGui::Button("Step"))    port_actor_step  = 1;
+            ImGui::SetItemTooltip("Advance the actor system by exactly 1 frame while paused.\nRendering keeps running so paused state stays visible.");
             ImGui::SameLine();
             if (ImGui::Button("Step 10")) port_actor_step  = 10;
+            ImGui::SetItemTooltip("Advance the actor system by 10 frames.");
             ImGui::EndDisabled();
 
             ImGui::Separator();
@@ -363,29 +505,36 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     extern float gl_debug_clear_rgb[3];
                     bool b;
                     b = gl_debug_wireframe != 0;
-                    if (ImGui::Checkbox("Wireframe (GL_LINE polygons)", &b))
-                        gl_debug_wireframe = b;
+                    if (ImGui::Checkbox("Wireframe", &b)) gl_debug_wireframe = b;
+                    ImGui::SetItemTooltip("glPolygonMode(GL_LINE) — every tri rendered as edges only.");
+                    ImGui::SameLine();
                     b = gl_debug_no_textures != 0;
-                    if (ImGui::Checkbox("Disable textures (flat color only)", &b))
-                        gl_debug_no_textures = b;
+                    if (ImGui::Checkbox("No textures", &b)) gl_debug_no_textures = b;
+                    ImGui::SetItemTooltip("Skip the texture sample in the fragment shader; outputs flat vertex color.");
+                    ImGui::SameLine();
                     b = gl_debug_no_cull != 0;
-                    if (ImGui::Checkbox("Disable backface cull (see interior)", &b))
-                        gl_debug_no_cull = b;
+                    if (ImGui::Checkbox("No cull", &b)) gl_debug_no_cull = b;
+                    ImGui::SetItemTooltip("Skip CPU backface cull — useful for seeing inside hollow models.");
+
                     b = gl_debug_cull_cw != 0;
-                    if (ImGui::Checkbox("Flip front-face (CW instead of CCW)", &b))
-                        gl_debug_cull_cw = b;
+                    if (ImGui::Checkbox("Flip winding", &b)) gl_debug_cull_cw = b;
+                    ImGui::SetItemTooltip("Treat clockwise tris as front-facing. Diagnoses inside-out models.");
+                    ImGui::SameLine();
                     b = port_force_gouraud_neutral != 0;
-                    if (ImGui::Checkbox("Force Gouraud neutral (128,128,128)", &b))
-                        port_force_gouraud_neutral = b ? 1 : 0;
-                    b = gl_debug_face_id != 0;
-                    if (ImGui::Checkbox("Per-tri random color (face ID)", &b))
-                        gl_debug_face_id = b;
-                    b = gl_debug_show_normals != 0;
-                    if (ImGui::Checkbox("Show normals (N.xyz*0.5+0.5 as RGB)", &b))
-                        gl_debug_show_normals = b;
+                    if (ImGui::Checkbox("Flat 128", &b)) port_force_gouraud_neutral = b ? 1 : 0;
+                    ImGui::SetItemTooltip("Skip shade-pipeline output; force neutral (128,128,128) Gouraud. Isolates lighting vs texture issues.");
+                    ImGui::SameLine();
                     bool vram_dbg = port_vram_debug_view() != 0;
-                    if (ImGui::Checkbox("VRAM debug view (show full 1024x512)", &vram_dbg))
-                        port_vram_toggle_debug();
+                    if (ImGui::Checkbox("VRAM view", &vram_dbg)) port_vram_toggle_debug();
+                    ImGui::SetItemTooltip("Show the full 1024x512 PSX VRAM image instead of the rendered scene.");
+
+                    b = gl_debug_face_id != 0;
+                    if (ImGui::Checkbox("Face IDs", &b)) gl_debug_face_id = b;
+                    ImGui::SetItemTooltip("Random color per triangle (hashed gl_PrimitiveID). Counts polys visually.");
+                    ImGui::SameLine();
+                    b = gl_debug_show_normals != 0;
+                    if (ImGui::Checkbox("Normals", &b)) gl_debug_show_normals = b;
+                    ImGui::SetItemTooltip("Output the interpolated normal as RGB (N*0.5+0.5).");
 
                     ImGui::Spacing();
                     b = gl_debug_clear_override != 0;
@@ -554,6 +703,10 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 ImGui::Spacing();
                 ImGui::SeparatorText("Manual eye_inv override");
                 ImGui::Checkbox("Override Camera", (bool *)&imgui_cam_override);
+                ImGui::SetItemTooltip(
+                    "Write the sliders below directly into DG_Chanls[1].eye_inv\n"
+                    "each frame. Bypasses the engine's camera_act output. Use to\n"
+                    "diff specific camera matrices against a reference.");
                 if (imgui_cam_override) {
                     /* Re-init the slider state every time the checkbox flips
                      * back on, so the override starts from the current camera
@@ -674,27 +827,204 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             /* ACTORS                                                     */
             /* ---------------------------------------------------------- */
             if (ImGui::BeginTabItem("Actors")) {
+                /* -------- Spawn-any-actor --------------------------------
+                 * Enumerate every entry in both registries (main binary +
+                 * current stage overlay) and let the user spawn one. The
+                 * actor's constructor signature varies — the canonical
+                 * GCL entry-point is (int name, int where, int argc,
+                 * char **argv) per source/game/script.c:475-493, so we
+                 * call it that way with argc=0/argv=NULL. `where` is
+                 * a HZD-zone bitmask; 0 = "no zone", which is what most
+                 * actors check before reading map data.
+                 *
+                 * Caveats (tooltip below):
+                 *  - Position is read from collision/HZD data via `where`,
+                 *    not from the camera; many actors will spawn at a
+                 *    map-bound location, not wherever you're looking.
+                 *  - Some actors expect specific argv args and may crash
+                 *    when invoked with argc=0. Treat this as a dev aid. */
+                {
+                    /* Build a unified list of {class_id, func, table_tag}
+                     * from MainCharacterEntries + StageCharacterEntries. */
+                    struct Row {
+                        unsigned short id;
+                        PortNEWCHARA   func;
+                        const char    *src;   /* "main" or "stage" */
+                        const char    *name;  /* from strcode_to_string, may be NULL */
+                    };
+                    static Row rows[1024];
+                    static int n_rows = 0;
+                    static int last_stage_entries_addr = -1;
+                    /* Re-enumerate when the stage's chara table pointer
+                     * changes (i.e., stage transition) or first time. */
+                    int cur_stage_addr = (int)(intptr_t)StageCharacterEntries;
+                    if (cur_stage_addr != last_stage_entries_addr) {
+                        last_stage_entries_addr = cur_stage_addr;
+                        n_rows = 0;
+                        for (PortCHARA *p = MainCharacterEntries;
+                             p->func != NULL && n_rows < 1024; ++p) {
+                            rows[n_rows].id   = p->class_id;
+                            rows[n_rows].func = p->func;
+                            rows[n_rows].src  = "main";
+                            rows[n_rows].name = strcode_to_string(p->class_id);
+                            n_rows++;
+                        }
+                        PortCHARA *st = (PortCHARA *)StageCharacterEntries;
+                        if (st) {
+                            for (; st->func != NULL && n_rows < 1024; ++st) {
+                                rows[n_rows].id   = st->class_id;
+                                rows[n_rows].func = st->func;
+                                rows[n_rows].src  = "stage";
+                                rows[n_rows].name = strcode_to_string(st->class_id);
+                                n_rows++;
+                            }
+                        }
+                    }
+
+                    ImGui::SeparatorText("Spawn actor");
+                    static char filter[64] = {0};
+                    static int  sel = -1;
+                    static int  where = 0;
+                    ImGui::SetNextItemWidth(180);
+                    ImGui::InputTextWithHint("##spawnfilter", "filter (name or 0xHHHH)",
+                                             filter, sizeof(filter));
+                    ImGui::SameLine();
+                    char preview[64];
+                    if (sel >= 0 && sel < n_rows) {
+                        snprintf(preview, sizeof preview, "0x%04X %s",
+                                 rows[sel].id, rows[sel].name ? rows[sel].name : "(unknown)");
+                    } else {
+                        snprintf(preview, sizeof preview, "(pick an actor)");
+                    }
+                    ImGui::SetNextItemWidth(260);
+                    if (ImGui::BeginCombo("##spawnpick", preview)) {
+                        for (int i = 0; i < n_rows; i++) {
+                            const char *nm = rows[i].name ? rows[i].name : "";
+                            char hex[8]; snprintf(hex, sizeof hex, "%04x", rows[i].id);
+                            /* Case-insensitive substring filter on name + hex hash. */
+                            if (filter[0]) {
+                                bool match_name = false, match_hex = false;
+                                if (nm[0]) {
+                                    for (const char *s = nm; *s; ++s) {
+                                        const char *a = s, *b = filter;
+                                        while (*a && *b &&
+                                               (*a | 0x20) == (*b | 0x20)) { a++; b++; }
+                                        if (!*b) { match_name = true; break; }
+                                    }
+                                }
+                                if (!match_name) {
+                                    for (const char *s = hex; *s; ++s) {
+                                        const char *a = s, *b = filter;
+                                        while (*a && *b &&
+                                               (*a | 0x20) == (*b | 0x20)) { a++; b++; }
+                                        if (!*b) { match_hex = true; break; }
+                                    }
+                                }
+                                if (!match_name && !match_hex) continue;
+                            }
+                            char label[80];
+                            snprintf(label, sizeof label, "[%s] 0x%04X  %s",
+                                     rows[i].src, rows[i].id, nm[0] ? nm : "(unknown)");
+                            if (ImGui::Selectable(label, sel == i)) sel = i;
+                        }
+                        ImGui::EndCombo();
+                    }
+                    ImGui::SetNextItemWidth(120);
+                    ImGui::InputInt("where (HZD mask)", &where);
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(sel < 0 || sel >= n_rows);
+                    if (ImGui::Button("Spawn")) {
+                        if (sel >= 0 && sel < n_rows && rows[sel].func) {
+                            /* GCL-style entry: (name, where, argc, argv). */
+                            rows[sel].func((int)rows[sel].id, where, 0, (char **)NULL);
+                        }
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::TextDisabled("%d entries (%d match filter)", n_rows,
+                        [&]{ int c=0; for (int i=0;i<n_rows;i++) {
+                            const char *nm = rows[i].name ? rows[i].name : "";
+                            if (!filter[0]) { c++; continue; }
+                            const char *a, *b;
+                            for (const char *s=nm; *s; ++s) {
+                                a=s; b=filter;
+                                while (*a && *b && (*a|0x20)==(*b|0x20)) { a++; b++; }
+                                if (!*b) { c++; goto _next; }
+                            }
+                            { char hex[8]; snprintf(hex,sizeof hex,"%04x",rows[i].id);
+                              for (const char *s=hex; *s; ++s) {
+                                a=s; b=filter;
+                                while (*a && *b && (*a|0x20)==(*b|0x20)) { a++; b++; }
+                                if (!*b) { c++; break; }
+                              }
+                            }
+                            _next:; }
+                          return c; }());
+                    ImGui::TextDisabled("Position is read from HZD via `where`, not passed directly. "
+                                        "Some actors expect specific argv args and may crash with argc=0.");
+                    ImGui::Spacing();
+                    ImGui::SeparatorText("Live actors");
+                }
+
                 const char *level_names[] = {
                     "DAEMON", "MANAGER", "LEVEL2", "LEVEL3",
                     "LEVEL4", "LEVEL5", "DAEMON2"
                 };
-                int total = 0;
+
+                /* Live-actor filter — substring match against actor->filename.
+                 * Auto-expands level trees that contain matches; collapses
+                 * the rest. */
+                static char live_filter[64] = {0};
+                static bool show_only_active = false;
+                ImGui::SetNextItemWidth(180);
+                ImGui::InputTextWithHint("##livefilter", "filter (filename substring)",
+                                         live_filter, sizeof(live_filter));
+                ImGui::SameLine();
+                ImGui::Checkbox("Active only", &show_only_active);
+                ImGui::SetItemTooltip("Hide actors whose act callback is NULL (DEAD entries).");
+
+                auto match_filter = [](const char *s) -> bool {
+                    if (!live_filter[0]) return true;
+                    if (!s) return false;
+                    for (const char *p = s; *p; ++p) {
+                        const char *a = p, *b = live_filter;
+                        while (*a && *b && (*a | 0x20) == (*b | 0x20)) { a++; b++; }
+                        if (!*b) return true;
+                    }
+                    return false;
+                };
+
+                int total = 0, total_matches = 0;
                 for (int lv = 0; lv < 7; lv++) {
                     PortActorList *list = &ActorList[lv];
                     ActorNode *head = &list->first;
                     ActorNode *cur = head->next;
-                    int count = 0;
-                    while (cur && cur != &list->last && count < 256) { count++; cur = cur->next; }
+                    int count = 0, matches = 0;
+                    while (cur && cur != &list->last && count < 256) {
+                        count++;
+                        bool active = (cur->act != NULL);
+                        if ((!show_only_active || active) && match_filter(cur->filename))
+                            matches++;
+                        cur = cur->next;
+                    }
                     if (count == 0) continue;
                     total += count;
-                    if (ImGui::TreeNode(level_names[lv], "%s (%d) pause=%d kill=%d",
-                                        level_names[lv], count, list->pause, list->kill))
+                    total_matches += matches;
+                    if (matches == 0 && (live_filter[0] || show_only_active)) continue;
+                    /* Auto-open trees with matches when a filter is active. */
+                    if (live_filter[0] || show_only_active)
+                        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+                    if (ImGui::TreeNode(level_names[lv], "%s (%d, %d match) pause=%d kill=%d",
+                                        level_names[lv], count, matches,
+                                        list->pause, list->kill))
                     {
                         cur = head->next;
                         int idx = 0;
                         while (cur && cur != &list->last && idx < 256) {
                             const char *name = cur->filename ? cur->filename : "???";
                             bool active = (cur->act != NULL);
+                            bool show = (show_only_active ? active : true)
+                                     && match_filter(cur->filename);
+                            if (!show) { cur = cur->next; idx++; continue; }
                             if (!active)
                                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
                             ImGui::Text("[%d] %-20s act=%s ticks=%d rt=%d",
@@ -713,7 +1043,10 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     }
                 }
                 ImGui::Separator();
-                ImGui::Text("Total: %d actors", total);
+                if (live_filter[0] || show_only_active)
+                    ImGui::Text("Total: %d actors  (%d shown)", total, total_matches);
+                else
+                    ImGui::Text("Total: %d actors", total);
                 ImGui::EndTabItem();
             }
 
@@ -727,42 +1060,37 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 extern int port_demo_max_frame;     /* heuristic upper bound */
                 extern int port_demo_force_visible; /* override visible=0 */
 
-                ImGui::TextWrapped(
-                    "Scrub the streaming cinematic by demo-frame. Reads the"
-                    " .dmo data directly from DEMO.DAT (sector 0x1441 for"
-                    " d00a/s0102a0.dmo), seeks to the chosen frame, and"
-                    " feeds it to FrameRunDemo each tick. Bypasses the"
-                    " streaming SA actor's heap parser, which can't reach"
-                    " late d00a frames yet.");
-                ImGui::Separator();
+                ImGui::SeparatorText("Cinematic scrubber");
 
                 bool active = (port_demo_seek_active != 0);
                 if (ImGui::Checkbox("Enable scrubber", &active)) {
                     port_demo_seek_active = active ? 1 : 0;
                     if (active) port_demo_paused = 1;
                 }
+                ImGui::SetItemTooltip("Scrub the streaming cinematic by demo-frame. Reads .dmo data\ndirectly from DEMO.DAT, seeks to the chosen frame, feeds it to\nFrameRunDemo each tick. Bypasses the streaming SA actor's heap\nparser (can't reach late d00a frames yet).");
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Release")) {
                     port_demo_seek_active = 0;
                     port_demo_paused = 0;
                 }
+                ImGui::SetItemTooltip("Stop seeking; let the demo run normally.");
                 bool fv = (port_demo_force_visible != 0);
                 if (ImGui::Checkbox("Force visible (override visible=0)", &fv)) {
                     port_demo_force_visible = fv ? 1 : 0;
                 }
+                ImGui::SetItemTooltip("Ignore the demo's visible-flag and render every adjust anyway —\nuseful when something is meant to fade in but you want to see it.");
 
                 extern int port_demo_dump_request;
-                ImGui::Separator();
-                ImGui::TextWrapped(
-                    "Dump the snake render chain to stderr: chanl[1] eye_inv,"
-                    " demo's eye/center/clip, every adjust's pos+rot+visible,"
-                    " each snake DG_OBJS world matrix, and the first face's"
-                    " eye-space vertex coords. Paste this output side-by-side"
-                    " with the editor's render to localize where the divergence"
-                    " lives in the pipeline.");
+                ImGui::Spacing();
                 if (ImGui::Button("Dump snake render state")) {
                     port_demo_dump_request = 1;
                 }
+                ImGui::SetItemTooltip(
+                    "Dump the snake render chain to stderr: chanl[1] eye_inv,\n"
+                    "demo's eye/center/clip, every adjust's pos+rot+visible, each\n"
+                    "snake DG_OBJS world matrix, and the first face's eye-space\n"
+                    "vertex coords. Diff against editor output to localize where\n"
+                    "the divergence lives in the pipeline.");
 
                 int max_frame = port_demo_max_frame > 0 ? port_demo_max_frame : 1980;
                 int frame = port_demo_seek_target;
@@ -864,6 +1192,27 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 ImGui::TextDisabled("(run once; copy stderr lines after press)");
                 ImGui::Separator();
 
+                /* Single-button "back to defaults" for the entire lighting
+                 * override surface — useful when you've toggled a handful
+                 * of mute / disable / ambient knobs and want the stage's
+                 * own lighting back without flipping each individually. */
+                if (ImGui::Button("Reset lighting to stage defaults")) {
+                    port_light_ambient_override = 0;
+                    port_light_ambient_rgb[0]   = 32;
+                    port_light_ambient_rgb[1]   = 32;
+                    port_light_ambient_rgb[2]   = 32;
+                    port_light_disable_fixed    = 0;
+                    port_light_disable_dynamic  = 0;
+                    port_light_ambient_scale    = 1.0f;
+                    port_force_gouraud_neutral  = 0;
+                    for (int i = 0; i < 8; i++) port_light_group_disabled[i] = 0;
+                    for (int i = 0; i < 2; i++)
+                        for (int j = 0; j < 8; j++)
+                            port_light_dyn_slot_muted[i][j] = 0;
+                }
+                ImGui::SetItemTooltip("Clear every lighting override / mute / scale knob.");
+                ImGui::Separator();
+
                 /* --- Ambient ----------------------------------------- */
                 {
                     float amb_r = DG_Ambient.vx / 255.0f;
@@ -913,8 +1262,7 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 /* Directional lights: DG_LightMatrix rows = directions (4.12),
                    DG_ColorMatrix columns = colors scaled *16 (DG_SetMainLightCol
                    multiplies by 16; divide by 16 to recover the user 0..255). */
-                if (ImGui::CollapsingHeader("Directional lights (3)",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::CollapsingHeader("Directional lights (3)")) {
                     static const char *names[3] = { "Main", "Sub 1", "Sub 2" };
                     if (ImGui::BeginTable("##dirlights", 4,
                                           ImGuiTableFlags_Borders |
@@ -1068,6 +1416,32 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             /* GAME STATE                                                 */
             /* ---------------------------------------------------------- */
             if (ImGui::BeginTabItem("Game")) {
+                /* Freeze GV_Time / GV_Clock — re-write the cached values
+                 * each frame, so anything reading these globals sees a
+                 * constant tick count. Pairs with the actor-pause control
+                 * at the top: pausing actors stops their state advance,
+                 * freezing GV_Time stops engine-side animation lerps that
+                 * sample time directly. */
+                static bool freeze_time = false;
+                static int  frozen_gv_time = 0;
+                static int  frozen_gv_clock = 0;
+                bool was_frozen = freeze_time;
+                ImGui::Checkbox("Freeze GV_Time / GV_Clock", &freeze_time);
+                ImGui::SetItemTooltip(
+                    "Hold the engine's tick counters at their current value.\n"
+                    "Anything reading GV_Time (animation curves, fades, alert\n"
+                    "timers) sees a constant. Pairs with the Pause control to\n"
+                    "freeze the scene as completely as possible.");
+                if (freeze_time && !was_frozen) {
+                    frozen_gv_time  = GV_Time;
+                    frozen_gv_clock = GV_Clock;
+                }
+                if (freeze_time) {
+                    GV_Time  = frozen_gv_time;
+                    GV_Clock = frozen_gv_clock;
+                }
+                ImGui::Separator();
+
                 ImGui::Text("GV_Clock:      %d", GV_Clock);
                 ImGui::Text("GV_Time:       %d", GV_Time);
                 ImGui::Text("GM_GameStatus: 0x%08X", GM_GameStatus);
@@ -1110,18 +1484,7 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
             /* ---------------------------------------------------------- */
             /* OTHER — stage / input / audio / controls                   */
             /* ---------------------------------------------------------- */
-            if (ImGui::BeginTabItem("Other")) {
-                if (ImGui::CollapsingHeader("Stage",
-                                            ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    ImGui::Text("Current stage: %s",
-                                port_current_stage[0] ? port_current_stage : "(none)");
-                    ImGui::Text("Snake pos: (%d, %d, %d)",
-                        GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
-                }
-
-                if (ImGui::CollapsingHeader("Input / Pad",
-                                            ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::BeginTabItem("Input")) {
                 {
                     unsigned long b = (unsigned long)mts_PadRead(0);
                     ImGui::Text("Buttons: 0x%04lX", b);
@@ -1155,9 +1518,29 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                     ImGui::SameLine();
                     ImGui::Text("L stick\n  lx = %u\n  ly = %u",
                                 (unsigned)port_pad_lx, (unsigned)port_pad_ly);
-                }
 
-                if (ImGui::CollapsingHeader("Audio"))
+                    /* Right stick — wired via mts.c for the freecam. */
+                    extern unsigned char port_pad_rx, port_pad_ry;
+                    ImGui::SameLine();
+                    ImVec2 pr = ImGui::GetCursorScreenPos();
+                    dl->AddRect(pr, ImVec2(pr.x + sz, pr.y + sz),
+                                IM_COL32(180,180,180,200));
+                    float rcx = pr.x + (port_pad_rx / 255.0f) * sz;
+                    float rcy = pr.y + (port_pad_ry / 255.0f) * sz;
+                    dl->AddCircleFilled(ImVec2(rcx, rcy), 4.0f,
+                                        IM_COL32(220,180,120,255));
+                    ImGui::Dummy(ImVec2(sz, sz));
+                    ImGui::SameLine();
+                    ImGui::Text("R stick\n  rx = %u\n  ry = %u",
+                                (unsigned)port_pad_rx, (unsigned)port_pad_ry);
+                }
+                ImGui::EndTabItem();
+            }
+
+            /* ---------------------------------------------------------- */
+            /* AUDIO                                                      */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Audio")) {
                 {
                     /* --- Global mute ------------------------------------ */
                     bool muted = port_spu_is_muted() != 0;
@@ -1305,24 +1688,6 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                         }
                         ImGui::TreePop();
                     }
-                }
-
-                if (ImGui::CollapsingHeader("Debug controls",
-                                            ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    extern bool g_running;  /* main.c */
-                    if (ImGui::Button("Quit"))
-                        g_running = false;
-                    ImGui::SameLine();
-                    if (ImGui::Button("Restart"))
-                    {
-                        /* Best-effort: re-exec the current binary. argv[0] is
-                           captured at startup in main.c (see port_argv0). */
-                        extern const char *port_argv0;
-                        if (port_argv0)
-                            execl(port_argv0, port_argv0, (char *)NULL);
-                    }
-                    ImGui::TextDisabled("Restart: re-execs the current binary.");
                 }
 
                 ImGui::EndTabItem();
