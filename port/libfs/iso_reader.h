@@ -59,4 +59,20 @@ int  iso_find_file(IsoImage *img, const char *iso_path, IsoFile *out);
 int  iso_read_file(IsoImage *img, const IsoFile *file,
                    long byte_offset, int size, void *buf);
 
+/* One entry from an iso_list_directory walk. */
+typedef struct {
+    char name[64];   /* filename with the ";<ver>" suffix already stripped */
+    int  is_dir;
+    int  lba;
+    long size;
+} IsoDirEntry;
+
+/* Enumerate the entries of `iso_dir_path` (e.g. "" / "MGS" / "MGS/SAFE").
+ * Skips the "." and ".." records. Returns a heap-allocated array of
+ * IsoDirEntry; caller frees with `free()`. `*out_count` is the number
+ * of entries written. Returns NULL if the directory wasn't found or
+ * the image is unreadable; in that case `*out_count` is set to 0. */
+IsoDirEntry *iso_list_directory(IsoImage *img, const char *iso_dir_path,
+                                int *out_count);
+
 #endif /* PORT_ISO_READER_H */

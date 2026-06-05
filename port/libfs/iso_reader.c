@@ -344,6 +344,147 @@ int iso_find_file(IsoImage *img, const char *iso_path, IsoFile *out)
     }
 }
 
+/* Resolve a directory path to its (lba, size) extent. Walks the tree
+ * starting from the root. Returns 0 on success, -1 otherwise. Empty
+ * path / "/" returns the root. */
+static int iso_resolve_dir(IsoImage *img, const char *iso_dir_path,
+                           int *out_lba, long *out_size)
+{
+    if (!img || !img->fp || !out_lba || !out_size) return -1;
+
+    uint8_t pvd[ISO_SECTOR_USER_SIZE];
+    if (iso_read_sector(img, 16, pvd) != 0) return -1;
+    uint8_t *root = pvd + 156;
+    int  dir_lba  = (int)((uint32_t)root[2]  | ((uint32_t)root[3]  << 8) |
+                          ((uint32_t)root[4]  << 16) | ((uint32_t)root[5]  << 24));
+    long dir_size = (long)((uint32_t)root[10] | ((uint32_t)root[11] << 8) |
+                           ((uint32_t)root[12] << 16) | ((uint32_t)root[13] << 24));
+
+    const char *p = iso_dir_path ? iso_dir_path : "";
+    while (*p == '/' || *p == '\\') p++;
+    if (!*p) {
+        *out_lba = dir_lba;
+        *out_size = dir_size;
+        return 0;
+    }
+
+    for (;;) {
+        char comp[64];
+        int cn = 0;
+        while (*p && *p != '/' && *p != '\\') {
+            if (cn < (int)sizeof(comp) - 1) comp[cn++] = *p;
+            p++;
+        }
+        comp[cn] = '\0';
+        if (cn == 0) return -1;
+        int is_last = (*p == '\0');
+        while (*p == '/' || *p == '\\') p++;
+
+        long actual = 0;
+        uint8_t *dir = read_dir_extent(img, dir_lba, dir_size, &actual);
+        if (!dir) return -1;
+
+        int found = 0;
+        for (long i = 0; i < dir_size; ) {
+            uint8_t rec_len = dir[i];
+            if (rec_len == 0) {
+                long next = ((i / ISO_SECTOR_USER_SIZE) + 1) * ISO_SECTOR_USER_SIZE;
+                if (next <= i) break;
+                i = next; continue;
+            }
+            int  f_lba  = (int)((uint32_t)dir[i+2]  | ((uint32_t)dir[i+3]  << 8) |
+                                ((uint32_t)dir[i+4] << 16) | ((uint32_t)dir[i+5] << 24));
+            long f_size = (long)((uint32_t)dir[i+10] | ((uint32_t)dir[i+11] << 8) |
+                                 ((uint32_t)dir[i+12] << 16) | ((uint32_t)dir[i+13] << 24));
+            uint8_t flags    = dir[i + 25];
+            uint8_t name_len = dir[i + 32];
+            const char *name = (const char *)&dir[i + 33];
+            int is_dir = (flags & 2) != 0;
+            if (is_dir && name_matches(name, name_len, comp)) {
+                dir_lba = f_lba; dir_size = f_size;
+                found = 1;
+                break;
+            }
+            i += rec_len;
+        }
+        free(dir);
+        if (!found) return -1;
+        if (is_last) {
+            *out_lba = dir_lba;
+            *out_size = dir_size;
+            return 0;
+        }
+    }
+}
+
+IsoDirEntry *iso_list_directory(IsoImage *img, const char *iso_dir_path,
+                                int *out_count)
+{
+    if (out_count) *out_count = 0;
+    if (!img || !img->fp || !out_count) return NULL;
+
+    int dir_lba = 0;
+    long dir_size = 0;
+    if (iso_resolve_dir(img, iso_dir_path, &dir_lba, &dir_size) != 0) return NULL;
+
+    long actual = 0;
+    uint8_t *dir = read_dir_extent(img, dir_lba, dir_size, &actual);
+    if (!dir) return NULL;
+
+    int cap = 32, n = 0;
+    IsoDirEntry *out = (IsoDirEntry *)malloc(sizeof(*out) * cap);
+    if (!out) { free(dir); return NULL; }
+
+    for (long i = 0; i < dir_size; ) {
+        uint8_t rec_len = dir[i];
+        if (rec_len == 0) {
+            long next = ((i / ISO_SECTOR_USER_SIZE) + 1) * ISO_SECTOR_USER_SIZE;
+            if (next <= i) break;
+            i = next; continue;
+        }
+        int  f_lba  = (int)((uint32_t)dir[i+2]  | ((uint32_t)dir[i+3]  << 8) |
+                            ((uint32_t)dir[i+4] << 16) | ((uint32_t)dir[i+5] << 24));
+        long f_size = (long)((uint32_t)dir[i+10] | ((uint32_t)dir[i+11] << 8) |
+                             ((uint32_t)dir[i+12] << 16) | ((uint32_t)dir[i+13] << 24));
+        uint8_t flags    = dir[i + 25];
+        uint8_t name_len = dir[i + 32];
+        const char *name = (const char *)&dir[i + 33];
+        int is_dir = (flags & 2) != 0;
+
+        /* Skip "." (0x00) and ".." (0x01) special records. */
+        if (name_len != 1 || (name[0] != 0 && name[0] != 1)) {
+            int trim = name_len;
+            for (int k = 0; k < name_len; k++) if (name[k] == ';') { trim = k; break; }
+            while (trim > 0 && name[trim - 1] == '.') trim--;
+            if (trim > (int)sizeof(out[0].name) - 1) trim = sizeof(out[0].name) - 1;
+
+            if (n == cap) {
+                cap *= 2;
+                IsoDirEntry *grown = (IsoDirEntry *)realloc(out, sizeof(*out) * cap);
+                if (!grown) { free(out); free(dir); return NULL; }
+                out = grown;
+            }
+            memcpy(out[n].name, name, trim);
+            out[n].name[trim] = '\0';
+            out[n].is_dir = is_dir;
+            out[n].lba    = f_lba;
+            /* Apply the same XA-aware effective-size extension as iso_find_file
+             * so a browser preview of e.g. RADIO.DAT shows the real extent. */
+            if (!is_dir) {
+                build_sibling_cache(img, dir_lba, dir_size);
+                out[n].size = effective_size(img, f_lba, f_size);
+            } else {
+                out[n].size = f_size;
+            }
+            n++;
+        }
+        i += rec_len;
+    }
+    free(dir);
+    *out_count = n;
+    return out;
+}
+
 int iso_read_file(IsoImage *img, const IsoFile *file,
                   long byte_offset, int size, void *buf)
 {

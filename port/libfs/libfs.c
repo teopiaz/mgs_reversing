@@ -43,6 +43,13 @@ typedef struct PortFile {
 static IsoImage port_iso = {0};
 static int      port_iso_active = 0;
 
+/* Public accessor for tools that want to walk the disc image directly
+ * (e.g. editor's content browser). Returns NULL when no image is open. */
+IsoImage *port_iso_get(void)
+{
+    return port_iso_active ? &port_iso : NULL;
+}
+
 static int pf_valid(const PortFile *pf) { return pf && pf->valid; }
 
 /* Read `size` bytes from the given byte offset into `buf`. Returns bytes
