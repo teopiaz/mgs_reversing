@@ -24,6 +24,7 @@ extern int gl_debug_no_textures;
  * Play button to spawn the live game with the same ISO the editor is
  * already reading. */
 extern const char *port_iso_override;
+void ed_browser_tab(void);   /* port/editor/ed_browser.cpp */
 }
 
 /* True iff the dockable "3D View" panel is hovered or focused this frame.
@@ -1939,6 +1940,7 @@ extern "C" void ed_ui_draw(void)
 
         if (ImGui::BeginTabBar("##tabs")) {
             if (ImGui::BeginTabItem("Scene"))   { tab_scene();   ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Browser")) { ed_browser_tab(); ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Camera"))  { tab_camera();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Actors"))  { tab_actors();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Demo"))    { tab_demo();    ImGui::EndTabItem(); }

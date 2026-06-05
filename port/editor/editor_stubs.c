@@ -21,6 +21,10 @@ extern int port_force_gouraud_neutral;
 /* From main.c */
 const char *port_argv0 = NULL;
 
+/* imgui_debug.cpp exports this for port_menu.c. The editor uses its own
+ * ImGui driver (OpenGL3 always) so we just hardcode "yes". */
+int imgui_using_gl(void) { return 1; }
+
 /* Game-loop debug toggles that imgui_debug.cpp would set. */
 int  g_running = 1;
 

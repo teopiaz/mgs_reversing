@@ -40,7 +40,7 @@ TARGET := editor
 
 # --- Editor sources ---
 EDITOR_C_SRC   := main.c editor_stubs.c ed_loader.c ed_camera.c ed_render.c ed_hzd.c ed_actors.c ed_demo.c ed_dmo.c
-EDITOR_CXX_SRC := ed_ui.cpp
+EDITOR_CXX_SRC := ed_ui.cpp ed_browser.cpp
 EDITOR_C_OBJ   := $(patsubst %.c,$(OBJDIR)/%.o,$(EDITOR_C_SRC))
 EDITOR_CXX_OBJ := $(patsubst %.cpp,$(OBJDIR)/%.o,$(EDITOR_CXX_SRC))
 EDITOR_OBJ     := $(EDITOR_C_OBJ) $(EDITOR_CXX_OBJ)
