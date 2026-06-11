@@ -898,6 +898,10 @@ void title_open_800C628C(OpenWork *work)
     short     status;
     int       i;
     int       v;
+    int       q;
+    int       r;
+    int       g;
+    int       b;
     int       x;
     int       y;
 
@@ -2033,6 +2037,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -2072,18 +2078,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -2220,10 +2226,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -2280,13 +2282,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -2376,6 +2378,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -2415,18 +2419,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -2592,10 +2596,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -2652,13 +2652,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -2757,6 +2757,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -2796,18 +2798,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -3038,10 +3040,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -3098,13 +3096,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -3260,6 +3258,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -3299,18 +3299,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -3412,10 +3412,10 @@ void title_open_800C628C(OpenWork *work)
                         x = d * 52 / 6;
                         p4FC[7].x1 = x;
                         p4FC[7].x3 = x;
-                        p4FC[7].x0 = -x;
-                        p4FC[7].x2 = -x;
                         p4FC[7].y0 = 0xB;
                         p4FC[7].y1 = 0xB;
+                        p4FC[7].x0 = -x;
+                        p4FC[7].x2 = -x;
                         p4FC[7].y2 = 0x13;
                         p4FC[7].y3 = 0x13;
                         v = (c - 0x20) * 128 / 10;
@@ -3568,10 +3568,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -3628,13 +3624,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -3792,6 +3788,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -3831,18 +3829,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -4008,10 +4006,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -4068,13 +4062,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -4167,6 +4161,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -4206,18 +4202,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -4273,6 +4269,7 @@ void title_open_800C628C(OpenWork *work)
                     else if (c < 0x2B)
                     {
                         int d = c - 0x24;
+                        int d4 = d * 4;
                         work->fF8[4] = 0x100;
                         work->fF8[5] = 0x100;
                         work->fF8[6] = 0x100;
@@ -4294,7 +4291,6 @@ void title_open_800C628C(OpenWork *work)
                         p4FC[6].y0 = -0x15;
                         p4FC[6].y1 = -0x15;
                         p4FC[6].y2 = -0xD;
-                        p4FC[6].y3 = -0xD;
                         x = d * 80 / 6;
                         p4FC[4].x1 = x;
                         p4FC[4].x3 = x;
@@ -4305,11 +4301,12 @@ void title_open_800C628C(OpenWork *work)
                         p4FC[5].x3 = x;
                         p4FC[5].x0 = -x;
                         p4FC[5].x2 = -x;
-                        x = d * 4;
+                        x = d4;
                         p4FC[6].x1 = x;
                         p4FC[6].x3 = x;
                         p4FC[6].x0 = -x;
                         p4FC[6].x2 = -x;
+                        p4FC[6].y3 = -0xD;
                         p4FC[6].r0 = 0x64;
                         p4FC[6].g0 = 0xA0;
                         p4FC[6].b0 = 0x87;
@@ -4317,10 +4314,10 @@ void title_open_800C628C(OpenWork *work)
                         p4FC[17].g0 = 0xA0;
                         p4FC[17].b0 = 0x87;
                         x = d * 70 / 6;
-                        p4FC[17].x1 = x;
-                        p4FC[17].x3 = x;
                         p4FC[17].x0 = -x;
+                        p4FC[17].x1 = x;
                         p4FC[17].x2 = -x;
+                        p4FC[17].x3 = x;
                         p4FC[17].y0 = 0xB;
                         p4FC[17].y1 = 0xB;
                         p4FC[17].y2 = 0x13;
@@ -4412,10 +4409,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -4472,13 +4465,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -4580,6 +4573,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -4619,18 +4614,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -4732,10 +4727,10 @@ void title_open_800C628C(OpenWork *work)
                         x = d * 70 / 6;
                         p4FC[17].x1 = x;
                         p4FC[17].x3 = x;
-                        p4FC[17].x0 = -x;
-                        p4FC[17].x2 = -x;
                         p4FC[17].y0 = 0xB;
                         p4FC[17].y1 = 0xB;
+                        p4FC[17].x0 = -x;
+                        p4FC[17].x2 = -x;
                         p4FC[17].y2 = 0x13;
                         p4FC[17].y3 = 0x13;
                         v = (c - 0x20) * 128 / 10;
@@ -4825,10 +4820,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -4885,13 +4876,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
@@ -4995,6 +4986,8 @@ void title_open_800C628C(OpenWork *work)
                 case 0:
                 {
                     int c = work->f24C8;
+                    int v2;
+                    int t;
 
                     if (c < 9)
                     {
@@ -5034,18 +5027,18 @@ void title_open_800C628C(OpenWork *work)
                     }
                     else if (c < 0x11)
                     {
-                        v = (c - 0xC) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = (c - 0xC) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x19)
                     {
-                        v = 0xFF;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x1D)
                     {
-                        v = 0xFF - (c - 0x18) * 255 / 4;
-                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, v, 0);
+                        t = 0xFF - (c - 0x18) * 255 / 4;
+                        title_open_800C4C38(work, -0x32, -0xD, 0x64, 0xD, t, 0);
                     }
                     else if (c < 0x21)
                     {
@@ -5113,17 +5106,16 @@ void title_open_800C628C(OpenWork *work)
                         p4FC[4].r0 = 0x64;
                         p4FC[4].g0 = 0xA0;
                         p4FC[4].b0 = 0x87;
+                        p4FC[5].r0 = 0x64;
+                        p4FC[5].g0 = 0xA0;
+                        p4FC[5].b0 = 0x87;
                         p4FC[5].y0 = 0x2E;
                         p4FC[5].y1 = 0x2E;
                         p4FC[5].y2 = 0x3A;
                         p4FC[5].y3 = 0x3A;
-                        p4FC[5].r0 = 0x64;
-                        p4FC[5].g0 = 0xA0;
-                        p4FC[5].b0 = 0x87;
                         p4FC[6].y0 = -0x20;
                         p4FC[6].y1 = -0x20;
                         p4FC[6].y2 = -0x18;
-                        p4FC[6].y3 = -0x18;
                         x = d * 80 / 6;
                         p4FC[4].x1 = x;
                         p4FC[4].x3 = x;
@@ -5135,35 +5127,36 @@ void title_open_800C628C(OpenWork *work)
                         p4FC[5].x0 = -x;
                         p4FC[5].x2 = -x;
                         x = d * 4;
-                        p4FC[6].x1 = x;
-                        p4FC[6].x3 = x;
                         p4FC[6].x0 = -x;
+                        p4FC[6].x1 = x;
                         p4FC[6].x2 = -x;
+                        p4FC[6].x3 = x;
+                        p4FC[6].y3 = -0x18;
                         p4FC[6].r0 = 0x64;
                         p4FC[6].g0 = 0xA0;
                         p4FC[6].b0 = 0x87;
-                        x = d * 52 / 6;
-                        p4FC[7].x1 = x;
-                        p4FC[7].x3 = x;
-                        p4FC[7].x0 = -x;
-                        p4FC[7].x2 = -x;
                         p4FC[7].r0 = 0x64;
                         p4FC[7].g0 = 0xA0;
                         p4FC[7].b0 = 0x87;
                         p4FC[17].r0 = 0x64;
                         p4FC[17].g0 = 0xA0;
                         p4FC[17].b0 = 0x87;
+                        x = d * 52 / 6;
+                        p4FC[7].x1 = x;
+                        p4FC[7].x3 = x;
+                        p4FC[7].x0 = -x;
+                        p4FC[7].x2 = -x;
                         x = d * 70 / 6;
                         p4FC[17].x1 = x;
                         p4FC[17].x3 = x;
-                        p4FC[17].x0 = -x;
-                        p4FC[17].x2 = -x;
                         p4FC[7].y0 = -0xA;
                         p4FC[7].y1 = -0xA;
                         p4FC[7].y2 = -0x2;
+                        p4FC[17].x0 = -x;
                         p4FC[7].y3 = -0x2;
                         p4FC[17].y0 = 0xC;
                         p4FC[17].y1 = 0xC;
+                        p4FC[17].x2 = -x;
                         p4FC[17].y2 = 0x14;
                         p4FC[17].y3 = 0x14;
                         v = (c - 0x20) * 128 / 10;
@@ -5269,10 +5262,6 @@ void title_open_800C628C(OpenWork *work)
                     {
                         int z;
                         int z3;
-                        int q;
-                        int r;
-                        int g;
-                        int b;
 
                         z3 = cc * 100;
                         q = z3 >> 4;
@@ -5329,13 +5318,13 @@ void title_open_800C628C(OpenWork *work)
                                 r = 0x46 - q;
                             }
                             z2 = cc2 * 100;
-                            g = z2 >> 4;
+                            q = z2 >> 4;
                             if (z2 < 0)
                             {
                                 z2 += 15;
-                                g = z2 >> 4;
+                                q = z2 >> 4;
                             }
-                            g = 0x64 - g;
+                            g = 0x64 - q;
                             b = 0x5A - cc2 * 90 / 16;
                             p4FC[2].r0 = r;
                             p4FC[2].g0 = g;
