@@ -607,9 +607,9 @@ void title_open_800C593C(OpenWork *work)
             b = polys2[i].b1 * scale / 128;
             setRGB1(&polys2[i], r, g, b);
 
-            r = polys2[i].r * scale / 128;
-            g = polys2[i].g * scale / 128;
-            b = polys2[i].b * scale / 128;
+            r = polys2[i].r2 * scale / 128;
+            g = polys2[i].g2 * scale / 128;
+            b = polys2[i].b2 * scale / 128;
             setRGB2(&polys2[i], r, g, b);
 
             r = polys2[i].r3 * scale / 128;
@@ -6695,9 +6695,9 @@ void title_open_800CF610(OpenWork *work, int index)
         p->r1 = 0xFF;
         p->g1 = 0x40;
         p->b1 = 0x40;
-        p->r = 0xFF;
-        p->g = 0x40;
-        p->b = 0x40;
+        p->r2 = 0xFF;
+        p->g2 = 0x40;
+        p->b2 = 0x40;
         p->r3 = 0xFF;
         p->g3 = 0x40;
         p->b3 = 0x40;
@@ -6716,9 +6716,9 @@ void title_open_800CF610(OpenWork *work, int index)
         p->r1 = r_val;
         p->g1 = counter;
         p->b1 = counter;
-        p->r = r_val;
-        p->g = counter;
-        p->b = counter;
+        p->r2 = r_val;
+        p->g2 = counter;
+        p->b2 = counter;
         p->r3 = r_val;
         p->g3 = counter;
         p->b3 = counter;
@@ -6737,9 +6737,9 @@ void title_open_800CF610(OpenWork *work, int index)
         p->r1 = r_val;
         p->g1 = counter;
         p->b1 = counter;
-        p->r = r_val;
-        p->g = counter;
-        p->b = counter;
+        p->r2 = r_val;
+        p->g2 = counter;
+        p->b2 = counter;
         p->r3 = r_val;
         p->g3 = counter;
         p->b3 = counter;
