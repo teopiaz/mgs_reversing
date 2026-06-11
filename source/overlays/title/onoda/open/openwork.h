@@ -26,7 +26,7 @@ typedef struct _OpenWork
     GV_ACT   actor;
     DG_PRIM *prim[4];
     int      f30[22];
-    char     pad[0x58];
+    int      f88[22];
     int      fE0[6];
     int      fF8[18];
     int      f140[9];
@@ -44,7 +44,7 @@ typedef struct _OpenWork
     POLY_FT4 f4FC_polys[18];
     POLY_FT4 f7CC_polys[9];
     POLY_GT4 f934_polys[6];
-    short   *fA6C;
+    GV_PAD  *fA6C;
     int      fA70;
     int      fA74;     /* OpenAct state (drives the top-level switch) */
     int      fA78;     /* sub-state for case 7 (difficulty 0..5) */
