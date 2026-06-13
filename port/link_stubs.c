@@ -54,11 +54,6 @@ int FogShadeChanl_800D6A04(void *a, int b) { return 0; }
 int FogSortChanl_800D4E98(void *a, int b) { return 0; }
 int FogTransChanl_800D63B0(void *a, int b) { return 0; }
 
-/* Title overlay open functions — MIPS asm only (#pragma INCLUDE_ASM in open.c) */
-void title_open_800CEF54(void *work, int index) { (void)work; (void)index; }
-void title_open_800D2AFC(void *work) { (void)work; }
-void title_open_800D2CA8(void *work, unsigned long *ot) { (void)work; (void)ot; }
-
 /* Editor branch: additional overlay actors not present on master */
 void *NewPrisonNinja(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }
 void *NewPrisonOtacon(int name, int where, int argc, char **argv) { (void)name; (void)where; (void)argc; (void)argv; return NULL; }

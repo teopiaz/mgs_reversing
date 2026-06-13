@@ -521,7 +521,7 @@ static int GM_Command_chara(int argc, char **argv)
 {
     int         ret;
     int         name;
-    NEWCHARA    func;
+    NEWCHARA   *func;
 
     unsigned char *chara_name = GCL_GetParamResult();
     func = GM_GetChara(chara_name);
@@ -1051,10 +1051,19 @@ static int GM_Command_func(unsigned char *top)
     if (GCL_GetOption('s'))
     {
         control = GM_PlayerControl;
-        GM_SnakePosX = control->mov.vx;
-        GM_SnakePosY = control->mov.vy;
-        GM_SnakePosZ = control->mov.vz;
-        GM_LastResultFlag = control->rot.vy;
+        if (control)
+        {
+            GM_SnakePosX = control->mov.vx;
+            GM_SnakePosY = control->mov.vy;
+            GM_SnakePosZ = control->mov.vz;
+            GM_LastResultFlag = control->rot.vy;
+        }
+        else
+        {
+            /* player not spawned (scenario restart pass); PSX read address 0 here.
+               keep last known GM_SnakePos so the rest of the pass can run. */
+            GM_LastResultFlag = 0;
+        }
     }
     if (GCL_GetOption('a')) // area
     {

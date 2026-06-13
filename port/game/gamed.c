@@ -208,7 +208,7 @@ static void GM_CreateLoader(void)
     }
     /* Port: load select on the second call (after init completes) */
     port_loader_count++;
-    if (port_loader_count == 2) stage = "select";
+    // if (port_loader_count == 2) stage = "select";
     NewLoader(stage);
 }
 

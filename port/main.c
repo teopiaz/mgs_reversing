@@ -84,7 +84,7 @@ static void port_autoload_tick(void)
     extern short linkvarbuf[];
 
     if (armed == 0
-        && strcmp(port_current_stage, "select") == 0
+        && strcmp(port_current_stage, "init") == 0
         && GM_LoadComplete) {
         armed = 1;
         fire_at_frame = frame + 120;     /* ~2s settle time */

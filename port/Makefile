@@ -24,7 +24,7 @@ ifeq ($(UNAME_S),Darwin)
 	endif
 endif
 
-CFLAGS = $(ARCHFLAGS) -Wno-everything -Wno-error -O0 -g -fcommon -funsigned-char -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
+CFLAGS = $(ARCHFLAGS) -std=gnu17 -Wno-everything -Wno-error -O0 -g -fcommon -funsigned-char -DINTEGRAL -DPORT_BUILD=1 -include psx/port_overrides.h $(INCLUDES) \
 		 -Wno-int-conversion -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
 		 -Wno-incompatible-pointer-types $(SANITIZE)
 CXXFLAGS = $(ARCHFLAGS) -std=c++17 -w -O1 -g -I imgui -I imgui/backends $(SANITIZE)
@@ -196,6 +196,7 @@ PORT_OBJ = \
 	$(OBJDIR)/strcode_lookup.o \
 	$(OBJDIR)/gcl_overlay.o \
 	$(OBJDIR)/chara_overrides.o \
+	$(OBJDIR)/load_data_chara.o \
 	$(OBJDIR)/port_config.o \
 	$(OBJDIR)/port_menu.o
 
@@ -340,6 +341,9 @@ $(OBJDIR)/gcl_overlay.o: gcl_overlay.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/chara_overrides.o: chara_overrides.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/load_data_chara.o: load_data_chara.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # --- Original source rules ---

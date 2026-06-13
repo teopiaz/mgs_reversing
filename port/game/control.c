@@ -12,6 +12,7 @@
 #include "libhzd/libhzd.h"
 #include "game/map.h"
 #include "strcode.h"
+#include "charaid.h"
 
 #define MAX_WHERES 96
 

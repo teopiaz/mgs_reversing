@@ -8,6 +8,7 @@
 #include "game/delay.h"
 #include "linkvar.h"
 #include "strcode.h"
+#include "charaid.h"
 
 STATIC int dword_8009D548[] = {0, 0x20, 0x40, 8, 0x800, 0x10000, 0x20000, 0x1000, 4, 1};
 STATIC int dword_8009D570[] = {0x20, 0x80, 0x40, 0x10};
@@ -314,7 +315,7 @@ void HZD_ExecEvent(HZD_HDL *hzd, HZD_EVT *event, int mode)
     int           count;
     unsigned char flag;
 
-    if (event->name == CHARAID_RCM)
+    if (event->name == RCM_NAME)
     {
         HZD_ExecEventRCM(hzd, event, mode);
         return;
