@@ -26,7 +26,7 @@ typedef struct _Work
     int            previous_dir;
 } Work;
 
-#ifdef DEV_EXE
+#ifdef DEV_EXE_EXTRA_EXTRA
 int isStageSelectionMenu; // Used to print the extended info below only in stage selection menu.
 char* extendedInfo[] = {
     "%s [ %d ]", // TITLE
@@ -47,7 +47,7 @@ char* extendedInfo[] = {
     "%s: ARMORY SOUTH - VS OCELOT [ %d ]", // S04B
     "%s [ %d ]" // RETURN
 };
-#endif // DEV_EXE
+#endif // DEV_EXE_EXTRA_EXTRA
 
 /*---------------------------------------------------------------------------*/
 
@@ -58,7 +58,7 @@ static void UpdateCurrentEntry(Work *work, int dir)
     char *entry_name;
 
     work->current_idx += dir;
-#ifdef DEV_EXE
+#ifdef DEV_EXE_EXTRA
     // Circular scrolling (only in stage selection menu to keep things simple).
     if (work->current_idx < 0)
     {
@@ -96,7 +96,7 @@ static void Act(Work *work)
 {
     int     dir;
     GV_PAD *pPad;
-#ifdef DEV_EXE
+#ifdef DEV_EXE_EXTRA
     char stageInfo[55];
 #endif
 
@@ -136,7 +136,7 @@ static void Act(Work *work)
     MENU_ResetText();
     MENU_Locate(160, 120, 2);
 
-#ifdef DEV_EXE
+#ifdef DEV_EXE_EXTRA
     if (isStageSelectionMenu)
     {
         sprintf(stageInfo, extendedInfo[work->current_idx], work->current_entry_name, work->current_entry_proc_id);
@@ -183,7 +183,7 @@ void *NewSelect(int name, int where, int argc, char **argv)
         }
     }
 
-#ifdef DEV_EXE
+#ifdef DEV_EXE_EXTRA
     isStageSelectionMenu = name == 10524;
 #endif
 

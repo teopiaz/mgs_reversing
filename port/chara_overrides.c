@@ -26,11 +26,14 @@
 #include "common.h"
 #include "game/game.h"
 #include "strcode.h"
+#include "charaid.h"
 
 typedef struct {
     int       chara_id;
     NEWCHARA *replacement;  /* NULL = disable actor entirely */
 } PortCharaOverride;
+
+extern NEWCHARA NewLoadData_port;   /* port/load_data_chara.c */
 
 static const PortCharaOverride k_overrides[] = {
     /* Re-enabled now that the GL backend implements framebuffer-to-texture
@@ -41,6 +44,9 @@ static const PortCharaOverride k_overrides[] = {
     /* { CHARAID_0025_BLUR,  NULL }, // okajima/blur.c     NewBlurSet  */
     /* { CHARAID_0044_GHOST, NULL }, // okajima/blurpure.c NewBlurPure */
     /* { CHARAID_X, NewPortReplacementY }, // future overrides go here */
+    { CHARAID_LOAD_DATA, NewLoadData_port }, /* abst load-game screen; original
+                                                is in the undecompiled abst
+                                                overlay (0x800c4564) */
     { 0, NULL }   /* sentinel */
 };
 

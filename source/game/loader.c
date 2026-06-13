@@ -55,17 +55,17 @@ void *NewLoader(const char *dir)
 {
     Work *work;
 
-#ifdef DEV_EXE
-    // force load some overlay in dev variant
-    if (strcmp(dir, "title") == 0)
-    {
-        dir = "select1";
-    }
-#endif
+// #ifdef DEV_EXE
+//     // force load some overlay in dev variant
+//     if (strcmp(dir, "title") == 0)
+//     {
+//         dir = "select1";
+//     }
+// #endif
 
     work = GV_NewActor(EXEC_LEVEL, sizeof(Work));
 
-    printf("LoadReq\n");
+    printf("LoadReq %s\n", dir);
     work->info = FS_LoadStageRequest(dir);
 
     if (!work->info)
