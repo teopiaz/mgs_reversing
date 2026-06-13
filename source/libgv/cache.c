@@ -129,8 +129,10 @@ void *GV_GetCache( int id )
     CACHE *cp;
 
     if ( ( cp = FindCache( id ) ) != NULL ) return cp->buf;
+#ifdef PORT_BUILD
     printf("[cache] MISS: id=0x%X (name=0x%X ext='%c')\n",
            id & 0xFFFFFF, id & 0xFFFF, 'a' + ((id >> 16) & 0xFF));
+#endif
     return NULL;
 }
 
@@ -142,6 +144,7 @@ void *GV_GetCache( int id )
  */
 int GV_SetCache( int id, void *buf )
 {
+#ifdef PORT_BUILD
     CACHE *existing = FindCache(id);
     if ( existing != NULL )
     {
@@ -150,6 +153,9 @@ int GV_SetCache( int id, void *buf )
         return 0;
     }
     if ( EmptyCache != NULL )
+#else
+    if ( FindCache(id) == NULL && EmptyCache != NULL )
+#endif
     {
         EmptyCache->id = id;
         EmptyCache->buf = buf;

@@ -1,10 +1,19 @@
 #include "sd_incl.h"
 #include "sd_ext.h"
 
+/* PSYQ's matched code uses plain `inline`; clang (C99+) would emit no symbol
+   and fail to link, so the port uses static inline. Expansion on PSX is
+   byte-identical to the original `inline`. */
+#ifdef PORT_BUILD
+#define SD_INLINE static inline
+#else
+#define SD_INLINE inline
+#endif
+
 /* local inlines */
-static inline int  vib_compute(void);
-static inline void por_compute(void);
-static inline void swpadset(int xfreq);
+SD_INLINE int  vib_compute(void);
+SD_INLINE void por_compute(void);
+SD_INLINE void swpadset(int xfreq);
 
 void (*cntl_tbl[128])(void) = {
     /* 0x00 */ no_cmd,
@@ -362,7 +371,7 @@ void note_compute(void)
     freq_set(sptr->swpd);
 }
 
-static inline void swpadset(int xfreq)
+SD_INLINE void swpadset(int xfreq)
 {
     unsigned int flame_dat;
 
@@ -584,7 +593,7 @@ void keych(void)
     }
 }
 
-static inline void por_compute(void)
+SD_INLINE void por_compute(void)
 {
     int          por_freq;
     unsigned int pfreq_h;
@@ -627,7 +636,7 @@ static inline void por_compute(void)
     sptr->swpd += por_freq;
 }
 
-static inline int vib_compute(void)
+SD_INLINE int vib_compute(void)
 {
     unsigned int tmp;
     int          tbl_data;

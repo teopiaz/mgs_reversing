@@ -145,7 +145,9 @@ int SePlay(int sound_code)
     }
     else
     {
+#ifdef PORT_BUILD
         if (!se_header) return; /* SE data not loaded */
+#endif
         se_tracks = se_header[sound_code - 128].tracks;
         se_tmp.character = se_header[sound_code - 128].character;
     }

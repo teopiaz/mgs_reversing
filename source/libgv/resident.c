@@ -7,6 +7,7 @@ extern unsigned char *StageCharacterEntries;
 unsigned char *SECTION(".sbss") GV_ResidentMemoryBottom;
 STATIC int     SECTION(".sbss") dword_800AB944;
 
+#ifdef PORT_BUILD
 // Resident memory grows downward from the END of the normal memory pool.
 void *GV_ResidentAreaBottom = NULL;
 
@@ -19,6 +20,14 @@ void GV_InitResidentMemory( void )
     }
     GV_ResidentMemoryBottom = GV_ResidentAreaBottom;
 }
+#else
+void *GV_ResidentAreaBottom = RESIDENT_BOTTOM;
+
+void GV_InitResidentMemory( void )
+{
+    GV_ResidentMemoryBottom = GV_ResidentAreaBottom;
+}
+#endif
 
 void GV_SaveResidentTop( void )
 {
@@ -58,7 +67,9 @@ void *GV_AllocResidentMemory( long size )
         printf("Resident Memory Over !!\n");
     }
 
+#ifdef PORT_BUILD
     printf("[res] alloc %ld bytes → %p (bottom=%p, area=%p)\n",
            size, GV_ResidentMemoryBottom, GV_ResidentMemoryBottom, GV_ResidentAreaBottom);
+#endif
     return GV_ResidentMemoryBottom;
 }

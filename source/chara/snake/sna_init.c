@@ -200,7 +200,9 @@ void *dword_8009EEA4[] = {
     sna_anim_idle_8005275C,
     sna_anim_crouch_800527DC,
     sna_anim_prone_idle_800528BC,
+#ifdef PORT_BUILD
     sna_anim_wall_idle_and_c4_80052A5C  /* PSX: read from adjacent dword_8009EEB0[0] when stance=3 */
+#endif
 };
 
 void *SECTION(".data") dword_8009EEB0[] = {
@@ -7997,6 +7999,14 @@ static inline void sna_act_helper2_8005AD10(SnaInitWork *work)
 
 static void Act(SnaInitWork *work)
 {
+    SVECTOR vec;
+    SVECTOR vec2;
+    TARGET *pTarget;
+    int height;
+    int level;
+    TARGET *pTarget2;
+
+#ifdef PORT_BUILD
     /* Skip if critical resources not loaded (no model/animation) */
     if (!work->body.objs || !work->enable_shadow) return;
     /* Port: ensure bullets pointer is valid (weapon init may fail on first frame) */
@@ -8004,13 +8014,7 @@ static void Act(SnaInitWork *work)
         static short dummy_bullets = 0;
         work->field_918_n_bullets = &dummy_bullets;
     }
-
-    SVECTOR vec;
-    SVECTOR vec2;
-    TARGET *pTarget;
-    int height;
-    int level;
-    TARGET *pTarget2;
+#endif
 
     GM_ClearPlayerStatusFlag(PLAYER_MOVE_WATCH);
 
@@ -8149,7 +8153,11 @@ static void Act(SnaInitWork *work)
 
     sna_clear_flags1_8004E308(work, SNA_FLAG1_UNK25);
     DG_GetLightMatrix2(&work->control.mov, work->light);
+#ifdef PORT_BUILD
     if (work->enable_shadow) *work->enable_shadow = dword_800ABA1C == 0;
+#else
+    *work->enable_shadow = dword_800ABA1C == 0;
+#endif
     GM_MoveTarget(work->field_89C_pTarget, &work->control.mov);
 
     vec2 = work->control.mov;

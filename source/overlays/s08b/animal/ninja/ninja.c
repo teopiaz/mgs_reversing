@@ -2310,7 +2310,11 @@ void s08b_bunsin2_800D1EC8(Work *work)
     switch (work->field_19CC)
     {
     case 0:
+#ifdef PORT_BUILD
+        if (s08b_bunsin2_800CF950() != 0) /* defined (void); PSX call passes an ignored arg */
+#else
         if (s08b_bunsin2_800CF950(work) != 0)
+#endif
         {
             s08b_bunsin2_800CE024(work);
             work->field_19CC = 5;

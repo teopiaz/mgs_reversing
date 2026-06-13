@@ -94,14 +94,15 @@ void font_load(void)
         // Load 'rubi.res' file:
         gRubiRes_800AB6B4 = (RubiRes *)GV_GetCache(GV_CacheID(HASH_rubi, 'r'));
 
+#ifdef PORT_BUILD
         temp_a1 = dword_800ABB28;
 
         /* The font data header contains two 32-bit big-endian offsets.
            Read them as big-endian and use as offsets into the data. */
         {
             unsigned char *b = (unsigned char *)temp_a1;
-            uint32_t off0 = (b[0]<<24)|(b[1]<<16)|(b[2]<<8)|b[3];
-            uint32_t off1 = (b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7];
+            unsigned int off0 = (b[0]<<24)|(b[1]<<16)|(b[2]<<8)|b[3];
+            unsigned int off1 = (b[4]<<24)|(b[5]<<16)|(b[6]<<8)|b[7];
 
             gFontBegin = temp_a1 + 8;
             gFontEnd = temp_a1 + off0;
@@ -114,6 +115,22 @@ void font_load(void)
             unsigned char *b = (unsigned char *)ptr;
             LSTORE((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3], ptr);
         }
+#else
+        temp_a1 = dword_800ABB28;
+        LSTORE((temp_a1[0] << 24) | (temp_a1[1] << 16) | (temp_a1[2] << 8) | temp_a1[3], temp_a1);
+
+        temp_a1 = dword_800ABB28;
+        LSTORE((temp_a1[4] << 24) | (temp_a1[5] << 16) | (temp_a1[6] << 8) | temp_a1[7], temp_a1 + 4);
+
+        gFontBegin = temp_a1 + 8;
+        gFontEnd = temp_a1 + LLOAD(temp_a1 + 0);
+        zendata[0] = temp_a1 + LLOAD(temp_a1 + 4);
+
+        for (ptr = temp_a1 + 8; ptr < gFontEnd; ptr += 4)
+        {
+            LSTORE((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3], ptr);
+        }
+#endif
     }
 }
 
@@ -1268,7 +1285,11 @@ long font_draw_string(KCB *kcb, long xtop, long ytop, const char *string, long c
         else
         {
             idx1 = get_zen_font_data(next_mdata);
+#ifdef PORT_BUILD
             if (idx1 > 0 && zendata[idx1 >> 12] != NULL)
+#else
+            if (idx1 > 0)
+#endif
             {
                 ptr = zendata[idx1 >> 12] + ((idx1 & 0xFFF) - 1) * 36;
             }

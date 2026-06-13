@@ -124,12 +124,14 @@ static int s03e_evpanel_800C3488(Work *work)
     for (; n_msgs > 0; n_msgs--)
     {
         code = msg->message[0];
+#ifdef PORT_BUILD
         printf("message code=%X\n", code);
         printf("message data=");
         for (i = 0; i < msg->message_len; i++)        {
             printf("%X ", msg->message[i]);
         }
         printf("\n");
+#endif
 
         if (code == HASH_KILL)
         {

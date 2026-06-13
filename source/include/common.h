@@ -10,6 +10,13 @@
 #define offsetof(type, member)  ((size_t)&(((type *)0)->member))
 #endif
 
+/* PSYQ has no <stdint.h>; pointers are 32-bit on PSX so int is pointer-sized.
+   The port build gets these from the host headers instead. */
+#ifndef PORT_BUILD
+typedef int          intptr_t;
+typedef unsigned int uintptr_t;
+#endif
+
 /* MSVC defines _countof as an extension to stdlib.h */
 #ifndef _countof
 #define _countof(array) (sizeof(array)/sizeof(array[0]))

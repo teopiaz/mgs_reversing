@@ -446,6 +446,15 @@ void s00a_command_800CF298( ENEMY_COMMAND* command )
         //WatcherWork *work;
         work = command->field_0xC8[ EnemyCommand.field_0x68[ i ] ].watcher;
 
+#ifdef PORT_BUILD
+        /* watcher may not have registered yet on the commander's first tick;
+           PSX read low RAM garbage here, on the port a NULL deref faults */
+        if ( !work )
+        {
+            dists[i] = 0x7530;
+            continue;
+        }
+#endif
         if ( work->act_status & 0x10000000 )
         {
             dists[i] = 0x7530;
@@ -491,6 +500,12 @@ void s00a_command_800CF298( ENEMY_COMMAND* command )
     {
         //WatcherWork *work;
         work = command->field_0xC8[ EnemyCommand.field_0x68[ i ] ].watcher;
+#ifdef PORT_BUILD
+        if ( !work )
+        {
+            continue;
+        }
+#endif
         work->field_BFC = s00a_dword_800C35E4[ i ];
         work->field_C00 = i;
     }

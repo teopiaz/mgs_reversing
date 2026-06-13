@@ -85,6 +85,7 @@ int StartStream(void)
         return -1;
     }
 
+#ifdef PORT_BUILD
     // Consume big-endian int from str_header (cast to unsigned to prevent sign extension)
     {
         unsigned char *h = (unsigned char *)str_header;
@@ -95,6 +96,37 @@ int StartStream(void)
         str_mono_fg = (h[8] == 1) ? 1 : 0;
         dword_800C0580 = h[9];
     }
+#else
+    // Consume big-endian int from str_header
+    str_wave_size = str_header[0] << 24;
+    str_wave_size |= str_header[1] << 16;
+    str_wave_size |= str_header[2] << 8;
+    str_wave_size |= str_header[3];
+
+    str_unplay_size = str_unload_size = str_wave_size;
+
+    // Consume big-endian short from str_header
+    str_volume = str_header[4] << 8;
+    str_volume |= str_header[5];
+
+    // Consume big-endian short from str_header
+    str_freq = str_header[6] << 8;
+    str_freq |= str_header[7];
+
+    // Consume byte from str_header
+    if (str_header[8] == 1)
+    {
+        str_mono_fg = str_header[8];
+    }
+    else
+    {
+        str_mono_fg = 0;
+    }
+
+    // Consume byte from str_header
+    dword_800C0580 = str_header[9];
+
+#endif
 
     printf("StartStream(%x:vol=%x)\n", str_load_code, str_volume);
     if (str_fadein_fg)
@@ -192,12 +224,20 @@ void UserSpuIRQProc(void)
 
 void sub_8008279C(void)
 {
+#ifdef PORT_BUILD
     StrSpuTransWithNoLoop();
+#else
+    /* do nothing */
+#endif
 }
 
 void sub_800827A4(void)
 {
+#ifdef PORT_BUILD
     StrSpuTransWithNoLoop();
+#else
+    /* do nothing */
+#endif
 }
 
 int StrSpuTransWithNoLoop(void)

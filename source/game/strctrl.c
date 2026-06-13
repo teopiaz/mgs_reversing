@@ -96,6 +96,7 @@ loop_case3:
                         GM_SetSound( sd_code, SD_ASYNC );
                         break;
                     }
+#ifdef PORT_BUILD
                     {
                         /* Port: the VOX stream pipeline can leave str_status
                            stuck at 5+, so sd_str_play() keeps returning non-
@@ -105,6 +106,9 @@ loop_case3:
                         if (++n_double_pcm < 4 || (n_double_pcm % 300) == 0)
                             printf("Double Pcm !! (%d)\n", n_double_pcm);
                     }
+#else
+                    printf( "Double Pcm !!\n" );
+#endif
                     return;
                 case 5:
                     DG_UnDrawFrameCount = 3;

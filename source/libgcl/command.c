@@ -54,6 +54,7 @@ int GCL_Command( char *ptr )
 
     GCL_SetArgTop( ptr );
 
+#ifdef PORT_BUILD
     {
         static int gcl_cmd_debug = 0;
         if (gcl_cmd_debug < 50) {
@@ -64,6 +65,7 @@ int GCL_Command( char *ptr )
             gcl_cmd_debug++;
         }
     }
+#endif
 
     ret = ( *cl->func )( ptr );
 
@@ -199,9 +201,13 @@ int GCL_ExecBlock( char *top, GCL_ARGS *arg )
             GCL_UnsetArgStack( org_stack );
             return 0;
         default:
+#ifdef PORT_BUILD
             printf( "SCRIPT COMMAND ERROR %x\n", (unsigned int)*top );
             GCL_UnsetArgStack( org_stack );
             return 1;
+#else
+            printf( "SCRIPT COMMAND ERROR %x\n", *top );
+#endif
         }
     }
 

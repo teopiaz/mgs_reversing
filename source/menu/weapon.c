@@ -34,11 +34,15 @@ int        SECTION(".sbss") dword_800ABAE8;
 struct PANEL_CONF SECTION(".data") stru_8009E544[2] = {{16, 184, 1, 24576, 36864, sub_8003D64C, sub_8003D594, NULL},
                                                        {256, 184, 2, 12288, 49152, sub_8003D594, sub_8003D5F0, NULL}};
 
+#ifdef PORT_BUILD
 /* 64-bit safe: read 32-bit offset, add base pointer, store as 64-bit pointer */
 #define OffsetToPointer(ptrSlot, base) do { \
     uint32_t _off = *(uint32_t *)(ptrSlot); \
     *(ptrSlot) = (RPK_ITEM *)((char *)(base) + _off); \
 } while(0)
+#else
+#define OffsetToPointer(offset, valueToAdd) *((unsigned int *)offset) = (int)valueToAdd + *((unsigned int *)offset);
+#endif
 
 /* menu/weapon.obj */
 static array_800BD748_child BSS array_800BD748[ 9 ];
@@ -818,6 +822,7 @@ void Menu_item_render_frame_rects_8003DBAC(MenuPrim *pGlue, int x, int y, int tr
     addPrim(pGlue->ot, tpage);
 }
 
+#ifdef PORT_BUILD
 RPK_ITEM **menu_rpk_init_8003DD1C(const char *pFileName)
 {
     int        count;
@@ -852,6 +857,38 @@ RPK_ITEM **menu_rpk_init_8003DD1C(const char *pFileName)
     gItemFile_table_800ABAE4 = table;
     return table;
 }
+#else
+RPK_ITEM **menu_rpk_init_8003DD1C(const char *pFileName)
+{
+    RPK       *rpk;
+    int        count;
+    RPK_ITEM  *data;
+    RPK_ITEM **item;
+    int        i;
+
+    // At the start of the game, "item.rpk" file is loaded (5d43.r)
+    rpk = GV_GetCache(GV_CacheID2(pFileName, 'r'));
+    if (!rpk)
+    {
+        return NULL;
+    }
+
+    count = rpk->palettes + rpk->images;
+    data = (RPK_ITEM *)(rpk->items + count);
+
+    gItemFile_table_800ABAE4 = rpk->items;
+
+    // Offset the item table pointers by the data section start
+    item = rpk->items;
+    for (i = 0; i < count; i++)
+    {
+        OffsetToPointer(item, data);
+        item++;
+    }
+
+    return gItemFile_table_800ABAE4;
+}
+#endif
 
 RPK_ITEM *menu_rpk_get_pal_8003DD9C(int id)
 {

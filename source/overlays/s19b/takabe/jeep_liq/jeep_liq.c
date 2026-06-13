@@ -15,7 +15,11 @@ typedef struct _Work
     OBJECT          obj;          /* 0x0A4 */
     MOTION_CONTROL  m_ctrl;       /* 0x188 */
     /* m_segs1[17] @ 0x1D8 - poked as scalars below by the setters */
+#ifdef PORT_BUILD
+    char            pad_seg1[0x18]; /* PSX offset arithmetic underflows with 64-bit MOTION_CONTROL */
+#else
     char            pad_seg1[0x1F0 - 0x188 - sizeof(MOTION_CONTROL)];
+#endif
     int             f1F0;         /* 0x1F0 */
     char            pad_360[0x360 - 0x1F4];
     int             field_360;    /* 0x360 */

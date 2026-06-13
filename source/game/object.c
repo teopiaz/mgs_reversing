@@ -142,14 +142,22 @@ void GM_FreeObject(OBJECT *obj)
 void GM_ConfigObjectFlags(OBJECT *obj, int flags)
 {
     obj->flag = flags;
+#ifdef PORT_BUILD
     if (obj->objs) obj->objs->flag = flags;
+#else
+    obj->objs->flag = flags;
+#endif
 }
 
 // configures object light attribute
 void GM_ConfigObjectLight(OBJECT *obj, MATRIX *light)
 {
     obj->light = light;
+#ifdef PORT_BUILD
     if (obj->objs) obj->objs->light = light;
+#else
+    obj->objs->light = light;
+#endif
 }
 
 // configures object step attribute but is stubbed in game
@@ -183,13 +191,21 @@ void GM_ConfigObjectRoot(OBJECT *obj, OBJECT *parent_obj, int num_parent)
 // configures object rots attribute
 void GM_ConfigObjectJoint(OBJECT *obj)
 {
+#ifdef PORT_BUILD
     if (obj->objs) obj->objs->rots = obj->rots;
+#else
+    obj->objs->rots = obj->rots;
+#endif
 }
 
 // configures object flag slide attribute
 void GM_ConfigObjectSlide(OBJECT *obj)
 {
+#ifdef PORT_BUILD
     if (obj->objs) obj->objs->movs = obj->rots;
+#else
+    obj->objs->movs = obj->rots;
+#endif
 }
 
 // configures the attributes of an objects motion control struct
@@ -250,7 +266,9 @@ int GM_ConfigObjectModel(OBJECT_NO_ROTS *obj, int model)
 
     id = GV_CacheID(model, 'k');
     buf = GV_GetCache(id);
+#ifdef PORT_BUILD
     if (!buf) return -1; /* model not loaded (OAR archive stubbed) */
+#endif
     objs = DG_MakeObjs(buf, obj->flag, 0);
 
     if (!objs)

@@ -166,6 +166,12 @@ void GCL_InitBasicCommands( void );
 /* expr.c */
 int GCL_Expr( char *data, int *value );
 
+#ifdef PORT_BUILD
+/* 64-bit port signatures — implemented in port/libgcl_fix/{parse,variable}.c.
+   Both naming generations are declared: upstream's current names plus the
+   older Param*-style names that port-only code still uses (aliases in the
+   port implementation). Keeping them declared avoids implicit-int pointer
+   truncation on 64-bit. */
 /* parse.c */
 void            GCL_SetArgTop(unsigned char *);
 unsigned char  *GCL_GetNextValue(unsigned char *top, int *type_p, intptr_t *value_p);
@@ -182,6 +188,11 @@ unsigned char  *GCL_GetParamResult(void);
 int             GCL_GetNextParamValue(void);
 void            GCL_ReadParamVector( SVECTOR * );
 void            GCL_ParseInit(void);
+char           *GCL_GetString( char *ptr );
+char           *GCL_NextStr( void );
+int             GCL_GetNextInt( void );
+void            GCL_GetNextSV( short *vec );
+void            GCL_SkipCommand( char *ptr );
 
 /* variable.c */
 void            GCL_SaveLinkVar(short *gameVar);
@@ -194,6 +205,37 @@ void            GCL_RestoreVar(void);
 unsigned char  *GCL_GetVar(unsigned char *top, int *type_p, intptr_t *value_p);
 unsigned char  *GCL_SetVar(unsigned char *top, unsigned int value);
 unsigned char  *GCL_VarSaveBuffer(unsigned char *top);
+#else
+/* parse.c */
+void  GCL_SetArgTop( char *top );
+char *GCL_GetNextValue( char *top, int *type_p, int *value_p );
+void *GCL_SetArgStack( GCL_ARGS *args );
+void  GCL_UnsetArgStack( void *stack );
+int   GCL_GetArgs( int argno );
+void  GCL_SetCommandLine( char *argtop );
+void  GCL_UnsetCommandLine( void );
+char *GCL_GetOption( char c );
+int   GCL_StrToInt( char *ptr );
+int   GCL_StrToSV( char *ptr, short *vec );
+char *GCL_GetString( char *ptr );
+char *GCL_NextStr( void );
+int   GCL_GetNextInt( void );
+void  GCL_GetNextSV( short *vec );
+void  GCL_SkipCommand( char *ptr );
+void  GCL_ParseInit( void );
+
+/* variable.c */
+void  GCL_SaveLinkVar( short *ptr );
+int   GCL_MakeSaveFile( char *ptr );
+int   GCL_SetLoadFile( char *ptr );
+void  GCL_InitVar( void );
+void  GCL_InitClearVar( void );
+void  GCL_SaveVar( void );
+void  GCL_RestoreVar( void );
+char *GCL_GetVar( char *top, int *type_p, int *value_p );
+char *GCL_SetVar( char *top, int value );
+char *GCL_VarSaveBuffer( char *top );
+#endif
 
 #ifndef GCL_IsVariable
 #define GCL_IsVariable(gcl_code) (((gcl_code) & 0xF0) == 0x10)

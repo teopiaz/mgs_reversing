@@ -170,9 +170,13 @@ static int GetResources(Work *work, int name, int map, int n_entries)
     {
         for (i = 0; i < n_entries; i++)
         {
-            unsigned char *param = GCL_GetParamResult();
+#ifdef PORT_BUILD
+            unsigned char *param = (unsigned char *)GCL_NextStr();
             if (param == NULL) break;
             tex = DG_GetTexture(GCL_StrToInt(param));
+#else
+            tex = DG_GetTexture(GCL_StrToInt(GCL_NextStr()));
+#endif
             if (tex == NULL)
             {
                 n_entries--;

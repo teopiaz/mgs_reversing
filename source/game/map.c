@@ -114,6 +114,8 @@ STATIC void GM_LoadMapModel(int name, MAP *map)
     DG_DEF  *def;
     DG_OBJS *objs;
 
+#ifdef PORT_BUILD
+    /* Port: NULL guards + skip preshade entirely (see GM_UpdateMapGroup). */
     printf("  [map] LoadMapModel: name=0x%X\n", name);
 
     def = GV_GetCache(GV_CacheID(name, 'k'));
@@ -124,13 +126,31 @@ STATIC void GM_LoadMapModel(int name, MAP *map)
 
     DG_SetPos(&DG_ZeroMatrix);
     DG_PutObjs(objs);
+#else
+    def = GV_GetCache(GV_CacheID(name, 'k'));
+    objs = DG_MakeObjs(def, MAP_FLAG, 0);
+
+    DG_SetPos(&DG_ZeroMatrix);
+    DG_PutObjs(objs);
+
+    if (map->lit)
+    {
+        DG_MakePreshade(objs, map->lit->lights, map->lit->n_lights);
+    }
+    else
+    {
+        DG_MakePreshade(objs, NULL, 0);
+    }
+#endif
 
     DG_QueueObjs(objs);
     DG_GroupObjs(objs, map->index);
 
     StageObjs[N_StageObjs] = objs;
     N_StageObjs++;
+#ifdef PORT_BUILD
     printf("  [map]   model loaded OK\n");
+#endif
 }
 
 STATIC HZD_HDL *GM_LoadHazard(int name, int area, int index, int dyn_walls, int dyn_floors)
@@ -214,11 +234,15 @@ MAP *GM_CreateMap(void)
     int  name;
     int  area;
 
+#ifdef PORT_BUILD
     {
-        int mapname = GCL_GetNextParamValue();
+        int mapname = GCL_GetNextInt();
         printf("[map] GM_CreateMap: name=0x%X\n", mapname);
         map = GM_GetNextMap(mapname);
     }
+#else
+    map = GM_GetNextMap(GCL_GetNextInt());
+#endif
 
     if (GCL_GetOption('d')) // dynamic
     {
@@ -240,14 +264,21 @@ MAP *GM_CreateMap(void)
     name = GCL_GetNextInt();
     area = GCL_GetNextInt();
     map->hzd = GM_LoadHazard(name, area, map->index, dyn_walls, dyn_floors);
+#ifdef PORT_BUILD
     printf("[map]   hazard loaded: name=0x%X area=%d\n", name, area);
 
     if (GCL_GetOption('l')) // lit
     {
-        int lit_name = GCL_GetNextParamValue();
+        int lit_name = GCL_GetNextInt();
         map->lit = GV_GetCache(GV_CacheID(lit_name, 'l'));
         printf("[map]   lit loaded: name=0x%X\n", lit_name);
     }
+#else
+    if (GCL_GetOption('l')) // lit
+    {
+        map->lit = GV_GetCache(GV_CacheID(GCL_GetNextInt(), 'l'));
+    }
+#endif
     else
     {
         map->lit = NULL;
@@ -319,7 +350,11 @@ int GM_AddMap(int name)
         map++;
     }
 
+#ifdef PORT_BUILD
     printf("addmap : not found map 0x%X (count=%d)\n", name, gMapCount_800ABAA8);
+#else
+    printf("addmap : not found map %d\n", name);
+#endif
     return 0;
 }
 

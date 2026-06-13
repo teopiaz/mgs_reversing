@@ -132,11 +132,13 @@ static int GetResources( Work *work, int model )
 
     work->def = GV_GetCache(GV_CacheID(model, 'k'));
 
+#ifdef PORT_BUILD
     if (!work->def) {
         printf("[shakemdl] ERROR: GV_GetCache(0x%X, 'k') returned NULL (cacheID=0x%X)\n",
                model, GV_CacheID(model, 'k'));
         return -1;
     }
+#endif
     if (AllocVertsMemory(work))
     {
         return -1;
@@ -294,7 +296,9 @@ static int RestoreVerts( Work *work )
     SVECTOR *vertex;
     int      n_verts;
 
+#ifdef PORT_BUILD
     if (!work->def) return 0;
+#endif
     mdl = work->def->models;
     src = work->points;
 

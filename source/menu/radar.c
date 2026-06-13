@@ -173,6 +173,7 @@ void drawBorder_800390FC(MenuWork *menuMan, u_long *ot)
     menu_render_rect_8003DB2C(menuMan->prim, x2, y1 + 68, 70, 1, 0); // Bottom border.
 }
 
+#ifdef PORT_BUILD
 // gte_stbv but with sh instead of sb
 // Stores IR1 and IR2 as halfwords (shorts) at r0[0] and r0[1].
 // On PSX: mfc2 from $9 (IR1) and $10 (IR2), then sh (store halfword).
@@ -194,6 +195,24 @@ void drawBorder_800390FC(MenuWork *menuMan, u_long *ot)
     gte_state.IR2 = _s[1];             \
     gte_state.IR3 = 0;                 \
 } while(0)
+#else
+// clang-format off
+#define gte_stbh( r0 ) __asm__ volatile (                       \
+        "mfc2   $12, $9;"                                       \
+        "mfc2   $13, $10;"                                      \
+        "sh     $12, 0( %0 );"                                  \
+        "sh     $13, 2( %0 )"                                   \
+        :                                                       \
+        : "r"( r0 )                                             \
+        : "$12", "$13", "memory" )
+
+// gte_ldv0 but without the second load
+#define gte_ldv0h( r0 ) __asm__ volatile (                      \
+        "lwc2   $0, 0( %0 )"                                    \
+        :                                                       \
+        : "r"( r0 ) )
+// clang-format on
+#endif
 
 extern CONTROL         *GM_WhereList[96];
 extern int              GM_N_WhereList;
