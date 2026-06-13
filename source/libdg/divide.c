@@ -563,10 +563,11 @@ STATIC void DG_AddSubdividedPrim( DG_OBJ *obj, int idx )
 
 void DG_DivideChanl( DG_CHANL *chanl, int idx )
 {
+#ifdef PORT_BUILD
     /* Stubbed: DG_DivideMem struct uses long/pointer at wrong sizes on 64-bit */
     (void)chanl; (void)idx;
     return;
-#if 0
+#else
     int i, j, x;
     DG_OBJS **objs_queue;
     DG_OBJS  *objs;

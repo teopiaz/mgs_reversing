@@ -308,7 +308,9 @@ found:
         oque++;
     }
     --n;
+#ifdef PORT_BUILD
     cp->queue[ n ] = NULL; /* Clear the freed slot to prevent dangling access */
+#endif
     cp->objs_index = n;
 }
 

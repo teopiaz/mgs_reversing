@@ -136,7 +136,7 @@ enum {
         DG_FLAG_INVISIBLE       = 0x0080,       //
         DG_FLAG_AMBIENT         = 0x0100,       //
         DG_FLAG_IRTEXTURE       = 0x0200,       //
-        DG_FLAG_UNKNOWN_400     = 0x0400,       //
+        DG_FLAG_ENVMAP          = 0x0400,       //
 };
 // clang-format on
 
@@ -576,18 +576,20 @@ void DG_SetFreePrimParam( int psize, int verts, int voffset, int vstep );
 int  DG_MakePreshade( DG_OBJS *prim, DG_LIT *light, int numLights );
 void DG_FreePreshade( DG_OBJS *prim );
 
-/* screen.c */
-void DG_SetPos( MATRIX *matrix );
-void DG_SetPos2( SVECTOR *svector, SVECTOR *svector2 );
-void DG_MovePos( SVECTOR *svector );
-void DG_RotatePos( SVECTOR *svector );
+/* pos.c */
+void DG_SetPos( MATRIX *world );
+void DG_SetPos2( SVECTOR *mov, SVECTOR *rot );
+void DG_MovePos( SVECTOR *mov );
+void DG_RotatePos( SVECTOR *rot );
 void DG_PutObjs( DG_OBJS *objs );
-void DG_PutPrim( MATRIX *matrix );
-void DG_PutVector( SVECTOR *svector, SVECTOR *svector2, int count );
-void DG_RotVector( SVECTOR *svector, SVECTOR *svector2, int count );
-void DG_PersVector( SVECTOR *svector, DVECTOR *dvector, int count );
+void DG_PutPrim( DG_PRIM *prim );
+void DG_PutVector( SVECTOR *from, SVECTOR *to, int n );
+void DG_RotVector( SVECTOR *from, SVECTOR *to, int n );
+void DG_PersVector( SVECTOR *from, DVECTOR *to, int n );
 void DG_PointCheck( SVECTOR *svector, int n_points );
 int  DG_PointCheckOne( DVECTOR *line );
+
+/* screen.c */
 // void DG_ScreenModelsSingle( DG_OBJS *objs, int n_obj );
 // void DG_ScreenModels( DG_OBJS *objs, int n_obj );
 // void DG_ApplyMovs( DG_OBJS *objs, int n_obj );

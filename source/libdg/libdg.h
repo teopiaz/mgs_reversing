@@ -228,7 +228,9 @@ enum {
 
 static inline void DG_GroupObjs( DG_OBJS *objs, int group_id )
 {
+#ifdef PORT_BUILD
     if (!objs) return;
+#endif
     objs->group_id = group_id;
 }
 
