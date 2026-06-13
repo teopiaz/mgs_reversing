@@ -78,21 +78,11 @@ typedef struct _Work
 static void jpegcam_unk1_80063704(char *buf, MEM_CARD *pMemcard, int arg2, int arg3);
 static void jpegcam_unk2_80063888(char *param_1, int param_2);
 static void jpegcam_unk3_800638B4(int *arg0);
-#ifdef PORT_BUILD
-static void jpegcam_unk2_port(char *param_1, char *param_2);
-#endif
 
 STATIC DATA_INFO stru_8009F2D8 = {
     {67, 4}, 0, 2, "SAVE PHOTO",
     (void *)jpegcam_unk1_80063704,
-#ifdef PORT_BUILD
-    /* Use the (char*,char*) wrapper so the second arg's high 32 bits
-       survive on 64-bit hosts; jpegcam_unk2_80063888's PSX signature
-       was (char *, int) and would truncate the buffer pointer. */
-    (void *)jpegcam_unk2_port,
-#else
     (void *)jpegcam_unk2_80063888,
-#endif
     (void *)jpegcam_unk3_800638B4
 };
 
@@ -183,20 +173,6 @@ static void jpegcam_unk2_80063888(char *param_1, int param_2)
 {
     sprintf(param_1, "PHOTO %02d\n", *(char *)(param_2 + 6) - 0x40);
 }
-
-#ifdef PORT_BUILD
-/* Port-only wrapper with the correct (char*, char*) signature so the
-   high 32 bits of the second argument survive on 64-bit hosts. The
-   PSX prototype (char*, int) drops the high half of the host pointer
-   passed by sub_8004AEA8 line 1124 (`info->menu[i].mes`), causing a
-   small-address SIGSEGV inside the sprintf at param_2[6]. Bound to
-   stru_8009F2D8::make_menu under PORT_BUILD; the original PSX function
-   is left untouched for binary-identical assembly. */
-static void jpegcam_unk2_port(char *param_1, char *param_2)
-{
-    sprintf(param_1, "PHOTO %02d\n", param_2[6] - 0x40);
-}
-#endif
 
 static void jpegcam_unk3_800638B4(int *arg0)
 {
@@ -563,32 +539,13 @@ static void JpegTryCompressFrame(Work *work)
     rect.h = 176;
     work->field_8C_size = 20000;
 
-#ifdef PORT_BUILD
-    // PSX hardcodes scratch RAM addresses 0x801B1000 (working buffer) and
-    // 0x801A1000 (output stream). Those are not valid host pointers. The
-    // do-while loop reassigns these each retry to "reset" the encoder's
-    // write cursors, so we need stable buffers we can re-base. Static
-    // buffers avoid leaking on retries (which is what would happen if we
-    // called GV_AllocMemory inside the loop) and outlive the actor across
-    // task switches into the save menu, where field_88's contents are
-    // copied into the memcard buffer via dword_800BDCC8.
-    // Sized for 288x176 @ ~16KB compressed + ample headroom.
-    static char jpegcam_work_buf[24 * 1024];
-    static char jpegcam_out_buf[32 * 1024];
-#endif
-
     do {
         work->field_7C = 0;
         work->field_80 = 2;
 
         // Not matching with a pointer to the global array
-#ifdef PORT_BUILD
-        work->field_84 = jpegcam_work_buf;
-        work->field_88 = jpegcam_out_buf;
-#else
         work->field_84 = (char *)0x801B1000;
         work->field_88 = (char *)0x801A1000;
-#endif
 
         work->field_8C_size = JpegCompressFrame(work, &rect, q_scale);
         printf("%d try q_scale = %d size = %d\n", iteration, q_scale, work->field_8C_size);
@@ -931,14 +888,6 @@ static void JpegcamTakePhoto(Work *work)
     }
     else if (state == 9)
     {
-#ifdef PORT_BUILD
-        // Dump the captured frame (288x176 starting at VRAM 16,16) as a
-        // real PNG to the host photo directory. Done before the lossy
-        // in-game DCT/RLE encoder runs and before JpegTryCompressFrame
-        // grabs the working buffer.
-        extern void port_capture_photo_png(int x, int y, int w, int h);
-        port_capture_photo_png(16, 16, 288, 176);
-#endif
         JpegTryCompressFrame(work);
 
         if (JpegcamCheckShinreiSpot(work) == 1)
@@ -1089,22 +1038,8 @@ static void Act(Work *work)
 
     work->state++;
 
-#ifdef PORT_BUILD
-    /* GM_PlayerControl is owned by snake's sna_init.c, which sets it to
-       NULL on cleanup paths (sna_init.c:8276). When the camera item is
-       active outside the main snake-controlled flow (e.g. some VR/photo
-       paths), GM_PlayerControl can be NULL or unmapped, causing a
-       SIGSEGV at small offsets in this trailing write. The port harness
-       catches it but the longjmp aborts mid-Act, so subsequent ticks
-       never advance state. Guard the writes — they're a "feed back the
-       camera angle to the player turn vector" hint that's harmless to
-       skip when no player is bound. */
-    if (GM_PlayerControl)
-#endif
-    {
-        GM_PlayerControl->rot = work->field_5C_ang;
-        GM_PlayerControl->turn = work->field_5C_ang;
-    }
+    GM_PlayerControl->rot = work->field_5C_ang;
+    GM_PlayerControl->turn = work->field_5C_ang;
 }
 
 static void Die(Work *work)

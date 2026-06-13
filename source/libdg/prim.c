@@ -8,15 +8,12 @@
 
 /*** data *******************************************************/
 
-#ifndef _DG_PRIM_INFO_DEFINED
-#define _DG_PRIM_INFO_DEFINED
 typedef struct _DG_PRIM_INFO {
     unsigned char psize;
     unsigned char verts;
     unsigned char voffset;
     unsigned char vstep;
 } DG_PRIM_INFO;
-#endif
 
 // psize, verts, voffset, vstep
 STATIC DG_PRIM_INFO DG_PrimInfos[DG_PRIM_MAX] = {
@@ -130,12 +127,6 @@ STATIC void DG_AdjustLaserPrims( DG_PRIM *prim, int type )
 }
 
 // process vecs in spad
-/* PSX GTE always loads 3 vectors at once (gte_ldv3c). When the vertex count
-   isn't a multiple of 3, it harmlessly reads adjacent memory. Suppress ASAN
-   for this function since it faithfully replicates PSX GTE behavior. */
-#ifdef __clang__
-__attribute__((no_sanitize("address")))
-#endif
 STATIC SVECTOR *_RotTransPers( SVECTOR *in, int n_verts )
 {
     SVECTOR *out;
@@ -344,9 +335,6 @@ STATIC char *_MakeXYZRectangleSingle( DG_PRIM *prim, char *out, int n_prims )
     SVECTOR *in;
 
     rect = prim->rect;
-#ifdef PORT_BUILD
-    if (!rect) return out;
-#endif
     psize = prim->psize;
 
     x = rect->x;
@@ -375,9 +363,6 @@ STATIC void MakePrimsRectangleSingle( DG_PRIM *prim )
 
     verts = prim->pos;
     packs = (char *)prim->packs[GV_Clock];
-#ifdef PORT_BUILD
-    if (!packs || !verts) return;
-#endif
 
     for ( n_prims = prim->prim_count; n_prims > BATCH_SIZE; n_prims -= BATCH_SIZE )
     {

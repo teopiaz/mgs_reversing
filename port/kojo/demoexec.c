@@ -23,6 +23,7 @@
 #include "game/game.h"
 #include "linkvar.h"
 #include "strcode.h"
+#include "charaid.h"
 #include "anime/animconv/anime.h"
 #include "bullet/blast.h"
 
@@ -681,7 +682,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
     switch (data->field_4_type)
     {
     case EFFECT_EXPLOSION:
-        funcptr = GM_GetCharaID(CHARAID_0001_EXPLOSION);
+        funcptr = GM_GetCharaID(DEMOID_EXPLOSION);
         if (funcptr != NULL)
         {
             funcptr(&mat1, &blast_data_8009F4B8[3]);
@@ -689,7 +690,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_SMOKE:
-        funcptr = GM_GetCharaID(CHARAID_0002_SMOKE);
+        funcptr = GM_GetCharaID(DEMOID_SMOKE);
         if (funcptr != NULL)
         {
             funcptr(&svec1);
@@ -703,7 +704,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         switch (data->field_4_type)
         {
         case EFFECT_FADEIN:
-            funcptr = GM_GetCharaID(CHARAID_0003_FADEIN);
+            funcptr = GM_GetCharaID(DEMOID_FADEIN);
             if (funcptr != NULL)
             {
                 if (data->data.variant_0x3.field_18 == 0)
@@ -718,7 +719,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             break;
 
         case EFFECT_FADEOUT:
-            funcptr = GM_GetCharaID(CHARAID_0004_FADEOUT);
+            funcptr = GM_GetCharaID(DEMOID_FADEOUT);
             if (funcptr != NULL)
             {
                 if (data->data.variant_0x4.field_18 == 0)
@@ -735,7 +736,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_TEXT:
-        funcptr = GM_GetCharaID(CHARAID_0005_TEXT);
+        funcptr = GM_GetCharaID(DEMOID_TEXT);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0x5.field_18, data->data.variant_0x5.field_1A, 0, data->data.variant_0x5.field_14,
@@ -744,7 +745,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_SURPRISEDMARK:
-        funcptr = GM_GetCharaID(CHARAID_0006_SURPRISEDMARK);
+        funcptr = GM_GetCharaID(DEMOID_SURPRISEDMARK);
         if (funcptr != NULL)
         {
             if (data->data.variant_0x6.field_14 == 0)
@@ -759,7 +760,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_QUESTIONMARK:
-        funcptr = GM_GetCharaID(CHARAID_0007_QUESTIONMARK);
+        funcptr = GM_GetCharaID(DEMOID_QUESTIONMARK);
         if (funcptr != NULL)
         {
             if (data->data.variant_0x7.field_14 == 0)
@@ -774,7 +775,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_SLEEPMARK:
-        funcptr = GM_GetCharaID(CHARAID_0008_SLEEPMARK);
+        funcptr = GM_GetCharaID(DEMOID_SLEEPMARK);
         if (funcptr != NULL)
         {
             funcptr(&svec1);
@@ -784,7 +785,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
     case EFFECT_BLOOD:
         if (data->data.variant_0x9.field_14 != 4)
         {
-            funcptr = GM_GetCharaID(CHARAID_0009_BLOOD);
+            funcptr = GM_GetCharaID(DEMOID_BLOOD);
             if (funcptr != NULL)
             {
                 funcptr(&mat2, data->data.variant_0x9.field_14);
@@ -792,7 +793,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         else
         {
-            funcptr = GM_GetCharaID(CHARAID_000A_BLOOD2);
+            funcptr = GM_GetCharaID(DEMOID_BLOOD2);
             if (funcptr != NULL)
             {
                 funcptr(&mat2, 0xFF);
@@ -800,7 +801,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         break;
     case EFFECT_BULLET:
-        funcptr = GM_GetCharaID(CHARAID_000B_BULLET);
+        funcptr = GM_GetCharaID(DEMOID_BULLET);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0xA.field_14, &mat2, data->data.variant_0xA.field_18,
@@ -809,7 +810,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         break;
     case EFFECT_MISSILESMOKE:
-        funcptr = GM_GetCharaID(CHARAID_000C_MISSILESMOKE);
+        funcptr = GM_GetCharaID(DEMOID_MISSILESMOKE);
         if (funcptr != NULL)
         {
             funcptr(&mat2);
@@ -817,7 +818,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_BLOODCIRCLE:
-        funcptr = GM_GetCharaID(CHARAID_000D_BLOODCIRCLE);
+        funcptr = GM_GetCharaID(DEMOID_BLOODCIRCLE);
         if (funcptr != NULL)
         {
             if (data->data.variant_0xC.field_14 >= 4 && data->data.variant_0xC.field_14 <= 7)
@@ -834,7 +835,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_BREATH:
-        funcptr = GM_GetCharaID(CHARAID_000E_BREATH);
+        funcptr = GM_GetCharaID(DEMOID_BREATH);
         if (funcptr != NULL)
         {
             funcptr(&mat2);
@@ -872,7 +873,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0xE.field_20 != 1)
         {
-            funcptr = GM_GetCharaID(CHARAID_000F_SHADOW);
+            funcptr = GM_GetCharaID(DEMOID_SHADOW);
             if (funcptr != NULL)
             {
                 node->actor1 =
@@ -904,7 +905,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             svec1.vy = data->field_E_vec2.vy;
         }
 
-        funcptr = GM_GetCharaID(CHARAID_0010_FOOTPRINTS);
+        funcptr = GM_GetCharaID(DEMOID_FOOTPRINTS);
         if (funcptr != NULL)
         {
             node->actor1 = funcptr(&mat2, data->data.variant_0xF.field_14, svec1.vy);
@@ -926,7 +927,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_NINJAEYE:
-        funcptr = GM_GetCharaID(CHARAID_0011_NINJAEYE);
+        funcptr = GM_GetCharaID(DEMOID_NINJAEYE);
         if (funcptr != NULL)
         {
             ((VoidMakeChara)funcptr)(&mat2);
@@ -936,7 +937,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
     case EFFECT_BUBBLE:
         if (data->data.variant_0x12.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0012_BUBBLE);
+            funcptr = GM_GetCharaID(DEMOID_BUBBLE);
             if (funcptr != NULL)
             {
                 funcptr(&svec1, data->data.variant_0x12.field_20, data->data.variant_0x12.field_24, &lpAct->field_26C,
@@ -950,7 +951,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             svec3.vy = data->data.variant_0x12.field_18;
             svec3.vz = data->data.variant_0x12.field_1A;
 
-            funcptr = GM_GetCharaID(CHARAID_0013_BUBBLE2);
+            funcptr = GM_GetCharaID(DEMOID_BUBBLE2);
             if (funcptr != NULL)
             {
                 funcptr(&svec1, &svec3, data->data.variant_0x12.field_1C, &lpAct->field_26C,
@@ -995,7 +996,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         case EFFECT_SCOPE:
             if (data->data.variant_0x13.field_14 != 1)
             {
-                funcptr = GM_GetCharaID(CHARAID_0014_SCOPE);
+                funcptr = GM_GetCharaID(DEMOID_SCOPE);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(&lpAct->control, &lpAct->object, 0);
@@ -1006,13 +1007,13 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         case EFFECT_DARKVISIBLEGOGGLE:
             if (data->data.variant_0x14.field_14 != 1)
             {
-                funcptr = GM_GetCharaID(CHARAID_0015_DARKVISIBLEGOGGLE);
+                funcptr = GM_GetCharaID(DEMOID_DARKVISIBLEGOGGLE);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(&lpAct->control, &lpAct->object, 0);
                     if (data->data.variant_0x14.field_16 != 0)
                     {
-                        funcptr = GM_GetCharaID(CHARAID_0016_DARKVISIBLEGOGGLE2);
+                        funcptr = GM_GetCharaID(DEMOID_DARKVISIBLEGOGGLE2);
                         if (funcptr != NULL)
                         {
                             node->actor2 = funcptr(5);
@@ -1025,13 +1026,13 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         case EFFECT_IRRAYSGOGGLE:
             if (data->data.variant_0x15.field_14 != 1)
             {
-                funcptr = GM_GetCharaID(CHARAID_0017_IRRAYSGOGGLE);
+                funcptr = GM_GetCharaID(DEMOID_IRRAYSGOGGLE);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(&lpAct->control, &lpAct->object, 0);
                     if (data->data.variant_0x15.field_16 != 0)
                     {
-                        funcptr = GM_GetCharaID(CHARAID_0018_IRRAYSGOGGLE2);
+                        funcptr = GM_GetCharaID(DEMOID_IRRAYSGOGGLE2);
                         if (funcptr != NULL)
                         {
                             node->actor2 = funcptr(6);
@@ -1044,7 +1045,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         case EFFECT_GUSMASK:
             if (data->data.variant_0x1E.field_14 != 1)
             {
-                funcptr = GM_GetCharaID(CHARAID_0022_GUSMASK);
+                funcptr = GM_GetCharaID(DEMOID_GUSMASK);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr();
@@ -1055,7 +1056,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_GUNSMOKE:
-        funcptr = GM_GetCharaID(CHARAID_0019_GUNSMOKE);
+        funcptr = GM_GetCharaID(DEMOID_GUNSMOKE);
         if (funcptr != NULL)
         {
             funcptr(&svec1);
@@ -1097,7 +1098,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         {
             if (data->data.variant_0x17.field_1C == 0)
             {
-                funcptr = GM_GetCharaID(CHARAID_001A_OPTICSCAMOUFLAGE);
+                funcptr = GM_GetCharaID(DEMOID_OPTICSCAMOUFLAGE);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(&lpAct->control, &pModel->object, 0);
@@ -1105,7 +1106,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             }
             else
             {
-                funcptr = GM_GetCharaID(CHARAID_001B_OPTICSCAMOUFLAGE2);
+                funcptr = GM_GetCharaID(DEMOID_OPTICSCAMOUFLAGE2);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(&lpAct->control, &pModel->object, 0);
@@ -1146,7 +1147,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         if (data->data.variant_0x18.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_001C_ENVIRONMENTMAPPING);
+            funcptr = GM_GetCharaID(DEMOID_ENVIRONMENTMAPPING);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(&pModel->object, data->data.variant_0x18.field_1C);
@@ -1171,7 +1172,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             break;
         }
 
-        funcptr = GM_GetCharaID(CHARAID_001D_PLASMA);
+        funcptr = GM_GetCharaID(DEMOID_PLASMA);
         if (funcptr != NULL)
         {
             funcptr(&pModel->object, data->data.variant_0x19.field_18, data->data.variant_0x19.field_1A,
@@ -1180,7 +1181,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_WINDCIRCLE:
-        funcptr = GM_GetCharaID(CHARAID_001E_WINDCIRCLE);
+        funcptr = GM_GetCharaID(DEMOID_WINDCIRCLE);
         if (funcptr != NULL)
         {
             funcptr(&mat2, data->data.variant_0x1A.field_14);
@@ -1191,7 +1192,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         KillEffect(lpAct, EFFECT_SEPIA);
         if (data->data.variant_0x1B.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_001F_SEPIA);
+            funcptr = GM_GetCharaID(DEMOID_SEPIA);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(data->data.variant_0x1B.field_16, data->data.variant_0x1B.field_18,
@@ -1214,7 +1215,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec2.vz = data->data.variant_0x1C.field_1E;
         if (pIter == &lpAct->chain)
         {
-            funcptr = GM_GetCharaID(CHARAID_0020_METALGEARLASER);
+            funcptr = GM_GetCharaID(DEMOID_METALGEARLASER);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(&node->field_58);
@@ -1233,7 +1234,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         KillEffect(lpAct, EFFECT_UNSHAPEVIEW);
         if (data->data.variant_0x1D.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0021_UNSHAPEVIEW);
+            funcptr = GM_GetCharaID(DEMOID_UNSHAPEVIEW);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(data->data.variant_0x1D.field_18, data->data.variant_0x1D.field_1C);
@@ -1280,7 +1281,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         else
         {
-            funcptr = GM_GetCharaID(CHARAID_0023_URINATIONCIRCLE);
+            funcptr = GM_GetCharaID(DEMOID_URINATIONCIRCLE);
             if (funcptr != NULL)
             {
                 if (data->data.variant_0x20.field_14 >= 2 && data->data.variant_0x20.field_14 <= 5)
@@ -1301,7 +1302,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec3.vx = data->data.variant_0x21.field_14;
         svec3.vy = data->data.variant_0x21.field_16;
         svec3.vz = data->data.variant_0x21.field_18;
-        funcptr = GM_GetCharaID(CHARAID_0024_PLASMA2);
+        funcptr = GM_GetCharaID(DEMOID_PLASMA2);
         if (funcptr != NULL)
         {
             funcptr(&svec1, &svec3, data->data.variant_0x21.field_1C);
@@ -1312,7 +1313,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         KillEffect(lpAct, EFFECT_BLUR);
         if (data->data.variant_0x22.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0025_BLUR);
+            funcptr = GM_GetCharaID(DEMOID_BLUR);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(data->data.variant_0x22.field_16, data->data.variant_0x22.field_18,
@@ -1327,7 +1328,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec3.vz = data->data.variant_0x23.field_18;
         if (data->data.variant_0x23.field_1A != 4)
         {
-            funcptr = GM_GetCharaID(CHARAID_0026_STEAMSMOKE);
+            funcptr = GM_GetCharaID(DEMOID_STEAMSMOKE);
             if (funcptr != NULL)
             {
                 ((VoidMakeChara)funcptr)(&svec1, &svec3, data->data.variant_0x23.field_1A);
@@ -1335,7 +1336,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         else
         {
-            funcptr = GM_GetCharaID(CHARAID_0027_STEAMSMOKE2);
+            funcptr = GM_GetCharaID(DEMOID_STEAMSMOKE2);
             if (funcptr != NULL)
             {
                 ((VoidMakeChara)funcptr)(&svec1, &svec3, data->data.variant_0x23.field_1C & 0xFF,
@@ -1350,7 +1351,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0x24.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0028_MONOTONE);
+            funcptr = GM_GetCharaID(DEMOID_MONOTONE);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr();
@@ -1363,7 +1364,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0x25.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0029_RIFLESIGHT);
+            funcptr = GM_GetCharaID(DEMOID_RIFLESIGHT);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr();
@@ -1397,7 +1398,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_BLACKSMOKE:
-        funcptr = GM_GetCharaID(CHARAID_002A_BLACKSMOKE);
+        funcptr = GM_GetCharaID(DEMOID_BLACKSMOKE);
         if (funcptr != NULL)
         {
             funcptr(&svec1);
@@ -1405,7 +1406,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_URINATIONCIRCLE2:
-        funcptr = GM_GetCharaID(CHARAID_002B_URINATIONCIRCLE2);
+        funcptr = GM_GetCharaID(DEMOID_URINATIONCIRCLE2);
         if (funcptr != NULL)
         {
             if (data->data.variant_0x28.field_14 >= 0 && data->data.variant_0x28.field_14 <= 3)
@@ -1441,7 +1442,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         {
             if (data->data.variant_0x29.field_14 != 1)
             {
-                funcptr = GM_GetCharaID(CHARAID_002C_SIGHT);
+                funcptr = GM_GetCharaID(DEMOID_SIGHT);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(data->data.variant_0x29.field_1C, &data->data.variant_0x29.field_16);
@@ -1454,7 +1455,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             {
                 GV_DestroyOtherActor(pIter->actor1);
                 pIter->actor1 = NULL;
-                funcptr = GM_GetCharaID(CHARAID_002C_SIGHT);
+                funcptr = GM_GetCharaID(DEMOID_SIGHT);
                 if (funcptr != NULL)
                 {
                     node->actor1 = funcptr(data->data.variant_0x29.field_1C, &data->data.variant_0x29.field_16);
@@ -1510,7 +1511,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         if (data->data.variant_0x2A.field_18 != 1)
         {
-            funcptr = GM_GetCharaID(CHARAID_002D_NINJASWORD);
+            funcptr = GM_GetCharaID(DEMOID_NINJASWORD);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(&pModel->object.objs->objs[4]);
@@ -1536,7 +1537,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0x2B.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_002E_SUBMARINEROOM);
+            funcptr = GM_GetCharaID(DEMOID_SUBMARINEROOM);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr();
@@ -1548,7 +1549,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec3.vx = data->data.variant_0x2C.field_14;
         svec3.vy = data->data.variant_0x2C.field_16;
         svec3.vz = data->data.variant_0x2C.field_18;
-        funcptr = GM_GetCharaID(CHARAID_002F_BLACKSMOKE2);
+        funcptr = GM_GetCharaID(DEMOID_BLACKSMOKE2);
         if (funcptr != NULL)
         {
             funcptr(&svec1, &svec3, data->data.variant_0x2C.field_1A, data->data.variant_0x2C.field_1C);
@@ -1559,7 +1560,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec3.vx = data->data.variant_0x2D.field_14;
         svec3.vy = data->data.variant_0x2D.field_16;
         svec3.vz = data->data.variant_0x2D.field_18;
-        funcptr = GM_GetCharaID(CHARAID_0030_BLASTLINE);
+        funcptr = GM_GetCharaID(DEMOID_BLASTLINE);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0x2D.field_22, data->data.variant_0x2D.field_1C, data->data.variant_0x2D.field_20,
@@ -1574,7 +1575,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec4.vx = data->data.variant_0x2E.field_1A;
         svec4.vy = data->data.variant_0x2E.field_1C;
         svec4.vz = data->data.variant_0x2E.field_1E;
-        funcptr = GM_GetCharaID(CHARAID_0031_SMOKELINE);
+        funcptr = GM_GetCharaID(DEMOID_SMOKELINE);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0x2E.field_26, data->data.variant_0x2E.field_20, data->data.variant_0x2E.field_24,
@@ -1584,7 +1585,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_SHELLSMOKE:
-        funcptr = GM_GetCharaID(CHARAID_0032_SHELLSMOKE);
+        funcptr = GM_GetCharaID(DEMOID_SHELLSMOKE);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0x2F.field_14, &svec1, &svec2);
@@ -1592,7 +1593,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_CATERPILLERSMOKE:
-        funcptr = GM_GetCharaID(CHARAID_0033_CATERPILLERSMOKE);
+        funcptr = GM_GetCharaID(DEMOID_CATERPILLERSMOKE);
         if (funcptr != NULL)
         {
             funcptr(&svec2, &svec1);
@@ -1600,7 +1601,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_CROWEYE:
-        funcptr = GM_GetCharaID(CHARAID_0034_CROWEYE);
+        funcptr = GM_GetCharaID(DEMOID_CROWEYE);
         if (funcptr != NULL)
         {
             funcptr(&svec1);
@@ -1608,7 +1609,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_OCEROTTEBULLETFIRE:
-        funcptr = GM_GetCharaID(CHARAID_0035_OCEROTTEBULLETFIRE);
+        funcptr = GM_GetCharaID(DEMOID_OCEROTTEBULLETFIRE);
         if (funcptr != NULL)
         {
             funcptr(&mat2);
@@ -1616,7 +1617,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_OCEROTTEBULLETSMOKE:
-        funcptr = GM_GetCharaID(CHARAID_0036_OCEROTTEBULLETSMOKE);
+        funcptr = GM_GetCharaID(DEMOID_OCEROTTEBULLETSMOKE);
         if (funcptr != NULL)
         {
             funcptr(&svec1);
@@ -1632,7 +1633,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec4.vz = data->data.variant_0x34.field_2E;
         if (data->data.variant_0x34.field_30 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0037_ENVIRONMENTLIGHT);
+            funcptr = GM_GetCharaID(DEMOID_ENVIRONMENTLIGHT);
             if (funcptr != NULL)
             {
                 funcptr(data->data.variant_0x34.field_14, data->data.variant_0x34.field_18, &svec3, &svec4,
@@ -1651,7 +1652,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_CRASHSMOKE:
-        funcptr = GM_GetCharaID(CHARAID_0039_CRASHSMOKE);
+        funcptr = GM_GetCharaID(DEMOID_CRASHSMOKE);
         if (funcptr != NULL)
         {
             funcptr(&svec1, &svec2, data->data.variant_0x35.field_18, data->data.variant_0x35.field_1C,
@@ -1662,7 +1663,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_CELOFAN:
-        funcptr = GM_GetCharaID(CHARAID_003A_CELOFAN);
+        funcptr = GM_GetCharaID(DEMOID_CELOFAN);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0x37.field_14, data->data.variant_0x37.field_18, data->data.variant_0x37.field_1C,
@@ -1673,7 +1674,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_INVERSLIGHT:
-        funcptr = GM_GetCharaID(CHARAID_003B_INVERSLIGHT);
+        funcptr = GM_GetCharaID(DEMOID_INVERSLIGHT);
         if (funcptr != NULL)
         {
             ((VoidMakeChara)funcptr)(&svec1);
@@ -1684,7 +1685,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         switch (data->data.variant_0x39.field_14)
         {
         case 0:
-            funcptr = GM_GetCharaID(CHARAID_003C_SPACK);
+            funcptr = GM_GetCharaID(DEMOID_SPACK);
             if (funcptr != NULL)
             {
                 ((VoidMakeChara)funcptr)(&mat2);
@@ -1692,7 +1693,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             break;
 
         case 1:
-            funcptr = GM_GetCharaID(CHARAID_003D_SPACK2);
+            funcptr = GM_GetCharaID(DEMOID_SPACK2);
             if (funcptr != 0)
             {
                 funcptr(&mat2, 0);
@@ -1700,7 +1701,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             break;
 
         case 2:
-            funcptr = GM_GetCharaID(CHARAID_003D_SPACK2);
+            funcptr = GM_GetCharaID(DEMOID_SPACK2);
             if (funcptr != 0)
             {
                 funcptr(&mat2, 1);
@@ -1713,14 +1714,14 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         svec3.vx = data->data.variant_0x3A.field_14;
         svec3.vy = data->data.variant_0x3A.field_16;
         svec3.vz = data->data.variant_0x3A.field_18;
-        funcptr = GM_GetCharaID(CHARAID_003E_STEAMEXPLOSION);
+        funcptr = GM_GetCharaID(DEMOID_STEAMEXPLOSION);
         if (funcptr != NULL)
         {
             funcptr(&svec1, &svec3);
         }
         break;
     case EFFECT_INVERSLIGHT2:
-        funcptr = GM_GetCharaID(CHARAID_003F_INVERSLIGHT2);
+        funcptr = GM_GetCharaID(DEMOID_INVERSLIGHT2);
         if (funcptr != NULL)
         {
             funcptr(&svec1, data->data.variant_0x3B.field_14, data->data.variant_0x3B.field_18,
@@ -1729,7 +1730,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         }
         break;
     case EFFECT_CELOFAN2:
-        funcptr = GM_GetCharaID(CHARAID_0040_CELOFAN2);
+        funcptr = GM_GetCharaID(DEMOID_CELOFAN2);
         if (funcptr != NULL)
         {
             funcptr(data->data.variant_0x3C.field_14, data->data.variant_0x3C.field_18, data->data.variant_0x3C.field_1C,
@@ -1757,7 +1758,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
             break;
         }
 
-        funcptr = GM_GetCharaID(CHARAID_0041_NINJALASER);
+        funcptr = GM_GetCharaID(DEMOID_NINJALASER);
         if (funcptr != NULL)
         {
             funcptr(&pModel->object.objs[6].world.m[1][1], data->data.variant_0x3D.field_14,
@@ -1789,7 +1790,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
                 pIter->actor1 = NULL;
             }
 
-            funcptr = GM_GetCharaID(CHARAID_0042_GUSEFFECT);
+            funcptr = GM_GetCharaID(DEMOID_GUSEFFECT);
             if (funcptr != NULL)
             {
                 svec3.vx = data->data.variant_0x3E.field_16;
@@ -1863,7 +1864,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0x3F.field_14 != 1)
         {
-            funcptr = GM_GetCharaID(CHARAID_0043_SUBMARINEWATER);
+            funcptr = GM_GetCharaID(DEMOID_SUBMARINEWATER);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(&pModel->object, &pModel->control.rot);
@@ -1887,7 +1888,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         KillEffect(lpAct, EFFECT_GHOST);
         if (data->data.variant_0x41.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_0044_GHOST);
+            funcptr = GM_GetCharaID(DEMOID_GHOST);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr();
@@ -1934,7 +1935,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0x43.field_18 != 1)
         {
-            funcptr = GM_GetCharaID(CHARAID_0045_FAMASLIGHT);
+            funcptr = GM_GetCharaID(DEMOID_FAMASLIGHT);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr(pModel->object.objs + 1);
@@ -1978,7 +1979,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         {
             if (data->data.variant_0x44.field_14 != 1)
             {
-                funcptr = GM_GetCharaID(CHARAID_0046_HUMANSHADOW);
+                funcptr = GM_GetCharaID(DEMOID_HUMANSHADOW);
 
                 if (funcptr != NULL)
                 {
@@ -2014,7 +2015,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_BLOODHAZARD:
-        funcptr = GM_GetCharaID(CHARAID_0047_BLOODHAZARD);
+        funcptr = GM_GetCharaID(DEMOID_BLOODHAZARD);
         if (funcptr != NULL)
         {
             node->actor1 = funcptr(&mat2, data->data.variant_0x45.field_14, data->data.variant_0x45.field_16,
@@ -2023,7 +2024,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_BLOODDRIP:
-        funcptr = GM_GetCharaID(CHARAID_0048_BLOODDRIP);
+        funcptr = GM_GetCharaID(DEMOID_BLOODDRIP);
         if (funcptr != NULL)
         {
             funcptr(&svec1, data->data.variant_0x46.field_14, data->data.variant_0x46.field_16);
@@ -2031,7 +2032,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_NINJAGROUND:
-        funcptr = GM_GetCharaID(CHARAID_0049_NINJAGROUND);
+        funcptr = GM_GetCharaID(DEMOID_NINJAGROUND);
         if (funcptr != NULL)
         {
             funcptr(&mat2, 400, 400, 400, 10);
@@ -2039,7 +2040,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_BOMBLIGHT:
-        funcptr = GM_GetCharaID(CHARAID_004A_BOMBLIGHT);
+        funcptr = GM_GetCharaID(DEMOID_BOMBLIGHT);
         if (funcptr != NULL)
         {
             ((VoidMakeChara)funcptr)(&svec1);
@@ -2063,7 +2064,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
 
         if (data->data.variant_0x49.field_14 == 0)
         {
-            funcptr = GM_GetCharaID(CHARAID_004B_MGCROOMDISPLAY);
+            funcptr = GM_GetCharaID(DEMOID_MGCROOMDISPLAY);
             if (funcptr != NULL)
             {
                 node->actor1 = funcptr();
@@ -2072,7 +2073,7 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
         break;
 
     case EFFECT_TEXT2:
-        funcptr = GM_GetCharaID(CHARAID_004C_TEXT2);
+        funcptr = GM_GetCharaID(DEMOID_TEXT2);
 
         if (funcptr != NULL)
         {

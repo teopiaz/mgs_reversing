@@ -91,9 +91,6 @@ typedef struct _Work
     int                       field_54_maybeFlags;
     unsigned short            clock;
     short                     field_5A_maybeFlags;
-#ifdef PORT_BUILD
-    SightPrimitiveBufferInfo  port_info;
-#endif
 } Work;
 
 /*---------------------------------------------------------------------------*/
@@ -355,11 +352,6 @@ static void sight_act_helper_800713FC(Work *work, int clock)
 // Called every frame to display the scope's text pseudo-primitives.
 static void sight_act_helper_80071498(SightTextPseudoPrim *textPrim)
 {
-#ifdef PORT_BUILD
-    /* Validate the text prim pointer before accessing it — the primitive
-       buffer may contain data at unexpected offsets after 64-bit fixup. */
-    if (!textPrim || (uintptr_t)textPrim < 0x1000) return;
-#endif
     MENU_Locate(textPrim->posX, textPrim->posY, 0);
     MENU_Color(textPrim->r, textPrim->g, textPrim->b);
     MENU_Printf("%s", textPrim->text);
@@ -476,13 +468,11 @@ static void Act(Work *work)
         ancField1Anded = tPageInfo & 0x3f; // This keeps the 6 LSBs.
         ancField1Shifted = tPageInfo >> 6;
 
-#ifndef PORT_BUILD
         if (frameCountPositive != 0 && offsetIndicesIndex != 0)
         {
             sight_800711C0(work, frameCount, offsetPrimBuf, offsetIndicesIndex, primOffsetIndicesArray,
                            primOffsetInfoArray, primOffset, field54Flags);
         }
-#endif
 
         if (ancField1Anded != 0)
         {
@@ -495,17 +485,10 @@ static void Act(Work *work)
                 continue;
             }
         }
-#ifndef PORT_BUILD
         if (field30 != 0 && xyOffsetBuffer != (short *)0x0)
         {
             sight_act_helper_80071320(work, offsetPrimBuf, xyOffsetBuffer, primOffset);
         }
-#endif
-#ifndef PORT_BUILD
-        /* Primitive rendering — skipped on port because the copied primitive
-           buffer contains PSX GPU primitives with 32-bit tag fields that are
-           incompatible with the 64-bit OT handle system. The state machine
-           logic above this block still runs. */
         tag = *(int *)offsetPrimBuf;
         if (tag == 0xff)
         {
@@ -531,7 +514,6 @@ static void Act(Work *work)
                 tPageBuf += 1;
             }
         }
-#endif
     }
 
     if (work->frameCount < 0x7fff0000 && GV_PauseLevel == 0)
@@ -612,37 +594,12 @@ static int GetResources(Work *work, int hashedFileName, short *itemEquippedIndic
         return -1;
     }
 
-#ifdef PORT_BUILD
-    /* SightPrimitiveBufferInfo is stored in PSX binary format: 24 bytes with
-       32-bit pointers. On 64-bit the C struct is 48 bytes. Parse the raw
-       bytes into a per-actor slot so concurrent sight actors don't stomp
-       each other (PSG1 spawns three at once). */
-    {
-        unsigned char *raw = (unsigned char *)info;
-        uint32_t psx_ptrs[5];
-        work->port_info.primitiveBufferSize = *(unsigned short *)&raw[0];
-        work->port_info.field_2 = raw[2];
-        work->port_info.primCount = raw[3];
-        for (int j = 0; j < 5; j++)
-            psx_ptrs[j] = *(uint32_t *)&raw[4 + j * 4];
-
-        work->port_info.ancillaryInfo          = (SightPrimBufInfoStruct *)(raw + psx_ptrs[0]);
-        work->port_info.primitiveBuffer        = (void *)                  (raw + psx_ptrs[1]);
-        work->port_info.primOffsetIndicesArray = (SightPrimOffsetIndices *)(raw + psx_ptrs[2]);
-        work->port_info.primOffsetInfoArray    = (SightPrimOffsetInfo *)   (raw + psx_ptrs[3]);
-        work->port_info.field_14_array         = (SightPrimBufInfo_0x14 *) (raw + psx_ptrs[4]);
-
-        info = &work->port_info;
-        work->primitiveBufferInfo = info;
-    }
-#endif
     ancillaryInfo = info->ancillaryInfo;
     primitiveBufferSize = info->primitiveBufferSize;
     primCount = info->primCount;
     primOffsetIndices = info->primOffsetIndicesArray;
     tPageCount = 0;
     primOffsetInfo = info->primOffsetInfoArray;
-
     primitiveBuffer = (unsigned int *)GV_Malloc(primitiveBufferSize * 2);
     work->primitiveDoubleBuffer[0] = primitiveBuffer;
 

@@ -1,16 +1,6 @@
 #include "libdg.h"
 #include "common.h"
 #include "game/game.h"
-#ifdef PORT_BUILD
-#include <stdio.h>
-#include <stdlib.h>
-#include "psx/port_ptr.h"
-#endif
-#ifdef PORT_BUILD
-#include <stdio.h>
-#include <stdlib.h>
-#include "psx/port_ptr.h"
-#endif
 
 static void UpdateThermalTexture( DG_CHANL *chanl, int index );
 
@@ -23,11 +13,7 @@ typedef	struct {
     VECTOREX bound_max;
     SVECTOR  clip[ 3 ];
     DVECTOR  vxy[ 4 ][ 3 ];
-#ifdef PORT_BUILD
-    int      vzp[ 4 ][ 3 ];    /* 4-byte stride: PSX long is 32-bit */
-#else
     long     vzp[ 4 ][ 3 ];
-#endif
 } ScrPad;
 
 #define SCRPAD      ((ScrPad *)SCRPAD_ADDR)
@@ -48,11 +34,7 @@ static inline void MakeBoundVerts( int *bound )
     int i, j;
     SVECTOR *clip;
     DVECTOR *vxy;
-#ifdef PORT_BUILD
-    int *vzp;
-#else
     long *vzp;
-#endif
 
     BOUND_MIN->vx = bound[ 0 ];
     BOUND_MIN->vy = bound[ 1 ];
@@ -93,11 +75,7 @@ static inline void MakeBoundVerts( int *bound )
 static inline int BoundCheckDepth( int xl, int yl, int xh, int yh )
 {
     int i, bound_flag;
-#ifdef PORT_BUILD
-    int *depth;
-#else
     long *depth;
-#endif
 
     if ( xh > 160 || xl < -160 || yh > 112 || yl < -112 )
     {
@@ -166,88 +144,20 @@ static inline int BoundCheck( DVECTOR *verts )
     return bound_flag;
 }
 
-#ifdef PORT_BUILD
-/* Validate the whole extend chain before packet creation - skip the model if any
-   link points to freed/invalid memory (use-after-free). */
-static int ValidExtendChain( DG_OBJ *obj )
-{
-    DG_OBJ *chk = obj;
-    int cnt = 0;
-
-    while ( chk && cnt++ < 256 )
-    {
-        if ( !port_ptr_in_pool( chk ) || !port_ptr_in_pool( chk->model ) ||
-             chk->n_packs <= 0 || chk->n_packs > 4096 )
-        {
-            return 0;
-        }
-        chk = chk->extend;
-    }
-    return 1;
-}
-#endif
-
 static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
 {
     int n_models, bound_flag;
     DG_OBJ *obj;
 
     obj = objs->objs;
-
-    /* Port: verify the DG_OBJ memory is valid (not freed/scribbled) */
-    if ( objs->n_models > 0 && obj->model && ( (unsigned long)obj->model & 0xFCFCFCFC00000000ULL ) )
-    {
-        return; /* Memory was freed - skip this object set */
-    }
-
     for ( n_models = objs->n_models; n_models > 0; n_models-- )
     {
-#ifdef PORT_BUILD
-        /* Skip objects with NULL/invalid model (freed memory) */
-        if ( !port_ptr_in_pool( obj->model ) )
-        {
-            obj++;
-            continue;
-        }
-        /* Also sanitize the extend pointer: if it's out of pool, it's been
-           stomped somehow - treat as NULL for this frame. */
-        if ( obj->extend && !port_ptr_in_pool( obj->extend ) )
-        {
-            obj->extend = NULL;
-        }
-        {
-            static int bt_enable = -1;
-            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
-            if (bt_enable) {
-                fprintf(stderr, "  [bo] model=%p n_packs=%d extend=%p packs[%d]=%p\n",
-                        (void *)obj->model, obj->n_packs, (void *)obj->extend, pack, (void *)obj->packs[pack]);
-            }
-        }
-        /* Also sanitize the extend pointer: if it's out of pool, it's been
-           stomped somehow — treat as NULL for this frame. */
-        if (obj->extend && !port_ptr_in_pool(obj->extend)) {
-            obj->extend = NULL;
-        }
-        {
-            static int bt_enable = -1;
-            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
-            if (bt_enable) {
-                fprintf(stderr, "  [bo] model=%p n_packs=%d extend=%p packs[%d]=%p\n",
-                        (void *)obj->model, obj->n_packs, (void *)obj->extend, idx, (void *)obj->packs[idx]);
-            }
-        }
-#endif
         bound_flag = 0;
 
         if ( arg_flag != 0 )
         {
             bound_flag = 2;
 
-#ifdef PORT_BUILD
-            /* Skip GTE frustum culling - the port's projection differs from
-               PSX GTE, causing incorrect object culling. Always mark visible. */
-            (void)flag;
-#else
             if ( flag & DG_FLAG_BOUND )
             {
                 gte_SetRotMatrix( &obj->screen );
@@ -255,22 +165,12 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
                 MakeBoundVerts( &obj->model->lx );
                 bound_flag = BoundCheck( VXY[ 1 ] );
             }
-#endif
-#endif
         }
 
         obj->bound_mode = bound_flag;
         if ( bound_flag != 0 )
         {
             obj->free_count = 8;
-
-#ifdef PORT_BUILD
-            if ( obj->packs[ pack ] == NULL && !ValidExtendChain( obj ) )
-            {
-                obj->bound_mode = 0;
-                goto next_model;
-            }
-#endif
 
             if ( obj->packs[ pack ] == NULL && DG_MakeObjPacket( obj, pack, flag ) < 0 )
             {
@@ -291,9 +191,6 @@ static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
             }
         }
 
-#ifdef PORT_BUILD
-        next_model:
-#endif
         obj++;
     }
 }
@@ -310,11 +207,6 @@ void DG_BoundChanl( DG_CHANL *chanl, int index )
     for ( n_objs = chanl->objs_index; n_objs > 0; n_objs-- )
     {
         objs = *queue++;
-
-        /* Port: skip freed/corrupt queue entries.
-           Check for macOS freed-memory scribble (0xfcfc pattern in world matrix) */
-        if ( !objs || objs->world.m[ 0 ][ 0 ] == (short)0xfcfc ) continue;
-
         flag = objs->flag;
         bound_flag = 0;
 
@@ -322,15 +214,6 @@ void DG_BoundChanl( DG_CHANL *chanl, int index )
         {
             bound_flag = 2;
 
-#ifdef PORT_BUILD
-            /* Port: the GBOUND frustum test below uses the PSX GTE's
-               rtpt_b + scratchpad store, which produces wrong screen
-               coords on 64-bit and culls everything to 0. BoundObjs
-               already skips its per-model BOUND test for the same
-               reason; mirror that here: trust the group-level flag and
-               always mark visible. */
-            (void)flag;
-#else
             if ( flag & DG_FLAG_GBOUND )
             {
                 gte_SetRotMatrix( &objs->objs[ 0 ].screen );
@@ -338,21 +221,9 @@ void DG_BoundChanl( DG_CHANL *chanl, int index )
                 MakeBoundVerts( &objs->def->lx );
                 bound_flag = BoundCheck( VXY[ 1 ] );
             }
-#endif /* PORT_BUILD */
         }
 
         objs->bound_mode = bound_flag;
-#ifdef PORT_BUILD_VERBOSE
-        {
-            static int bt_enable = -1;
-            if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
-            if (bt_enable) {
-                fprintf(stderr, "[dg] BoundObjs chanl=%d objs=%p def=%p n_models=%d flag=%x mode=%d\n",
-                        index, (void *)objs, (void *)objs->def,
-                        objs->n_models, flag, bound_flag);
-            }
-        }
-#endif
         BoundObjs( objs, index, flag, bound_flag );
     }
 

@@ -346,19 +346,6 @@ void GM_ActControl(CONTROL *ctrl)
 
     GM_CurrentMap = ctrl->map->index;
 
-#ifdef PORT_BUILD
-    /* When r_sphere==0, neither collision branch runs, leaving segs[]
-       stale from a previous frame. On PSX this was harmless (memory stays
-       mapped), but on 64-bit macOS freed memory can be unmapped.
-       Only reset segs[] when r_sphere==0 — keep n_touches intact so
-       the snake wall-collision state machine still works correctly. */
-    if (ctrl->r_sphere == 0) {
-        ctrl->n_touches = 0;
-        ctrl->segs[0] = NULL;
-        ctrl->segs[1] = NULL;
-    }
-#endif
-
     if (ctrl->r_sphere > 0)
     {
         ctrl->n_touches = 0;
@@ -506,25 +493,12 @@ int GM_CheckControlTouches(CONTROL *ctrl, int range)
 
     if (ctrl->n_touches == 2)
     {
-#ifdef PORT_BUILD
-        if (!ctrl->segs[1] || (uintptr_t)ctrl->segs[1] > 0xFFFFFFFFFFULL) {
-            printf("[BUG] GM_CheckControlTouches: segs[1]=%p touch=%d\n", (void*)ctrl->segs[1], ctrl->n_touches);
-            return 0;
-        }
-#endif
         if (ctrl->segs[1]->p1.h < 0 || GV_VecLen3(&ctrl->vecs[1]) <= range)
         {
             return 2;
         }
     }
 
-#ifdef PORT_BUILD
-    if (!ctrl->segs[0] || (uintptr_t)ctrl->segs[0] > 0xFFFFFFFFFFULL) {
-        printf("[BUG] GM_CheckControlTouches: segs[0]=%p touch=%d segs[1]=%p\n",
-               (void*)ctrl->segs[0], ctrl->n_touches, ctrl->segs[1]);
-        return 0;
-    }
-#endif
     if (ctrl->segs[0]->p1.h < 0 || GV_VecLen3(&ctrl->vecs[0]) <= range)
     {
         return 1;

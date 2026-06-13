@@ -10,18 +10,10 @@ int SECTION(".sbss") dword_800AB9AC; // unused
 
 //------------------------------------------------------------------------------
 
-#ifdef PORT_BUILD
-void HZD_StartDaemon(void)
-{
-    extern int HZD_LoadInitHzd(void *, int);
-    GV_SetLoader('h', (GV_LOADFUNC)&HZD_LoadInitHzd);
-}
-#else
 void HZD_StartDaemon(void)
 {
     GV_SetLoader('h', HZD_LoadInitHzd);
 }
-#endif
 
 STATIC void HZD_ProcessTraps(HZD_TRG *trap, int n_traps)
 {
@@ -65,7 +57,6 @@ STATIC void HZD_ProcessRoutes(HZD_PAT *routes, int n_routes, HZD_DEF *hzm)
     }
 }
 
-#ifndef PORT_BUILD
 int HZD_LoadInitHzd(void *buf, int id)
 {
     HZD_DEF *hzm;
@@ -100,7 +91,6 @@ int HZD_LoadInitHzd(void *buf, int id)
 
     return 1;
 }
-#endif /* PORT_BUILD */
 
 HZD_HDL *HZD_MakeHandler(HZD_DEF *hzd, int areaIndex, int dynamic_segments, int dynamic_floors)
 {
@@ -110,44 +100,18 @@ HZD_HDL *HZD_MakeHandler(HZD_DEF *hzd, int areaIndex, int dynamic_segments, int 
     int      i;
     HZD_TRG *trig;
 
-    /* Port: use a static to store the route pointer instead of cramming it
-       into the first 4 bytes of HZD_DEF (which truncates on 64-bit) */
+    if (*(int *)hzd == 0)
     {
-        static void *cached_route = NULL;
-        static HZD_DEF *cached_hzd = NULL;
-        if (cached_hzd != hzd) {
-            cached_route = NULL;
-            cached_hzd = hzd;
+        n_zones = hzd->n_zones;
+        if (n_zones > 1)
+        {
+            zones = GV_Malloc((n_zones - 1) * (n_zones - 2) / 2 + (n_zones - 1));
+            HZD_MakeRoute(hzd, zones);
+            *(int *)hzd = (int)zones;
         }
-        if (!cached_route) {
-            n_zones = hzd->n_zones;
-            if (n_zones > 1) {
-                zones = GV_Malloc((n_zones - 1) * (n_zones - 2) / 2 + (n_zones - 1));
-                HZD_MakeRoute(hzd, zones);
-                cached_route = zones;
-            }
-        }
-        zones = cached_route;
     }
 
-#ifdef PORT_BUILD
-    /* Port: pointer arrays must be sized in sizeof(void*) — PSX hard-coded
-     * 4-byte pointers, but on 64-bit they're 8 bytes. The original
-     * `(4 * dynamic_floors) + (4 * dynamic_segments)` under-allocates by
-     * half, so the floor / segment / flags arrays overlap and the first
-     * dynamic-segment write (e.g. door.c's HZD_QueueDynamicSegment2 from
-     * DoorInitHzdSegments_8006F7AC) clobbers the floor pointer table.
-     * Per-frame collision then walks bogus pointers and the engine
-     * locks up — the symptom that surfaced when adding a `chara &DOOR`
-     * to a custom stage.  */
-    size_t alloc_size = sizeof(HZD_HDL)
-                      + sizeof(void *) * dynamic_floors
-                      + sizeof(void *) * dynamic_segments
-                      + 2 * dynamic_segments;
-    hzdMap = (HZD_HDL *)GV_Malloc((int)alloc_size);
-#else
     hzdMap = (HZD_HDL *)GV_Malloc((4 * dynamic_floors) + sizeof(HZD_HDL) + (4 * dynamic_segments) + (2 * dynamic_segments));
-#endif
     if (hzdMap)
     {
         hzdMap->dynamic_floors = (void *)&hzdMap[1];
@@ -160,13 +124,13 @@ HZD_HDL *HZD_MakeHandler(HZD_DEF *hzd, int areaIndex, int dynamic_segments, int 
         hzdMap->grp = &hzd->groups[areaIndex];
         hzdMap->dynamic_queue_index = 0;
         hzdMap->dynamic_floor_index = 0;
-        hzdMap->route = (u_char *)zones;
+        hzdMap->route = *(u_char **)hzd;
 
         trig = hzdMap->grp->triggers;
         for (i = hzdMap->grp->n_triggers; i > 0; i--)
         {
-            // stop when we find a camera (cameras are stored after traps, id2==0xFF marks them)
-            if ((signed char)trig->trap.id2 == -1)
+            // stop when we find a camera (traps are stored after cameras)
+            if (trig->trap.id2 == (char)-1)
             {
                 break;
             }

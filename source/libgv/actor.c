@@ -150,41 +150,12 @@ void GV_DumpActorSystem( void )
  * Iterate over all actors in all actor lists and call their update function.
  * This function is invoked continuously and represent the main game loop.
  */
-/* Signal-safe actor crash recovery using sigsetjmp/siglongjmp */
-#include <setjmp.h>
-#include <signal.h>
-#include <execinfo.h>
-static sigjmp_buf actor_jmp;
-static volatile sig_atomic_t actor_in_handler = 0;
-static volatile void *actor_last_fault_addr = NULL;
-static void *actor_last_bt[16];
-static int   actor_last_bt_n = 0;
-static void actor_crash_handler_si(int sig, siginfo_t *info, void *ucontext) {
-    (void)sig; (void)ucontext;
-    if (info) actor_last_fault_addr = info->si_addr;
-    /* backtrace(3) is async-signal-safe on macOS and gives us a one-shot
-       call chain to dump on the first catch — invaluable for tracking
-       down 32→64-bit pointer truncation bugs in the menu/codec code. */
-    actor_last_bt_n = backtrace(actor_last_bt, 16);
-    if (actor_in_handler) siglongjmp(actor_jmp, 1);
-}
-
 void GV_ExecActorSystem( void )
 {
     AList *list;
     int    i, pause;
 
     list = ActorList;
-
-#ifdef PORT_BUILD
-    struct sigaction sa = {0};
-    sa.sa_sigaction = actor_crash_handler_si;
-    sa.sa_flags = SA_SIGINFO;
-    struct sigaction old_segv, old_bus;
-    sigaction(SIGSEGV, &sa, &old_segv);
-    sigaction(SIGBUS, &sa, &old_bus);
-#endif
-
     for ( i = GV_ACTOR_LEVEL; i > 0; i-- )
     {
         void ( *act )( GV_ACT * );
@@ -201,52 +172,13 @@ void GV_ExecActorSystem( void )
                 next = this->next;
                 if ( ( act = this->act ) != NULL )
                 {
-#ifdef PORT_BUILD
-                    actor_in_handler = 1;
-                    if (sigsetjmp(actor_jmp, 1) == 0)
-                    {
-                        act( this );
-                    }
-                    else
-                    {
-                        /* Throttle: print at most once per (filename, fnptr)
-                           pair so a stuck-faulting actor doesn't drown the log.
-                           Includes the fault address (via SA_SIGINFO) to make
-                           NULL-deref bugs easier to bisect. */
-                        static struct { const char *file; void *fn; } seen[32] = {0};
-                        void *fn = (void *)this->act;
-                        const char *file = this->filename ? this->filename : "?";
-                        int already = 0;
-                        for (int si = 0; si < 32 && seen[si].fn; si++) {
-                            if (seen[si].fn == fn && seen[si].file == file) { already = 1; break; }
-                        }
-                        if (!already) {
-                            for (int si = 0; si < 32; si++) {
-                                if (!seen[si].fn) { seen[si].fn = fn; seen[si].file = file; break; }
-                            }
-                            fprintf(stderr, "[actor] crash in %s (act=%p) fault_addr=%p — suppressing further\n",
-                                    file, fn, (void *)actor_last_fault_addr);
-                            if (actor_last_bt_n > 0) {
-                                fprintf(stderr, "[actor] backtrace (%d frames):\n", actor_last_bt_n);
-                                backtrace_symbols_fd(actor_last_bt, actor_last_bt_n, 2);
-                            }
-                        }
-                    }
-                    actor_in_handler = 0;
-#else
                     act( this );
-#endif
                 }
                 GM_CurrentMap = 0;
             } while ( ( this = next ) != NULL );
         }
         list++;
     }
-
-#ifdef PORT_BUILD
-    sigaction(SIGSEGV, &old_segv, NULL);
-    sigaction(SIGBUS, &old_bus, NULL);
-#endif
 }
 
 /**

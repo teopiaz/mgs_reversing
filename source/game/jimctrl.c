@@ -273,8 +273,6 @@ static void Act(Work *work)
         GV_DestroyActor(&work->actor);
     }
 
-#ifdef PORT_BUILD
-#endif
     str_counter = get_str_counter();
     if ((str_counter < 0) || (str_status == 0))
     {
@@ -282,16 +280,7 @@ static void Act(Work *work)
         {
             return;
         }
-#ifdef PORT_BUILD
-        /* On the port, str_tick_count stays -1 for a few frames after
-           StartStream because the SPU IRQ-driven state advance doesn't
-           run instantly. Don't destroy jimctrl if the stream is still
-           active (states 1-6) — just wait for str_counter to become valid. */
-        if (str_status >= 1 && str_status <= 6)
-        {
-            return;
-        }
-#endif
+
         GV_DestroyActor(&work->actor);
         return;
     }
@@ -325,32 +314,6 @@ static void Act(Work *work)
 
         if (!work->field_34)
         {
-#ifdef PORT_BUILD
-            /* SubtitleHeader has pointer fields — PSX layout is 16 bytes,
-               port layout is 28 bytes. Parse raw PSX format manually:
-               [field_0:4][field_4:4][data_offset:2][subtitle_offset:2][font_offset:4] */
-            {
-                unsigned char *raw = (unsigned char *)JimCtrlWork.field_50_buffer;
-                short raw_data_off, raw_sub_off;
-                int raw_font_off;
-                memcpy(&raw_data_off, raw + 8, 2);
-                memcpy(&raw_sub_off, raw + 10, 2);
-                memcpy(&raw_font_off, raw + 12, 4);
-
-                work->field_34 = (int *)raw;
-                work->field_38 = (char *)raw + raw_data_off;
-                pSubtitles = (int *)((char *)raw + raw_sub_off);
-
-                if ((pSubtitles[0] == 0) && (pSubtitles[1] == 0) && (pSubtitles[2] == 0))
-                    pSubtitles = NULL;
-
-                work->field_44_subtitles = pSubtitles;
-                work->field_48 = 0;
-                work->field_40 = 0;
-
-                font_set_font_addr(3, (char *)raw + raw_font_off);
-            }
-#else
             pHeader = (SubtitleHeader *)JimCtrlWork.field_50_buffer;
 
             work->field_34 = (int *)pHeader;
@@ -369,7 +332,6 @@ static void Act(Work *work)
             work->field_40 = 0;
 
             font_set_font_addr(3, (char *)pHeader + pHeader2->font_offset);
-#endif
         }
 
         work->field_20 = 1;

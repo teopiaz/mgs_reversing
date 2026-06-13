@@ -1,45 +1,16 @@
 #include "libdg.h"
 #include "common.h"
-#ifdef PORT_BUILD
-#include "psx/port_ptr.h"
-#endif
-#ifdef PORT_BUILD
-#include "psx/port_ptr.h"
-#endif
 
 static int AllocPacks( DG_OBJ *obj, int index )
 {
     int size;
     DG_OBJ *iter;
-#ifdef PORT_BUILD
-    int safety = 0;
-#endif
-
-#ifdef PORT_BUILD
-    if ( obj == NULL ) return -1;
-#endif
 
     size = 0;
     for ( iter = obj; iter != NULL; iter = iter->extend )
     {
-#ifdef PORT_BUILD
-        /* Validate pointer: must be in userspace range (not freed/scribbled) */
-        {
-            if ( !port_ptr_in_pool( iter ) ) break;
-            if ( iter->n_packs <= 0 || iter->n_packs > 4096 ) break;
-            size += iter->n_packs;
-            if ( iter->extend && !port_ptr_in_pool( iter->extend ) ) break;
-        }
-        /* Bound the extend chain: a corrupt DG_OBJ can loop forever. */
-        if ( ++safety >= 256 ) break;
-#else
         size += iter->n_packs;
-#endif
     }
-
-#ifdef PORT_BUILD
-    if ( size <= 0 ) return -1;
-#endif
 
     size *= sizeof( POLY_GT4 );
     if ( GV_AllocMemory2( index, size, (void **)&obj->packs[ index ] ) == NULL ) return -1;
@@ -51,19 +22,12 @@ static void InitPacks( DG_OBJ *obj, int index )
     POLY_GT4 *packs;
     int color, i;
 
-#ifdef PORT_BUILD
-    if ( obj->model == NULL ) return;
-#endif
-
     color = 0x3E808080;
     if ( !( obj->model->flag & DG_MODEL_TRANS ) ) color &= ~0x2000000;
 
     packs = obj->packs[ index ];
     for ( ; obj != NULL; obj = obj->extend )
     {
-#ifdef PORT_BUILD
-        if ( !port_ptr_in_pool( obj ) ) break;
-#endif
         for ( i = obj->n_packs; i > 0; i-- )
         {
             setPolyGT4( packs );
@@ -94,10 +58,6 @@ void DG_WriteObjPacketUV( DG_OBJ *obj, int index )
 
     for ( ; obj != NULL; obj = obj->extend )
     {
-#ifdef PORT_BUILD
-        if ( !port_ptr_in_pool( obj ) ) break;
-        if ( !port_ptr_in_pool( obj->model ) ) break;
-#endif
         texids = obj->model->texids;
         texcoords = obj->model->uvs;
 
@@ -140,9 +100,6 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int index )
     if ( ( packs = obj->packs[ index ] ) == NULL ) return;
     for ( ; obj != NULL; obj = obj->extend )
     {
-#ifdef PORT_BUILD
-        if ( !port_ptr_in_pool( obj ) ) break;
-#endif
         if ( ( rgbs = obj->rgbs ) == NULL ) continue;
         for ( i = obj->n_packs; i > 0; i-- )
         {
@@ -156,16 +113,7 @@ void DG_WriteObjPacketRGB( DG_OBJ *obj, int index )
 
 int DG_MakeObjPacket( DG_OBJ *obj, int index, int flags )
 {
-#ifdef PORT_BUILD
-    if ( obj == NULL || obj->model == NULL || obj->n_packs == 0 ) return -1;
-#endif
-
     if ( AllocPacks( obj, index ) < 0 ) return -1;
-
-#ifdef PORT_BUILD
-    if ( obj->packs[ index ] == NULL ) return -1;
-#endif
-
     InitPacks( obj, index );
     if ( flags & DG_FLAG_TEXT ) DG_WriteObjPacketUV( obj, index );
     if ( flags & DG_FLAG_PAINT ) DG_WriteObjPacketRGB( obj, index );

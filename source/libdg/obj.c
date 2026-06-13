@@ -4,14 +4,6 @@
 #include <libgte.h>
 #include <libgpu.h>
 #include "common.h"
-#ifdef PORT_BUILD
-#include <stdio.h>
-#include <stdlib.h>
-#endif
-#ifdef PORT_BUILD
-#include <stdio.h>
-#include <stdlib.h>
-#endif
 
 static int GetRaise( DG_MDL *mdl )
 {
@@ -52,20 +44,7 @@ DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
     {
         obj->model = mdl;
 
-#ifdef PORT_BUILD
-        {
-            static int bt = -1;
-            if (bt == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt = (e && *e) ? 1 : 0; }
-            if (bt) fprintf(stderr, "[mk] objs=%p cur=%d/%d extend_idx=%d\n",
-                            (void *)objs, (int)( obj - &objs->objs[ 0 ] ), def->n_models, mdl->extend);
-        }
-        /* Guard against out-of-range / self-referential extend indices, which
-           chain DG_OBJ lists into loops or freed memory on the port. */
-        if ( mdl->extend < 0 || mdl->extend >= def->n_models ||
-             mdl->extend == (int)( obj - &objs->objs[ 0 ] ) )
-#else
         if ( mdl->extend < 0 )
-#endif
         {
             obj->extend = 0;
         }
@@ -97,12 +76,6 @@ void DG_FreeObjs( DG_OBJS *objs )
     }
 
     DG_FreePreshade(objs);
-#ifdef PORT_BUILD
-    /* Zero out before freeing so stale render queue references see
-       n_models=0 and skip instead of crashing on freed memory. */
-    memset(objs->objs, 0, objs->n_models * sizeof(DG_OBJ));
-    objs->n_models = 0;
-#endif
     GV_Free(objs);
 }
 

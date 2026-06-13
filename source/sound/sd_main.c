@@ -40,25 +40,12 @@ void sub_80081A10(int *arg0, int arg1, int arg2)
 
 void SdMain(void)
 {
-    printf("Start Task:SdMain\n");
-#ifdef PORT_BUILD
-    /* Port: sd_mem_alloc/sd_init already called from game_init before stage
-       loading. SdInt also already started. Skip redundant init. */
-    {
-        extern int port_sd_init_done;
-        if (!port_sd_init_done) {
-            sd_task_status = 0;
-            sd_mem_alloc();
-            mts_start_task(MTSID_SOUND_INT, SdInt, STACK_BOTTOM(sd_int_stack), SD_INT_STACK_SIZE);
-            mts_slp_tsk();
-        }
-    }
-#else
     sd_task_status = 0;
+    printf("Start Task:SdMain\n");
     sd_mem_alloc();
+
     mts_start_task(MTSID_SOUND_INT, SdInt, STACK_BOTTOM(sd_int_stack), SD_INT_STACK_SIZE);
     mts_slp_tsk();
-#endif
 
     sd_task_status = 128;
     while (1)
@@ -131,13 +118,7 @@ void SdInt(void)
     (void)buf; // not enough stack used without this
 
     printf("Start Task:SdInt\n");
-#ifdef PORT_BUILD
-    /* Port: sd_init() and sd_mem_alloc() already called from game_init
-       before stage loading. Skip redundant init to preserve loaded data. */
-    { extern int port_sd_init_done; if (!port_sd_init_done) sd_init(); }
-#else
     sd_init();
-#endif
     mts_wup_tsk(MTSID_SOUND_MAIN);
     while (1)
     {
@@ -190,12 +171,6 @@ void sd_init(void)
     {
         printf("spu_bgm_start_ptr_l=%x\n", spuMem);
     }
-#ifdef PORT_BUILD
-    {
-        extern void spu_stream_set_buffers(unsigned long base_r, unsigned long base_l);
-        spu_stream_set_buffers(spu_bgm_start_ptr_r, spu_bgm_start_ptr_l);
-    }
-#endif
     SpuSetReverb(SPU_OFF);
     SpuReserveReverbWorkArea(SPU_ON);
     SpuClearReverbWorkArea(SPU_REV_MODE_STUDIO_C);
@@ -273,7 +248,8 @@ void KeyOffStr(void)
     case SPU_OFF:
         break;
 
-    case SPU_ON: /* SPU_ON_ENV_OFF */
+    case SPU_ON:
+    case SPU_ON_ENV_OFF:
         SpuSetKey(SPU_OFF, SPU_21CH | SPU_22CH);
         break;
 
@@ -311,7 +287,8 @@ void KeyOffStr2(void)
     case SPU_OFF:
         break;
 
-    case SPU_ON: /* SPU_ON_ENV_OFF */
+    case SPU_ON:
+    case SPU_ON_ENV_OFF:
         SpuSetKey(SPU_OFF, SPU_21CH | SPU_22CH);
         break;
 
@@ -335,14 +312,8 @@ void keyOn(unsigned int ch)
 
 int sd_mem_alloc(void)
 {
-#ifdef PORT_BUILD
-    /* PSX uses hardcoded address 0x801E0000; port allocates real memory */
-    static unsigned char sd_mem_buf[0x40000]; /* 256KB */
-    sng_data = sd_mem_buf;
-#else
     sng_data = (unsigned char *)0x801E0000;
-#endif
-    printf("sng_data %X\n", (unsigned int)(unsigned long)sng_data);
+    printf("sng_data %X\n", (unsigned int)sng_data);
 
     wave_header = (WAVE_W *)(sng_data + 0x4000);
     printf("wave_header %X\n", (unsigned int)sng_data + 0x4000);

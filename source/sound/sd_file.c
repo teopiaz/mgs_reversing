@@ -143,36 +143,23 @@ void WaveCdLoad(void)
 
 void WaveSpuTrans(void)
 {
-#ifdef PORT_BUILD
-    /* Port: transfer wave data from cdload_buf to SPU RAM.
-       On PSX this was handled by the DMA/IRQ system. */
-    if (dword_800BF27C == 2 && wave_load_size > 0)
-    {
-        SpuSetTransferStartAddr(spu_wave_start_ptr + spu_load_offset);
-        SpuWrite(wave_load_ptr, wave_load_size);
-        spu_load_offset += wave_load_size;
-        wave_load_ptr += wave_load_size;
-        wave_load_size = 0;
-        /* Continue loading or finish */
-        WaveCdLoad();
-    }
-#endif
+    /* do nothing */
 }
 
-#ifdef PORT_BUILD
-/* Port implementation: load sound files from STAGE.DIR via the port FS */
-extern int port_PcmOpen(int code, int path_idx);
-extern int port_PcmRead(int fd, unsigned char *buf, int size);
-extern int port_PcmClose(int fd, int path_idx);
+int PcmOpen(int code, int path_idx)
+{
+    return -1;
+}
 
-int PcmOpen(int code, int path_idx)  { return port_PcmOpen(code, path_idx); }
-int PcmRead(int fd, unsigned char *buf, int size) { return port_PcmRead(fd, buf, size); }
-int PcmClose(int fd, int path_idx)   { return port_PcmClose(fd, path_idx); }
-#else
-int PcmOpen(int code, int path_idx)  { return -1; }
-int PcmRead(int fd, unsigned char *buf, int size) { return -1; }
-int PcmClose(int fd, int path_idx)   { return -1; }
-#endif
+int PcmRead(int fd, unsigned char *buf, int size)
+{
+    return -1;
+}
+
+int PcmClose(int fd, int path_idx)
+{
+    return -1;
+}
 
 void StrFadeWkSet(void)
 {
@@ -429,7 +416,7 @@ int SD_80083F54(char *end)
 
     wave_load_ptr = cdload_buf + 16;
 
-    if (((uintptr_t)src_ptr + size) >= (uintptr_t)end)
+    if (((unsigned int)src_ptr + size) >= (unsigned int)end)
     {
         return 0;
     }
@@ -462,6 +449,7 @@ int SD_80083F54(char *end)
 
     wave_unload_size -= wave_load_size;
     wave_save_code = wave_load_code;
+
     if (!SpuIsTransferCompleted(SPU_TRANSFER_PEEK))
     {
         printf("$");

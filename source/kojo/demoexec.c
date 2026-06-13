@@ -79,10 +79,8 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
     lpAct->old_item = GM_Item;
     lpAct->old_weapon = GM_Weapon;
 
-#ifndef PORT_BUILD
     OFFSET_TO_PTR(header, &header->maps);
     OFFSET_TO_PTR(header, &header->models);
-#endif
 
     InitChain(&lpAct->chain);
 
@@ -110,25 +108,8 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
         return 0;
     }
 
-#ifdef PORT_BUILD
-    if (!header->maps || !header->models || header->n_maps <= 0 || header->n_models <= 0) {
-        printf("[DEMO] CreateDemo: invalid header (maps=%p models=%p n_maps=%d n_models=%d)\n",
-               (void*)header->maps, (void*)header->models, header->n_maps, header->n_models);
-        return 0;
-    }
-#endif
     memcpy(lpAct->header->maps, header->maps, sizeof(DMO_MAP) * lpAct->header->n_maps);
     memcpy(lpAct->header->models, header->models, sizeof(DMO_MDL) * lpAct->header->n_models);
-
-#ifdef PORT_BUILD
-    {
-        DMO_MDL *mf = lpAct->header->models;
-        printf("[CreateDemo] n_models=%d n_maps=%d\n", lpAct->header->n_models, lpAct->header->n_maps);
-        for (i = 0; i < lpAct->header->n_models; i++)
-            printf("[CreateDemo] model%d type=%d flag=%d cache=%d name=%d\n",
-                   i, mf[i].type, mf[i].flag, mf[i].cache_id, mf[i].filename);
-    }
-#endif
 
     map = lpAct->header->maps;
     for (i = 0; i < lpAct->header->n_maps; i++)
@@ -409,10 +390,8 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     ACTNODE  *iter;
     DMO_ADJ  *adjust;
 
-#ifndef PORT_BUILD
     OFFSET_TO_PTR(data, &data->chara);
     OFFSET_TO_PTR(data, &data->adjust);
-#endif
 
     lpAct->control.mov.vx = data->eye_x;
     lpAct->control.mov.vy = data->eye_y;
@@ -440,9 +419,6 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     }
 
     chara = data->chara;
-#ifdef PORT_BUILD
-    if (!chara) data->n_charas = 0;
-#endif
     for ( i = 0; i < data->n_charas; i++, chara++ )
     {
         node = lpAct->chain.next;
@@ -477,18 +453,11 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
         NextChain(&lpAct->chain, node);
         node->used = 1;
 
-#ifdef PORT_BUILD
-        memcpy(&node->chara, chara, sizeof(DMO_CHA));
-#else
         node->chara = *chara;
-#endif
 
         // This function uses offset 0x34 of chara despite it seemingly only being 0x34 bytes in size
         if ( !ShowEffect(lpAct, (DMO_DATA_0x36 *)chara, node) )
         {
-#ifdef PORT_BUILD
-            printf("[DEMO] MakeChara failed type=%d\n", chara->field_4_type);
-#endif
             return 0;
         }
     }
@@ -509,9 +478,6 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     {
         if ( !ShowEffectExecute(lpAct, data, node) )
         {
-#ifdef PORT_BUILD
-            printf("[DEMO] demothrd_8007CDF8 failed\n");
-#endif
             return 0;
         }
     }
@@ -519,13 +485,6 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     ShowEffectStop(lpAct, data);
 
     adjust = data->adjust;
-#ifdef PORT_BUILD
-    if (data->n_adjusts > 0) {
-        static int _adj = 0;
-        if (_adj++ < 3)
-            printf("[DEMO] adjusts=%d ptr=%p\n", data->n_adjusts, (void*)adjust);
-    }
-#endif
     for ( i = 0; i < data->n_adjusts; i++, adjust++ )
     {
         if ( !ShowScene(lpAct, adjust) )
@@ -608,23 +567,6 @@ static BOOL ShowEffect(LPMGSDEMOACT lpAct, DMO_DATA_0x36 *data, ACTNODE *node)
     ReadRotMatrix(&mat1);
     DG_SetPos2(&svec1, &svec2);
     ReadRotMatrix(&mat2);
-
-#ifdef PORT_BUILD_VERBOSE
-    {
-        static int _mc = 0;
-        if (_mc < 20) {
-            printf("[MakeChara] type=%d (0x%x) field_0=%d pos=(%d,%d,%d)\n",
-                   data->field_4_type, data->field_4_type, data->field_0,
-                   data->field_8_vec1.vx, data->field_8_vec1.vy, data->field_8_vec1.vz);
-            /* Also dump first 16 bytes of the data */
-            unsigned char *raw = (unsigned char *)data;
-            printf("[MakeChara] raw: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-                   raw[0],raw[1],raw[2],raw[3],raw[4],raw[5],raw[6],raw[7],
-                   raw[8],raw[9],raw[10],raw[11],raw[12],raw[13],raw[14],raw[15]);
-            _mc++;
-        }
-    }
-#endif
 
     switch (data->field_4_type)
     {
@@ -2175,9 +2117,7 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
     int         i;
     short      *rots;
 
-#ifndef PORT_BUILD
     OFFSET_TO_PTR(adjust, &adjust->rots);
-#endif
 
     model_file = lpAct->header->models;
     model = lpAct->models;
@@ -2191,12 +2131,6 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
 
     if (i >= lpAct->header->n_models)
     {
-#ifdef PORT_BUILD
-        static int _af = 0;
-        if (_af++ < 5)
-            printf("[ADJ_FAIL] adjust type=%d not found in %d models\n",
-                   adjust->type, lpAct->header->n_models);
-#endif
         return 0;
     }
 
@@ -2227,16 +2161,6 @@ static BOOL ShowScene(LPMGSDEMOACT lpAct, DMO_ADJ *adjust)
         model->control.mov.vx = adjust->pos_x;
         model->control.mov.vy = adjust->pos_y;
         model->control.mov.vz = adjust->pos_z;
-#ifdef PORT_BUILD
-        {
-            static int _ap = 0;
-            if (_ap++ < 10)
-                printf("[adjust] pos=(%d,%d,%d) step=(%d,%d,%d) step_size=%d hzd_h=%d\n",
-                       adjust->pos_x, adjust->pos_y, adjust->pos_z,
-                       model->control.step.vx, model->control.step.vy, model->control.step.vz,
-                       model->control.r_sphere, model->control.hzd_height);
-        }
-#endif
         model->control.rot.vx = adjust->rot_x;
         model->control.rot.vy = adjust->rot_y;
         model->control.rot.vz = adjust->rot_z;
