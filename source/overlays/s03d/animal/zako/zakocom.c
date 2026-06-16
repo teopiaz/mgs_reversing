@@ -9,6 +9,7 @@ extern int s03d_dword_800DC2E8;
 extern int s03d_dword_800DC2EC;
 extern int s03d_dword_800DC310;
 extern int s03d_dword_800DC31C;
+extern short s03d_word_800DC346;
 extern const char s03d_dword_800DBB48[];
 extern const char s03d_dword_800DBB54[];
 extern const char s03d_dword_800DBB64[];
@@ -62,12 +63,11 @@ typedef struct _ZakoComMgr
     SVECTOR         field_2C;       /* 0x2C */
     short           field_34;       /* 0x34 */
     char            pad_36[0x38 - 0x36];
-    short           field_38;       /* 0x38 */
-    char            pad_3A[0x40 - 0x3A];
+    short           field_38[4];    /* 0x38 */
     int             field_40;       /* 0x40 */
     char            pad_44[0x60 - 0x44];
     int             field_60;       /* 0x60 */
-    int             field_64;       /* 0x64 */
+    MAP            *field_64;       /* 0x64 */
     char            pad_68[0x8C - 0x68];
     ZakoComEntry    entries[8];     /* 0x8C - 0x10C */
     int             field_10C;      /* 0x10C */
@@ -185,7 +185,30 @@ int ZakoCom_800D4284(int arg0, short *out)
 
     return count;
 }
-#pragma INCLUDE_ASM("asm/overlays/s03d/s03d_800D42DC.s")
+void s03d_800D42DC(void)
+{
+    int best = 0;
+    int best_idx = 0;
+    int i;
+    SVECTOR vec;
+
+    for (i = 0; i < ZAKOCOM_MGR->field_34; i++)
+    {
+        HZD_ZON *zone = &ZAKOCOM_MGR->field_64->hzd->def->zones[ZAKOCOM_MGR->field_38[i]];
+        int d;
+
+        vec.vx = zone->x;
+        vec.vy = GM_PlayerPosition.vy;
+        vec.vz = zone->z;
+        d = GV_DiffVec3(&vec, &GM_PlayerPosition);
+        if (best < d)
+        {
+            best = d;
+            best_idx = i;
+        }
+    }
+    s03d_word_800DC346 = best_idx;
+}
 int ZakoCom_800D43CC(int arg)
 {
     return s03d_dword_800DC31C % arg;
