@@ -217,6 +217,18 @@ extern "C" {
     extern float port_light_ambient_scale;
     extern int   port_force_gouraud_neutral;
     extern int   port_light_dump_request;
+
+    /* Debug cheats (port_cheats.c). Same split as the lighting overrides:
+       the tab only flips these, port_cheats_apply() does the work from
+       game_tick(). Applying them here would stop the moment the window is
+       hidden or another tab is selected. */
+    extern int port_cheat_infinite_health;
+    extern int port_cheat_infinite_ammo;
+    extern int port_cheat_no_alert;
+    extern int port_cheat_give_weapons_request;
+    extern int port_cheat_give_items_request;
+    extern int port_cheat_refill_health_request;
+    extern int port_cheat_clear_alert_request;
 }
 
 extern "C" void imgui_init(SDL_Window *window, SDL_Renderer *renderer)
@@ -333,6 +345,9 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 {"NO-FIXED-LT", &port_light_disable_fixed,    nullptr},
                 {"NO-DYN-LT",   &port_light_disable_dynamic,  nullptr},
                 {"GOURAUD-FLAT",&port_force_gouraud_neutral,  nullptr},
+                {"GOD-MODE",    &port_cheat_infinite_health,  nullptr},
+                {"INF-AMMO",    &port_cheat_infinite_ammo,    nullptr},
+                {"NO-ALERT",    &port_cheat_no_alert,         nullptr},
             };
             int n_active = 0;
             for (auto &b : badges) if (*b.flag) n_active++;
@@ -1692,6 +1707,190 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                         }
                         ImGui::TreePop();
                     }
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            /* ---------------------------------------------------------- */
+            /* CHEATS                                                     */
+            /* ---------------------------------------------------------- */
+            if (ImGui::BeginTabItem("Cheats")) {
+                /* Read-only mirrors of the state the cheats drive, so you can
+                   see them take effect. linkvarbuf is the GCL link-variable
+                   table (source/include/linkvar.h) — all shorts, and 0x8000
+                   doubles as IT_TYPE_DISABLED, which is why a disabled slot
+                   reads back negative. */
+                extern short linkvarbuf[];
+                extern short GM_O2;
+                extern short GM_Magazine, GM_MagazineMax;
+                extern int   GM_AlertMode, GM_AlertLevel;
+
+                short &vitality     = linkvarbuf[11];
+                short &vitality_max = linkvarbuf[12];
+                short *weapons      = &linkvarbuf[17];
+                short *weapons_max  = &linkvarbuf[27];
+                short *items        = &linkvarbuf[37];
+
+                bool in_game = (vitality_max > 0);
+
+                ImGui::TextDisabled(
+                    "Applied once per game tick from game_tick(), so they keep\n"
+                    "working with this window closed. Nothing here is saved to\n"
+                    "port_config.ini - cheats always start off.");
+
+                if (!in_game) {
+                    ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                                       "No stage loaded (GM_VitalityMax == 0).");
+                    ImGui::TextDisabled("Toggles can be armed now; they apply once play starts.");
+                }
+
+                /* ---- Snake ------------------------------------------- */
+                ImGui::SeparatorText("Snake");
+
+                {
+                    bool v = port_cheat_infinite_health != 0;
+                    if (ImGui::Checkbox("Infinite health", &v))
+                        port_cheat_infinite_health = v ? 1 : 0;
+                    ImGui::SetItemTooltip(
+                        "Sets PLAYER_INVINCIBLE (the game's own god-mode bit, already\n"
+                        "checked by the damage paths), and holds GM_Vitality and GM_O2\n"
+                        "full so drowning and gas can't kill you either.\n\n"
+                        "Scripted instant deaths that write GM_Vitality = 0 directly\n"
+                        "(furnace, the rope in s11d) are re-clamped on the next tick\n"
+                        "rather than prevented.");
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Refill now"))
+                    port_cheat_refill_health_request = 1;
+                ImGui::SetItemTooltip("One-shot: full health and oxygen, no toggle left on.");
+
+                if (in_game) {
+                    ImGui::Text("Vitality  %d / %d", (int)vitality, (int)vitality_max);
+                    ImGui::SameLine();
+                    ImGui::ProgressBar(vitality_max > 0
+                                           ? (float)vitality / (float)vitality_max
+                                           : 0.0f,
+                                       ImVec2(120, 0), "");
+                    ImGui::Text("Oxygen    %d / 1024", (int)GM_O2);
+                }
+
+                /* ---- Equipment --------------------------------------- */
+                ImGui::SeparatorText("Equipment");
+
+                {
+                    bool v = port_cheat_infinite_ammo != 0;
+                    if (ImGui::Checkbox("Infinite ammo", &v))
+                        port_cheat_infinite_ammo = v ? 1 : 0;
+                    ImGui::SetItemTooltip(
+                        "Tops up every weapon you already own, plus the current\n"
+                        "magazine - the same two writes the in-game Bandana makes.\n"
+                        "Without the magazine write the gun still clicks empty until\n"
+                        "you reload.\n\n"
+                        "Never grants a weapon you haven't picked up, and leaves\n"
+                        "slots alone while equipment is disabled in cutscenes.");
+                }
+
+                if (ImGui::Button("Give all weapons"))
+                    port_cheat_give_weapons_request = 1;
+                ImGui::SetItemTooltip("Every weapon, filled to capacity, and re-enabled.");
+
+                ImGui::SameLine();
+                if (ImGui::Button("Give all items"))
+                    port_cheat_give_items_request = 1;
+                ImGui::SetItemTooltip(
+                    "Every item slot, consumables at their max and the card at\n"
+                    "level 8.\n\n"
+                    "Skips the timer bomb on purpose: its value is a live countdown,\n"
+                    "not an inventory count.");
+
+                if (in_game && ImGui::TreeNode("Inventory")) {
+                    if (ImGui::BeginTable("##cheat_wp", 3,
+                                          ImGuiTableFlags_Borders |
+                                          ImGuiTableFlags_RowBg |
+                                          ImGuiTableFlags_SizingStretchProp)) {
+                        static const char *wp_names[10] = {
+                            "SOCOM", "FAMAS", "Grenade", "Nikita", "Stinger",
+                            "Claymore", "C4", "Stun G.", "Chaff G.", "PSG1"
+                        };
+                        ImGui::TableSetupColumn("Weapon");
+                        ImGui::TableSetupColumn("Ammo");
+                        ImGui::TableSetupColumn("Max");
+                        ImGui::TableHeadersRow();
+                        for (int i = 0; i < 10; i++) {
+                            ImGui::TableNextRow();
+                            ImGui::TableNextColumn();
+                            /* < 0 is either -1 (not owned) or the 0x8000
+                               disabled bit making the short negative. */
+                            if (weapons[i] < 0) ImGui::TextDisabled("%s", wp_names[i]);
+                            else                ImGui::Text("%s", wp_names[i]);
+                            ImGui::TableNextColumn();
+                            if (weapons[i] < 0) ImGui::TextDisabled("-");
+                            else                ImGui::Text("%d", (int)weapons[i]);
+                            ImGui::TableNextColumn();
+                            ImGui::Text("%d", (int)weapons_max[i]);
+                        }
+                        ImGui::EndTable();
+                    }
+
+                    ImGui::Text("Magazine  %d / %d", (int)GM_Magazine, (int)GM_MagazineMax);
+
+                    static const char *it_names[24] = {
+                        "Cigs", "Scope", "Box A", "Box B", "Box C", "NVG",
+                        "Thermal G.", "Gas Mask", "Body Armor", "Ketchup",
+                        "Stealth", "Bandana", "Camera", "Ration", "Cold Med.",
+                        "Diazepam", "PAL Key", "Card", "Timer Bomb",
+                        "Mine Detector", "MO Disk", "Rope", "Handkerchief",
+                        "Suppressor"
+                    };
+                    int owned = 0;
+                    for (int i = 0; i < 24; i++) if (items[i] > 0) owned++;
+                    ImGui::Text("Items owned: %d / 24", owned);
+                    for (int i = 0; i < 24; i++) {
+                        if (i % 4) ImGui::SameLine(0.0f, 12.0f);
+                        /* The item menu lists a slot only when > 0 - unlike
+                           weapons, which show at >= 0. */
+                        if (items[i] > 0) ImGui::Text("%s", it_names[i]);
+                        else              ImGui::TextDisabled("%s", it_names[i]);
+                    }
+
+                    ImGui::TreePop();
+                }
+
+                /* ---- Enemies ----------------------------------------- */
+                ImGui::SeparatorText("Enemies");
+
+                {
+                    bool v = port_cheat_no_alert != 0;
+                    if (ImGui::Checkbox("No alert", &v))
+                        port_cheat_no_alert = v ? 1 : 0;
+                    ImGui::SetItemTooltip(
+                        "Forces GM_AlertMode, GM_AlertLevel and GM_AlertMax to 0 every\n"
+                        "tick. All three are needed: GM_InitNoise rebuilds the level\n"
+                        "from GM_AlertMax each frame, and GM_AlertModeSet only ever\n"
+                        "raises the mode.\n\n"
+                        "Guards can still see Snake - this stands the alert down right\n"
+                        "after it is raised, so expect a brief '!' and sting.");
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Clear alert now"))
+                    port_cheat_clear_alert_request = 1;
+                ImGui::SetItemTooltip("One-shot: stand down the current alert.");
+
+                if (in_game) {
+                    static const char *alert_names[4] = {
+                        "OFF", "JAMMING", "EVASION", "ACTIVE"
+                    };
+                    /* Boss and scripted code writes raw 4 and 10 here, so the
+                       enum is not exhaustive - don't index blindly. */
+                    const char *mode = (GM_AlertMode >= 0 && GM_AlertMode < 4)
+                                           ? alert_names[GM_AlertMode]
+                                           : "?";
+                    ImGui::Text("Alert  mode %d (%s)   level %d",
+                                GM_AlertMode, mode, GM_AlertLevel);
                 }
 
                 ImGui::EndTabItem();

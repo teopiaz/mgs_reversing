@@ -200,6 +200,7 @@ PORT_OBJ = \
 	$(OBJDIR)/chara_overrides.o \
 	$(OBJDIR)/load_data_chara.o \
 	$(OBJDIR)/port_config.o \
+	$(OBJDIR)/port_cheats.o \
 	$(OBJDIR)/port_menu.o
 
 BSS_OBJ = $(OBJDIR)/bss.o
@@ -243,6 +244,11 @@ $(OBJDIR)/port_config.o: port_config.c | $(OBJDIR)
 
 $(OBJDIR)/port_menu.o: port_menu.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) $(INCLUDES) -c -o $@ $<
+
+# Debug cheats. Declares the engine globals it needs locally, so it
+# needs neither $(INCLUDES) nor SDL.
+$(OBJDIR)/port_cheats.o: port_cheats.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/port_memory.o: port_memory.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<

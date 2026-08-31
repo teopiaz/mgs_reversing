@@ -52,6 +52,7 @@ static void render_signal_handler(int sig, siginfo_t *info, void *uctx) {
 #include <libspu.h>
 #include "game/game.h"
 #include "linkvar.h"
+#include "port_cheats.h"
 
 /* From port_memory.c */
 extern int port_init_memory(void);
@@ -378,6 +379,12 @@ void game_tick(void)
             sigaction(SIGSEGV, &old_segv, NULL);
             sigaction(SIGBUS, &old_bus, NULL);
         }
+
+        /* Debug cheats (imgui "Cheats" tab). Deliberately here and not in
+           imgui_render(): that function early-returns while the debug window
+           is hidden, and ImGui skips the body of an unselected tab, so a
+           cheat applied from the UI would silently stop working. */
+        port_cheats_apply();
 
         /* Sound driver tick — mirrors SdInt's main loop on PSX. On PSX
            IntSdMain runs from the SPU IRQ handler. sd_main.c configures
