@@ -1155,7 +1155,17 @@ void FS_StreamClearType(void *stream, int target_type)
 }
 
 int  FS_StreamGetEndFlag(void) { return stream_end; }
-int  FS_StreamIsForceStop(void) { return 0; }
+/* Upstream (source/libfs/stream.c:526) returns fs_stream_stop. Returning a
+ * constant 0 here deadlocked every force-stopped stream:
+ *   - sd_str.c StrSpuTransWithNoLoop() case 5 leaves the playback state only
+ *     via `if (FS_StreamIsForceStop()) str_status++`, so str_status stayed at
+ *     5 forever and sd_str_play() ("status > 4") reported a stream still
+ *     playing -- the "Double Pcm !!" flood on the next cutscene.
+ *   - strctrl.c Act() case 3 needs it both to stop re-processing the type-1
+ *     entry (line 82) and to reach "StreamPlay end" (line 138), so the
+ *     strctrl actor never died and STATE_VOX_STREAM stayed set in
+ *     GM_GameStatus, freezing the game. */
+int  FS_StreamIsForceStop(void) { return stream_stop; }
 void FS_StreamTickStart(void) {
     port_stream_tick = 0;
     /* Sync str_tick_count so jimctrl (subtitle actor) doesn't return early.

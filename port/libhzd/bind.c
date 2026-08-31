@@ -144,9 +144,15 @@ void HZD_ExecBind( HZD_BND *bnd, HZD_EVT *ev, int event, int type )
     if ( bnd->time != 0 )
     {
         {
+            /* delay.c distinguishes a proc id from a block by sign: negative
+             * means "negated 32-bit pool offset of a block".  The pool is
+             * mmap'd at a positive address, so the resolved pointer must be
+             * handed over negated, not raw -- otherwise Act() takes the
+             * GCL_ExecProc branch with a truncated id and the block never runs. */
             extern void *bind_ptr_resolve(int idx);
             void *ptr = bind_ptr_resolve( (int)(intptr_t)bnd->command );
-            GM_DelayedExecCommand( ptr ? (char *)ptr : (char *)bnd->command, &args, bnd->time );
+            GM_DelayedExecCommand( -(intptr_t)( ptr ? (char *)ptr : (char *)(intptr_t)bnd->command ),
+                                   &args, bnd->time );
         }
     }
     else if ( bnd->field_B_param_e & 0x80 )

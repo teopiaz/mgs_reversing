@@ -293,6 +293,7 @@ static int GM_Command_trap(unsigned char *top)
     if (0x7f < gBindsCount_800ABA64)
     {
         printf("binds over\n");
+        return -1; /* port: never write past gBindsArray_800b58e0[128] */
     }
 
     i = gBindsCount_800ABA64;
@@ -349,6 +350,7 @@ static int GM_Command_ntrap(unsigned char *top)
     if (gBindsCount_800ABA64 > 127) // 780 gp
     {
         printf("binds over\n");
+        return -1; /* port: never write past gBindsArray_800b58e0[128] */
     }
     // bindIdx = gBindsCount_800ABA64; // 780 gp
     pBind = gBindsArray_800b58e0 + gBindsCount_800ABA64;
@@ -1226,7 +1228,13 @@ STATIC GCL_COMMANDLIST Commands[] = {
 
 STATIC GCL_COMMANDDEF script_commands = { 0, COUNTOF(Commands), Commands };
 
-int GM_InitBinds(void)
+/* Upstream name: called from GM_ActInit (game/gamed.c) on every game reset
+ * and stage restart, not just at boot.  The port used to stub this out in
+ * link_stubs.c, so gBindsCount_800ABA64 accumulated across stage loads until
+ * trap/ntrap wrote past gBindsArray_800b58e0[128] and corrupted the globals
+ * behind it (gBinds_800ABA60 turned into a trap hash, which then poisoned
+ * every actor's map mask and eventually cycled the ordering table). */
+int GM_ResetScript(void)
 {
     gBinds_800ABA60 = 0;
     gBindsCount_800ABA64 = 0;
@@ -1236,6 +1244,6 @@ int GM_InitBinds(void)
 
 void GM_InitScript(void)
 {
-    GM_InitBinds();
+    GM_ResetScript();
     GCL_AddCommMulti(&script_commands);
 }

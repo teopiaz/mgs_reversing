@@ -182,13 +182,24 @@ u_long GetTimSize(u_char *sjis, u_long *x, u_long *y) { (void)sjis; (void)x; (vo
 /*---------------------------------------------------------------------------*/
 
 int    CdInit(void) { return 1; }
-int    CdControl(u_char com, u_char *param, u_char *result) { (void)com; (void)param; (void)result; return 1; }
-int    CdControlB(u_char com, u_char *param, u_char *result) { (void)com; (void)param; (void)result; return 1; }
+
+/* There is no physical drive: report a healthy one (CdlStatStandby -- tray
+ * closed, no error).  Callers such as Safety_800C45F8 and the disc-swap loops
+ * in change.c/demosel.c poll result[0] for CdlStatShellOpen|CdlStatError out
+ * of an uninitialized stack buffer, and spin forever ("TRY"/"OPEN") whenever
+ * that garbage happens to have one of those bits set. */
+static void cd_stub_status(u_char *result)
+{
+    if (result) { result[0] = CdlStatStandby; }
+}
+
+int    CdControl(u_char com, u_char *param, u_char *result) { (void)com; (void)param; cd_stub_status(result); return 1; }
+int    CdControlB(u_char com, u_char *param, u_char *result) { (void)com; (void)param; cd_stub_status(result); return 1; }
 int    CdControlF(u_char com, u_char *param) { (void)com; (void)param; return 1; }
 int    CdRead(int sectors, u_long *buf, int mode) { (void)sectors; (void)buf; (void)mode; return 0; }
 int    CdRead2(long mode) { (void)mode; return 0; }
-int    CdReady(int mode, u_char *result) { (void)mode; (void)result; return 1; }
-int    CdSync(int mode, u_char *result) { (void)mode; (void)result; return 0; }
+int    CdReady(int mode, u_char *result) { (void)mode; cd_stub_status(result); return 1; }
+int    CdSync(int mode, u_char *result) { (void)mode; cd_stub_status(result); return 0; }
 CdlCB CdReadyCallback(CdlCB func) { (void)func; return (CdlCB)0; }
 CdlCB CdSyncCallback(CdlCB func) { (void)func; return (CdlCB)0; }
 int    CdFlush(void) { return 0; }

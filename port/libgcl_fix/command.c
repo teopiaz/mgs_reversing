@@ -46,6 +46,14 @@ int GCL_Command(unsigned char *ptr)
     int ret;
 
     GCL_COMMANDLIST *cmd = FindCommand((unsigned short)GCL_GetShort(ptr));
+
+    /* FindCommand already reported the miss; don't turn a bad script pointer
+     * into a null-deref segfault inside an actor. */
+    if (cmd == NULL)
+    {
+        return -1;
+    }
+
     GCL_AdvanceShort(ptr);
 
     GCL_SetCommandLine(ptr + GCL_GetByte(ptr));

@@ -74,9 +74,6 @@ int  MERYL_SetPutChar(void *work, int idx) { (void)work; (void)idx; return 0; }
 /* s19b jeep — MIPS asm function */
 void s19b_jeep_800D2258(void) { }
 
-/* script.c is excluded from the port build (game/script.c) */
-int GM_ResetScript(void) { return 0; }
-
 /* s11d overlay chara constructors (real defs live in the dynamically-loaded
    overlay; the main binary's CHARA table needs a stub). */
 void *NewHind(int name, int where) { (void)name; (void)where; return NULL; }
