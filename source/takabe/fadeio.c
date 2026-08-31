@@ -70,7 +70,29 @@ static void Act(Work *work)
         work->field_2c = work->shade;
     }
 
+#ifdef PORT_BUILD
+    /* A zero fade duration means "already finished". MIPS `div` leaves an
+       undefined result for a zero divisor and keeps running, so the PSX build
+       never notices; x86-64 `idiv` raises SIGFPE. Clamp to the completed
+       value (255, inverted to 0 below for a fade-in) -- the actor is destroyed
+       on this same frame anyway, because field_2c >= work->shade holds. */
+    if (work->shade == 0)
+    {
+        static int warned = 0;
+        if (!warned) {
+            warned = 1;
+            printf("[fadeio] shade == 0 (mode=%d); treating fade as complete\n",
+                   work->mode);
+        }
+        shade = 255;
+    }
+    else
+    {
+        shade = (work->field_2c * 255) / work->shade;
+    }
+#else
     shade = (work->field_2c * 255) / work->shade;
+#endif
     if (work->mode & MODE_FADEIN)
     {
         shade = 255 - shade;
