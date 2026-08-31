@@ -772,7 +772,11 @@ int s04c_revolver_800D02C8(Work *work, short *arg1, short *arg2)
     int side1;
     int side2;
     int index;
+#ifdef PORT_BUILD
+    int temp_v1;                        /* no MIPS $v1 on the host */
+#else
     register int temp_v1 asm("v1");
+#endif
 
     side1 = s04c_revolver_800CFBE0(work->control.mov.vx, work->control.mov.vz);
     side2 = s04c_revolver_800CFBE0(GM_PlayerPosition.vx, GM_PlayerPosition.vz);
