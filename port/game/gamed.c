@@ -38,15 +38,15 @@ int GM_GameOverTimer = 0;
 
 SVECTOR *GM_lpsvectWind = NULL;
 
-TPlayerActFunction GM_lpfnPlayerActControl = NULL;
-TPlayerActFunction GM_lpfnPlayerActObject2 = NULL;
+int (*GM_lpfnPlayerActControl)(GV_ACT *) = NULL;
+int (*GM_lpfnPlayerActObject2)(GV_ACT *) = NULL;
 
 short GM_uBombHoming = 0;
 short GM_uTenageMotion = -1;
 
-TBombFunction  GM_lpfnBombHoming = NULL;
-TBombFunction2 GM_lpfnBombBound = NULL;
-TBombFunction3 GM_lpfnBombExplosion = NULL;
+int (*GM_lpfnBombHoming)(CONTROL *, int, int *) = NULL;
+int (*GM_lpfnBombBound)(int, CONTROL *, int *) = NULL;
+int (*GM_lpfnBombExplosion)(TARGET *, int) = NULL;
 
 int GM_PadResetDisable = FALSE;
 
@@ -83,37 +83,37 @@ int          SECTION(".sbss") GM_PlayerAction;
 STATIC int   SECTION(".sbss") dword_800ABA44;
 SVECTOR      SECTION(".sbss") GM_PhotoViewPos;
 
-/**
- * Some known settings via GM_SetPlayerStatusFlag():
- * |= 0x20008000 if Snake dies from sna_check_dead_8004E384() and sna_anim_dying_80055524().
- * |= 0x20 if Snake crouches from sna_anim_crouch_800527DC().
- * |= 0x40 if Snake goes prone from  sna_anim_prone_begin_80053BE8() and sna_anim_prone_idle_800528BC().
- * |= 0x10 if Snake runs from sna_anim_run_begin_80053B88(), sna_anim_run_8005292C(),
- * sna_anim_rungun_begin_80056BDC() and sna_anim_rungun_80056C3C().
- * |= 0x10 if Snake moves while prone from sna_anim_prone_move_800529C0().
- * |= 0x10 if Snake moves while in a box from sna_anim_box_run_8005544C().
- * |= 0x10000 if Snake pushes up against a wall from sna_anim_wall_idle_and_c4_80052A5C().
- * |= 0x10010 if Snake moves while up against a wall from sna_anim_wall_move_80052BA8().
- * |= 0x10020 if Snake crouches while up against a wall from sna_anim_wall_crouch_80052CCC().
- * |= 0x10 from sna_anim_choke_drag_80059054().
- */
 PlayerStatusFlag SECTION(".sbss") GM_PlayerStatus;
 int              SECTION(".sbss") GM_PadVibration2;
 
-extern unsigned short   GM_SystemCallbackProc[6];
+enum GAMED_STATE {
+    WAIT_LOAD,
+    WORKING
+};
+
+typedef struct {
+    GV_ACT actor;
+    enum GAMED_STATE status;
+    int killing_count;
+} Work;
+
+static char BSS    exe_name[ 32 ];
+static Work BSS    GameWork;
+char BSS           gap_800B58A8[ 8 ]; // TODO
+static DG_TEX BSS  read_error_tex;
+char BSS           gap_800B58BC[ 4 ]; // TODO
+static u_short BSS GM_SystemCallbackProc[ 6 ];
+char BSS           gap_800B58CC[ 20 ]; // TODO
+
 extern int          str_mute_fg;
 extern unsigned int str_status;
 extern int          dword_800BF1A8;
 extern int          dword_800BF270;
 extern int          str_off_idx;
-extern char         exe_name[32];
 extern char        *MGS_DiskName[3]; /* in main.c */
 extern int          FS_DiskNum;
 extern int          FS_ResidentCacheDirty;
 
-extern DG_TEX gMenuTextureRec_800B58B0;
-
-extern gameWork GameWork;
 
 extern unsigned char *GV_ResidentMemoryBottom;
 
@@ -124,8 +124,8 @@ extern int gOverlayBinSize_800B5290;
 
 static void GM_ClearWeaponAndItem(void)
 {
-    GM_CurrentWeaponId = WP_None;
-    GM_CurrentItemId = IT_None;
+    GM_Weapon = WP_None;
+    GM_Item = IT_None;
 }
 
 static void GM_InitGameSystem(void)
@@ -150,9 +150,9 @@ static void GM_InitGameSystem(void)
     GM_O2 = 1024;
     GM_StageName = NULL;
     GM_EnvironTemp = 0;
-    GM_PlayerPosition.vx = GM_SnakePosX;
-    GM_PlayerPosition.vy = GM_SnakePosY;
-    GM_PlayerPosition.vz = GM_SnakePosZ;
+    GM_PlayerPosition.vx = GM_PlayerPosX;
+    GM_PlayerPosition.vy = GM_PlayerPosY;
+    GM_PlayerPosition.vz = GM_PlayerPosZ;
 
     for (i = 5; i >= 0; i--)
     {
@@ -186,13 +186,13 @@ static void GM_ResetSystem(void)
 {
     menuman_Reset();
     GV_ResetSystem();
-    DG_ResetPipeline();
+    DG_ResetSystem();
     GCL_ResetSystem();
 }
 
 static void GM_ResetMemory(void)
 {
-    DG_ResetTextureCache();
+    DG_ResetTexture();
     GV_ResetMemory();
     GM_ResetChara();
 }
@@ -202,13 +202,15 @@ static int port_loader_count = 0;
 static void GM_CreateLoader(void)
 {
     char *stage = "init";
-    if (GM_CurrentStageFlag != 0)
+    if (GM_SaveArea != 0)
     {
-        stage = GM_GetArea(GM_CurrentStageFlag);
+        stage = GM_GetArea(GM_SaveArea);
     }
+#ifdef PORT_BUILD
     /* Port: load select on the second call (after init completes) */
     port_loader_count++;
-    // if (port_loader_count == 2) stage = "select";
+    if (port_loader_count == 2) stage = "select";
+#endif
     NewLoader(stage);
 }
 
@@ -256,7 +258,7 @@ static void GM_TogglePauseScreen(void)
     }
 }
 
-static void GM_ActInit(gameWork *work)
+static void GM_ActInit(Work *work)
 {
     GM_Reset_helper3_80030760();
     GM_InitWhereSystem();
@@ -276,8 +278,8 @@ void GM_InitReadError(void)
     DG_TEX *tex;
 
     tex = DG_GetTexture(PCC_READ);
-    gMenuTextureRec_800B58B0 = *tex;
-    gMenuTextureRec_800B58B0.id = 0;
+    read_error_tex = *tex;
+    read_error_tex.id = 0;
 }
 
 void DrawReadError(void)
@@ -287,12 +289,12 @@ void DrawReadError(void)
     SPRT     sprt;
     TILE     tile;
 
-    u_off = 16 * gMenuTextureRec_800B58B0.id;
-    gMenuTextureRec_800B58B0.id = (gMenuTextureRec_800B58B0.id + 1) % 6;
+    u_off = 16 * read_error_tex.id;
+    read_error_tex.id = (read_error_tex.id + 1) % 6;
 
     DG_DisableClipping();
 
-    setDrawTPage(&tpage, 1, 1, gMenuTextureRec_800B58B0.tpage);
+    setDrawTPage(&tpage, 1, 1, read_error_tex.tpage);
     DrawPrim(&tpage);
 
     LSTORE(0, &tile.r0);
@@ -309,15 +311,15 @@ void DrawReadError(void)
     sprt.h = 16;
     sprt.x0 = 288;
     sprt.y0 = 16;
-    sprt.u0 = gMenuTextureRec_800B58B0.off_x + u_off;
-    sprt.v0 = gMenuTextureRec_800B58B0.off_y;
-    sprt.clut = gMenuTextureRec_800B58B0.clut;
+    sprt.u0 = read_error_tex.off_x + u_off;
+    sprt.v0 = read_error_tex.off_y;
+    sprt.clut = read_error_tex.clut;
     DrawPrim(&sprt);
 }
 
 /*---------------------------------------------------------------------------*/
 
-static void Act(gameWork *work)
+static void Act(Work *work)
 {
     int load_request;
     int status;
@@ -326,14 +328,14 @@ static void Act(gameWork *work)
 
     if (mts_get_pad_vibration_type(1) == 1)
     {
-        GM_OptionFlag &= ~OPTION_VIBRATION_OFF;
+        GM_Configuration &= ~GM_CONFIG_VIBRATION_OFF;
     }
     else
     {
-        GM_OptionFlag |= OPTION_VIBRATION_OFF;
+        GM_Configuration |= GM_CONFIG_VIBRATION_OFF;
     }
 
-    if ((GM_OptionFlag & (OPTION_UNKNOWN_2000 | OPTION_VIBRATION_OFF)) == 0)
+    if ((GM_Configuration & (GM_CONFIG_UNKNOWN_2000 | GM_CONFIG_VIBRATION_OFF)) == 0)
     {
         int vibration2;
         if (GM_PadVibration != 0)
@@ -377,8 +379,8 @@ static void Act(gameWork *work)
         int minutes;
         gTotalFrameTime += GV_PassageTime;
         minutes = gTotalFrameTime / 60;
-        GM_TotalHours = minutes / 3600;
-        GM_TotalSeconds = minutes % 3600;
+        GM_PlayTimeHours = minutes / 3600;
+        GM_PlayTimeSeconds = minutes % 3600;
     }
 
     status = work->status;
@@ -406,7 +408,7 @@ static void Act(gameWork *work)
         if (FS_ResidentCacheDirty)
         {
             GV_SaveResidentFileCache();
-            DG_SaveResidentTextureCache();
+            DG_SaveResidentTexture();
             FS_ResidentCacheDirty = 0;
         }
 
@@ -437,10 +439,12 @@ static void Act(gameWork *work)
         MENU_ResetTexture();
         GM_AlertModeReset();
         GM_SoundStart();
+#ifdef PORT_BUILD
         /* Port: ensure pad input is enabled when entering gameplay.
            On PSX, the GCL 'pad -s' command clears this, but some stages
            may not run it due to skipped cutscene procs. */
         GM_GameStatus &= ~(STATE_PADRELEASE | STATE_ALL_OFF);
+#endif
         work->status = WORKING;
 
         return;
@@ -673,10 +677,10 @@ void GM_ContinueStart(void)
     int current_stage;
 
     GM_CallSystemCallbackProc(1, 0);
-    total_continues = GM_TotalContinues;
-    current_stage = GM_CurrentStageFlag;
+    total_continues = GM_ContinueCount;
+    current_stage = GM_SaveArea;
     GCL_RestoreVar();
-    if (GM_CurrentStageFlag != current_stage)
+    if (GM_SaveArea != current_stage)
     {
         GM_LoadRequest = 1;
     }
@@ -685,7 +689,7 @@ void GM_ContinueStart(void)
         GM_SetLoadCallbackProc(-1);
     }
 
-    GM_TotalContinues = total_continues + 1;
+    GM_ContinueCount = total_continues + 1;
 
     // Set the bomb to no less than 10 seconds to prevent instant death
     // note: casting needed to produce sltiu and lhu vs lh
@@ -720,6 +724,7 @@ void GM_GameOver(void)
  */
 static int GM_LoadInitBin(void *buf, int id)
 {
+#ifdef PORT_BUILD
     /* Port: all stage overlays are compiled statically.
        Map the strcode id to the correct _StageCharacterEntries symbol. */
     {
@@ -872,6 +877,7 @@ static int GM_LoadInitBin(void *buf, int id)
         printf("[bin] Stage overlay 0x%X → %p\n", stage_id, StageCharacterEntries);
     }
     return 1;
+#endif
 #ifdef DEV_EXE
     return 1;
 #endif
@@ -903,7 +909,7 @@ void GM_StartDaemon(void)
     GM_ActInit(&GameWork);
     GM_ResetMemory();
     GM_CurrentPadData = GV_PadData;
-    GM_CurrentDiskFlag = FS_DiskNum + 1;
+    GM_Disk = FS_DiskNum + 1;
     GV_SaveResidentTop();
     GameWork.status = 0;
     GameWork.killing_count = 0;

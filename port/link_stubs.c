@@ -85,3 +85,33 @@ void *NewRope(int name, int where) { (void)name; (void)where; return NULL; }
 /* Camera debug struct referenced by imgui_debug.cpp but absent on fork/master.
    Provide zeroed storage so the debug UI links (shows zeros for this panel). */
 char gUnkCameraStruct_800B77B8[64] = {0};
+
+/* --- Symbols whose defining file is excluded from the port build, or is
+       still #pragma INCLUDE_ASM upstream (raw MIPS, nothing to compile). --- */
+
+/* source/overlays/s08b/animal/ninja/ninja.c (excluded: PSX padding struct) */
+void *NewNinjaBoss(int name, int where) { (void)name; (void)where; return NULL; }
+
+/* source/overlays/brf/onoda/brf/b_graph.c (excluded: prototype mismatches) */
+void brf_800C56C0(void *work, void *data, int cache_id) { (void)work; (void)data; (void)cache_id; }
+void brf_800C5A68(void *work, void *data, int cache_id) { (void)work; (void)data; (void)cache_id; }
+void brf_800C62B0(void *work, int x, int y, int w, int h, int a5, int a6)
+                                        { (void)work; (void)x; (void)y; (void)w; (void)h; (void)a5; (void)a6; }
+void brf_800C829C(void *work)           { (void)work; }
+void brf_800C95B4(void *work)           { (void)work; }
+int  brf_800C99C0(void *work, int where){ (void)work; (void)where; return 0; }
+
+/* still INCLUDE_ASM upstream */
+int  s03d_800CD75C(void *work)          { (void)work; return 0; }
+void s03d_800CDB5C(void *work)          { (void)work; }
+void s03d_800CE12C(void *work, int arg) { (void)work; (void)arg; }
+void s03d_800CE720(void *work, int arg) { (void)work; (void)arg; }
+void s03d_800CEE3C(void *work, int arg) { (void)work; (void)arg; }
+void s03d_800CF194(void *work, int arg) { (void)work; (void)arg; }
+void s03d_800CF68C(void *work, int arg) { (void)work; (void)arg; }
+void s03d_800D041C(void *work)          { (void)work; }
+void s03d_800D0C90(void *work, int arg) { (void)work; (void)arg; }
+void s03d_800D14AC(void *work)          { (void)work; }
+int  s03d_800D46F8(int cmd)             { (void)cmd; return 0; }
+void s05a_800D46A4(void *actor)         { (void)actor; }
+void s05a_800DC058(void *actor)         { (void)actor; }

@@ -367,6 +367,10 @@ void DG_ChangeReso( int );
 void DG_InitFrameSystem( void );
 void DG_StartFrame( void );
 void DG_EndFrame( void );
+#ifdef PORT_BUILD
+/* port-only; implemented in port/libdg/libdg_stub.c */
+void DG_LookAt( DG_CHANL *chanl, SVECTOR *eye, SVECTOR *center, int clip_distance );
+#endif
 void DG_MakeCameraMatrix( DG_CHANL *chanl, SVECTOR *from, SVECTOR *to, int screen );
 void DG_AdjustOverscan( MATRIX *matrix );
 void DG_Clip( RECT *clip_rect, int dist );

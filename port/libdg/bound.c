@@ -1,71 +1,218 @@
 #include "libdg.h"
 #include "common.h"
 #include "game/game.h"
+#ifdef PORT_BUILD
 #include <stdio.h>
 #include <stdlib.h>
 #include "psx/port_ptr.h"
+#endif
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#include "psx/port_ptr.h"
+#endif
 
-STATIC void DG_WriteObjClut(DG_OBJ *obj, int idx);
-STATIC void DG_WriteObjClutUV(DG_OBJ *obj, int idx);
-STATIC void DG_BoundIrTexture(DG_CHANL *chanl, int idx);
+static void UpdateThermalTexture( DG_CHANL *chanl, int index );
 
-static inline void copy_bounding_box_to_spad(DG_BOUND *bounds)
-{
-    DG_BOUND *bounding_box = (DG_BOUND *)SCRPAD_ADDR;
-    bounding_box->min.vx = bounds->min.vx;
-    bounding_box->min.vy = bounds->min.vy;
-    bounding_box->min.vz = bounds->min.vz;
+typedef struct {
+    int vx, vy, vz;
+} VECTOREX;
 
-    bounding_box->max.vx = bounds->max.vx;
-    bounding_box->max.vy = bounds->max.vy;
-    bounding_box->max.vz = bounds->max.vz;
-}
+typedef	struct {
+    VECTOREX bound_min;
+    VECTOREX bound_max;
+    SVECTOR  clip[ 3 ];
+    DVECTOR  vxy[ 4 ][ 3 ];
+#ifdef PORT_BUILD
+    int      vzp[ 4 ][ 3 ];    /* 4-byte stride: PSX long is 32-bit */
+#else
+    long     vzp[ 4 ][ 3 ];
+#endif
+} ScrPad;
 
-static inline void set_svec_from_bounding_box(int i, SVECTOR *svec)
-{
-    svec->vx = i & 1 ? ((int *)SCRPAD_ADDR)[3] : ((int *)SCRPAD_ADDR)[0];
-    svec->vy = i & 2 ? ((int *)SCRPAD_ADDR)[4] : ((int *)SCRPAD_ADDR)[1];
-    svec->vz = i & 4 ? ((int *)SCRPAD_ADDR)[5] : ((int *)SCRPAD_ADDR)[2];
-}
+#define SCRPAD      ((ScrPad *)SCRPAD_ADDR)
 
-void DG_BoundStart(void)
+#define	BOUND_MIN   (&(SCRPAD->bound_min))
+#define	BOUND_MAX   (&(SCRPAD->bound_max))
+#define	CLIP        (SCRPAD->clip)
+#define	VXY         (SCRPAD->vxy)
+#define	VZP         (SCRPAD->vzp)
+
+void DG_BoundStart( void )
 {
     /* do nothing */
 }
 
-STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound_mode)
+static inline void MakeBoundVerts( int *bound )
 {
-    int        i, i2, i3, a2, t0, a3, t1;
-    int        bound_mode;
-    int        n_models;
-    int        n_bounding_box_vec;
-    int        ret, extra;
-    int       *test;
-    DG_OBJ    *obj;
-    DVECTOR   *dvec;
-    SVECTOR   *svec;
-    DG_VECTOR *vec3_1;
-    DG_VECTOR *vec3_2;
-    DG_BOUND  *mdl_bounds;
+    int i, j;
+    SVECTOR *clip;
+    DVECTOR *vxy;
+#ifdef PORT_BUILD
+    int *vzp;
+#else
+    long *vzp;
+#endif
 
-    n_models = objs->n_models;
-    obj = (DG_OBJ *)&objs->objs;
+    BOUND_MIN->vx = bound[ 0 ];
+    BOUND_MIN->vy = bound[ 1 ];
+    BOUND_MIN->vz = bound[ 2 ];
+    BOUND_MAX->vx = bound[ 3 ];
+    BOUND_MAX->vy = bound[ 4 ];
+    BOUND_MAX->vz = bound[ 5 ];
 
-    /* Port: verify the DG_OBJ memory is valid (not freed/scribbled) */
-    if (n_models > 0 && obj->model && ((unsigned long)obj->model & 0xFCFCFCFC00000000ULL)) {
-        return; /* Memory was freed — skip this object set */
+    clip = CLIP;
+    vxy = VXY[ 0 ];
+    vzp = VZP[ 0 ];
+
+    for ( i = 9; i > 0; )
+    {
+        for ( j = 3; j > 0; j-- )
+        {
+            clip->vx = ( i & 1 ) ? BOUND_MAX->vx : BOUND_MIN->vx;
+            clip->vy = ( i & 2 ) ? BOUND_MAX->vy : BOUND_MIN->vy;
+            clip->vz = ( i & 4 ) ? BOUND_MAX->vz : BOUND_MIN->vz;
+            clip++;
+            i--;
+        }
+
+        clip = CLIP;
+        gte_stsxy3c( vxy );
+        gte_stsz3c( vzp );
+
+        gte_ldv3c( CLIP );
+        vxy += 3;
+        vzp += 3;
+        gte_rtpt_b();
     }
 
-    for (; n_models > 0; --n_models)
+    gte_stsxy3c( vxy );
+    gte_stsz3c( vzp );
+}
+
+static inline int BoundCheckDepth( int xl, int yl, int xh, int yh )
+{
+    int i, bound_flag;
+#ifdef PORT_BUILD
+    int *depth;
+#else
+    long *depth;
+#endif
+
+    if ( xh > 160 || xl < -160 || yh > 112 || yl < -112 )
     {
+        /* prim partially on-screen */
+        bound_flag = 1;
+    }
+    else
+    {
+        /* prim entirely on-screen */
+        bound_flag = 2;
+    }
+
+    depth = VZP[ 1 ];
+    for ( i = 8; i > 0; i-- )
+    {
+        if ( *depth != 0 ) return bound_flag;
+        depth++;
+    }
+
+    /* clip prim with zero depth */
+    return 0;
+}
+
+static inline int BoundCheck( DVECTOR *verts )
+{
+    int i, bound_flag;
+    int xl, yl, xh, yh;
+
+    xh = xl = VXY[ 1 ][ 0 ].vx;
+    yh = yl = VXY[ 1 ][ 0 ].vy;
+
+    for ( i = 7; i > 0; i-- )
+    {
+        verts++;
+
+        if ( verts->vx < xl )
+        {
+            xl = verts->vx;
+        }
+        else if ( verts->vx > xh )
+        {
+            xh = verts->vx;
+        }
+
+        if ( verts->vy < yl )
+        {
+            yl = verts->vy;
+        }
+        else if ( verts->vy > yh )
+        {
+            yh = verts->vy;
+        }
+    }
+
+    if ( xl > 160 || xh < -160 || yl > 112 || yh < -112 )
+    {
+        /* prim completely off-screen */
+        bound_flag = 0;
+    }
+    else
+    {
+        /* prim on-screen, check against depth */
+        bound_flag = BoundCheckDepth( xl, yl, xh, yh );
+    }
+
+    return bound_flag;
+}
+
+#ifdef PORT_BUILD
+/* Validate the whole extend chain before packet creation - skip the model if any
+   link points to freed/invalid memory (use-after-free). */
+static int ValidExtendChain( DG_OBJ *obj )
+{
+    DG_OBJ *chk = obj;
+    int cnt = 0;
+
+    while ( chk && cnt++ < 256 )
+    {
+        if ( !port_ptr_in_pool( chk ) || !port_ptr_in_pool( chk->model ) ||
+             chk->n_packs <= 0 || chk->n_packs > 4096 )
+        {
+            return 0;
+        }
+        chk = chk->extend;
+    }
+    return 1;
+}
+#endif
+
+static void BoundObjs( DG_OBJS *objs, int pack, int flag, int arg_flag )
+{
+    int n_models, bound_flag;
+    DG_OBJ *obj;
+
+    obj = objs->objs;
+
+    /* Port: verify the DG_OBJ memory is valid (not freed/scribbled) */
+    if ( objs->n_models > 0 && obj->model && ( (unsigned long)obj->model & 0xFCFCFCFC00000000ULL ) )
+    {
+        return; /* Memory was freed - skip this object set */
+    }
+
+    for ( n_models = objs->n_models; n_models > 0; n_models-- )
+    {
+#ifdef PORT_BUILD
         /* Skip objects with NULL/invalid model (freed memory) */
-        if (!port_ptr_in_pool(obj->model)) {
+        if ( !port_ptr_in_pool( obj->model ) )
+        {
             obj++;
             continue;
         }
         /* Also sanitize the extend pointer: if it's out of pool, it's been
-           stomped somehow — treat as NULL for this frame. */
-        if (obj->extend && !port_ptr_in_pool(obj->extend)) {
+           stomped somehow - treat as NULL for this frame. */
+        if ( obj->extend && !port_ptr_in_pool( obj->extend ) )
+        {
             obj->extend = NULL;
         }
         {
@@ -73,159 +220,153 @@ STATIC void DG_BoundObjs(DG_OBJS *objs, int idx, unsigned int flag, int in_bound
             if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
             if (bt_enable) {
                 fprintf(stderr, "  [bo] model=%p n_packs=%d extend=%p packs[%d]=%p\n",
-                        (void *)obj->model, obj->n_packs, (void *)obj->extend, idx, (void *)obj->packs[idx]);
+                        (void *)obj->model, obj->n_packs, (void *)obj->extend, pack, (void *)obj->packs[pack]);
             }
         }
-        bound_mode = 0;
-        if (in_bound_mode)
+#endif
+        bound_flag = 0;
+
+        if ( arg_flag != 0 )
         {
-            bound_mode = 2;
-            /* Skip GTE frustum culling — the port's projection differs from
+            bound_flag = 2;
+
+#ifdef PORT_BUILD
+            /* Skip GTE frustum culling - the port's projection differs from
                PSX GTE, causing incorrect object culling. Always mark visible. */
             (void)flag;
+#else
+            if ( flag & DG_FLAG_BOUND )
+            {
+                gte_SetRotMatrix( &obj->screen );
+                gte_SetTransMatrix( &obj->screen );
+                MakeBoundVerts( &obj->model->lx );
+                bound_flag = BoundCheck( VXY[ 1 ] );
+            }
+#endif
         }
 
-        // loc_800188E4
-        obj->bound_mode = bound_mode;
-        if (bound_mode)
+        obj->bound_mode = bound_flag;
+        if ( bound_flag != 0 )
         {
             obj->free_count = 8;
-            if (!obj->packs[idx])
+
+#ifdef PORT_BUILD
+            if ( obj->packs[ pack ] == NULL && !ValidExtendChain( obj ) )
             {
+                obj->bound_mode = 0;
+                goto next_model;
+            }
+#endif
+
+            if ( obj->packs[ pack ] == NULL && DG_MakeObjPacket( obj, pack, flag ) < 0 )
+            {
+                obj->bound_mode = 0;
+
+                if ( flag & DG_FLAG_GBOUND )
                 {
-                    DG_OBJ *chk = obj;
-                    int ok = 1, cnt = 0;
-                    while (chk && cnt++ < 256) {
-                        if (!port_ptr_in_pool(chk) || !port_ptr_in_pool(chk->model) ||
-                            chk->n_packs <= 0 || chk->n_packs > 4096) {
-                            ok = 0; break;
-                        }
-                        chk = chk->extend;
-                    }
-                    if (!ok) { obj->bound_mode = 0; goto next_model; }
-                }
-                int res = DG_MakeObjPacket(obj, idx, flag);
-                if (res < 0)
-                {
-                    obj->bound_mode = 0;
-                    if (flag & DG_FLAG_GBOUND)
-                    {
-                        objs->bound_mode = 0;
-                        return;
-                    }
+                    objs->bound_mode = 0;
+                    return;
                 }
             }
         }
         else
         {
-            if (obj->packs[idx])
+            if ( obj->packs[ pack ] != NULL && --obj->free_count <= 0 )
             {
-                --obj->free_count;
-                if (obj->free_count <= 0)
-                {
-                    DG_FreeObjPacket(obj, idx);
-                }
+                DG_FreeObjPacket( obj, pack );
             }
         }
+
+#ifdef PORT_BUILD
         next_model:
+#endif
         obj++;
     }
 }
 
-void DG_BoundChanl(DG_CHANL *chanl, int idx)
+void DG_BoundChanl( DG_CHANL *chanl, int index )
 {
-    int          i, i2, i3, a2, t0, a3, t1;
-    int          n_objs;
-    int          bound_mode;
-    DG_OBJS    **objs;
-    int          local_group_id;
-    DVECTOR     *dvec;
-    SVECTOR     *svec;
-    DG_VECTOR   *vec3_1;
-    DG_VECTOR   *vec3_2;
-    DG_BOUND    *mdl_bounds;
-    int          n_bounding_box_vec;
-    int         *test;
-    unsigned int flag;
+    int group_id, n_objs, flag, bound_flag;
+    DG_OBJS **queue, *objs;
 
-    DG_Clip(&chanl->clip_rect, chanl->clip_distance);
+    DG_Clip( &chanl->clip_rect, chanl->screen );
 
-    objs = chanl->queue;
-    n_objs = chanl->objs_index;
-    local_group_id = DG_CurrentGroupID;
-
-    for (; n_objs > 0; --n_objs)
+    queue = chanl->queue;
+    group_id = DG_CurrentGroupID;
+    for ( n_objs = chanl->objs_index; n_objs > 0; n_objs-- )
     {
-        DG_OBJS *current_objs = *objs;
-        objs++;
+        objs = *queue++;
 
         /* Port: skip freed/corrupt queue entries.
            Check for macOS freed-memory scribble (0xfcfc pattern in world matrix) */
-        if (!current_objs || current_objs->world.m[0][0] == (short)0xfcfc)
-            continue;
+        if ( !objs || objs->world.m[ 0 ][ 0 ] == (short)0xfcfc ) continue;
 
-        flag = current_objs->flag;
+        flag = objs->flag;
+        bound_flag = 0;
 
-        bound_mode = 0;
-        if (!(flag & DG_FLAG_INVISIBLE))
+        if ( !( flag & DG_FLAG_INVISIBLE ) && ( objs->group_id == 0 || ( objs->group_id & group_id ) ) )
         {
-            if (!current_objs->group_id || (current_objs->group_id & local_group_id))
+            bound_flag = 2;
+
+#ifdef PORT_BUILD
+            /* Port: the GBOUND frustum test below uses the PSX GTE's
+               rtpt_b + scratchpad store, which produces wrong screen
+               coords on 64-bit and culls everything to 0. BoundObjs
+               already skips its per-model BOUND test for the same
+               reason; mirror that here: trust the group-level flag and
+               always mark visible. */
+            (void)flag;
+#else
+            if ( flag & DG_FLAG_GBOUND )
             {
-                bound_mode = 2;
-                /* Port: the GBOUND frustum test below uses the PSX GTE's
-                   rtpt_b + scratchpad store, which produces wrong screen
-                   coords on 64-bit and culls everything to 0. DG_BoundObjs
-                   already skips its per-model BOUND test for the same
-                   reason; mirror that here: trust the group-level flag and
-                   always mark visible. Restore the GTE path once the GBOUND
-                   projection is verified 64-bit-clean. */
-                (void)flag;
+                gte_SetRotMatrix( &objs->objs[ 0 ].screen );
+                gte_SetTransMatrix( &objs->objs[ 0 ].screen );
+                MakeBoundVerts( &objs->def->lx );
+                bound_flag = BoundCheck( VXY[ 1 ] );
             }
+#endif /* PORT_BUILD */
         }
-        current_objs->bound_mode = bound_mode;
+
+        objs->bound_mode = bound_flag;
 #ifdef PORT_BUILD_VERBOSE
         {
             static int bt_enable = -1;
             if (bt_enable == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt_enable = (e && *e) ? 1 : 0; }
             if (bt_enable) {
                 fprintf(stderr, "[dg] BoundObjs chanl=%d objs=%p def=%p n_models=%d flag=%x mode=%d\n",
-                        idx, (void *)current_objs, (void *)current_objs->def,
-                        current_objs->n_models, flag, bound_mode);
+                        index, (void *)objs, (void *)objs->def,
+                        objs->n_models, flag, bound_flag);
             }
         }
 #endif
-        DG_BoundObjs(current_objs, idx, flag, bound_mode);
+        BoundObjs( objs, index, flag, bound_flag );
     }
 
-    DG_BoundIrTexture(chanl, idx);
+    UpdateThermalTexture( chanl, index );
 }
 
-void DG_BoundEnd(void)
+void DG_BoundEnd( void )
 {
     /* do nothing */
 }
 
-// Possibly a different file.
-
-STATIC DG_TEX DG_UnknownTexture = {0};
-
-/* Replace the CLUT for this model with a plain white one for thermal goggles */
-STATIC void DG_WriteObjClut(DG_OBJ *obj, int idx)
+static void SetThermalClut( DG_OBJ *obj, int index )
 {
-    int       n_packs;
-    POLY_GT4 *pPack = obj->packs[idx];
-    short     val = 0x3FFF;
-    if (pPack && pPack->clut != val)
-    {
-        while (obj)
-        {
-            n_packs = obj->n_packs;
-            while (n_packs > 0)
-            {
-                pPack->clut = val;
+    int n_packs;
+    u_short clut;
+    POLY_GT4 *packs;
 
-                ++pPack;
-                --n_packs;
+    packs = obj->packs[ index ];
+    clut = getClut( 1008, 255 );
+
+    if ( packs != NULL && packs->clut != clut )
+    {
+        while ( obj != NULL )
+        {
+            for ( n_packs = obj->n_packs; n_packs > 0; n_packs-- )
+            {
+                packs->clut = clut;
+                packs++;
             }
 
             obj = obj->extend;
@@ -233,69 +374,65 @@ STATIC void DG_WriteObjClut(DG_OBJ *obj, int idx)
     }
 }
 
-/* Restore the CLUT for this model */
-STATIC void DG_WriteObjClutUV(DG_OBJ *obj, int idx)
+static void RestoreThermalClut( DG_OBJ *obj, int index )
 {
-    unsigned short id;
-    POLY_GT4      *pack;
-    int            n_packs;
-    short         *tex_ids;
-    DG_TEX        *texture;
-    unsigned short current_id;
+    static DG_TEX EmptyTex = { 0 };
 
-    pack = obj->packs[idx];
+    int n_packs;
+    u_short id, next_id;
+    DG_TEX *tex;
+    POLY_GT4 *packs;
+    u_short *texids;
 
-    if (pack && pack->clut == 0x3FFF)
+    packs = obj->packs[ index ];
+    if ( packs != NULL && packs->clut == getClut( 1008, 255 ) )
     {
-        texture = &DG_UnknownTexture;
+        tex = &EmptyTex;
         id = 0;
-        while (obj)
+
+        while ( obj != NULL )
         {
-            tex_ids = obj->model->materials;
-            for (n_packs = obj->n_packs; n_packs > 0; --n_packs)
+            texids = obj->model->texids;
+
+            for ( n_packs = obj->n_packs; n_packs > 0; n_packs-- )
             {
-                current_id = *tex_ids;
-                tex_ids++;
-                if ((current_id & 0xFFFF) != id)
+                next_id = *texids++;
+
+                if ( next_id != id )
                 {
-                    id = current_id;
-                    texture = DG_GetTexture(id);
+                    id = next_id;
+                    tex = DG_GetTexture( id );
                 }
-                pack->clut = texture->clut;
-                pack++;
+
+                packs->clut = tex->clut;
+                packs++;
             }
+
             obj = obj->extend;
         }
     }
 }
 
-// there must be a way to match this without the repetition
-STATIC void DG_BoundIrTexture(DG_CHANL *chanl, int idx)
+static void UpdateThermalTexture( DG_CHANL *chanl, int index )
 {
-    DG_OBJS **queue;
-    int       n_objects;
-    DG_OBJS  *objs;
-    DG_OBJ   *obj;
-    int       n_models;
+    int n_objs, n_models;
+    DG_OBJS **queue, *objs;
+    DG_OBJ *obj;
 
     queue = chanl->queue;
-    if (GM_GameStatus & STATE_THERMG)
+    if ( GM_GameStatus & STATE_THERMG )
     {
-        for (n_objects = chanl->objs_index; n_objects > 0; n_objects--)
+        for ( n_objs = chanl->objs_index; n_objs > 0; n_objs-- )
         {
             objs = *queue++;
 
-            if (objs->flag & DG_FLAG_IRTEXTURE && objs->bound_mode != 0)
+            if ( ( objs->flag & DG_FLAG_IRTEXTURE ) && objs->bound_mode != 0 )
             {
                 obj = objs->objs;
 
-                for (n_models = objs->n_models; n_models > 0; n_models--)
+                for ( n_models = objs->n_models; n_models > 0; n_models-- )
                 {
-                    if (obj->bound_mode != 0)
-                    {
-                        DG_WriteObjClut(obj, idx);
-                    }
-
+                    if ( obj->bound_mode != 0 ) SetThermalClut( obj, index );
                     obj++;
                 }
             }
@@ -303,17 +440,17 @@ STATIC void DG_BoundIrTexture(DG_CHANL *chanl, int idx)
     }
     else
     {
-        for (n_objects = chanl->objs_index; n_objects > 0; n_objects--)
+        for ( n_objs = chanl->objs_index; n_objs > 0; n_objs-- )
         {
             objs = *queue++;
 
-            if (objs->flag & DG_FLAG_IRTEXTURE && objs->bound_mode != 0)
+            if ( ( objs->flag & DG_FLAG_IRTEXTURE ) && objs->bound_mode != 0 )
             {
                 obj = objs->objs;
 
-                for (n_models = objs->n_models; n_models > 0; n_models--)
+                for ( n_models = objs->n_models; n_models > 0; n_models-- )
                 {
-                    DG_WriteObjClutUV(obj, idx);
+                    RestoreThermalClut( obj, index );
                     obj++;
                 }
             }

@@ -4,121 +4,115 @@
 #include <libgte.h>
 #include <libgpu.h>
 #include "common.h"
+#ifdef PORT_BUILD
 #include <stdio.h>
 #include <stdlib.h>
+#endif
+#ifdef PORT_BUILD
+#include <stdio.h>
+#include <stdlib.h>
+#endif
 
-STATIC int DG_MakeObjs_helper( DG_MDL *mdl )
+static int GetRaise( DG_MDL *mdl )
 {
-    int          val;
-    int          mask;
-    unsigned int flags;
+    int raise;
 
-    flags = mdl->flags;
-    val = 0;
-
-    if ((flags & 0x300) != 0)
+    raise = 0;
+    if ( mdl->flag & 0x300 )
     {
-        mask = 4 - (flags >> 12 & 3);
-        val = mask * 0xfa;
-        if ((flags & 0x100) == 0)
-        {
-            val = mask * -0xfa;
-        }
+        raise = ( 4 - ( ( mdl->flag >> 12 ) & 3 ) ) * 250;
+        if ( !( mdl->flag & 0x100 ) ) raise *= -1;
     }
-
-    return val;
+    return raise;
 }
 
 DG_OBJS *DG_MakeObjs( DG_DEF *def, int flag, int chanl )
 {
-    DG_MDL *model = (DG_MDL *)&def[1];
+    DG_OBJS *objs;
+    DG_OBJ *obj;
+    DG_MDL *mdl;
+    int i, buf_size;
 
-    const int objs_size = sizeof(DG_OBJS) + (sizeof(DG_OBJ) * def->n_models);
-    DG_OBJS  *objs_buf = (DG_OBJS *)GV_Malloc(objs_size);
+    mdl = def->models;
 
-    if (!objs_buf)
+    buf_size = sizeof( DG_OBJS ) + sizeof( DG_OBJ ) * def->n_x_models;
+    if ( ( objs = (DG_OBJS *)GV_Malloc( buf_size ) ) == NULL ) return NULL;
+
+    GV_ZeroMemory( objs, buf_size );
+
+    objs->world = DG_ZeroMatrix;
+    objs->def = def;
+    objs->n_models = def->n_models;
+    objs->flag = flag;
+    objs->chanl = chanl;
+    objs->light = &DG_LightMatrix;
+
+    obj = objs->objs;
+    for ( i = def->n_x_models; i > 0; i-- )
     {
-        return 0;
-    }
-    else
-    {
-        int     numMesh;
-        DG_OBJ *obj;
+        obj->model = mdl;
 
-        GV_ZeroMemory(objs_buf, objs_size);
-        objs_buf->world = DG_ZeroMatrix;
-
-        objs_buf->def = def;
-
-        objs_buf->n_models = def->n_visible;
-
-        objs_buf->flag = flag;
-        objs_buf->chanl = chanl;
-        objs_buf->light = &DG_LightMatrix;
-
-        obj = &objs_buf->objs[0];
-        for (numMesh = def->n_models; numMesh > 0; numMesh--)
+#ifdef PORT_BUILD
         {
-            obj->model = model;
-            {
-                /* model->extend stores an index (as intptr_t cast to pointer).
-                   On PSX it was int; on 64-bit the sign extension is lost. */
-                int extend_idx = (int)(intptr_t)model->extend;
-                int cur_idx = (int)(obj - &objs_buf->objs[0]);
-                {
-                    static int bt = -1;
-                    if (bt == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt = (e && *e) ? 1 : 0; }
-                    if (bt) fprintf(stderr, "[mk] objs=%p cur=%d/%d extend_idx=%d\n",
-                                    (void *)objs_buf, cur_idx, def->n_models, extend_idx);
-                }
-                if (extend_idx < 0 || extend_idx >= def->n_models || extend_idx == cur_idx)
-                {
-                    obj->extend = 0;
-                }
-                else
-                {
-                    obj->extend = &objs_buf->objs[extend_idx];
-                }
-            }
-
-            obj->raise = DG_MakeObjs_helper(model);
-            obj->n_packs = model->n_faces;
-            obj++;
-            model++;
+            static int bt = -1;
+            if (bt == -1) { const char *e = getenv("DG_BOUND_TRACE"); bt = (e && *e) ? 1 : 0; }
+            if (bt) fprintf(stderr, "[mk] objs=%p cur=%d/%d extend_idx=%d\n",
+                            (void *)objs, (int)( obj - &objs->objs[ 0 ] ), def->n_models, mdl->extend);
         }
-        return objs_buf;
+        /* Guard against out-of-range / self-referential extend indices, which
+           chain DG_OBJ lists into loops or freed memory on the port. */
+        if ( mdl->extend < 0 || mdl->extend >= def->n_models ||
+             mdl->extend == (int)( obj - &objs->objs[ 0 ] ) )
+#else
+        if ( mdl->extend < 0 )
+#endif
+        {
+            obj->extend = 0;
+        }
+        else
+        {
+            obj->extend = &objs->objs[ mdl->extend ];
+        }
+
+        obj->raise = GetRaise( mdl );
+        obj->n_packs = mdl->n_faces;
+        obj++;
+        mdl++;
     }
+        
+    return objs;
 }
 
 void DG_FreeObjs( DG_OBJS *objs )
 {
-    int     n_models;
     DG_OBJ *obj;
+    int i;
 
-    n_models = objs->n_models;
     obj = objs->objs;
-    while (n_models > 0)
+    for ( i = objs->n_models; i > 0; i-- )
     {
-        DG_FreeObjPacket(obj, 0);
-        DG_FreeObjPacket(obj, 1);
-        --n_models;
-        ++obj;
+        DG_FreeObjPacket( obj, 0 );
+        DG_FreeObjPacket( obj, 1 );
+        obj++;
     }
+
     DG_FreePreshade(objs);
+#ifdef PORT_BUILD
     /* Zero out before freeing so stale render queue references see
        n_models=0 and skip instead of crashing on freed memory. */
     memset(objs->objs, 0, objs->n_models * sizeof(DG_OBJ));
     objs->n_models = 0;
+#endif
     GV_Free(objs);
 }
 
-void DG_SetObjsRots( DG_OBJS *objs, SVECTOR *rot )
+void DG_SetJointFrame( DG_OBJS *objs, SVECTOR *rots )
 {
-    objs->rots = rot;
+    objs->rots = rots;
 }
 
-void DG_SetObjsMovs( DG_OBJS *objs, SVECTOR *mov )
+void DG_SetSlideFrame( DG_OBJS *objs, SVECTOR *movs )
 {
-    objs->movs = mov;
+    objs->movs = movs;
 }
 

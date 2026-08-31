@@ -198,7 +198,7 @@ void game_tick(void)
     DG_CurrentGroupID = 0xFFFFFFFF;
     /* Port: do NOT reset port_ot_next here. OT link tags (e.g. chanl-1/2
        linking into chanl-0's ot[which] at link position) are written at
-       DG_SwapFrame time and must remain resolvable for several frames
+       DG_StartFrame time and must remain resolvable for several frames
        until DG_ClearChanlSystem rewrites them. Resetting per-frame made
        old handles point at freshly-registered unrelated objects, which
        silently broke the OT chain (e.g. GAME OVER text invisible). Let
@@ -240,10 +240,10 @@ void game_tick(void)
         static mach_timebase_info_data_t tb = {0};
         if (tb.denom == 0) mach_timebase_info(&tb);
         uint64_t ts0 = mach_absolute_time();
-        DG_SwapFrame();
+        DG_StartFrame();
         uint64_t ts1 = mach_absolute_time();
         #else
-        DG_SwapFrame();
+        DG_StartFrame();
         #endif
 
         /* Pad update — matches DG_ActFirst in original dgd.c */
@@ -516,7 +516,7 @@ void game_tick(void)
         #endif
 
         /* OT render pipeline — must run BEFORE 3D so the OT clear happens
-           before actors added prims. DG_SwapFrame draws the PREVIOUS frame's
+           before actors added prims. DG_StartFrame draws the PREVIOUS frame's
            OT (1-GV_Clock) and clears the CURRENT OT (GV_Clock). Then actors
            already added prims to the cleared OT in GV_ExecActorSystem above. */
         {
@@ -526,7 +526,7 @@ void game_tick(void)
             sigaction(SIGBUS, &sa, &old_bus);
             render_guard_active = 1;
             if (sigsetjmp(render_jmp, 1) == 0) {
-                DG_RenderFrame();
+                DG_EndFrame();
             } else {
                 printf("[game] Signal caught in render frame, sig=%d addr=%p\n",
                        render_fault_sig, (void *)render_fault_addr);
@@ -550,7 +550,7 @@ void game_tick(void)
 
             if (!skip_render) {
                 /* Apply deferred clear BEFORE 3D rendering, not during
-                   DG_DrawOTag (which runs after and would erase 3D). */
+                   DG_DrawChanlSystem (which runs after and would erase 3D). */
                 extern void port_apply_deferred_clear(void);
                 port_apply_deferred_clear();
                 port_RenderObjects(GV_Clock);
@@ -565,8 +565,8 @@ void game_tick(void)
            On PSX this happens at the NEXT VSync; on the port we do it now
            so prims don't get cleared before being drawn. */
         {
-            extern void DG_DrawOTag(int which);
-            DG_DrawOTag(GV_Clock);
+            extern void DG_DrawChanlSystem(int which);
+            DG_DrawChanlSystem(GV_Clock);
         }
 
         #ifdef __APPLE__
@@ -603,7 +603,7 @@ void game_tick(void)
                tick_count,
                (unsigned long)GV_PadData[0].status,
                GM_GameStatus,
-               GM_SnakeCurrentHealth, GM_SnakeMaxHealth, GM_CurrentItemId,
+               GM_Vitality, GM_VitalityMax, GM_Item,
                GM_PlayerPosition.vx, GM_PlayerPosition.vy, GM_PlayerPosition.vz);
     }
 

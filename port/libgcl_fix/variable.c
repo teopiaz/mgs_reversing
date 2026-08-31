@@ -6,13 +6,14 @@
 #include "menu/menuman.h"   // for RadioMemory
 #include "linkvar.h"
 
-extern short linkvarbuf[0x60];
-extern short sv_linkvarbuf[0x60];
+short               linkvarbuf[MAX_LINKVARBUF];
+short               sv_linkvarbuf[MAX_LINKVARBUF];
 
-extern GCL_Vars     gGcl_vars_800B3CC8;
-extern GCL_Vars     gGcl_memVars_800b4588;
-extern char         gStageName_800B4D88[16];
-extern RadioMemory  gRadioMemory_800BDB38[RADIO_MEMORY_COUNT];
+GCL_Vars            gGcl_vars_800B3CC8;
+GCL_Vars            gGcl_memVars_800b4588;
+char                gStageName_800B4D88[16];
+extern RadioMemory  radio_memory[RADIO_MEMORY_COUNT];
+#define gRadioMemory_800BDB38 radio_memory
 
 #define SAVE_LINKVAR(buf, var)  (buf[((short*)&var - (short*)&linkvarbuf)])
 
@@ -28,7 +29,7 @@ typedef struct SAVE_DATA
     int         totalFrameTime;
     int         padding[3];
     char        stage_name[16];
-    AreaHistory area_history;
+    short       area_history[8];
     short       varbuf[0x60];
     GCL_Vars    gcl_vars;
     RadioMemory radio_memory[RADIO_MEMORY_COUNT];
@@ -95,18 +96,18 @@ int GCL_MakeSaveFile(char *save_buf)
     save_data->version2 = SAVE_VERSION2;
     save_data->totalFrameTime = gTotalFrameTime;
 
-    GM_LastSaveHours = GM_TotalHours;
-    GM_LastSaveSeconds = GM_TotalSeconds;
-    SAVE_LINKVAR(sv_linkvarbuf, GM_LastSaveHours) = GM_TotalHours;
-    SAVE_LINKVAR(sv_linkvarbuf, GM_LastSaveSeconds) = GM_TotalSeconds;
-    SAVE_LINKVAR(sv_linkvarbuf, GM_TotalSaves) = GM_TotalSaves;
+    GM_LastSaveHours = GM_PlayTimeHours;
+    GM_LastSaveSeconds = GM_PlayTimeSeconds;
+    SAVE_LINKVAR(sv_linkvarbuf, GM_LastSaveHours) = GM_PlayTimeHours;
+    SAVE_LINKVAR(sv_linkvarbuf, GM_LastSaveSeconds) = GM_PlayTimeSeconds;
+    SAVE_LINKVAR(sv_linkvarbuf, GM_SaveCount) = GM_SaveCount;
 
     save_data->padding[0] = 0;
     save_data->padding[1] = 0;
     save_data->padding[2] = 0;
 
     strcpy(save_data->stage_name, gStageName_800B4D88);
-    GM_GetAreaHistory(&save_data->area_history);
+    GM_GetAreaHistory(save_data->area_history);
 
     memcpy(save_data->varbuf, sv_linkvarbuf, 0xC0);
     save_data->gcl_vars = gGcl_memVars_800b4588;
@@ -140,7 +141,7 @@ int GCL_SetLoadFile(char *save_buf)
 
     gTotalFrameTime = save_data->totalFrameTime;
     strcpy(gStageName_800B4D88, save_data->stage_name);
-    GM_SetAreaHistory(&save_data->area_history);
+    GM_SetAreaHistory(save_data->area_history);
 
     memcpy(sv_linkvarbuf, save_data->varbuf, 0xC0);
     gGcl_memVars_800b4588 = save_data->gcl_vars;
@@ -156,20 +157,20 @@ void GCL_InitVar(void)
     int option;
     int difficulty;
 
-    option = GM_OptionFlag;
-    difficulty = GM_DifficultyFlag;
+    option = GM_Configuration;
+    difficulty = GM_GameLevel;
 
     gGcl_vars_800B3CC8 = ( GCL_Vars ){{ 0 }};
     memset(linkvarbuf, 0, 0xC0);
 
-    GM_DifficultyFlag = difficulty;
-    GM_OptionFlag = option;
+    GM_GameLevel = difficulty;
+    GM_Configuration = option;
 }
 
 void GCL_InitClearVar(void)
 {
     gGcl_vars_800B3CC8 = ( GCL_Vars ){{ 0 }};
-    memset(&GM_CurrentStageFlag, 0, 0xb4);
+    memset(&GM_SaveArea, 0, 0xb4);
     GCL_SaveVar();
 }
 

@@ -143,17 +143,18 @@ static void DG_PcxReadPalette(unsigned char *pcxPalette, unsigned char *imageDat
 /* DG_LoadInitPcx — replaces the stub                                        */
 /*---------------------------------------------------------------------------*/
 
-int DG_LoadInitPcx(unsigned char *buf, int id)
+int DG_LoadInitPcx(void *buf, int id)
 {
     PCXDATA       *pcx;
     unsigned short flags;
+    unsigned char *bytes = (unsigned char *)buf;
 
     /* Check if this is actually a valid PCX file (manufacturer = 0x0A) */
-    if (buf[0] != 0x0A)
+    if (bytes[0] != 0x0A)
     {
         /* Not a PCX file — might be raw texture data (palette).
            Upload it directly to VRAM at a default location. */
-        printf("    [pcx] Not a PCX file (first byte=0x%02X), trying raw upload\n", buf[0]);
+        printf("    [pcx] Not a PCX file (first byte=0x%02X), trying raw upload\n", bytes[0]);
 
         /* Assume it's a 16-bit color palette, upload to VRAM palette area */
         RECT r = {0, 481, 256, 1};  /* palette row at bottom of VRAM */
@@ -162,10 +163,10 @@ int DG_LoadInitPcx(unsigned char *buf, int id)
     }
     int            min_x, min_y;
     int            width, height;
-    DG_Image      *images;
+    DG_IMAGE      *images;
 
     pcx = (PCXDATA *)buf;
-    flags = pcx->info.flags;
+    flags = pcx->info.flag;
 
     min_x = pcx->min_x - 1;
     min_y = pcx->min_y - 1;
@@ -177,12 +178,12 @@ int DG_LoadInitPcx(unsigned char *buf, int id)
         width /= 2;
     }
 
-    int alloc_size = width * height + sizeof(DG_Image) * 2;
-    images = (DG_Image *)calloc(1, alloc_size);
+    int alloc_size = width * height + sizeof(DG_IMAGE) * 2;
+    images = (DG_IMAGE *)calloc(1, alloc_size);
     if (images)
     {
-        DG_Image      *imageB;
-        DG_Image      *imageA;
+        DG_IMAGE      *imageB;
+        DG_IMAGE      *imageA;
         unsigned char *palette;
 
         imageB = images;

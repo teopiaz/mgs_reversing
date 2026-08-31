@@ -18,15 +18,20 @@
 #include "sound/g_sound.h"
 #include "strcode.h"
 
-extern GM_CameraSystemWork           GM_Camera;
-extern int                 dword_8009F604;
-extern TMat8x8B            gJpegcamMatrix2_800BDCD8;
-extern GM_SnakeCameraWork     GM_SnakeCamera;
-extern char               *dword_800BDCC8;
-extern int                 dword_800BDCCC;
-extern int                 dword_800BDCD0;
-extern GM_SnakeCameraWork     GM_SnakeCamera;
+typedef signed char TMat8x8B[8][8];     //  8 x  8 byte matrix
+typedef signed char TMat16x16B[16][16]; // 16 x 16 byte matrix
+typedef int         TMat8x8I[8][8];     //  8 x  8 integer matrix
 
+static char *BSS    dword_800BDCC8;
+static int BSS      dword_800BDCCC;
+static int BSS      dword_800BDCD0;
+char BSS            gap_800BDCD4[ 4 ]; // TODO
+static TMat8x8B BSS gJpegcamMatrix2_800BDCD8;
+
+extern GM_CameraSystemWork GM_Camera;
+extern GM_SnakeCameraWork  GM_SnakeCamera;
+
+extern int   dword_8009F604;
 extern short dword_800ABBD4;
 extern short dword_800ABBDC;
 
@@ -900,7 +905,7 @@ static void JpegcamTakePhoto(Work *work)
     {
         GV_PauseLevel &= ~GV_PAUSE_MENU;
         GV_PauseLevel |= GV_PAUSE_STOP;
-        DG_FreeObjectQueue();
+        DG_StopMainChanlSystem();
         GV_SetPacketTempMemory();
         DG_UnDrawFrameCount = 1;
     }
@@ -949,7 +954,7 @@ static void JpegcamTakePhoto(Work *work)
         GV_PauseLevel &= ~GV_PAUSE_STOP;
         DG_RestartMainChanlSystem();
         work->state = 0;
-        work->field_90_pSight = NewSight(CAMERA_SIGHT2, CAMERA_SIGHT, &GM_CurrentItemId, IT_Camera, NULL);
+        work->field_90_pSight = NewSight(CAMERA_SIGHT2, CAMERA_SIGHT, &GM_Item, IT_Camera, NULL);
     }
 }
 
@@ -1040,8 +1045,8 @@ static void Act(Work *work)
 
         if (dword_8009F604 != CAMERA_SIGHT)
         {
-            NewSight(CAMERA_SIGHT, CAMERA_SIGHT, &GM_CurrentItemId, IT_Camera, NULL);
-            work->field_90_pSight = NewSight(CAMERA_SIGHT2, CAMERA_SIGHT, &GM_CurrentItemId, IT_Camera, NULL);
+            NewSight(CAMERA_SIGHT, CAMERA_SIGHT, &GM_Item, IT_Camera, NULL);
+            work->field_90_pSight = NewSight(CAMERA_SIGHT2, CAMERA_SIGHT, &GM_Item, IT_Camera, NULL);
             GM_SeSet2(0, 63, SE_ITEM_OPENWINDOW);
         }
 

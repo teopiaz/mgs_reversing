@@ -76,8 +76,8 @@ BOOL CreateDemo(LPMGSDEMOACT lpAct, DMO_DEF *header)
     lpAct->old_screen = DG_SetChanlSystemUnits(DG_SCREEN_CHANL, DemoScreenChanl);
     lpAct->old_game_status = GM_GameStatus;
     lpAct->old_camera = GM_Camera;
-    lpAct->old_item = GM_CurrentItemId;
-    lpAct->old_weapon = GM_CurrentWeaponId;
+    lpAct->old_item = GM_Item;
+    lpAct->old_weapon = GM_Weapon;
 
 
     InitChain(&lpAct->chain);
@@ -406,8 +406,8 @@ BOOL DestroyDemo(LPMGSDEMOACT lpAct)
     DG_SetChanlSystemUnits(DG_SCREEN_CHANL, lpAct->old_screen);
     GM_GameStatus = lpAct->old_game_status;
     GM_Camera = lpAct->old_camera;
-    GM_CurrentItemId = lpAct->old_item;
-    GM_CurrentWeaponId = lpAct->old_weapon;
+    GM_Item = lpAct->old_item;
+    GM_Weapon = lpAct->old_weapon;
     return 1;
 }
 
@@ -540,7 +540,7 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
     gUnkCameraStruct2_800B7868.target.vy = data->center_y;
     gUnkCameraStruct2_800B7868.target.vz = data->center_z;
 
-    DG_Chanl(0)->clip_distance = data->clip_dist;
+    DG_Chanl(0)->screen = data->clip_dist;
 
     diff.vx = data->center_x - data->eye_x;
     diff.vy = data->center_y - data->eye_y;
@@ -588,7 +588,7 @@ BOOL FrameRunDemo(LPMGSDEMOACT lpAct, DMO_DAT *data)
                 MATRIX manual_eye_inv = DG_Chanl(0)->eye_inv;
                 SVECTOR e_v = { (short)data->eye_x,    (short)data->eye_y,    (short)data->eye_z,    0 };
                 SVECTOR c_v = { (short)data->center_x, (short)data->center_y, (short)data->center_z, 0 };
-                int saved_clip = DG_Chanl(0)->clip_distance;
+                int saved_clip = DG_Chanl(0)->screen;
                 DG_LookAt(DG_Chanl(0), &e_v, &c_v, saved_clip);
                 MATRIX la_eye_inv = DG_Chanl(0)->eye_inv;
                 fprintf(stderr,
@@ -2370,7 +2370,7 @@ static void demothrd_m1e1_8007D404(LPMGSDEMOACT lpAct, DMO_ADJ *adjust, DMO_MDL 
     DG_PutVector(smokeVecs, smokeVecs, 10);
 
     memset(&vec, 0, sizeof(SVECTOR));
-    vec.vx = data->object[1][0].objs->objs[0].model->min.vx + ((data->object[1][0].objs->objs[0].model->max.vx - data->object[1][0].objs->objs[0].model->min.vx) / 2);
+    vec.vx = data->object[1][0].objs->objs[0].model->lx + ((data->object[1][0].objs->objs[0].model->ux - data->object[1][0].objs->objs[0].model->lx) / 2);
     DG_PutVector(&vec, &vec, 1);
 
     vecTmp.vx = vec.vx - data->field_564[0].vx;
@@ -2405,7 +2405,7 @@ static void demothrd_m1e1_8007D404(LPMGSDEMOACT lpAct, DMO_ADJ *adjust, DMO_MDL 
 
 
     memset(&vec, 0, sizeof(SVECTOR));
-    vec.vx = data->object[1][0].objs->objs[0].model->min.vx + ((data->object[1][0].objs->objs[0].model->max.vx - data->object[1][0].objs->objs[0].model->min.vx) / 2);
+    vec.vx = data->object[1][0].objs->objs[0].model->lx + ((data->object[1][0].objs->objs[0].model->ux - data->object[1][0].objs->objs[0].model->lx) / 2);
     DG_SetPos2(&model->control.mov, &model->control.rot);
 
     DG_PutVector(&vec, &vec, 1);

@@ -27,8 +27,6 @@
 #include "libgpu.h"
 #include "libdg/libdg.h"
 #include "game/game.h"
-#include "game/map.h"
-#include "game/target.h"
 #include "libhzd/libhzd.h"
 #include "fmt_hzd.h"
 
@@ -97,7 +95,7 @@ ASSERT_OFFSET(POLY_GT4, u3,   48);
 ASSERT_SIZE(DG_CHANL, 504);
 ASSERT_OFFSET(DG_CHANL, eye_inv,        24);
 ASSERT_OFFSET(DG_CHANL, eye,            56);
-ASSERT_OFFSET(DG_CHANL, clip_distance,  88);
+ASSERT_OFFSET(DG_CHANL, screen,  88);
 ASSERT_OFFSET(DG_CHANL, objs_index,     94);
 ASSERT_OFFSET(DG_CHANL, queue,          96);
 

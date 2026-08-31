@@ -48,6 +48,23 @@ static TLIGHT BSS   tlights[ 2 ];
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef PORT_BUILD
+/* The port's debug panel inspects and overrides these tables, which are
+   file-static here. Narrow accessors keep them so. */
+int  port_dg_fixed_light_count( int group )            { return fix_lights[ group ].n_lights; }
+void port_dg_set_fixed_light_count( int group, int n ) { fix_lights[ group ].n_lights = n; }
+int  port_dg_tmp_light_count( int buf )                { return tlights[ buf ].n_lights; }
+void port_dg_set_tmp_light_count( int buf, int n )     { tlights[ buf ].n_lights = n; }
+void port_dg_mute_tmp_light( int buf, int i )
+{
+    tlights[ buf ].lights[ i ].color.r = 0;
+    tlights[ buf ].lights[ i ].color.g = 0;
+    tlights[ buf ].lights[ i ].color.b = 0;
+}
+void *port_dg_fixed_light_data( int group ) { return fix_lights[ group ].lights; }
+void *port_dg_tmp_light_data( int buf )     { return tlights[ buf ].lights; }
+#endif /* PORT_BUILD */
+
 void DG_InitLightSystem( void )
 {
     DG_ResetFixedLight();

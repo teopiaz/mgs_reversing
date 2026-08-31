@@ -498,7 +498,7 @@ STATIC void MakePrimsFreePacks( DG_PRIM *prim )
     packs = (POLY_FT4 *)prim->packs[GV_Clock];
 
     _RotTransPers(prim->pos, prim->n_prims);
-    prim->handler(prim, packs, prim_count);
+    prim->callback(prim, packs, prim_count);
 }
 
 //todo: this is dumb, must be something else
@@ -532,7 +532,7 @@ void DG_PrimChanl( DG_CHANL *chanl, int idx )
         return;
     }
 
-    DG_Clip( clip_rect, chanl->clip_distance );
+    DG_Clip( clip_rect, chanl->screen );
 
     group_id = DG_CurrentGroupID;
     eye = &chanl->eye_inv;

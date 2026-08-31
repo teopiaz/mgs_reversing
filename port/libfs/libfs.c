@@ -99,7 +99,10 @@ FS_FILE_INFO fs_file_info[] = {
     { NULL,         0 }
 };
 
-extern int FS_DiskNum;
+/* Upstream keeps these in source/libfs/{select,cdstage}.c, which this port
+   replacement supersedes, so this file owns them. */
+int FS_DiskNum;
+int FS_ResidentCacheDirty;
 
 /* Exported for main_game.c to display */
 void *port_stage_nocache_data = NULL;
@@ -467,7 +470,6 @@ void *FS_LoadStageRequest(const char *dirname)
         if (tag->mode == 'r')
         {
             /* DAR archive — sequence of DARFILE_TAG entries */
-            extern int FS_ResidentCacheDirty;
             FS_ResidentCacheDirty = 1;
             int region = (tag->mode == 'r') ? GV_INIT_RESIDENT : GV_INIT_NOCACHE;
             DARFILE_TAG *dar = (DARFILE_TAG *)data_ptr;

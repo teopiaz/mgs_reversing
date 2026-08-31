@@ -140,6 +140,8 @@ OVERLAY_EXCLUDE = $(SRCDIR)/overlays/s12c/takabe/libdg2.c \
 	$(SRCDIR)/overlays/s11d/chara/rope/rope.c \
 	$(SRCDIR)/overlays/s11d/chara/hind/hind.c \
 	$(SRCDIR)/overlays/s11d/chara/hind/hind_bul.c \
+	$(SRCDIR)/overlays/brf/onoda/brf/b_graph.c \
+	$(SRCDIR)/overlays/s08b/animal/ninja/ninja.c \
 	$(shell find $(SRCDIR)/overlays/d18ar $(SRCDIR)/overlays/s08br $(SRCDIR)/overlays/s19br -name "*.c" 2>/dev/null)
 OVERLAY_ALL_SRC = $(shell find $(SRCDIR)/overlays -name "*.c" | sort)
 OVERLAY_SRC = $(filter-out $(OVERLAY_EXCLUDE), $(OVERLAY_ALL_SRC))
@@ -172,7 +174,7 @@ PORT_OBJ = \
 	$(OBJDIR)/kmd_loader.o \
 	$(OBJDIR)/libdg_bound.o \
 	$(OBJDIR)/libdg_chanl.o \
-	$(OBJDIR)/libdg_display.o \
+	$(OBJDIR)/libdg_frame.o \
 	$(OBJDIR)/libdg_divide.o \
 	$(OBJDIR)/libdg_light.o \
 	$(OBJDIR)/libdg_matrix.o \
@@ -282,7 +284,7 @@ $(OBJDIR)/kmd_loader.o: libdg/kmd_loader.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # Original libdg source files — need -include of patched libdg.h to fix enum conflict
-LIBDG_CFLAGS = $(CFLAGS) -include $(CURDIR)/libdg/libdg.h
+LIBDG_CFLAGS = $(CFLAGS)
 
 # Documentation for the port-copy mechanism: list libdg/<stem>.c files that
 # have a port-adapted copy under port/libdg/. The pattern rule below picks the

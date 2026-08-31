@@ -40,7 +40,7 @@ typedef struct {
     short     kill;
 } PortActorList;
 
-extern PortActorList ActorList[7];
+extern "C" void *port_gv_actor_list(int level);   /* port/libgv/actor.c */
 extern void GV_DestroyActorQuick(void *actor);
 extern int GV_Clock;
 extern int GV_Time;
@@ -201,8 +201,11 @@ extern "C" {
     extern PortMATRIX         DG_LightMatrix;   /* rows = main/sub1/sub2 directions */
     extern PortMATRIX         DG_ColorMatrix;   /* cols = main/sub1/sub2 colors */
     extern PortSVEC           DG_Ambient;       /* global ambient RGB (0..255) */
-    extern PortDG_FixedLight  gFixedLights_800B1E08[8];
-    extern PortDG_TmpLightList LightSystems_800B1E48[2];
+    /* fix_lights[]/tlights[] are file-static in source/libdg/light.c. */
+    extern "C" int   port_dg_fixed_light_count(int group);
+    extern "C" void *port_dg_fixed_light_data(int group);
+    extern "C" int   port_dg_tmp_light_count(int buf);
+    extern "C" void *port_dg_tmp_light_data(int buf);
 
     /* Lighting debug overrides (libdg_stub.c). */
     extern int   port_light_ambient_override;
@@ -995,7 +998,8 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
 
                 int total = 0, total_matches = 0;
                 for (int lv = 0; lv < 7; lv++) {
-                    PortActorList *list = &ActorList[lv];
+                    PortActorList *list = (PortActorList *)port_gv_actor_list(lv);
+                    if (!list) continue;
                     ActorNode *head = &list->first;
                     ActorNode *cur = head->next;
                     int count = 0, matches = 0;
@@ -1312,7 +1316,7 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 /* --- Fixed point lights. Each group has a count and an array,
                    total across all groups in the header.                     */
                 int fx_total = 0;
-                for (int g = 0; g < 8; g++) fx_total += gFixedLights_800B1E08[g].count;
+                for (int g = 0; g < 8; g++) fx_total += port_dg_fixed_light_count(g);
                 char fx_header[64];
                 snprintf(fx_header, sizeof(fx_header),
                          "Fixed point lights (%d%s)",
@@ -1325,8 +1329,8 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
 
                     int row = 0;
                     for (int g = 0; g < 8; g++) {
-                        int n = gFixedLights_800B1E08[g].count;
-                        PortDG_LIT *p = gFixedLights_800B1E08[g].p;
+                        int n = port_dg_fixed_light_count(g);
+                        PortDG_LIT *p = (PortDG_LIT *)port_dg_fixed_light_data(g);
                         if (n <= 0 || !p) {
                             /* Still show a disabled checkbox if the engine has
                                ever populated this group (cached via our mute),
@@ -1370,8 +1374,8 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                 char dy_header[80];
                 snprintf(dy_header, sizeof(dy_header),
                          "Dynamic lights (buf0=%d, buf1=%d%s)",
-                         LightSystems_800B1E48[0].n_lights,
-                         LightSystems_800B1E48[1].n_lights,
+                         port_dg_tmp_light_count(0),
+                         port_dg_tmp_light_count(1),
                          port_light_disable_dynamic ? " -- OFF" : "");
                 if (ImGui::CollapsingHeader(dy_header)) {
                     bool dis = port_light_disable_dynamic != 0;
@@ -1379,12 +1383,12 @@ extern "C" void imgui_render(SDL_Renderer *renderer)
                         port_light_disable_dynamic = dis ? 1 : 0;
 
                     for (int b = 0; b < 2; b++) {
-                        int n = LightSystems_800B1E48[b].n_lights;
+                        int n = port_dg_tmp_light_count(b);
                         ImGui::Text("Buffer %d: %d lights", b, n);
                         if (n > 8) n = 8;
                         ImGui::Indent();
                         for (int i = 0; i < n; i++) {
-                            PortDG_LIT *lt = &LightSystems_800B1E48[b].lights[i];
+                            PortDG_LIT *lt = &((PortDG_LIT *)port_dg_tmp_light_data(b))[i];
                             char mid[24]; snprintf(mid, sizeof(mid), "##dymute%d_%d", b, i);
                             bool m = port_light_dyn_slot_muted[b][i] != 0;
                             if (ImGui::Checkbox(mid, &m))

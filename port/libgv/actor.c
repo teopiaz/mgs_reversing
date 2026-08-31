@@ -21,7 +21,14 @@
 int SECTION(".sbss") GV_PauseLevel;
 STATIC int SECTION(".sbss") dword_800AB92C; //maybe unused
 
-extern AList ActorList[ GV_ACTOR_LEVEL ];
+typedef struct {
+    GV_ACT start;
+    GV_ACT end;
+    short  pause_level;
+    short  kill_level;
+} AList;
+
+static AList BSS ActorList[ GV_ACTOR_LEVEL ];
 
 // initialization structure for the actor lists
 // the pause and kill levels are set for each list
@@ -47,6 +54,14 @@ static struct
 /**
  * @brief Initialize the actors lists and set the pause and kill levels.
  */
+/* ActorList is file-static; the debug panel and test server walk it
+   read-only, so hand them the base pointer rather than un-static'ing it. */
+void *port_gv_actor_list( int level )
+{
+    if ( level < 0 || level >= GV_ACTOR_LEVEL ) return NULL;
+    return &ActorList[ level ];
+}
+
 void GV_InitActorSystem( void )
 {
     AList *list;

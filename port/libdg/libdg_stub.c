@@ -31,8 +31,12 @@ float port_light_ambient_scale    = 1.0f;        /* cheap brightness knob    */
 int   port_force_gouraud_neutral  = 0;           /* skip shade colors, force 128 */
 int   port_light_dump_request     = 0;           /* set from ImGui, cleared after dump */
 
-    extern DG_FixedLight   gFixedLights_800B1E08[8];
-    extern DG_TmpLightList LightSystems_800B1E48[2];
+/* fix_lights[]/tlights[] are file-static in source/libdg/light.c. */
+extern int  port_dg_fixed_light_count( int group );
+extern void port_dg_set_fixed_light_count( int group, int n );
+extern int  port_dg_tmp_light_count( int buf );
+extern void port_dg_set_tmp_light_count( int buf, int n );
+extern void port_dg_mute_tmp_light( int buf, int i );
 
 static int      s_prev_amb_override      = 0;
 static SVECTOR  s_cached_ambient;
@@ -65,11 +69,11 @@ void port_light_debug_apply(void)
                     DG_ColorMatrix.m[r][1]/16,
                     DG_ColorMatrix.m[r][2]/16);
         int fx = 0;
-        for (int g = 0; g < 8; g++) fx += gFixedLights_800B1E08[g].field_0_lightCount;
+        for (int g = 0; g < 8; g++) fx += port_dg_fixed_light_count(g);
         fprintf(stderr, "Fixed point lights: total=%d across 8 groups\n", fx);
         fprintf(stderr, "Dynamic lights: buf0=%d buf1=%d\n",
-                LightSystems_800B1E48[0].n_lights,
-                LightSystems_800B1E48[1].n_lights);
+                port_dg_tmp_light_count(0),
+                port_dg_tmp_light_count(1));
     } else if (!port_light_dump_request) {
         s_dump_seen_header = 0;  /* rearm for next press */
     }
@@ -106,13 +110,13 @@ void port_light_debug_apply(void)
     for (int g = 0; g < 8; g++) {
         int want = port_light_disable_fixed || port_light_group_disabled[g];
         if (want && !s_prev_group_disabled[g]) {
-            s_cached_group_count[g] = gFixedLights_800B1E08[g].field_0_lightCount;
-            gFixedLights_800B1E08[g].field_0_lightCount = 0;
+            s_cached_group_count[g] = port_dg_fixed_light_count(g);
+            port_dg_set_fixed_light_count(g, 0);
         } else if (!want && s_prev_group_disabled[g]) {
-            gFixedLights_800B1E08[g].field_0_lightCount = s_cached_group_count[g];
+            port_dg_set_fixed_light_count(g, s_cached_group_count[g]);
         } else if (want) {
             /* Stay off even if the engine re-set it. */
-            gFixedLights_800B1E08[g].field_0_lightCount = 0;
+            port_dg_set_fixed_light_count(g, 0);
         }
         s_prev_group_disabled[g] = want;
     }
@@ -120,27 +124,25 @@ void port_light_debug_apply(void)
     /* --- Dynamic lights: the engine rebuilds n_lights every tick, so we
        can just clobber them each frame. No caching needed. */
     if (port_light_disable_dynamic) {
-        LightSystems_800B1E48[0].n_lights = 0;
-        LightSystems_800B1E48[1].n_lights = 0;
+        port_dg_set_tmp_light_count(0, 0);
+        port_dg_set_tmp_light_count(1, 0);
     }
     for (int b = 0; b < 2; b++) {
-        int n = LightSystems_800B1E48[b].n_lights;
+        int n = port_dg_tmp_light_count(b);
         if (n > 8) n = 8;
         for (int i = 0; i < n; i++) {
             if (port_light_dyn_slot_muted[b][i]) {
-                LightSystems_800B1E48[b].lights[i].field_C_color.r = 0;
-                LightSystems_800B1E48[b].lights[i].field_C_color.g = 0;
-                LightSystems_800B1E48[b].lights[i].field_C_color.b = 0;
+                port_dg_mute_tmp_light(b, i);
             }
         }
     }
 }
 
 /* dgd.c — our custom init */
-extern int DG_LoadInitPcx(unsigned char *buf, int id);
+extern int DG_LoadInitPcx(void *buf, int id);
 static int port_dg_safe_loader(unsigned char *buf, int id) { (void)buf; (void)id; return 1; }
 
-void DG_ResetPipeline(void)
+void DG_ResetSystem(void)
 {
     /* Only reset channel 0 (background) object queue.
        Channel 1 (3D) keeps its objects across stage resets. */
@@ -148,10 +150,10 @@ void DG_ResetPipeline(void)
     DG_Chanls[0].objs_index = 0;
     DG_Chanls[0].prim_index = DG_Chanls[0].queue_size;
 }
-void DG_ResetTextureCache(void)
+void DG_ResetTexture(void)
 {
     DG_InitTextureSystem();
-    DG_LoadResidentTextureCache();
+    DG_ResetResidentTexture();
 }
 
 void DG_StartDaemon(void)
@@ -163,19 +165,19 @@ void DG_StartDaemon(void)
 
     DG_InitTextureSystem();
     DG_InitLightSystem();
-    DG_InitDispEnv(0, 0, 320, 224, 0);
+    DG_SetDispEnv(0, 0, 320, 224, 0);
     DG_InitChanlSystem(320);
-    DG_RenderPipeline_Init();
+    DG_InitFrameSystem();
 
     GV_SetLoader('p', (void *)DG_LoadInitPcx);
-    { extern int DG_LoadInitKmd(unsigned char *buf, int id); GV_SetLoader('k', (void *)DG_LoadInitKmd); }
+    { extern int DG_LoadInitKmd(void *buf, int id); GV_SetLoader('k', (void *)DG_LoadInitKmd); }
     GV_SetLoader('d', (void *)port_dg_safe_loader);
-    { extern int DG_LoadInitNar(unsigned char *, int); GV_SetLoader('n', (void *)DG_LoadInitNar); }
-    { extern int DG_LoadInitOar(unsigned char *, int); GV_SetLoader('o', (void *)DG_LoadInitOar); }
+    { extern int DG_LoadInitNar(void *, int); GV_SetLoader('n', (void *)DG_LoadInitNar); }
+    { extern int DG_LoadInitOar(void *, int); GV_SetLoader('o', (void *)DG_LoadInitOar); }
     GV_SetLoader('r', (void *)port_dg_safe_loader);
     GV_SetLoader('s', (void *)port_dg_safe_loader);
     GV_SetLoader('l', (void *)port_dg_safe_loader); /* LIT data is POD, raw buffer works */
-    { extern int DG_LoadInitImg(unsigned char *, int); GV_SetLoader('i', (void *)DG_LoadInitImg); }
+    { extern int DG_LoadInitImg(void *, int); GV_SetLoader('i', (void *)DG_LoadInitImg); }
     GV_SetLoader('z', (void *)port_dg_safe_loader);
 }
 
@@ -187,7 +189,7 @@ void DG_StartDaemon(void)
 /*   [4 bytes: table_ptr (ignored)]   [oarData...]                           */
 /* The loader computes archive and table pointers into oarData.              */
 /*---------------------------------------------------------------------------*/
-int DG_LoadInitOar(unsigned char *buf, int id)
+int DG_LoadInitOar(void *buf, int id)
 {
     /* PSX DG_OAR binary layout (16-byte header):
        offset 0: [unused/overwritten] (4 bytes)
@@ -227,7 +229,7 @@ int DG_LoadInitOar(unsigned char *buf, int id)
 /* PSX binary: [4 bytes: offset_to_data] [data...]                           */
 /* The offset is relative to the start of the struct.                        */
 /*---------------------------------------------------------------------------*/
-int DG_LoadInitNar(unsigned char *buf, int id)
+int DG_LoadInitNar(void *buf, int id)
 {
     /* NAR just has an offset in the first field pointing to data */
     uint32_t offset = *(uint32_t *)(buf + 4); /* second field on PSX */
@@ -244,7 +246,7 @@ int DG_LoadInitNar(unsigned char *buf, int id)
     return 1;
 }
 
-int DG_LoadInitImg(unsigned char *buf, int id)
+int DG_LoadInitImg(void *buf, int id)
 {
     /* PSX DG_IMG binary layout (matches original loader.c:140):
        On PSX, DG_IMG is {u16, u16, u16, u16, u32, u32, u32} = 20 bytes.
@@ -275,9 +277,9 @@ int DG_LoadInitImg(unsigned char *buf, int id)
     GV_SetCache(id, img);
     return 1;
 }
-int DG_LoadInitSgt(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
-int DG_LoadInitLit(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
-int DG_LoadInitKmdar(unsigned char *buf, int id) { (void)buf; (void)id; return 0; }
+int DG_LoadInitSgt(void *buf, int id) { (void)buf; (void)id; return 0; }
+int DG_LoadInitLit(void *buf, int id) { (void)buf; (void)id; return 0; }
+int DG_LoadInitKmdar(void *buf, int id) { (void)buf; (void)id; return 0; }
 
 /*---------------------------------------------------------------------------*/
 /* Direct renderer — bypasses PSX OT/GPU pipeline entirely                   */
@@ -397,7 +399,7 @@ static int render_debug = 0;
 static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             DG_OBJS *player_objs, short fp_mode)
 {
-    int dist = chanl->clip_distance;
+    int dist = chanl->screen;
     if (dist <= 0) dist = 256;
     int drawn_faces = 0;
 
@@ -449,7 +451,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                     "objs->world.m[0]=(%d,%d,%d)\n"
                     "objs->world.m[1]=(%d,%d,%d)\n"
                     "objs->world.m[2]=(%d,%d,%d)\n",
-                    (void*)chanl, chanl->clip_distance,
+                    (void*)chanl, chanl->screen,
                     chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2],
                     chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2],
                     chanl->eye_inv.m[1][0], chanl->eye_inv.m[1][1], chanl->eye_inv.m[1][2],
@@ -500,7 +502,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                         "[objs] world.t=(%d,%d,%d) chanl=%p clip=%d "
                         "eye_inv.t=(%d,%d,%d) m[0]=(%d,%d,%d) m[2]=(%d,%d,%d)\n",
                         objs->world.t[0], objs->world.t[1], objs->world.t[2],
-                        (void*)chanl, chanl->clip_distance,
+                        (void*)chanl, chanl->screen,
                         chanl->eye_inv.t[0], chanl->eye_inv.t[1], chanl->eye_inv.t[2],
                         chanl->eye_inv.m[0][0], chanl->eye_inv.m[0][1], chanl->eye_inv.m[0][2],
                         chanl->eye_inv.m[2][0], chanl->eye_inv.m[2][1], chanl->eye_inv.m[2][2]);
@@ -512,7 +514,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
         {
             if (!obj->model) continue;
             DG_MDL *mdl = obj->model;
-            if (!mdl->vertices || !mdl->vindices) continue;
+            if (!mdl->verts || !mdl->vindices) continue;
 
             /* Compute screen matrix for projection */
             MATRIX screen_mat;
@@ -535,10 +537,10 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
             POLY_GT4 *color_packs = ((objs->flag & DG_FLAG_SHADE) && objs->bound_mode && obj->bound_mode)
                                     ? obj->packs[idx] : NULL;
 
-            SVECTOR *verts = mdl->vertices;
+            SVECTOR *verts = mdl->verts;
             unsigned char *vindices = mdl->vindices;
-            unsigned char *texcoords = mdl->texcoords;
-            unsigned short *materials = mdl->materials;
+            unsigned char *texcoords = mdl->uvs;
+            unsigned short *materials = mdl->texids;
             int n_faces = mdl->n_faces;
 
             for (int fi = 0; fi < n_faces; fi++)
@@ -595,7 +597,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                    vs PAINT matches PSX behaviour: only SHADE objects have
                    bones whose transforms can mirror-flip per-frame. */
                 int is_character = (objs->flag & DG_FLAG_SHADE) != 0;
-                int bothface = (mdl->flags & DG_MODEL_BOTHFACE) != 0;
+                int bothface = (mdl->flag & DG_MODEL_BOTHFACE) != 0;
 
                 /* Backface cull. GL mode defers to the GPU (GL_CULL_FACE in
                    the 3D pass) which uses exact post-projection winding and
@@ -658,7 +660,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                             "  v3=(%d,%d,%d) -> eye=(%d,%d,%d)\n",
                             mi, fi,
                             objs->world.t[0], objs->world.t[1], objs->world.t[2],
-                            chanl->clip_distance,
+                            chanl->screen,
                             screen_mat.t[0], screen_mat.t[1], screen_mat.t[2],
                             screen_mat.m[0][0], screen_mat.m[0][1], screen_mat.m[0][2],
                             screen_mat.m[1][0], screen_mat.m[1][1], screen_mat.m[1][2],
@@ -694,17 +696,17 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 extern int imgui_per_pixel_light;
                 if (gl_on && imgui_per_pixel_light &&
                     (objs->flag & DG_FLAG_SHADE) && objs->light &&
-                    mdl->normals && mdl->nindices)
+                    mdl->norms && mdl->nindices)
                 {
                     unsigned int ni = ((unsigned int *)mdl->nindices)[fi];
                     int ni0 = (ni >> 0)  & 0x7F;
                     int ni1 = (ni >> 8)  & 0x7F;
                     int ni2 = (ni >> 16) & 0x7F;
                     int ni3 = (ni >> 24) & 0x7F;
-                    nvecs[0] = (const short *)&mdl->normals[ni0];
-                    nvecs[1] = (const short *)&mdl->normals[ni1];
-                    nvecs[2] = (const short *)&mdl->normals[ni2];
-                    nvecs[3] = (const short *)&mdl->normals[ni3];
+                    nvecs[0] = (const short *)&mdl->norms[ni0];
+                    nvecs[1] = (const short *)&mdl->norms[ni1];
+                    nvecs[2] = (const short *)&mdl->norms[ni2];
+                    nvecs[3] = (const short *)&mdl->norms[ni3];
                     gl_light.light_dir   = (const short *)&objs->light[0].m[0][0];
                     gl_light.light_color = (const short *)&objs->light[1].m[0][0];
                     if (objs->flag & DG_FLAG_AMBIENT)
@@ -791,7 +793,7 @@ static int port_RenderChanl(DG_CHANL *chanl, int idx, int group_id,
                 /* Texture UVs from model data (reliable, always available) */
                 uint16_t color = 0x4210;
                 port_tex_enabled = 0;
-                port_tex_semi_trans = (mdl->flags & DG_MODEL_TRANS) ? 1 : 0;
+                port_tex_semi_trans = (mdl->flag & DG_MODEL_TRANS) ? 1 : 0;
 
                 if (materials && texcoords) {
                     unsigned short mat_id = materials[fi];
@@ -1188,7 +1190,7 @@ static void port_camera_apply_overrides(void)
             *(short *)((char *)&GM_Camera + 0x22) = 0;
         }
 
-        int zoom = chanl->clip_distance ? chanl->clip_distance : 320;
+        int zoom = chanl->screen ? chanl->screen : 320;
         DG_LookAt(chanl, &eye, &center, zoom);
 
         /* Pad-origin rotation — without this, "forward" on the left
@@ -1219,7 +1221,7 @@ apply_manual:
         chanl->eye_inv.t[0] = imgui_cam_eye_inv_t[0];
         chanl->eye_inv.t[1] = imgui_cam_eye_inv_t[1];
         chanl->eye_inv.t[2] = imgui_cam_eye_inv_t[2];
-        chanl->clip_distance = (short)imgui_cam_clip_dist;
+        chanl->screen = (short)imgui_cam_clip_dist;
     }
 }
 
@@ -1254,7 +1256,7 @@ void port_RenderObjects(int idx)
                 ch->eye_inv.m[0][0], ch->eye_inv.m[0][1], ch->eye_inv.m[0][2], ch->eye_inv.t[0],
                 ch->eye_inv.m[1][0], ch->eye_inv.m[1][1], ch->eye_inv.m[1][2], ch->eye_inv.t[1],
                 ch->eye_inv.m[2][0], ch->eye_inv.m[2][1], ch->eye_inv.m[2][2], ch->eye_inv.t[2],
-                ch->clip_distance);
+                ch->screen);
         }
     }
 
@@ -1391,3 +1393,70 @@ void DG_TransChanl(DG_CHANL *chanl, int idx)
     }
 }
 void DG_TransEnd(void) {}
+
+/*---------------------------------------------------------------------------*/
+/* DG_LookAt - port-only camera helper.                                       */
+/*                                                                            */
+/* It used to live in source/libdg/display.c, which upstream renamed to       */
+/* frame.c without carrying this function over (it was never part of the      */
+/* matching decomp). Its two vectors were file-statics there; keep private    */
+/* copies here so the port owns the whole thing.                              */
+/*---------------------------------------------------------------------------*/
+
+static VECTOR port_up_vector    = { 0, -4096, 0, 0 };
+static VECTOR port_right_vector = { 0, 0, 0, 0 };
+
+void DG_LookAt(DG_CHANL *chanl, SVECTOR *eye, SVECTOR *center, int clip_distance)
+{
+    VECTOR  forward;
+    VECTOR  up;
+    VECTOR  right;
+    MATRIX *view;
+
+    chanl->screen = clip_distance;
+
+    view = &chanl->eye;
+    view->t[0] = eye->vx;
+    view->t[1] = eye->vy;
+    view->t[2] = eye->vz;
+
+    forward.vx = (signed short)(((u_short)center->vx - (u_short)eye->vx));
+    forward.vy = (signed short)(((u_short)center->vy - (u_short)eye->vy));
+    forward.vz = (signed short)(((u_short)center->vz - (u_short)eye->vz));
+
+    OuterProduct12(&port_up_vector, &forward, &right);
+
+    if (!right.vx && !right.vy && !right.vz)
+    {
+        right = port_right_vector;
+    }
+    else
+    {
+        port_right_vector = right;
+    }
+
+    VectorNormal(&right, &right);
+    VectorNormal(&forward, &forward);
+
+    OuterProduct12(&forward, &right, &up);
+
+    view->m[0][0] = right.vx;
+    view->m[0][1] = up.vx;
+    view->m[0][2] = forward.vx;
+
+    view->m[1][0] = right.vy;
+    view->m[1][1] = up.vy;
+    view->m[1][2] = forward.vy;
+
+    view->m[2][0] = right.vz;
+    view->m[2][1] = up.vz;
+    view->m[2][2] = forward.vz;
+
+    DG_TransposeMatrix(view, &chanl->eye_inv);
+
+    forward.vx = -view->t[0];
+    forward.vy = -view->t[1];
+    forward.vz = -view->t[2];
+
+    ApplyMatrixLV(&chanl->eye_inv, &forward, (VECTOR *)chanl->eye_inv.t);
+}

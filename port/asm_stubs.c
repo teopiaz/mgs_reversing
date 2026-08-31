@@ -170,14 +170,12 @@ void d18a_snake18_800D4BA4(void) {}
 void d18a_snake18_800D4C44(void) {}
 void d18a_snake18_800D4E94(void) {}
 void option_800C6784(void) {}
-void s04c_cape_800D8724(void) {}
 void s04c_revbullt_800D20BC(void) {}
 void s04c_revolver_800D184C(void) {}
 void s04c_revolver_800D1BE4(void) {}
 void s04c_revolver_800D1C60(void) {}
 void s04c_revolver_800D1CE0(void) {}
 void s04c_revolver_800D2028(void) {}
-void s04c_wire_800D3FA8(void) {}
 void s08b_blur_800D837C(void) {}
 void s08b_blur_800D851C(void) {}
 void s08b_blur_800D8AC8(void) {}
@@ -710,12 +708,9 @@ void s19b_jeep_srl_800CE020(void) {}
 void s19b_jeep_srl_800CE36C(void) {}
 void s19b_jeep2_800D667C(void) {}
 void s19b_jeep2_800D6B18(void) {}
-void s19b_jlamp_800D072C(void) {}
-void s19b_jlamp_800D07EC(void) {}
 void s19b_jlamp_800D0A20(void) {}
 void s19b_jlamp_800D0ABC(void) {}
 void s19b_jlamp_800D0C44(void) {}
-void s19b_jlamp_800D0CE0(void) {}
 void s19b_jlamp_800D0D40(void) {}
 void s19b_jlamp_800D0FF0(void) {}
 void s19b_jlamp_800D1190(void) {}

@@ -358,7 +358,7 @@ STATIC void DG_TransObj( DG_OBJ *obj, int idx )
     while ( obj )
     {
         model = obj->model;
-        vertices = (DG_PVECTOR *)model->vertices;
+        vertices = (DG_PVECTOR *)model->verts;
 
         if ( SPAD->flags & 0x1 )
         {
@@ -369,7 +369,7 @@ STATIC void DG_TransObj( DG_OBJ *obj, int idx )
             DG_TransVertices( vertices, model->n_verts );
         }
 
-        SPAD->bothface = model->flags & DG_MODEL_BOTHFACE;
+        SPAD->bothface = model->flag & DG_MODEL_BOTHFACE;
 
         packs = DG_WriteObjVertices( ( unsigned int * ) model->vindices, packs, obj->n_packs );
         obj = obj->extend;
@@ -390,7 +390,7 @@ void DG_TransChanl( DG_CHANL *chanl, int idx )
 
     work = (SCRATCH *)getScratchAddr(0);
 
-    DG_Clip(&chanl->clip_rect, chanl->clip_distance);
+    DG_Clip(&chanl->clip_rect, chanl->screen);
 
     queue = (DG_OBJS **)chanl->queue;
     for (n_objects = chanl->objs_index; n_objects > 0; n_objects--)
@@ -417,7 +417,7 @@ void DG_TransChanl( DG_CHANL *chanl, int idx )
 
 
             work->parent_packs = parent->packs[GV_Clock];
-            work->vertices = model->vertices;
+            work->vertices = model->verts;
 
             gte_SetRotMatrix(&obj->screen);
             gte_SetTransMatrix(&obj->screen);

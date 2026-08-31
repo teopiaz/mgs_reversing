@@ -49,8 +49,9 @@ typedef struct {
 /* Convert raw KMD data to proper 64-bit DG_DEF + DG_MDL                    */
 /*---------------------------------------------------------------------------*/
 
-int DG_LoadInitKmd(unsigned char *buf, int id)
+int DG_LoadInitKmd(void *buf, int id)
 {
+    unsigned char *base = (unsigned char *)buf;
     KMD_DEF_RAW *raw = (KMD_DEF_RAW *)buf;
     int n_models = raw->n_models;
 
@@ -72,35 +73,35 @@ int DG_LoadInitKmd(unsigned char *buf, int id)
     }
 
     /* Copy header */
-    def->n_visible = raw->n_visible;
-    def->n_models = raw->n_models;
-    def->min = raw->min;
-    def->max = raw->max;
+    def->n_models   = raw->n_visible;
+    def->n_x_models = raw->n_models;
+    def->lx = raw->min.vx; def->ly = raw->min.vy; def->lz = raw->min.vz;
+    def->ux = raw->max.vx; def->uy = raw->max.vy; def->uz = raw->max.vz;
 
     /* Convert each model */
     for (int i = 0; i < n_models; i++)
     {
         KMD_MDL_RAW *rm = &raw->model[i];
-        DG_MDL *mdl = &def->model[i];
+        DG_MDL *mdl = &def->models[i];
 
-        mdl->flags = rm->flags;
+        mdl->flag = rm->flags;
         mdl->n_faces = rm->n_faces;
-        mdl->min = rm->min;
-        mdl->max = rm->max;
-        mdl->pos = rm->pos;
+        mdl->lx = rm->min.vx; mdl->ly = rm->min.vy; mdl->lz = rm->min.vz;
+        mdl->ux = rm->max.vx; mdl->uy = rm->max.vy; mdl->uz = rm->max.vz;
+        mdl->tx = rm->pos.vx; mdl->ty = rm->pos.vy; mdl->tz = rm->pos.vz;
         mdl->parent = rm->parent;
-        mdl->extend = (struct _DG_OBJ *)(intptr_t)rm->extend; /* model index, NOT a pointer */
+        mdl->extend = rm->extend; /* model index, NOT a pointer */
         mdl->n_verts = rm->n_verts;
-        mdl->n_normals = rm->n_normals;
-        mdl->padding = rm->padding;
+        mdl->n_norms = rm->n_normals;
+        mdl->pad0 = rm->padding;
 
         /* Convert 32-bit offsets to 64-bit pointers (relative to raw buffer) */
-        mdl->vertices  = rm->vertices_off  ? (SVECTOR *)(buf + rm->vertices_off)  : NULL;
-        mdl->vindices  = rm->vindices_off   ? (unsigned char *)(buf + rm->vindices_off) : NULL;
-        mdl->normals   = rm->normals_off    ? (SVECTOR *)(buf + rm->normals_off)   : NULL;
-        mdl->nindices  = rm->nindices_off   ? (unsigned char *)(buf + rm->nindices_off) : NULL;
-        mdl->texcoords = rm->texcoords_off  ? (unsigned char *)(buf + rm->texcoords_off): NULL;
-        mdl->materials = rm->materials_off  ? (unsigned short *)(buf + rm->materials_off): NULL;
+        mdl->verts     = rm->vertices_off  ? (SVECTOR *)(base + rm->vertices_off)  : NULL;
+        mdl->vindices  = rm->vindices_off   ? (u_char *)(base + rm->vindices_off) : NULL;
+        mdl->norms     = rm->normals_off    ? (SVECTOR *)(base + rm->normals_off)   : NULL;
+        mdl->nindices  = rm->nindices_off   ? (u_char *)(base + rm->nindices_off) : NULL;
+        mdl->uvs       = rm->texcoords_off  ? (u_char *)(base + rm->texcoords_off): NULL;
+        mdl->texids    = rm->materials_off  ? (u_short *)(base + rm->materials_off): NULL;
     }
 
     /* Store in cache — the DG system will use this def pointer */

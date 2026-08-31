@@ -22,7 +22,9 @@
 
 #define EXEC_LEVEL GV_ACTOR_USER
 
-extern MenuWork  gMenuWork_800BD360;  /* menuman.c resident actor work */
+extern MenuWork  Work;                /* menuman.c resident actor work
+                                         (was gMenuWork_800BD360) */
+#define gMenuWork_800BD360 Work
 extern DATA_INFO dataInfo_8009EC30;   /* datasave.c "SAVE DATA" info; load mode
                                          overrides the captions itself */
 extern char      gStageName_800B4D88[16];

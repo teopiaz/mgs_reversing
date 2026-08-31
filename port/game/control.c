@@ -1,5 +1,4 @@
-#include "control.h"
-
+#define __GAME_CONTROL_C__
 #include <stdio.h>
 #include <sys/types.h>
 #include <libgte.h>
@@ -10,7 +9,7 @@
 #include "libdg/libdg.h"
 #include "libgcl/libgcl.h"
 #include "libhzd/libhzd.h"
-#include "game/map.h"
+#include "game/game.h"
 #include "strcode.h"
 #include "charaid.h"
 
@@ -19,8 +18,10 @@
 int SECTION(".sbss") GM_CurrentMap;
 int SECTION(".sbss") GM_N_WhereList;
 
-extern CONTROL *GM_WhereList[96];
-extern CONTROL  DummyPlayer;
+static CONTROL BSS DummyPlayer;
+char BSS           gap_800B56CC[ 4 ]; // TODO
+
+CONTROL *BSS GM_WhereList[ 96 ];
 
 static int QueueWhere(CONTROL *where)
 {

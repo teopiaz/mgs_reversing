@@ -13,7 +13,14 @@
  * relative to a base pointer. All OT and primitive memory must be allocated
  * from this base region (set by port_gpu_set_base). */
 
-typedef u_long P_TAG;
+/* psyq's P_TAG: the common 8-byte header every GPU primitive starts with.
+   The port keeps the link word as a plain u_long handle (see the OT table
+   below), but the rgb/code bytes must stay addressable so setRGB0() and
+   friends work on a P_TAG* (source/libdg/chanl.c:DG_SetBackgroundPrim). */
+typedef struct {
+    u_long tag;
+    u_char r0, g0, b0, code;
+} P_TAG;
 
 /* 64-bit OT pointer system.
  * Instead of storing 24-bit offsets, we use a lookup table that maps

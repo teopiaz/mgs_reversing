@@ -4,7 +4,7 @@
 #include "common.h"
 #include "game/game.h"
 
-extern GCL_SCRIPT current_script;
+GCL_SCRIPT current_script;
 
 STATIC GCL_COMMANDDEF *commdef = 0;
 

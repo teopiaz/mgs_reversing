@@ -9,6 +9,13 @@
 
 static short word_800BDCC0;
 
+#ifdef PORT_BUILD
+/* The GL renderer blacks out the widescreen side bars while the gas-mask
+   sight is up; word_800BDCC0 is file-static here, so expose it read-only. */
+int port_gmsight_active( void ) { return word_800BDCC0 != 0; }
+#endif
+
+
 extern int dword_8009F604;
 
 /*---------------------------------------------------------------------------*/

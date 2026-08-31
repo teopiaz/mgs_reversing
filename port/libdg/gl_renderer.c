@@ -2243,8 +2243,8 @@ void gl_renderer_present(void)
      * word_800BDCC0 is set/cleared by source/equip/gmsight.c (1 while
      * the gas-mask sight actor is alive, 0 otherwise). */
     if (g_widescreen && !debug_view) {
-        extern short word_800BDCC0;
-        if (word_800BDCC0 != 0) {
+        extern int port_gmsight_active(void);
+        if (port_gmsight_active()) {
             int bar_fbo_w = ((g_render_w - 320) / 2) * g_scale;
             glEnable(GL_SCISSOR_TEST);
             glScissor(0, 0, bar_fbo_w, g_fbo_h);

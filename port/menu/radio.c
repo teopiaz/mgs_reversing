@@ -16,6 +16,16 @@
 #include "linkvar.h"
 #include "sound/g_sound.h"
 
+static SPRT BSS          gRadioNumberSprt_800bd9b0;
+char BSS                 gap_800BD9C4[ 12 ]; // TODO
+static SPRT BSS          gRadioNumberSprt2_800bd9d0;
+char BSS                 gap_800BD9E4[ 12 ]; // TODO
+static SPRT BSS          gRadioStringSprt_800BD9F0;
+char BSS                 gap_800BDA04[ 12 ]; // TODO
+static PANEL_TEXTURE BSS dword_800BDA10;
+char BSS                 gap_800BDA24[ 12 ]; // TODO
+static PANEL_TEXTURE BSS dword_800BDA30;
+
 int                       SECTION(".sbss") dword_800ABAF8;
 int                       SECTION(".sbss") gRadioClut_800ABAFC;
 int                       SECTION(".sbss") gCodecAction;
@@ -27,8 +37,6 @@ short                     SECTION(".sbss") gCodecFadingCount;
 short                     SECTION(".sbss") word_800ABB1A;
 int                       SECTION(".sbss") dword_800ABB1C;
 
-extern PANEL_TEXTURE     dword_800BDA10;
-extern PANEL_TEXTURE     dword_800BDA30;
 extern RadioIncomingCall gRadioIncomingCall_8009E708;
 
 STATIC char dword_800AB610[8] = {2, 4, 3, 1, 4, 3, 1, 0};
@@ -926,7 +934,7 @@ int menu_radio_codec_helper_helper12_80041280(MenuWork *work, u_long *ot, GV_PAD
 
     if (pPad->press & PAD_CIRCLE)
     {
-        GM_LastResultFlag = pMenuChara->field_1A_index;
+        GM_Result = pMenuChara->field_1A_index;
         sub_80041118(work);
         return 1;
     }
@@ -1221,7 +1229,7 @@ skip_fading:
                     break;
                 case 2:
                     printf("set call freq %d\n", codec_freq_800AB638);
-                    menu_radio_codec_helper_helper_8004E198(codec_freq_800AB638);
+                    MENU_SetCallFreq(codec_freq_800AB638);
                     work->field_210_codec_state = 6;
                     break;
                 case 3:
@@ -1353,7 +1361,7 @@ skip_fading:
             work->field_212--;
             if (work->field_212 == 0)
             {
-                if (GM_OptionFlag & OPTION_ENGLISH)
+                if (GM_Configuration & GM_CONFIG_ENGLISH)
                 {
                     menu_radio_codec_helper__helper13_800410E4(work, "NO RESPONSE");
                 }
@@ -1568,7 +1576,7 @@ STATIC void menu_radio_update_80042198(MenuWork *work, u_long *ot)
                 menu_radio_update_helper2_80038A7C();
                 MENU_JimakuClear();
                 GV_PauseLevel |= GV_PAUSE_STOP;
-                DG_FreeObjectQueue();
+                DG_StopMainChanlSystem();
                 DG_BackGroundBlack();
                 GV_SetPacketTempMemory();
                 menu_radio_update_helper5_80042160(work);
@@ -1645,7 +1653,7 @@ STATIC void menu_radio_update_80042198(MenuWork *work, u_long *ot)
                     if (timer == 0 &&
                         (gRadioIncomingCall_8009E708.field_2_timer > 240 || gRadioIncomingCall_8009E708.field_8 != 0))
                     {
-                        GM_SeSet2(0, 0x3F, SE_RADIO_INCOMING);
+                        GM_SeSet2(0, 0x3F, SE_RADIO_CALL);
                         return;
                     }
                 }
@@ -1757,11 +1765,11 @@ void MENU_RadioCall(int param_1, int param_2, int time)
            gRadioIncomingCall_8009E708.field_2_timer);
 }
 
-void MENU_SetLoad(int procNameHashed, int param_2, short param_3)
+void MENU_SetLoad(int procNameHashed, char *param_2, short param_3)
 {
     gRadioIncomingCall_8009E708.field_0 = param_3;
     gRadioIncomingCall_8009E708.field_2_timer = -1;
-    gRadioIncomingCall_8009E708.field_4 = param_2;
+    gRadioIncomingCall_8009E708.field_4 = (int)param_2;
     gMenuCallbackProc_800ABB08.procNameHashed = procNameHashed;
     gMenuCallbackProc_800ABB08.type = 1;
 }
@@ -1791,9 +1799,6 @@ void MENU_SetRadioCallbackProc(int proc_id)
 // under the "8 bytes" threshold in G8). Without it, it would force
 // us to compile this function (and the entire file) with -G0.
 STATIC RECT SECTION(".sdata") rect_800AB64C[] = {{960, 488, 64, 10}};
-
-extern SPRT gRadioNumberSprt_800bd9b0;
-extern SPRT gRadioNumberSprt2_800bd9d0;
 
 void menu_number_init(MenuWork *work)
 {
@@ -2139,8 +2144,6 @@ int menu_number_draw(MenuWork *work, u_long *ot, int xpos, int ypos, int number,
     return textConfig.xpos;
 }
 
-extern SPRT gRadioNumberSprt_800bd9b0;
-
 int menu_number_draw_number2(MenuWork *work, int xpos, int ypos, int current, int total)
 {
     SPRT      *pPrim;
@@ -2184,8 +2187,6 @@ int menu_number_draw_string(MenuWork *work, u_long *ot, int xpos, int ypos, cons
 }
 
 STATIC RECT gRadioStringRect_800AB658 = {960, 498, 0, 0};
-
-extern SPRT gRadioStringSprt_800BD9F0;
 
 void menu_set_string2(void)
 {

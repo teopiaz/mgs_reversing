@@ -26,7 +26,7 @@ typedef struct {
     GV_ACT actor;
 } Work;
 
-extern Work GV_Work;
+static Work BSS GV_Work;
 
 /*---------------------------------------------------------------------------*/
 

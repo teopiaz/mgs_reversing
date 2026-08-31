@@ -29,7 +29,9 @@
 #include "memcard/memcard.h"
 #include "mts/mts.h"
 
-extern MEM_CARD gMemCards[2]; /* defined in source/data/bss.c */
+/* source/memcard/memcard.c is not in the port build and upstream made its
+   copy static, so this host backend owns the card state. */
+MEM_CARD gMemCards[2];
 
 static int  g_io_status = 0;          /* >0 busy, 0 ok, -1 err */
 static char g_card_dirs[2][1024];

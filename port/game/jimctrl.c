@@ -2,17 +2,48 @@
 
 #include <stdio.h>
 #include "common.h"
-#include "libfs/libfs.h"
 #include "linkvar.h"
+#include "libfs/libfs.h"
+#include "game/game.h"
 #include "menu/menuman.h"
 #include "sound/sd_cli.h"
 
-extern array_800B933C_child array_800B933C[array_800B933C_SIZE];
+typedef struct {
+    GV_ACT actor;
+    int   field_20;
+    short field_24;
+    char  field_26;
+    char  field_27;
+    int   field_28;
+    int   field_2C;
+    int   field_30;
+    int  *field_34;
+    char *field_38; // Pointer to data used to update Codec portraits, mainly by 80038070().
+    int   field_3C;
+    int   field_40;
+    // Pointer to subtitles, mainly used by 80038070():
+    // - @ 0x80038240 (R): reads the current subtitle; if disabled, the subtitles no longer update.
+    // - @ 0x80038340 (W): updates the pointer; if disabled, all the subtitles play in one go.
+    int  *field_44_subtitles;
+    int   field_48;
+    int   field_4C;
+    char  field_50_buffer[4090];
+} Work;
 
-extern JimakuCtrlWork jimctrl_work;
+typedef struct
+{
+    char *field_0;
+    int  *field_4;
+    short data_offset;
+    short subtitle_offset;
+    int   font_offset;
+} SubtitleHeader;
+
+static Work BSS                 JimCtrlWork;
+static array_800B933C_child BSS array_800B933C[ array_800B933C_SIZE ];
+static int BSS                  dword_800B9358;
 
 extern int str_status;
-extern int dword_800B9358;
 
 char *dword_8009E28C = NULL;
 
@@ -77,7 +108,7 @@ static void jimctrl_helper_null_80037FFC(int a, int b)
     /* do nothing */
 }
 
-static void jimctrl_kill_helper_clear_80038004(JimakuCtrlWork *work)
+static void jimctrl_kill_helper_clear_80038004(Work *work)
 {
     array_800B933C_child *pIter;
     int                   i;
@@ -100,7 +131,7 @@ static void jimctrl_kill_helper_clear_80038004(JimakuCtrlWork *work)
     }
 }
 
-static inline void jimctrl_act_helper_80038070(JimakuCtrlWork *work, int str_counter)
+static inline void jimctrl_act_helper_80038070(Work *work, int str_counter)
 {
     int  *pSubtitles = work->field_44_subtitles;
     int   f48;
@@ -169,7 +200,7 @@ static inline void jimctrl_act_helper_80038070(JimakuCtrlWork *work, int str_cou
     }
 }
 
-static inline void jimctrl_act_helper2_80038070(JimakuCtrlWork *work, int str_counter)
+static inline void jimctrl_act_helper2_80038070(Work *work, int str_counter)
 {
     int value;
 
@@ -227,8 +258,7 @@ static inline void jimctrl_act_helper2_80038070(JimakuCtrlWork *work, int str_co
     }
 }
 
-
-static void Act(JimakuCtrlWork *work)
+static void Act(Work *work)
 {
     int   str_counter;
     void *pStrData;
@@ -243,6 +273,8 @@ static void Act(JimakuCtrlWork *work)
         GV_DestroyActor(&work->actor);
     }
 
+#ifdef PORT_BUILD
+#endif
     str_counter = get_str_counter();
     if ((str_counter < 0) || (str_status == 0))
     {
@@ -250,6 +282,7 @@ static void Act(JimakuCtrlWork *work)
         {
             return;
         }
+#ifdef PORT_BUILD
         /* On the port, str_tick_count stays -1 for a few frames after
            StartStream because the SPU IRQ-driven state advance doesn't
            run instantly. Don't destroy jimctrl if the stream is still
@@ -258,6 +291,7 @@ static void Act(JimakuCtrlWork *work)
         {
             return;
         }
+#endif
         GV_DestroyActor(&work->actor);
         return;
     }
@@ -286,16 +320,17 @@ static void Act(JimakuCtrlWork *work)
         }
 
         size = FS_StreamGetSize(pStrData);
-        memcpy(jimctrl_work.field_50_buffer, pStrData, size);
+        memcpy(JimCtrlWork.field_50_buffer, pStrData, size);
         FS_StreamClear(pStrData);
 
         if (!work->field_34)
         {
+#ifdef PORT_BUILD
             /* SubtitleHeader has pointer fields — PSX layout is 16 bytes,
                port layout is 28 bytes. Parse raw PSX format manually:
                [field_0:4][field_4:4][data_offset:2][subtitle_offset:2][font_offset:4] */
             {
-                unsigned char *raw = (unsigned char *)jimctrl_work.field_50_buffer;
+                unsigned char *raw = (unsigned char *)JimCtrlWork.field_50_buffer;
                 short raw_data_off, raw_sub_off;
                 int raw_font_off;
                 memcpy(&raw_data_off, raw + 8, 2);
@@ -315,6 +350,26 @@ static void Act(JimakuCtrlWork *work)
 
                 font_set_font_addr(3, (char *)raw + raw_font_off);
             }
+#else
+            pHeader = (SubtitleHeader *)JimCtrlWork.field_50_buffer;
+
+            work->field_34 = (int *)pHeader;
+            work->field_38 = (char *)pHeader + pHeader->data_offset;
+
+            pSubtitles = (int *)((char *)pHeader + pHeader->subtitle_offset);
+            pHeader2 = pHeader;
+
+            if ((pSubtitles[0] == 0) && (pSubtitles[1] == 0) && (pSubtitles[2] == 0))
+            {
+                pSubtitles = NULL;
+            }
+
+            work->field_44_subtitles = pSubtitles;
+            work->field_48 = 0;
+            work->field_40 = 0;
+
+            font_set_font_addr(3, (char *)pHeader + pHeader2->font_offset);
+#endif
         }
 
         work->field_20 = 1;
@@ -351,7 +406,7 @@ static void Act(JimakuCtrlWork *work)
 }
 
 
-static void Die(JimakuCtrlWork *work)
+static void Die(Work *work)
 {
     jimctrl_kill_helper_clear_80038004(work);
     dword_8009E28C = NULL;
@@ -362,7 +417,7 @@ void *NewJimakuControl(u_long flags)
 {
     int           *seekResult;
     u_long         toSeek = 4;
-    JimakuCtrlWork *work = &jimctrl_work;
+    Work *work = &JimCtrlWork;
 
     if (flags & 0x80)
     {
@@ -370,15 +425,15 @@ void *NewJimakuControl(u_long flags)
     }
     seekResult = FS_StreamGetData(toSeek);
 
-    if (GM_OptionFlag & OPTION_ENGLISH)
+    if (GM_Configuration & GM_CONFIG_ENGLISH)
     {
-        jimctrl_work.field_27 = 3;
-        jimctrl_work.field_26 = 6;
+        JimCtrlWork.field_27 = 3;
+        JimCtrlWork.field_26 = 6;
     }
     else
     {
-        jimctrl_work.field_27 = 6;
-        jimctrl_work.field_26 = 3;
+        JimCtrlWork.field_27 = 6;
+        JimCtrlWork.field_26 = 3;
     }
 
     if (seekResult != 0)
@@ -409,7 +464,7 @@ void *NewJimakuControl(u_long flags)
         work->field_20 = 0;
         dword_800B9358 = 0;
 
-        return (void *)&jimctrl_work;
+        return (void *)&JimCtrlWork;
     }
 }
 

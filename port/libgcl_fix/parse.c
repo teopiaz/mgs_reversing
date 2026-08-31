@@ -13,8 +13,8 @@ unsigned char **SECTION(".sbss") commandline_p;
 unsigned char  *SECTION(".sbss") next_str_ptr;
 
 /*** bss ***/
-extern int            argbuffer[32];
-extern unsigned char *commandlines[8];
+int                   argbuffer[32];
+unsigned char        *commandlines[8];
 
 void GCL_SetArgTop(unsigned char *top)
 {
