@@ -1,8 +1,208 @@
-# Rebase Conflict Log: editor → master
+# Rebasing the port onto master
 
-This file records how conflicts were resolved while rebasing the `editor`
-branch onto `master`. Use it as reference if a similar rebase is needed in the
-future, or to audit a resolution.
+Upstream `master` is active decomp work by other contributors, so the port
+has to be rebased onto it periodically. This has been done twice so far:
+
+| When | Branch | Base → onto | Commits replayed | source/-touching | Actually conflicted |
+|---|---|---|---|---|---|
+| Jun 2026 | `editor` | ? → Jun master | — | — | see per-commit log below |
+| Aug 2026 | `port-title` | `b14e83941` → `7964de7fd` (416 upstream commits) | 350 | 117 | **27** |
+
+Read the **Playbook** first; the **Recurring fixes** catalogue is the part
+that actually saves time. The per-commit log at the bottom is history — useful
+for auditing a specific resolution, not for planning.
+
+---
+
+## Playbook
+
+A rebase is **two phases**, and the second is the bigger one. Budget for it.
+
+### Phase 0 — before you start
+
+1. `git tag <branch>-prerebase` and **build + run the pre-rebase tip**. You
+   need a known-good reference; without one you cannot tell a regression from
+   a latent bug. (In Aug 2026 the pre-rebase tip turned out to stall at
+   stage-load on the dev machine, which made the comparison useless — better
+   to discover that up front.)
+2. Check for other port branches first (`git branch -a`). In Aug 2026 a whole
+   rebase was redone on an abandoned branch before anyone noticed `port-title`
+   was the live line.
+
+### Phase 1 — the replay
+
+Most commits touch only `port/`, which upstream never touches, so they apply
+clean. Conflicts cluster in the early "initial port" commits and in `libdg`.
+
+Loop: resolve → `git add -A source port` → `git rebase --continue`, and keep
+continuing while no conflict appears. Roughly 1 in 4 source-touching commits
+actually stops you.
+
+Two shapes worth recognising immediately:
+
+- **Mis-anchored hunk.** Upstream extracted the code into a helper, so git
+  anchors the port's block onto whatever text still matches — often a
+  different function. Take HEAD, then re-apply the port's change at its real
+  new home. Do not try to merge the hunk in place.
+- **Upstream decompiled it too.** If the port commit replaced a
+  `#pragma INCLUDE_ASM` with C and master now has its own C version, master's
+  wins — it's the matching decomp.
+
+### Phase 2 — the build repair
+
+Expect ~1800 errors on the first build. They collapse fast if you work in this
+order; do not start fixing individual call sites before doing 1 and 2.
+
+1. **Kill stale header forks first.** `port/libdg/libdg.h` was a stale copy of
+   `source/libdg/libdg.h` that `-I .` made shadow the real one: **1615 of 1856
+   errors**. Delete it and remove the Makefile's `-include` of it.
+2. **Re-sync the port copies** (the `*_PORT_COPIES` lists) with a 3-way merge
+   against their base version — 21 of 26 merged clean:
+
+   ```sh
+   BASE=<old base sha>
+   for f in port/<dir>/<file>.c ...; do
+     rel="source/${f#port/}"
+     git show "$BASE:$rel" > /tmp/old.c
+     git merge-file --diff3 -L "port copy" -L "base" -L "upstream" \
+        "$f" /tmp/old.c "$rel"
+   done
+   ```
+
+   For the ones that conflict, there is usually a **better source**: the
+   commit that promoted the file to a port copy (`git log --diff-filter=A --
+   port/<f>`) — its **parent** holds `source/<f>` with the port guards already
+   applied to upstream's shape. `git show <promote>^:source/<f> > port/<f>`.
+3. Then work the remaining errors by file, largest first.
+
+### Phase 3 — verification
+
+```sh
+make clean && make -j8                     # header deps are NOT tracked (see below)
+PORT_GL=1 PORT_AUTOLOAD_STAGE=s00a ./mgs <disc>.cue
+```
+
+`PORT_AUTOLOAD_STAGE` also skips the pre-game menu, which otherwise blocks a
+headless run. Healthy output: stage loads, `exec scenario`, then `[tick N]`
+lines with **Snake at non-zero coordinates** and `hp=256/256`. Snake at
+`(0,0,0)` with ticks stopping means it stalled, not that it is idle.
+
+`port/psx/struct_assertions.c` is a free canary — if the layout asserts still
+pass after a rebase, the struct work is right.
+
+---
+
+## Traps that cost real time
+
+- **The Makefile has no header dependency tracking.** Editing a header does
+  *not* trigger recompiles. Twice a "fix" looked like it failed when the object
+  was simply stale. After touching any header: `make clean`. (Adding
+  `-MMD -MP` + `-include $(OBJ:.o=.d)` would fix this permanently.)
+- **`git` paths are relative to your shell's cwd.** After `cd port`, a
+  `git log -- port/x.c` silently returns nothing. Run git from the repo root.
+- **`grep -c error` on a build log counts `-Wno-error` in the compiler flags.**
+  Grep for `error:` with the colon.
+
+---
+
+## Recurring fixes
+
+These recurred across both rebases and will very likely recur again.
+
+### Upstream renamed a struct field or type
+
+| Was | Now | Where it bites |
+|---|---|---|
+| `DG_MDL.vertices / normals / texcoords / materials / flags` | `verts / norms / uvs / texids / flag` | `kmd_loader.c`, `libdg_stub.c`, `test_server.c` |
+| `DG_MDL.min/max/pos`, `DG_DEF.min/max` | `lx..lz / ux..uz / tx..tz` | `kmd_loader.c` |
+| `DG_DEF.n_visible / n_models` | `n_models / n_x_models` | `kmd_loader.c` — note the shift in meaning |
+| `DG_CHANL.clip_distance` | `screen` | `libdg_stub.c`, `demoexec.c`, `imgui_debug.cpp` |
+| `HZD_MAP` | `HZD_DEF` | `hzd_loader.c`, `hzdd.c` |
+| `HZD_HDL.header / group` | `def / grp` | `snake.c`, `test_server.c` |
+| `GM_TotalHours/Seconds/Saves`, `GM_OptionFlag`, `GM_DifficultyFlag`, `GM_CurrentStageFlag`, `GM_SnakePos*`, `GM_LastResultFlag` | `GM_PlayTimeHours/Seconds`, `GM_SaveCount`, `GM_Configuration`, `GM_GameLevel`, `GM_SaveArea`, `GM_PlayerPos*`, `GM_Result` | `linkvar.h` consumers |
+| `CHARA_00xx_*` cutscene entries | `DEMO_*` | `extern_stubs.c` — **map by hash id, not by name** |
+
+### Upstream moved a global into a per-file `static`
+
+Two remedies, pick by who owns the data:
+
+- The port **replaces** that file (it is a port copy or a `libgcl_fix` fork) →
+  the port file takes ownership: turn its `extern` into a definition.
+  Done for `linkvarbuf`, `sv_linkvarbuf`, `argbuffer`, `commandlines`,
+  `current_script`, `gGcl_vars_*`, `gStageName_*`, `gBindsArray_*`,
+  `FS_DiskNum`, `FS_ResidentCacheDirty`, `gMemCards`.
+- Upstream still compiles it and the static should **stay** static → add a
+  narrow `#ifdef PORT_BUILD` accessor next to it rather than un-static'ing.
+  Done for the light tables (`light.c`), the actor list (`libgv/actor.c`) and
+  the gas-mask sight flag (`gmsight.c`).
+
+### Upstream renamed or split a file
+
+`display.c` → `frame.c`; `collide.c` → `online.c`/`near.c`; `event.c` →
+`bind.c`/`trap.c`; `demo.c` → `demoexec.c`/`demoscrn.c`; `zone.c` →
+`navigate.c`.
+
+Follow the code to its new home, and **check the Makefile object list** —
+`libdg_display.o` had to become `libdg_frame.o`. Watch for port-only functions
+that lived in the renamed file: `DG_LookAt` was port-only, lived in
+`display.c`, and had no upstream counterpart; it moved to
+`port/libdg/libdg_stub.c` with private copies of its two vectors.
+
+### The port's PSX shims drift from psyq
+
+- `P_TAG` must be psyq's 8-byte primitive header (`tag` + `r0,g0,b0,code`),
+  not a bare `u_long` — `chanl.c:DG_SetBackgroundPrim` calls `setRGB0` on a
+  `P_TAG *`.
+- `setXYWH` targets **4-vertex prims** and fills the four corners. It does not
+  write `w`/`h` (those exist only on SPRT/TILE, which use `setWH`).
+
+### Memory-base macros
+
+The single nastiest one, because it fails at *runtime*, not build time.
+Upstream replaced `GV_NORMAL_MEMORY_TOP` / `GV_PACKET_MEMORY*_TOP` with
+`MEM_ADDR` / `PACK_ADDR0` / `PACK_ADDR1` / `MEM_BOTTOM` / `MEM_SIZE` /
+`PACK_SIZE`. `port/libgv/libgv.h` overrides them by name, so a rename silently
+un-overrides them, `GV_Malloc` starts handing out **PSX** addresses, and the
+first `GV_NewActor` segfaults at `0x80117000`.
+
+If you see a fault at an `0x80xxxxxx` address, check this file first. Sizes
+must stay in sync with `port/port_memory.c`.
+
+### Link-time: duplicates and stubs
+
+- **Duplicate symbols in `asm_stubs.c`** — upstream decompiled a function the
+  port still stubs. Prune the stub. (Jun→Aug: 259 on `editor_mac`, 5 on
+  `port-title`, which had already been pruned once.)
+- **Undefined symbols** — usually a stage table referencing an actor whose file
+  is excluded, or a function still `#pragma INCLUDE_ASM` upstream. Add a stub
+  to `link_stubs.c`. Note that `link_stubs.c` stubs also carry **old names**
+  and need renaming when upstream renames the actor (verify by hash in
+  `charalst.h`).
+
+### New upstream files the port cannot compile
+
+Newly decompiled overlays sometimes size PSX padding as
+`0xNNN - 0xMMM - sizeof(T)`, which goes **negative** once `T` holds 64-bit
+pointers ("array is too large" with an absurd count). Others call functions
+through declarations that disagree with their prototypes. Neither is fixable
+port-side — add them to `OVERLAY_EXCLUDE` and stub whatever the stage tables
+need. So far: `snake18.c`, `ninja.c`, `hind.c`, `rope.c`, `jeep_liq.c`,
+`b_graph.c`.
+
+### MIPS-vs-host semantic divergence
+
+A class of bug the compiler cannot catch and that only shows up at runtime.
+MIPS `div` leaves an **undefined result** for a zero divisor and keeps running;
+x86-64 `idiv` raises **SIGFPE**. So a zero-divisor path is invisible on PSX and
+fatal on the port — `takabe/fadeio.c` divides by a zero fade duration in the
+s03d attract demo.
+
+Guard under `PORT_BUILD`, pick the semantically-complete value rather than a
+magic number, and **log once** so it stays visible if the zero is really a
+parsing bug rather than genuine data. Expect more of these as the port reaches
+code paths it never used to.
+
+---
 
 ## Strategy
 
@@ -16,6 +216,8 @@ future, or to audit a resolution.
   edits inside `source/`, preserve them but adapt to master's new names/types.
 
 ---
+
+# Per-commit log — Jun 2026 rebase (`editor` → master)
 
 ## 447737664 — "initial port to mac"
 
