@@ -161,7 +161,6 @@ PORT_OBJ = \
 	$(OBJDIR)/imgui_impl_opengl3.o \
 	$(OBJDIR)/port_memory.o \
 	$(OBJDIR)/extern_stubs.o \
-	$(OBJDIR)/game_stubs.o \
 	$(OBJDIR)/asm_stubs.o \
 	$(OBJDIR)/gte_math.o \
 	$(OBJDIR)/gpu_stubs.o \
@@ -254,9 +253,6 @@ $(OBJDIR)/port_memory.o: port_memory.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/extern_stubs.o: extern_stubs.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(OBJDIR)/game_stubs.o: game_stubs.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/asm_stubs.o: asm_stubs.c | $(OBJDIR)
