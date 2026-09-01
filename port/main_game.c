@@ -321,6 +321,12 @@ void game_tick(void)
                     break;
                 case 2: case 3: case 4: case 5: case 6:
                     sub_800827A4();
+                    /* Derive end-of-stream from the SPU emulator and hand the
+                       state machine the 5->6 nudge the PSX SPU IRQ would, so
+                       KeyOffStr/StrSpuTransClose run and release the stream
+                       reference FS_StreamIsEnd() keys on. */
+                    { extern void port_stream_drain_check(void);
+                      port_stream_drain_check(); }
                     break;
                 case 7:
                     KeyOffStr();

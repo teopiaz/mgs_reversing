@@ -807,7 +807,11 @@ static int   stream_end         = 0;   /* hit 0xF0 / EOF */
 static int   stream_stop        = 0;   /* user FS_StreamStop */
 static int   stream_task_state  = 0;   /* -1=priming, 0=ready, matches PSX */
 static PortFile *stream_pf      = NULL;
-static int   stream_ended       = 0;   /* derived end-of-playback (see FS_StreamIsEnd) */
+/* Upstream fs_stream_ref_count (source/libfs/stream.c:13). FS_StreamIsEnd()
+ * is a reference count, NOT an EOF test: the stream is "ended" exactly when
+ * no holder (the sd_str driver, jimctrl subtitles, the demo thread) has it
+ * open any more. See FS_StreamIsEnd below. */
+static int   stream_ref_count   = 0;
 static int   port_stream_tick   = 0;   /* monotonic counter for FS_StreamGetTick (port-only stand-in for PSX VSync timer) */
 
 /* (mod heap size) bytes between top and write_ptr — i.e., parseable data. */
@@ -921,7 +925,6 @@ void FS_StreamTaskStart(int sector)
     stream_write_ptr = 0;
     stream_end = 0;
     stream_stop = 0;
-    stream_ended = 0;
     stream_active = 1;
     stream_task_state = -1;
 
@@ -974,19 +977,18 @@ int FS_StreamGetTop(int is_demo)
     return is_demo ? DEMO_SECTOR_BASE : VOX_SECTOR_BASE;
 }
 
-int FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; return 0; }
+int FS_StreamInit(void *pHeap, int heapSize) { (void)pHeap; (void)heapSize; stream_ref_count = 0; return 1; }
 
 void FS_StreamStop(void)
 {
     stream_stop = 1;
     stream_end = 1;
-    stream_ended = 1;
     stream_active = 0;
     stream_task_state = 0;
 }
 
-void FS_StreamOpen(void) {}
-void FS_StreamClose(void) {}
+void FS_StreamOpen(void)  { ++stream_ref_count; }
+void FS_StreamClose(void) { if (stream_ref_count > 0) { --stream_ref_count; } }
 
 /* Editor-only accessor: read raw bytes from one of the opened DAT files
  * (file_id matches the FS_FILEID_* enum). Used by the DMO inspector to
@@ -1004,66 +1006,75 @@ int port_fs_read_dat(int file_id, long byte_off, int len, void *buf)
 
 int FS_StreamIsEnd(void)
 {
-    /* End conditions: explicit stop, EOF/0xF0 with heap drained, or audio
-       playback caught up to the producer (codec line finished). The cutscene
-       GCL proc callback handles the actual stage transition.
-       FS_StreamStop() can end it early (skip / pad_demo finish). */
-    if (!stream_active) return 1;
-    if (stream_ended) return 1;
-    if (stream_end && stream_top == stream_write_ptr) {
-        stream_ended = 1;
-        return 1;
+    /* Upstream (source/libfs/stream.c:369) is simply
+     *     return fs_stream_ref_count == 0;
+     * -- a reference count, not an end-of-file test.  The port used to
+     * derive this from EOF plus an SPU-cursor heuristic, and that raced
+     * fatally with strctrl.c Act() case 3, which needs
+     *     sub_state == 2 && !FS_StreamIsEnd()   -> sub_state = 0
+     *     !sub_state && FS_StreamIsEnd() && !FS_StreamSync()  -> end
+     * i.e. it must observe IsEnd false on one tick and true on a later one.
+     * A short stream (a codec VOX line) drained the heap in the same tick
+     * that processed its last entry, so IsEnd was already true -- and
+     * sticky -- when sub_state hit 2.  sub_state never returned to 0, the
+     * strctrl actor never reached "StreamPlay end", GM_StreamStatus() stayed
+     * at 2 instead of -1, and the codec task blocked forever in
+     *     while (GM_StreamStatus() != -1) mts_wait_vbl(2);
+     * -- the Mei Ling call that never gets to its save prompt.  Long cutscene
+     * streams won the race and worked, which is why this only bit short lines.
+     *
+     * The reference count has no such race: sd_str.c's StartStream() opens it
+     * and StrSpuTransClose() (via KeyOffStr, str_status 7) closes it, long
+     * after the last entry is consumed.  The SPU-drain detection that used to
+     * live here now drives that teardown instead of faking its result --
+     * see port_stream_drain_check(). */
+    return stream_ref_count == 0;
+}
+
+/* Formerly the tail of FS_StreamIsEnd.  On PSX the SPU signals end-of-stream
+ * in hardware and sd_str.c case 5 walks 5->6->7 on its own; here we derive it
+ * from the emulator's read cursor catching up to the write cursors, and then
+ * hand the state machine the same nudge its force-stop branch would
+ * (str_off_idx = -1, ++str_status), so the normal KeyOffStr/StrSpuTransClose
+ * teardown runs and drops the stream reference.
+ *
+ * A stream is finished when the stream voice was keyed on at least once
+ * (wr_r > 0), the read cursor has reached both write cursors, and we see that
+ * stably across two polls (guards an off-by-one where the next chunk simply
+ * hasn't been produced yet).  Called once per game frame, from the str_status
+ * block in main_game.c -- the same cadence the old in-getter version ran at. */
+void port_stream_drain_check(void)
+{
+    extern int port_spu_stream_info(int *pcm_rd, int *pcm_wr_r, int *pcm_wr_l,
+                                    int *active, unsigned long *base_r,
+                                    unsigned long *base_l);
+    extern unsigned int str_status;
+    extern int          str_off_idx;
+    static int seen = 0;
+    int rd = 0, wr_r = 0, wr_l = 0, sa = 0;
+
+    /* Only while the driver actually holds a stream (sd_main states 2..6).
+     * keyOn happens in case 4, and playback then runs in 5 *and* 6 -- a short
+     * line can reach 6 in the same call that keys on, so gating this on
+     * state 5 alone misses it entirely and nothing ever tears the stream
+     * down. */
+    if (str_status < 2 || str_status > 6) { seen = 0; return; }
+
+    port_spu_stream_info(&rd, &wr_r, &wr_l, &sa, NULL, NULL);
+    if (!(wr_r > 0 && rd >= wr_r && rd >= wr_l)) { seen = 0; return; }
+
+    seen++;
+    /* In playback two consecutive frames is enough (the old in-getter version
+     * used the same debounce at the same cadence). Below state 5 the driver is
+     * still priming its buffers and the read cursor can legitimately outrun the
+     * write cursor, so only act there on a long stall. */
+    if (str_status >= 5 ? (seen >= 2) : (seen >= 30)) {
+        printf("[stream] drained (str_status=%u rd=%d wr_r=%d wr_l=%d) -> teardown\n",
+               str_status, rd, wr_r, wr_l);
+        seen        = 0;
+        str_off_idx = -1;
+        str_status  = 6;   /* -> 7 -> KeyOffStr -> StrSpuTransClose */
     }
-
-    /* Natural-end detection: the codec script does
-         while (GM_StreamStatus() != -1) mts_wait_vbl(2);
-       after starting a VOX line and expects this to terminate when the
-       audio finishes playing. On PSX the SPU signals end-of-stream via
-       hardware; here we have to derive it from the SPU emulator's read
-       cursor catching up to the game's write cursor.
-
-       A stream is considered finished when:
-         (1) the SPU stream voice was keyed on at least once (wr_r > 0),
-         (2) the audio thread's read cursor has reached or passed both
-             the L and R write cursors (no more PCM left), AND
-         (3) we observe this condition stably across at least 2 polls
-             (~33 ms between codec wait_vbl(2) cycles) — guards against
-             an off-by-one where the game just hasn't produced the next
-             chunk yet but is about to.
-
-       Without this the codec call hangs forever in stages whose Mei
-       Ling voice line isn't long enough for the user to press CROSS
-       during the brief codec_state==5 window. */
-    {
-        extern int port_spu_stream_info(int *pcm_rd, int *pcm_wr_r, int *pcm_wr_l,
-                                        int *active, unsigned long *base_r,
-                                        unsigned long *base_l);
-        static int prev_seen_done = 0;
-        int rd = 0, wr_r = 0, wr_l = 0, sa = 0;
-        port_spu_stream_info(&rd, &wr_r, &wr_l, &sa, NULL, NULL);
-        if (wr_r > 0 && rd >= wr_r && rd >= wr_l) {
-            if (prev_seen_done) {
-                stream_ended = 1;
-                prev_seen_done = 0;
-                /* Also force the sd_main str_status state machine back to
-                   idle. On PSX it transitions 5→6→7→0 when sd_str.c
-                   exhausts FS_StreamGetData; in the port it sometimes
-                   gets stuck at 5/6 because the order of mts task wakes
-                   diverges. If we leave it stuck, sd_str_play() returns
-                   true forever (status > 4) and the next stream playback
-                   attempt floods "Double Pcm" instead of keying on. */
-                {
-                    extern unsigned int str_status;
-                    str_status = 0;
-                }
-                return 1;
-            }
-            prev_seen_done = 1;
-        } else {
-            prev_seen_done = 0;
-        }
-    }
-    return 0;
 }
 
 void *FS_StreamGetData(int target_type)
