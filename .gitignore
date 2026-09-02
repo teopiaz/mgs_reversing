@@ -56,3 +56,6 @@ port/editor/data/
 tools/stage_assets/
 Metal Gear Solid - Integral (J) (Disc 1) \[SLPM-86247]/Metal Gear Solid - Integral (J) (Disc 1) \[SLPM-86247].7z
 Metal Gear Solid - Integral (J) (Disc 1) \[SLPM-86247]/Metal Gear Solid - Integral (J) (Disc 1) \[SLPM-86247].cue
+
+# regression test binary (see port/doc/10-regression-tests.md)
+port/mgs_tests

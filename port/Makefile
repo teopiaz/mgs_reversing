@@ -210,6 +210,26 @@ $(TARGET): $(ALL_OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(CODESIGN)
 
+# --- Regression tests (see doc/10-regression-tests.md) ---
+# Links every port object except main.o, so the tests exercise the real
+# implementations rather than reimplementations. main.o only defines main()
+# plus g_running / imgui_request_screenshot / port_argv0, which tests/test_main.c
+# provides itself.
+TEST_TARGET  = mgs_tests
+TEST_OBJ     = $(OBJDIR)/tests_main.o
+ALL_OBJ_NOMAIN = $(filter-out $(OBJDIR)/main.o,$(ALL_OBJ))
+
+$(OBJDIR)/tests_main.o: tests/test_main.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(TEST_TARGET): $(TEST_OBJ) $(ALL_OBJ_NOMAIN)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CODESIGN)
+
+.PHONY: test
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
 # --- ImGui rules ---
 $(OBJDIR)/imgui.o: imgui/imgui.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) -c -o $@ $<
