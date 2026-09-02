@@ -296,8 +296,24 @@ static void Act(Work *work)
     }
 }
 
+#ifdef PORT_BUILD
+/* The GL renderer identifies framebuffer-readback primitives (the ones that
+   sample the previous frame instead of a VRAM texture) from their tpage, but
+   the test -- 15-bit direct, base_y 0, base_x < 640 -- also matches ordinary
+   15-bit textures living low in VRAM, such as the codec panel art and its
+   scanline bar. Those then sampled the previous frame and painted the codec
+   subtitle into the middle of the panel. Gate the readback path on a blur
+   actor actually being alive, following the port_gmsight_active() precedent
+   in source/equip/gmsight.c. Shared with blurpure.c. */
+int port_blur_actor_count = 0;
+int port_blur_actor_active(void) { return port_blur_actor_count != 0; }
+#endif
+
 static void Die(Work *work)
 {
+#ifdef PORT_BUILD
+    if (port_blur_actor_count > 0) port_blur_actor_count--;
+#endif
     if (work->f24[0].poly != NULL)
     {
         GV_DelayedFree(work->f24[0].poly);
@@ -366,6 +382,9 @@ void *NewBlurSet(int name, int where, int argc, char **argv)
     if (work != NULL)
     {
         GV_SetNamedActor(&work->actor, Act, Die, "blur.c");
+#ifdef PORT_BUILD
+        port_blur_actor_count++;
+#endif
 
         if (GetResources(work, name, where, argc) < 0)
         {
@@ -395,6 +414,9 @@ void *NewBlur(int arg0)
     if (work != NULL)
     {
         GV_SetNamedActor(&work->actor, Act, Die, "blur.c");
+#ifdef PORT_BUILD
+        port_blur_actor_count++;
+#endif
 
         opt = GCL_GetOption('d');
         if (opt != NULL)

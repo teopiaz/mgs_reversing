@@ -146,8 +146,15 @@ static void Act(Work *work)
     ClearScreen(work);
 }
 
+#ifdef PORT_BUILD
+extern int port_blur_actor_count;   /* defined in blur.c -- see note there */
+#endif
+
 static void Die(Work *work)
 {
+#ifdef PORT_BUILD
+    if (port_blur_actor_count > 0) port_blur_actor_count--;
+#endif
     if (work->prims)
     {
         GV_DelayedFree(work->prims);
@@ -177,6 +184,9 @@ void *NewBlurPure(void)
     if (work != NULL)
     {
         GV_SetNamedActor(&work->actor, Act, Die, "blurpure.c");
+#ifdef PORT_BUILD
+        port_blur_actor_count++;
+#endif
 
         if (GetResources(work) < 0)
         {
@@ -198,6 +208,9 @@ void *NewBlurPureSet(int name, int where, int argc, char **argv)
     if (work != NULL)
     {
         GV_SetNamedActor(&work->actor, Act, Die, "blurpure.c");
+#ifdef PORT_BUILD
+        port_blur_actor_count++;
+#endif
 
         if (GetResources(work) < 0)
         {

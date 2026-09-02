@@ -1414,6 +1414,11 @@ static inline int port_is_fb_readback_tpage(unsigned short tpage)
     int by = ((tpage >> 4) & 1) * 256;
     if (tpage & 0x800) by += 512;
     int bx = (tpage & 0xF) * 64;
+
+    /* Shape test only. It is necessary but NOT sufficient: the same shape
+       describes ordinary 15-bit textures low in VRAM, so the 2D caller adds
+       a blur-actor check on top. The 3D caller (Stealth / Optical Camo) must
+       NOT add that check -- it has no blur actor. */
     return (tp == 2 && by == 0 && bx < 640);
 }
 
@@ -1575,10 +1580,18 @@ void gl_submit_tri2d(
 {
     if (!g_enabled) return;
 
-    /* 2D blur (NewBlur / NewBlurPure) -- the same fb-readback detection as
-       the 3D Stealth path in gl_submit_tri3d. See port_is_fb_readback_tpage()
-       above. */
-    if ((flags & 0x1u) && port_is_fb_readback_tpage(tpage)) {
+    /* 2D blur (NewBlur / NewBlurPure) -- the same tpage shape as the 3D
+       Stealth path in gl_submit_tri3d, but here the shape alone is not
+       enough. The codec's panel art and its scrolling scanline bar are also
+       15-bit textures low in VRAM, and routing them through the
+       prev-framebuffer path made them display the previous frame, painting
+       the codec subtitle a second time into the middle of the panel. Require
+       a blur actor to actually be alive, the way the widescreen side-bar fill
+       keys off port_gmsight_active(). The 3D Stealth caller above is
+       deliberately left ungated: it has no blur actor. */
+    extern int port_blur_actor_active(void);
+    if ((flags & 0x1u) && port_blur_actor_active() &&
+        port_is_fb_readback_tpage(tpage)) {
         flags |= PORT_VERT_FLAG_FB_READBACK;
         static int s_logged_2d = 0;
         if (s_logged_2d < 5) {
