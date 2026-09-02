@@ -213,6 +213,32 @@ void FS_StartDaemon(void)
     }
     printf("\n");
 
+    /* Fail loudly instead of limping on. Without STAGE.DIR nothing can load:
+       stage 'init' is missing, the boot scenario re-runs every frame, and the
+       only symptom is an endless "exec scenario" scroll with hp=0/0 and Snake
+       at the origin -- which looks like a game bug rather than a bad path.
+       The usual cause is a mistyped or moved disc image.
+       Set PORT_FS_NONFATAL=1 to keep the old limp-along behaviour. */
+    if (!pf_valid(&stage_dir_pf))
+    {
+        const char *nonfatal = getenv("PORT_FS_NONFATAL");
+        fprintf(stderr,
+            "\n"
+            "==============================================================\n"
+            " FATAL: no game data. STAGE.DIR could not be opened.\n"
+            "   disc image : %s\n"
+            "   data dir   : %s\n"
+            " Check the path exists and the .cue references its .bin.\n"
+            " Nothing can load without it -- the boot scenario would spin\n"
+            " forever printing \"exec scenario\" with hp=0/0.\n"
+            "==============================================================\n\n",
+            (iso_path && *iso_path) ? iso_path : "(none given)",
+            getenv("PORT_DATA_DIR") ? getenv("PORT_DATA_DIR") : PORT_DATA_PATH);
+        if (!(nonfatal && nonfatal[0] == '1'))
+            exit(2);
+        fprintf(stderr, "[fs] PORT_FS_NONFATAL=1 -- continuing anyway\n");
+    }
+
     /* Parse STAGE.DIR directory table */
     if (pf_valid(&stage_dir_pf))
     {
@@ -316,7 +342,15 @@ int FS_CdGetStageFileTop(char *dirname)
             return stage_table[i].offset;  /* sector offset within STAGE.DIR */
         }
     }
-    printf("  [fs] Stage '%s' not found!\n", dirname);
+    {
+        /* Rate-limit: a missing stage is re-requested every frame by the boot
+           scenario, and the flood buries whatever printed before it. */
+        static int n_missing = 0;
+        if (n_missing < 5 || (n_missing % 600) == 0)
+            fprintf(stderr, "  [fs] Stage '%s' not found! (miss #%d)\n",
+                    dirname, n_missing);
+        n_missing++;
+    }
     return -1;
 }
 
