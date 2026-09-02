@@ -323,6 +323,10 @@ bool imgui_request_screenshot = false;
 extern int stbi_write_png(const char *filename, int w, int h, int comp,
                           const void *data, int stride_in_bytes);
 
+/* Automated runs need a screenshot at a known path, not a timestamped one.
+   Set by port_harness_tick() just before it raises imgui_request_screenshot. */
+static const char *s_shot_path_override = NULL;
+
 static void port_take_screenshot(void)
 {
     if (!gl_renderer_enabled()) return;
@@ -333,12 +337,17 @@ static void port_take_screenshot(void)
     if (gl_renderer_read_psx_region(0, 0, 320, 224, rgb, &out_w, &out_h))
     {
         mkdir("screenshots", 0755);
-        time_t t = time(NULL);
-        struct tm *tm = localtime(&t);
-        char path[128];
-        snprintf(path, sizeof path, "screenshots/mgs_%04d-%02d-%02d_%02d%02d%02d.png",
-                 tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-                 tm->tm_hour, tm->tm_min, tm->tm_sec);
+        char path[512];
+        if (s_shot_path_override) {
+            snprintf(path, sizeof path, "%s", s_shot_path_override);
+            s_shot_path_override = NULL;
+        } else {
+            time_t t = time(NULL);
+            struct tm *tm = localtime(&t);
+            snprintf(path, sizeof path, "screenshots/mgs_%04d-%02d-%02d_%02d%02d%02d.png",
+                     tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+                     tm->tm_hour, tm->tm_min, tm->tm_sec);
+        }
         if (stbi_write_png(path, out_w, out_h, 3, rgb, out_w * 3))
             fprintf(stderr, "[screenshot] wrote %s (%dx%d)\n", path, out_w, out_h);
         else
@@ -347,8 +356,66 @@ static void port_take_screenshot(void)
     free(rgb);
 }
 
+/* ---------------- Automated-run harness ----------------------------------
+ *
+ * Unattended runs need to stop on their own and leave evidence behind.
+ * Driven entirely by env vars, so nothing changes for a normal launch:
+ *
+ *   PORT_RUN_FRAMES=<n>     quit cleanly after n rendered frames
+ *   PORT_SHOT_AT=<n>[,<n>]  screenshot at those frame numbers (max 8)
+ *   PORT_SHOT_DIR=<dir>     where shots go (default "screenshots")
+ *   PORT_SHOT_TAG=<tag>     filename becomes <dir>/<tag>_<frame>.png
+ *
+ * Combines with the automation vars that already existed:
+ * PORT_AUTOLOAD_STAGE, PORT_SKIP_MENU, MGS_AUTO_INPUT, MGS_INPUT_REPLAY.
+ */
+static void port_harness_tick(void)
+{
+    static int inited = 0, frame = 0;
+    static int run_frames = 0;
+    static int shot_at[8], n_shots = 0;
+    static const char *shot_dir = "screenshots";
+    static const char *shot_tag = "shot";
+
+    if (!inited) {
+        inited = 1;
+        const char *e;
+        if ((e = getenv("PORT_RUN_FRAMES")) && *e) run_frames = atoi(e);
+        if ((e = getenv("PORT_SHOT_DIR"))   && *e) shot_dir   = e;
+        if ((e = getenv("PORT_SHOT_TAG"))   && *e) shot_tag   = e;
+        if ((e = getenv("PORT_SHOT_AT")) && *e) {
+            char buf[256];
+            snprintf(buf, sizeof buf, "%s", e);
+            for (char *tok = strtok(buf, ","); tok && n_shots < 8;
+                 tok = strtok(NULL, ","))
+                shot_at[n_shots++] = atoi(tok);
+        }
+        if (run_frames > 0 || n_shots > 0)
+            printf("[harness] run_frames=%d shots=%d dir=%s tag=%s\n",
+                   run_frames, n_shots, shot_dir, shot_tag);
+    }
+
+    frame++;
+
+    for (int i = 0; i < n_shots; i++) {
+        if (shot_at[i] != frame) continue;
+        static char path[512];
+        mkdir(shot_dir, 0755);
+        snprintf(path, sizeof path, "%s/%s_%05d.png", shot_dir, shot_tag, frame);
+        s_shot_path_override   = path;
+        imgui_request_screenshot = true;
+    }
+
+    if (run_frames > 0 && frame >= run_frames) {
+        printf("[harness] reached frame %d, quitting\n", frame);
+        g_running = false;
+    }
+}
+
 static void port_render(void)
 {
+    port_harness_tick();
+
     if (gl_renderer_enabled())
     {
         gl_renderer_present();
