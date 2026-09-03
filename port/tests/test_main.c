@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 /* --- symbols main.o would have provided ------------------------------- */
 bool         g_running = false;
@@ -185,6 +186,36 @@ static void t2_cd_status_buffers(void)
     CHECK(1, "NULL result must not crash");
 }
 
+extern int  VSync(int mode);
+extern int  FS_StreamGetTick(void);
+extern void FS_StreamTickStart(void);
+
+static void t2_vsync_and_stream_tick(void)
+{
+    section("T2 VSync advances; FS_StreamGetTick is a pure read");
+
+    /* VSync(-1) must be a real elapsed-time counter (constant 0 froze the
+       safety/ending timeouts and demo-from-file pacing). ~50ms at 60Hz is
+       2-4 ticks. */
+    int v0 = VSync(-1);
+    struct timespec req = {0, 50 * 1000 * 1000};
+    nanosleep(&req, NULL);
+    int v1 = VSync(-1);
+    CHECK(v1 > v0, "VSync must advance with time (v0=%d v1=%d)", v0, v1);
+    CHECK(v1 - v0 <= 10, "~50ms must be a few ticks, not %d", v1 - v0);
+
+    /* Upstream FS_StreamGetTick is VSync(-1) - base: reading it must not
+       advance it. The old stand-in returned port_stream_tick++, so 100
+       polls aged the stream clock by 100 ticks. */
+    FS_StreamTickStart();
+    int t0 = FS_StreamGetTick();
+    int t  = t0;
+    for (int i = 0; i < 100; i++)
+        t = FS_StreamGetTick();
+    CHECK(t - t0 <= 2,
+          "100 rapid polls must not advance the clock (drifted %d)", t - t0);
+}
+
 /* DG divide-pack allocator: upstream indexes heap->units with byte
    arithmetic hardcoded for the PSX layout (16-byte MEM_SYS header, 8-byte
    MEM_TAG). On the port both sizes differ, so the computed scan bound was
@@ -302,6 +333,7 @@ int main(void)
     t2_stream_refcount();
     t2_stream_forcestop();
     t2_cd_status_buffers();
+    t2_vsync_and_stream_tick();
     t2_divide_pack_alloc();
     t2_gv_defrag_owner_pointer();
     t2_loader_return_codes();

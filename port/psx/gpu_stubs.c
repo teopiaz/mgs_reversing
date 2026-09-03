@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 #include "libgte.h"
 #include "libgpu.h"
 #include "libcd.h"
@@ -215,7 +216,28 @@ u_char *CdLastCom(void) { static u_char com[8]; return com; }
 /* VSync / Callback                                                          */
 /*---------------------------------------------------------------------------*/
 
-int  VSync(int mode) { (void)mode; return 0; }
+/* Upstream semantics: VSync(-1) returns the vblank counter without waiting,
+   and compiled code measures elapsed time by differencing it -- the safety
+   check timeout (onoda/change/safety.c), the ending stream timeout
+   (takabe/ending2.c:250), demo-from-file pacing (kojo/demothrd.c ActFile,
+   "(time - start_time) / 2"), and FS_StreamTickStart/GetTick in the port's
+   libfs. Returning a constant 0 froze every one of them: timeouts could
+   never fire and paced playback stuck on its first frame. Derive the
+   counter from the monotonic clock at the PSX NTSC rate; like real
+   hardware it keeps counting through loads and stalls. The waiting modes
+   (0 / n) have nothing to wait on here, so they return the counter too. */
+int VSync(int mode)
+{
+    (void)mode;
+    static long long t0 = -1;
+    struct timespec ts;
+    long long ns;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    ns = (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    if (t0 < 0) t0 = ns;
+    return (int)((ns - t0) * 60 / 1000000000LL);
+}
 void ResetCallback(void) {}
 void StopCallback(void) {}
 void RestartCallback(void) {}

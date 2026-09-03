@@ -846,7 +846,7 @@ static PortFile *stream_pf      = NULL;
  * no holder (the sd_str driver, jimctrl subtitles, the demo thread) has it
  * open any more. See FS_StreamIsEnd below. */
 static int   stream_ref_count   = 0;
-static int   port_stream_tick   = 0;   /* monotonic counter for FS_StreamGetTick (port-only stand-in for PSX VSync timer) */
+static int   stream_tick_base  = 0;   /* VSync(-1) at FS_StreamTickStart, as upstream (stream.c GetTicksPtr) */
 
 /* (mod heap size) bytes between top and write_ptr — i.e., parseable data. */
 static int stream_remaining(void)
@@ -1212,7 +1212,8 @@ int  FS_StreamGetEndFlag(void) { return stream_end; }
  *     GM_GameStatus, freezing the game. */
 int  FS_StreamIsForceStop(void) { return stream_stop; }
 void FS_StreamTickStart(void) {
-    port_stream_tick = 0;
+    extern int VSync(int mode);
+    stream_tick_base = VSync(-1);
     /* Sync str_tick_count so jimctrl (subtitle actor) doesn't return early.
        On PSX, str_tick_count is set by SPU IRQ which runs fast. On the port,
        it stays -1 until StrSpuTransWithNoLoop reaches state 4 (~12 frames).
@@ -1221,7 +1222,17 @@ void FS_StreamTickStart(void) {
     str_tick_count = 0;
 }
 void FS_StreamSoundMode(void) {}
-int  FS_StreamGetTick(void) { return port_stream_tick++; }
+/* Upstream: VSync(-1) - fs_stream_last_time -- a PURE read. The previous
+   port stand-in returned port_stream_tick++, advancing the clock on every
+   call: strctrl.c re-polls once per processed entry (loop_case3) and
+   demothrd polls per actor tick, so VOX/subtitle deadlines (stream_data >> 8)
+   fired earlier the more pollers were active, and demo pacing depended on
+   who else was asking the time. */
+int  FS_StreamGetTick(void)
+{
+    extern int VSync(int mode);
+    return VSync(-1) - stream_tick_base;
+}
 
 /*---------------------------------------------------------------------------*/
 /* PcmOpen/PcmRead/PcmClose — load sound files from STAGE.DIR               */
