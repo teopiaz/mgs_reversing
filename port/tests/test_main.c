@@ -193,8 +193,8 @@ static void t2_loader_return_codes(void)
     /* GV_LoadInit (libgv/cache.c) treats <= 0 as failure and drops the
        resource. Upstream DG_LoadInitLit is literally `return 1;`. */
     static char buf[64];
-    XCHECK(DG_LoadInitLit(buf, 0) == 1,
-           "DG_LoadInitLit should return 1 like upstream (port returns 0)");
+    CHECK(DG_LoadInitLit(buf, 0) == 1,
+          "DG_LoadInitLit must return 1 like upstream (GV_LoadInit drops <= 0)");
 }
 
 /* ====================================================================== */

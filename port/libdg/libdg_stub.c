@@ -278,7 +278,10 @@ int DG_LoadInitImg(void *buf, int id)
     return 1;
 }
 int DG_LoadInitSgt(void *buf, int id) { (void)buf; (void)id; return 0; }
-int DG_LoadInitLit(void *buf, int id) { (void)buf; (void)id; return 0; }
+/* Upstream (source/libdg/loader.c) is literally `return 1;` -- .lit files
+   need no fixup. Returning 0 made GV_LoadInit (libgv/cache.c) treat every
+   nocache .lit load as a failure and drop it. */
+int DG_LoadInitLit(void *buf, int id) { (void)buf; (void)id; return 1; }
 int DG_LoadInitKmdar(void *buf, int id) { (void)buf; (void)id; return 0; }
 
 /*---------------------------------------------------------------------------*/
