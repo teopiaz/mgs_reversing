@@ -145,3 +145,9 @@ ASSERT_SIZE(HZD_HDL, 72);
 /* Sentinel symbol so this TU contributes object code (otherwise some
    linkers drop the .o silently if it has no externs). */
 const int port_struct_assertions_present = 1;
+
+/* MEM_TAG: GV memory allocator tag. divide.c and memory.c walk arrays of
+   these; state must be pointer-wide on the port (owner-pointer storage,
+   see libgv.h) without changing the 16-byte footprint. */
+#include "libgv/libgv.h"
+_Static_assert(sizeof(MEM_TAG) == 16, "MEM_TAG must stay 16 bytes on the port");

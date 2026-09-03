@@ -185,6 +185,49 @@ static void t2_cd_status_buffers(void)
     CHECK(1, "NULL result must not crash");
 }
 
+/* GV dynamic memory: GV_AllocMemory2 registers the OWNER'S pointer in
+   MEM_TAG.state, and GV_ResetDynamicMemorySystem (the defragmenter, run when
+   a dynamic heap sets MEM_SYS_FLAG_FAILED) writes the moved block's new
+   address back through it. With a 32-bit state the 64-bit owner pointer is
+   truncated and the defrag write lands on a bogus address. Callers today:
+   the ending-movie buffers (takabe/ending2.c) and game/movie.c. */
+extern void  GV_InitMemorySystem(int which, int dynamic, void *memory, int size);
+extern void *GV_AllocMemory(int which, int size);
+extern void *GV_AllocMemory2(int which, int size, void **pstart);
+extern void  GV_FreeMemory(int which, void *addr);
+extern void  GV_ClearMemorySystem(int which);
+
+static void t2_gv_defrag_owner_pointer(void)
+{
+    section("T2 GV defrag rewrites the registered owner pointer");
+
+    static char heap_mem[1024] __attribute__((aligned(16)));
+    enum { HEAP = 0 };   /* mgs_tests never runs game_init; heap 0 is ours */
+
+    GV_InitMemorySystem(HEAP, 1 /* dynamic */, heap_mem, sizeof heap_mem);
+
+    void *owner = NULL;
+    void *a = GV_AllocMemory(HEAP, 128);
+    void *b = GV_AllocMemory2(HEAP, 128, &owner);
+    CHECK(a && b, "allocations must succeed");
+    CHECK(owner == b, "AllocMemory2 must write the block into *pstart");
+
+    memset(b, 0xAB, 128);
+
+    GV_FreeMemory(HEAP, a);                    /* hole ahead of b */
+    void *big = GV_AllocMemory(HEAP, 4096);    /* can't fit -> FAILED flag */
+    CHECK(big == NULL, "oversized alloc must fail and mark the heap");
+
+    GV_ClearMemorySystem(HEAP);                /* triggers the defrag */
+
+    CHECK(owner == (void *)heap_mem,
+          "defrag must move b to the heap start and rewrite the owner "
+          "pointer (got %p, heap %p)", owner, (void *)heap_mem);
+    CHECK(((unsigned char *)owner)[0] == 0xAB &&
+          ((unsigned char *)owner)[127] == 0xAB,
+          "moved block must carry its contents");
+}
+
 extern int DG_LoadInitLit(void *buf, int id);
 
 static void t2_loader_return_codes(void)
@@ -212,6 +255,7 @@ int main(void)
     t2_stream_refcount();
     t2_stream_forcestop();
     t2_cd_status_buffers();
+    t2_gv_defrag_owner_pointer();
     t2_loader_return_codes();
 
     printf("\n%d passed, %d failed, %d known-failing\n", g_pass, g_fail, g_xfail);

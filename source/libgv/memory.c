@@ -239,7 +239,11 @@ void GV_ResetDynamicMemorySystem(MEM_SYS *heap)
     MEM_TAG *new;
     char     *addr;
     int       i;
+#ifdef PORT_BUILD
+    uintptr_t state; /* may hold an owner pointer -- see MEM_TAG.state */
+#else
     int       state;
+#endif
     int       size;
     void     *start;
 
@@ -603,9 +607,15 @@ void *GV_AllocMemory2(int which, int size, void **pstart)
         }
 
         // Mark the allocation as used
+#ifdef PORT_BUILD
+        alloc->state = (uintptr_t)pstart;
+
+        if ((uintptr_t)pstart != (uintptr_t)normal)
+#else
         alloc->state = (int)pstart;
 
         if ((int)pstart != normal)
+#endif
         {
             *pstart = start;
         }

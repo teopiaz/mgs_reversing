@@ -186,7 +186,17 @@ enum {
 
 typedef struct {
     void        *start;
+#ifdef PORT_BUILD
+    /* Holds either a MEM_TAG_STATE_* constant or the OWNER'S POINTER for
+       dynamic allocations (GV_AllocMemory2 stores pstart here and
+       GV_ResetDynamicMemorySystem writes the moved address back through it).
+       A 32-bit field truncates the 64-bit host pointer, and the defragmenter
+       then writes 8 bytes through the truncated value. uintptr_t keeps
+       sizeof(MEM_TAG) at 16 on the port (was 8 + 4 + 4 padding). */
+    uintptr_t    state;
+#else
     unsigned int state; // pointer to start of memory for dynamic allocations
+#endif
 } MEM_TAG;
 
 enum MEM_SYS_FLAG {
