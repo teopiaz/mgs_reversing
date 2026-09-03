@@ -106,9 +106,20 @@ STATIC void *DG_AllocDividePackMem( MEM_SYS *heap, MEM_TAG **alloc_list, int *si
     }
 
     //gets the number of allocs between the current one and the total
+#ifdef PORT_BUILD
+    /* Upstream computes the entry index of `allocs` inside heap->units with
+       byte arithmetic hardcoded for the PSX layout: a 16-byte MEM_SYS header
+       (== 2 tags, hence `allocs - 2`) and 8-byte tags (hence `>> 3`), which
+       reduces to plain `allocs - heap->units`. On the port MEM_TAG is 16
+       bytes and the header is wider, so the same bytes give a bound roughly
+       twice the real index; `i` goes negative early and the FREE scan below
+       gives up while free entries remain. Compute the index directly. */
+    alloc_idx = (int)(allocs - heap->units);
+#else
     alloc_idx  = (int)(allocs - 2);
     alloc_idx -= (int)heap;
     alloc_idx >>= 3;
+#endif
 
     i = heap->used - alloc_idx;
 

@@ -185,6 +185,53 @@ static void t2_cd_status_buffers(void)
     CHECK(1, "NULL result must not crash");
 }
 
+/* DG divide-pack allocator: upstream indexes heap->units with byte
+   arithmetic hardcoded for the PSX layout (16-byte MEM_SYS header, 8-byte
+   MEM_TAG). On the port both sizes differ, so the computed scan bound was
+   roughly twice the true entry index -- the first allocation of a frame
+   worked (index 0) but every CONTINUATION from a later entry computed a
+   zero/negative bound and returned NULL while FREE entries remained. The
+   symbol is external in port builds (STATIC is a no-op), so exercise the
+   real function. */
+#include "libgv/libgv.h"
+extern void *DG_AllocDividePackMem(MEM_SYS *heap, MEM_TAG **alloc_list, int *size);
+
+static void t2_divide_pack_alloc(void)
+{
+    section("T2 DG_AllocDividePackMem scans by entry index, not PSX bytes");
+
+    static MEM_SYS h;
+    static char    pool[256];
+    memset(&h, 0, sizeof h);
+    h.start = pool;
+    h.end   = pool + sizeof pool;
+    h.used  = 6;
+    /* entries: USED USED FREE USED FREE USED, sentinel start at [6] */
+    for (int i = 0; i <= 6; i++) {
+        h.units[i].start = pool + i * 32;
+        h.units[i].state = MEM_TAG_STATE_USED;
+    }
+    h.units[2].state = MEM_TAG_STATE_FREE;
+    h.units[4].state = MEM_TAG_STATE_FREE;
+
+    MEM_TAG *cursor = NULL;
+    int      size   = 0;
+
+    void *p1 = DG_AllocDividePackMem(&h, &cursor, &size);
+    CHECK(p1 == pool + 64 && size == 32,
+          "fresh scan must find entry 2 (got %p size %d)", p1, size);
+    CHECK(cursor == &h.units[2], "cursor must point at the found entry");
+
+    void *p2 = DG_AllocDividePackMem(&h, &cursor, &size);
+    CHECK(p2 == pool + 128 && size == 32,
+          "continuation must find entry 4 (got %p size %d) -- the PSX byte "
+          "arithmetic bound made exactly this case return NULL", p2, size);
+
+    void *p3 = DG_AllocDividePackMem(&h, &cursor, &size);
+    CHECK(p3 == NULL && size == 0,
+          "no FREE entries left -> NULL (got %p size %d)", p3, size);
+}
+
 /* GV dynamic memory: GV_AllocMemory2 registers the OWNER'S pointer in
    MEM_TAG.state, and GV_ResetDynamicMemorySystem (the defragmenter, run when
    a dynamic heap sets MEM_SYS_FLAG_FAILED) writes the moved block's new
@@ -255,6 +302,7 @@ int main(void)
     t2_stream_refcount();
     t2_stream_forcestop();
     t2_cd_status_buffers();
+    t2_divide_pack_alloc();
     t2_gv_defrag_owner_pointer();
     t2_loader_return_codes();
 
