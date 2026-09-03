@@ -872,7 +872,16 @@ static int GM_LoadInitBin(void *buf, int id)
         case 0xABF5: StageCharacterEntries = &_StageCharacterEntries_selectd; break;
         case 0x698D: StageCharacterEntries = &_StageCharacterEntries_sound; break;
         case 0x655B: StageCharacterEntries = &_StageCharacterEntries_title; break;
-        default:     StageCharacterEntries = &_StageCharacterEntries_s00a; break;
+        default:
+            /* No table for this stage id. Silently binding s00a's constructors
+               used to hide the miss entirely -- e.g. every source/stagevr/
+               stage, none of which is in the switch. Fall back but say so;
+               the actors will be wrong, and this print is the only warning. */
+            StageCharacterEntries = &_StageCharacterEntries_s00a;
+            fprintf(stderr, "[bin] WARNING: no chara table for stage id 0x%X "
+                    "-- falling back to s00a; its actors will be wrong\n",
+                    stage_id);
+            break;
         }
         printf("[bin] Stage overlay 0x%X → %p\n", stage_id, StageCharacterEntries);
     }
