@@ -113,9 +113,28 @@ void *port_malloc(size_t size)
 {
     size = (size + 15) & ~15;
     if (pm_pool_cursor + size > pm_pool_end) {
-        printf("[port_malloc] pool exhausted! (used=%ld req=%zu)\n",
-               (long)(pm_pool_cursor - pm_pool_start), size);
-        return malloc(size); /* fallback */
+        /* The old fallback returned a plain malloc() block -- outside the
+           4GB-aligned pool, so port_ptr_to_int/int_to_ptr round-trip it to
+           garbage. That silently corrupts exactly the things this pool
+           exists for (GCL scripts, HZD binds, delay-exec blocks store their
+           address as a 32-bit pool offset). Fail loud instead: an exhausted
+           pool is a leak or an undersized PORT_MALLOC_POOL_SIZE, not a
+           condition to paper over. PORT_MALLOC_NONFATAL=1 keeps the old
+           behaviour for allocations that genuinely never round-trip. */
+        const char *nonfatal = getenv("PORT_MALLOC_NONFATAL");
+        fprintf(stderr,
+            "\n=============================================================\n"
+            " FATAL: port_malloc pool exhausted (used=%ld of %d, req=%zu).\n"
+            " This pool backs the 32-bit pointer<->int scheme; a fallback\n"
+            " malloc would live outside the aligned pool and round-trip to\n"
+            " a garbage address. Raise PORT_MALLOC_POOL_SIZE or find the leak.\n"
+            "=============================================================\n\n",
+            (long)(pm_pool_cursor - pm_pool_start), PORT_MALLOC_POOL_SIZE, size);
+        if (nonfatal && nonfatal[0] == '1') {
+            fprintf(stderr, "[port_malloc] PORT_MALLOC_NONFATAL=1 -- malloc fallback\n");
+            return malloc(size);
+        }
+        abort();
     }
     void *p = pm_pool_cursor;
     pm_pool_cursor += size;
